@@ -1,0 +1,13 @@
+./align_gnomonic.py cameras/eos1000d /mnt/ganymede1/dcf21/photography/2014/astrophotography/20140723_astro/2014072400* > tmp
+./align_regularise.py tmp > tmpb
+./bin/stack tmpb ; mv /tmp/output.jpg tmpb.jpg
+
+./bin/camfit tmpb
+
+./bin/barrel /mnt/ganymede1/dcf21/photography/2014/astrophotography/20140730_astro/20140730_201226/20140731004607.jpg cameras/eos1000d /tmp/output.jpg
+
+
+# Cloudy example
+./align_gnomonic.py cameras/eos1000d /mnt/ganymede1/dcf21/photography/2014/astrophotography/20140803_astro/20140803_200409/2014080323* > tmp2
+./align_regularise.py tmp2 > tmp2b
+
