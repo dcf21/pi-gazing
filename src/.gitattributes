@@ -1,0 +1,8 @@
+*/Makefile ident
+*/prettymake ident
+*/*.py ident
+*/*/*.h ident
+*/*/*.c ident
+*/*/*/*.h ident
+*/*/*/*.c ident
+
