@@ -5,9 +5,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "utils/tools.h"
 #include "jpeg/jpeg.h"
 #include "utils/error.h"
+#include "vidtools/v4l2uvc.h"
+#include "utils/tools.h"
+#include "vidtools/color.h"
 
 #include "settings.h"
 
@@ -34,6 +36,16 @@
 #define VIDEO_BITRATE   10000000
 
 static int want_quit=0;
+
+// Fetch an input frame from v4l2
+int fetchFrame(struct vdIn *videoIn, unsigned char *tmpc)
+ {
+  struct vdIn *videoIn = videoHandle;
+  int status = uvcGrab(videoIn);
+  if (status) return status;
+  Pyuv422toMono(videoIn->framebuffer, tmpc, videoIn->width, videoIn->height);
+  return 0;
+ }
 
 // Dunno where this is originally stolen from...
 #define OMX_INIT_STRUCTURE(a) \
@@ -104,7 +116,7 @@ static void say(const char* message, ...) {
     if(str[str_len - 1] != '\n') {
         str[str_len] = '\n';
     }
-    gnom_report(str);
+    if (DEBUG) gnom_log(str);
 }
 
 static void die(const char* message, ...) {
@@ -497,7 +509,35 @@ static OMX_ERRORTYPE fill_output_buffer_done_handler(
     return OMX_ErrorNone;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+ {
+
+    // Initialise video capture process
+    if (argc!=4)
+     {
+      sprintf(temp_err_string, "ERROR: Need to specify UTC clock offset, observe run stop time, amd filename on commandline, e.g. 'recordH264 1234 567 output.h264'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+     }
+
+    const int utcoffset  = (int)GetFloat(argv[1],NULL);
+    const int tstart     = time(NULL) + utcoffset;
+    const int tstop      = (int)GetFloat(argv[2],NULL);
+
+    struct vdIn *videoIn;
+
+    const char *videodevice=VIDEO_DEV;
+    const float fps = VIDEO_FPS;       // Requested frame rate
+    const int format = V4L2_PIX_FMT_YUYV;
+    const int grabmethod = 1;
+    char *avifilename = "/tmp/foo";
+
+    videoIn = (struct vdIn *) calloc(1, sizeof(struct vdIn));
+
+    // Fetch the dimensions of the video stream as returned by V4L (which may differ from what we requested)
+    if (init_videoIn(videoIn, (char *) videodevice, VIDEO_WIDTH, VIDEO_HEIGHT, fps, format, grabmethod, avifilename) < 0) exit(1);
+    const int width = videoIn->width;
+    const int height= videoIn->height;
+
+    // Initialise H264 encoder
     bcm_host_init();
 
     OMX_ERRORTYPE r;
@@ -506,35 +546,9 @@ int main(int argc, char **argv) {
         omx_die(r, "OMX initalization failed");
     }
 
-    // Read commandline switches
+    char *frOut = argv[3];
 
-  if (argc!=3)
-   {
-    sprintf(temp_err_string, "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'raw2opm foo.raw frame.mp4'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
-   }
-
-  char *rawFname = argv[1];
-  char *frOut = argv[2];
-
-  FILE *infile;
-  if ((infile = fopen(rawFname,"rb")) == NULL)
-   {
-    sprintf(temp_err_string, "ERROR: Cannot open output raw video file %s.\n", rawFname); gnom_fatal(__FILE__,__LINE__,temp_err_string);
-   }
-
-  int size, width, height, i;
-  i=fread(&size  ,sizeof(int),1,infile);
-  i=fread(&width ,sizeof(int),1,infile);
-  i=fread(&height,sizeof(int),1,infile);
-
-  size-=3*sizeof(int);
-  unsigned char *vidRaw = malloc(size);
-  if (vidRaw==NULL) { sprintf(temp_err_string, "ERROR: malloc fail in raw2frames."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
-  i=fread(vidRaw,1,size,infile);
-  fclose(infile);
-
-  const int frameSize = width * height;
-  const int nfr = size / frameSize;
+    const int frameSize = width * height;
 
     // Init context
     appctx ctx;
@@ -686,17 +700,25 @@ int main(int argc, char **argv) {
     signal(SIGTERM, signal_handler);
     signal(SIGQUIT, signal_handler);
 
-    while ( (frame_in<nfr) && (!want_quit) ) {
+    while (!want_quit) {
+
+        int t = time(NULL) - utcoffset;
+        if (t>=tstop) break; // Check how we're doing for time; if we've reached the time to stop, stop now!
+
+
         // empty_input_buffer_done_handler() has marked that there's
         // a need for a buffer to be filled by us
         if(ctx.encoder_input_buffer_needed) {
             input_total_read = 0;
             memset(ctx.encoder_ppBuffer_in->pBuffer, 128, ctx.encoder_ppBuffer_in->nAllocLen);
             int line, xpos;
+
+            if (fetchFrame(videoIn, tmpc)) { want_quit=1; break; }
+
             for (line=0; line<height; line++)
              for (xpos=0; xpos<width; xpos++)
               ctx.encoder_ppBuffer_in->pBuffer[ buf_info.p_offset[0] + frame_info.buf_stride*line + xpos] =
-               VIDEO_UPSIDE_DOWN ? (vidRaw[(frame_in+1)*frameSize - 1 - xpos - width*line]) : (vidRaw[frame_in*frameSize + xpos + width*line]);
+               VIDEO_UPSIDE_DOWN ? (tmpc[frameSize - 1 - xpos - width*line]) : (tmpc[xpos + width*line]);
 
             input_total_read += (frame_info.p_stride[0] * plane_span_y) + (frame_info.p_stride[1] * plane_span_uv)  + (frame_info.p_stride[2] * plane_span_uv);
 

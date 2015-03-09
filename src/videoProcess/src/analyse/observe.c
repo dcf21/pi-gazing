@@ -9,9 +9,7 @@
 #include <time.h>
 #include <unistd.h>
 #include "utils/asciidouble.h"
-#include "vidtools/v4l2uvc.h"
 #include "utils/tools.h"
-#include "vidtools/color.h"
 #include "utils/error.h"
 #include "utils/JulianDate.h"
 
@@ -120,7 +118,7 @@ int testTrigger(const int width, const int height, const int *imageB, const int 
  }
 
 // Read enough video (1 second) to create the stacks used to test for triggers
-void readShortBuffer(struct vdIn *videoIn, int nfr, int width, int height, unsigned char *buffer, int *stack1, int *stack2, unsigned char *maxMap, unsigned char *medianWorkspace)
+int readShortBuffer(void *videoHandle, int nfr, int width, int height, unsigned char *buffer, int *stack1, int *stack2, unsigned char *maxMap, unsigned char *medianWorkspace, int (*fetchFrame)(void *,unsigned char *))
  {
   const int frameSize = width*height;
   int i,j;
@@ -130,8 +128,7 @@ void readShortBuffer(struct vdIn *videoIn, int nfr, int width, int height, unsig
   for (j=0;j<nfr;j++)
    {
     unsigned char *tmpc = buffer+j*frameSize;
-    if (uvcGrab(videoIn) < 0) { printf("Error grabbing\n"); break; }
-    Pyuv422toMono(videoIn->framebuffer, tmpc, videoIn->width, videoIn->height);
+    if ((*fetchFrame)(videoHandle,tmpc) < 0) { if (DEBUG) gnom_log("Error grabbing"); return 1; }
     for (i=0; i<frameSize; i++) stack1[i]+=tmpc[i]; // Stack1 is wiped prior to each call to this function
     if (stack2) for (i=0; i<frameSize; i++) stack2[i]+=tmpc[i]; // Stack2 can stack output of many calls to this function
     for (i=0; i<frameSize; i++) if (maxMap[i]<tmpc[i]) maxMap[i]=tmpc[i];
@@ -143,45 +140,18 @@ void readShortBuffer(struct vdIn *videoIn, int nfr, int width, int height, unsig
     int d, pixelVal = CLIP256(stack1[i]/nfr);
     medianWorkspace[i + pixelVal*frameSize]++;
    }
+  return 0;
  }
 
-int main(int argc, char *argv[])
+int observe(void *videoHandle, const int utcoffset, const int tstart, const int tstop, const int width, const int height, int (*fetchFrame)(void *,unsigned char *))
  {
-  if (argc!=3)
-   {
-    sprintf(temp_err_string, "ERROR: Need to specify UTC clock offset and observe run stop time on commandline, e.g. 'observe 1234 567'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
-   }
-
   char line[4096];
-  const int utcoffset  = (int)GetFloat(argv[1],NULL);
-  const int tstart     = time(NULL) + utcoffset;
-  const int tstop      = (int)GetFloat(argv[2],NULL);
 
   if (DEBUG) { sprintf(line, "Starting observing run at %s.", StrStrip(FriendlyTimestring(tstart),temp_err_string)); gnom_log(line); }
   if (DEBUG) { sprintf(line, "Observing run will end at %s.", StrStrip(FriendlyTimestring(tstop ),temp_err_string)); gnom_log(line); }
 
-  struct vdIn *videoIn;
-
-  const char *videodevice=VIDEO_DEV;
   const float fps = VIDEO_FPS;       // Requested frame rate
-  const int format = V4L2_PIX_FMT_YUYV;
-  const int grabmethod = 1;
-  const int queryformats = 0;
-  char *avifilename = argv[1];
 
-  videoIn = (struct vdIn *) calloc(1, sizeof(struct vdIn));
-
-  if (queryformats)
-   {
-    check_videoIn(videoIn,(char *) videodevice);
-    free(videoIn);
-    exit(1);
-   }
-
-  // Fetch the dimensions of the video stream as returned by V4L (which may differ from what we requested)
-  if (init_videoIn(videoIn, (char *) videodevice, VIDEO_WIDTH, VIDEO_HEIGHT, fps, format, grabmethod, avifilename) < 0) exit(1);
-  const int width = videoIn->width;
-  const int height= videoIn->height;
   const int frameSize = width * height;
 
   // Trigger buffers. These are used to store 1 second of video for comparison with the next
@@ -216,8 +186,6 @@ int main(int argc, char *argv[])
 
   if ((!bufferA)||(!bufferB)||(!bufferL) || (!stackA)||(!stackB)||(!stackT)||(!stackL) || (!maxA)||(!maxB)||(!maxL) ||  (!medianMapA)||(!medianMapB)||(!medianWorkspace)) { sprintf(temp_err_string, "ERROR: malloc fail in observe."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
 
-  initLut();
-
   int bufferNum      = 0; // Flag for whether we're using trigger buffer A or B
   int medianNum      = 0; // Flag for whether we're using median map A or B
   int medianCount    = 0; // Count frames from 0 to 255 until we're ready to make a new median map
@@ -235,7 +203,8 @@ int main(int argc, char *argv[])
     if (recording>-1) buffer = bufferL + frameSize*nfrt*recording;
 
     // Read the next second of video
-    readShortBuffer(videoIn, nfrt, width, height, buffer, bufferNum?stackB:stackA, (timelapseCount>=0)?stackT:NULL, bufferNum?maxB:maxA, medianWorkspace);
+    int status = readShortBuffer(videoHandle, nfrt, width, height, buffer, bufferNum?stackB:stackA, (timelapseCount>=0)?stackT:NULL, bufferNum?maxB:maxA, medianWorkspace, fetchFrame);
+    if (status) break; // We've run out of video
     framesSinceLastTrigger++;
     if (DEBUG) if (framesSinceLastTrigger==3) { sprintf(line, "Camera is now able to trigger."); gnom_log(line); }
 
