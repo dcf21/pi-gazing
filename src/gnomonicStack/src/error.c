@@ -1,5 +1,6 @@
 // error.c
-// $Id: error.c 1118 2014-10-08 17:31:10Z pyxplot $
+// Meteor Pi, Cambridge Science Centre 
+// Dominic Ford
 
 #include <stdio.h>
 #include <stdlib.h>

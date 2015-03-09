@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # align_gnomonic.py
+# Meteor Pi, Cambridge Science Centre
 # Dominic Ford
-# $Id: align_gnomonic.py 1140 2014-12-20 01:25:19Z pyxplot $
 
 import sys,os,re,subprocess,time
 from math import *

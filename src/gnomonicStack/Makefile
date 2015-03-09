@@ -1,5 +1,6 @@
 # MAKEFILE
-# $Id: Makefile 1136 2014-11-24 01:46:21Z pyxplot $
+# Meteor Pi, Cambridge Science Centre
+# Dominic Ford
 
 CWD=$(shell pwd)
 

@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # main.py
-# $Id: main.py 1179 2015-02-06 21:29:02Z pyxplot $
+# Meteor Pi, Cambridge Science Centre
+# Dominic Ford
 
 import os,time,datetime
 

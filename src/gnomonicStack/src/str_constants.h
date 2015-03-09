@@ -1,5 +1,6 @@
 // str_constants.h
-// $Id: str_constants.h 1118 2014-10-08 17:31:10Z pyxplot $
+// Meteor Pi, Cambridge Science Centre 
+// Dominic Ford
 
 #ifndef _STR_CONSTANTS_H
 #define _STR_CONSTANTS_H 1

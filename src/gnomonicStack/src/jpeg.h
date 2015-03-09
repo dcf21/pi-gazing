@@ -1,5 +1,6 @@
 // jpeg.h
-// $Id: jpeg.h 1137 2014-11-24 22:18:14Z pyxplot $
+// Meteor Pi, Cambridge Science Centre 
+// Dominic Ford
 
 #ifndef JPEG_H
 #define JPEG_H 1

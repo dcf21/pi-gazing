@@ -1,5 +1,6 @@
 // asciidouble.c
-// $Id: asciidouble.c 1122 2014-10-23 21:33:05Z pyxplot $
+// Meteor Pi, Cambridge Science Centre 
+// Dominic Ford
 
 #include <stdio.h>
 #include <stdlib.h>

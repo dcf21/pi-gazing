@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # fitinfo_gnomonic.py
+# Meteor Pi, Cambridge Science Centre
 # Dominic Ford
-# $Id: fitinfo_gnomonic.py 1117 2014-10-08 00:12:41Z pyxplot $
 
 # Pipe output of align_gnomonic.py into this script
 

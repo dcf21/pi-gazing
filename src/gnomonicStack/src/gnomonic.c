@@ -1,5 +1,6 @@
 // gnomonic.c
-// $Id: gnomonic.c 1155 2015-01-09 02:07:13Z pyxplot $
+// Meteor Pi, Cambridge Science Centre 
+// Dominic Ford
 
 #include <stdlib.h>
 #include <math.h>

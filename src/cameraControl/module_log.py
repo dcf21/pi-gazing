@@ -1,5 +1,6 @@
 # module_log.py
-# $Id: module_log.py 1181 2015-02-06 23:54:18Z pyxplot $
+# Meteor Pi, Cambridge Science Centre
+# Dominic Ford
 
 import os,time
 

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # align_null.py
+# Meteor Pi, Cambridge Science Centre
 # Dominic Ford
-# $Id: align_null.py 1127 2014-11-03 22:06:29Z pyxplot $
 
 import sys,subprocess
 from math import *

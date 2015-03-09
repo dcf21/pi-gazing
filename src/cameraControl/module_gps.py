@@ -1,5 +1,6 @@
 # module_gps.py
-# $Id: module_gps.py 1154 2015-01-09 01:44:13Z pyxplot $
+# Meteor Pi, Cambridge Science Centre
+# Dominic Ford
 
 from gps import *
 import threading,os,time

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # animate_alignment.py
+# Meteor Pi, Cambridge Science Centre
 # Dominic Ford
-# $Id: animate_alignment.py 1161 2015-01-18 12:38:51Z pyxplot $
 
 # Take the output of align_gnomonic and animate how the frames are aligned
 

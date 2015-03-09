@@ -1,5 +1,6 @@
 // settings.c
-// $Id: settings.c 1137 2014-11-24 22:18:14Z pyxplot $
+// Meteor Pi, Cambridge Science Centre 
+// Dominic Ford
 
 #include <stdlib.h>
 #include <stdio.h>

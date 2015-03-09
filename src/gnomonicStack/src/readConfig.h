@@ -1,5 +1,6 @@
 // readConfig.h
-// $Id: readConfig.h 1131 2014-11-18 01:34:26Z pyxplot $
+// Meteor Pi, Cambridge Science Centre 
+// Dominic Ford
 
 #ifndef READCONF_H
 #define READCONF_H 1

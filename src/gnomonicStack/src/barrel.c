@@ -1,5 +1,6 @@
 // barrel.c
-// $Id: barrel.c 1140 2014-12-20 01:25:19Z pyxplot $
+// Meteor Pi, Cambridge Science Centre 
+// Dominic Ford
 
 #include <stdlib.h>
 #include <stdio.h>

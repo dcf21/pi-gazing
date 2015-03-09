@@ -1,5 +1,6 @@
 # timelapse.py
-# $Id: timelapse.py 1166 2015-01-30 16:12:51Z pyxplot $
+# Meteor Pi, Cambridge Science Centre
+# Dominic Ford
 
 from __future__ import division
 from math import *

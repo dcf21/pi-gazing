@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # daytimeJobs.py
-# $Id: daytimeJobs.py 1197 2015-02-21 15:17:26Z pyxplot $
+# Meteor Pi, Cambridge Science Centre
+# Dominic Ford
 
 import os,time,sys,glob,datetime
 

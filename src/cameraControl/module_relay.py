@@ -1,5 +1,6 @@
 # module_relay.py
-# $Id: module_relay.py 1173 2015-02-06 00:08:16Z pyxplot $
+# Meteor Pi, Cambridge Science Centre
+# Dominic Ford
 
 import os,time
 import RPi.GPIO as GPIO

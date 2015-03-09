@@ -1,5 +1,6 @@
 // settings.h
-// $Id: settings.h 1137 2014-11-24 22:18:14Z pyxplot $
+// Meteor Pi, Cambridge Science Centre 
+// Dominic Ford
 
 #ifndef SETTINGS_H
 #define SETTINGS_H 1

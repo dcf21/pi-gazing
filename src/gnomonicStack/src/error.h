@@ -1,5 +1,6 @@
 // error.h
-// $Id: error.h 1118 2014-10-08 17:31:10Z pyxplot $
+// Meteor Pi, Cambridge Science Centre 
+// Dominic Ford
 
 // Functions for returning messages to the user
 

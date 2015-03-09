@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # align_regularise.py
+# Meteor Pi, Cambridge Science Centre
 # Dominic Ford
-# $Id: align_regularise.py 1202 2015-03-02 00:59:25Z pyxplot $
 
 # Take the output of align_gnomonic and regularise assuming that camera is pointing at a constant alt/az
 

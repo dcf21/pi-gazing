@@ -1,6 +1,6 @@
 # lib_astro.py
+# Meteor Pi, Cambridge Science Centre
 # Dominic Ford
-# $Id: lib_astro.py 1155 2015-01-09 02:07:13Z pyxplot $
 
 import time,datetime,os,subprocess
 from math import *

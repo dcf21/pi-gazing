@@ -1,5 +1,6 @@
 // backgroundSub.c
-// $Id: backgroundSub.c 1156 2015-01-13 14:40:49Z pyxplot $
+// Meteor Pi, Cambridge Science Centre 
+// Dominic Ford
 
 #include <stdlib.h>
 #include <stdio.h>

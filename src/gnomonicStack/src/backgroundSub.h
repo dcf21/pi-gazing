@@ -1,5 +1,6 @@
 // backgroundSub.h
-// $Id: backgroundSub.h 1136 2014-11-24 01:46:21Z pyxplot $
+// Meteor Pi, Cambridge Science Centre 
+// Dominic Ford
 
 #ifndef BACKSUB_H
 #define BACKSUB_H 1

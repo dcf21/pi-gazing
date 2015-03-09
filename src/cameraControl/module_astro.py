@@ -1,5 +1,6 @@
 # module_astro.py
-# $Id: module_astro.py 1154 2015-01-09 01:44:13Z pyxplot $
+# Meteor Pi, Cambridge Science Centre
+# Dominic Ford
 
 from math import *
 import time,datetime

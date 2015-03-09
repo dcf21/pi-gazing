@@ -1,5 +1,6 @@
 // jpeg_out.c
-// $Id: jpeg_out.c 1118 2014-10-08 17:31:10Z pyxplot $
+// Meteor Pi, Cambridge Science Centre 
+// Dominic Ford
 
 #include <stdlib.h>
 #include <stdio.h>
