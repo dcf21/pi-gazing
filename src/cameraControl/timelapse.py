@@ -46,7 +46,7 @@ while True:
   # Take exposure
   logtxt("Taking photo")
   os.system("rm -f tmp.jpg")
-  os.system("/home/pi/cameraSoft/videoRec/bin/snapshot tmp.jpg 500")
+  os.system("/home/pi/meteor-pi/src/videoProcess/bin/snapshot tmp.jpg 500")
   os.system("""convert tmp.jpg -background black -rotate -180 tmp2.jpg""")
   os.system("""convert tmp2.jpg -gravity South -background Green -splice 0x26 -pointsize 16 -font Ubuntu-Bold -annotate +0+2 '%s' %s"""%(time.strftime("%b %d %Y %H:%M:%S", time.gmtime(utc())),fname))
   #os.system("""rm -f daveShed.mp4""")

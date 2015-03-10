@@ -10,7 +10,7 @@ DATE    = 05/01/2015
 OPENMAX_COMPILE = -I /opt/vc/include -I /opt/vc/include/interface/vcos/pthreads -I /opt/vc/include/interface/vmcs_host/linux/
 OPENMAX_LINK    = -L/opt/vc/lib -lopenmaxil -lvcos -lbcm_host -lpthread
 
-COMPILE = $(CC) -Wall -g -fopenmp `gsl-config --cflags` $(shell pkg-config --cflags libv4l2) -c -I $(CWD)/src ${OPENMAX_COMPILE}
+COMPILE = $(CC) -Wall -g -fopenmp -D_FILE_OFFSET_BITS=64 `gsl-config --cflags` $(shell pkg-config --cflags libv4l2) -c -I $(CWD)/src ${OPENMAX_COMPILE}
 LINK    = $(CC) -Wall -g -fopenmp
 LIBS    = `gsl-config --libs` $(shell pkg-config --libs libv4l2) -lpng -ljpeg -lm
 
@@ -125,11 +125,11 @@ $(LOCAL_BINDIR)/debug/snapshot: $(SNAPSH_OBJECTS_DEBUG)
 
 $(LOCAL_BINDIR)/recordH264:     $(REC264_OBJECTS)
 	mkdir -p $(LOCAL_BINDIR)
-	$(LINK) $(OPTIMISATION) $(REC264_OBJECTS) $(LIBS)       -o $(LOCAL_BINDIR)/recordH264
+	$(LINK) $(OPTIMISATION) $(REC264_OBJECTS) $(OPENMAX_LINK) $(LIBS) -o $(LOCAL_BINDIR)/recordH264
 
 $(LOCAL_BINDIR)/debug/recordH264:   $(REC264_OBJECTS_DEBUG)
 	mkdir -p $(LOCAL_BINDIR)/debug
-	$(LINK) $(OPTIMISATION) $(REC264_OBJECTS_DEBUG) $(LIBS) -o $(LOCAL_BINDIR)/debug/recordH264
+	$(LINK) $(OPTIMISATION) $(REC264_OBJECTS_DEBUG) $(OPENMAX_LINK) $(LIBS) -o $(LOCAL_BINDIR)/debug/recordH264
 
 $(LOCAL_BINDIR)/makeMedianMap:  $(MEDIAN_OBJECTS)
 	mkdir -p $(LOCAL_BINDIR)
@@ -169,7 +169,7 @@ $(LOCAL_BINDIR)/raw2opm:        $(RAWOPM_OBJECTS)
 
 $(LOCAL_BINDIR)/debug/raw2opm:  $(RAWOPM_OBJECTS_DEBUG)
 	mkdir -p $(LOCAL_BINDIR)/debug
-	$(LINK) $(OPTIMISATION) $(RAWOPM_OBJECTS_DEBUG) $(LIBS) -o $(LOCAL_BINDIR)/debug/raw2opm
+	$(LINK) $(OPTIMISATION) $(RAWOPM_OBJECTS_DEBUG) $(OPENMAX_LINK) $(LIBS) -o $(LOCAL_BINDIR)/debug/raw2opm
 
 #
 # Clean macros

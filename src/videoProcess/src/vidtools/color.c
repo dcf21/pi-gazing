@@ -39,9 +39,9 @@ static int *LutBu = NULL;
 #define YR_TO_V(r,y) LutVr[(r)] + LutVrY[(y)]
 #define YB_TO_U(b,y) LutUb[(b)] + LutUbY[(y)]
 
-#define R_FROMYV(y,v)  CLIP((y) + LutRv[(v)])
-#define G_FROMYUV(y,u,v) CLIP((y) + LutGu[(u)] + LutGv[(v)])
-#define B_FROMYU(y,u) CLIP((y) + LutBu[(u)])
+#define R_FROMYV(y,v)  CLIPCHAR((y) + LutRv[(v)])
+#define G_FROMYUV(y,u,v) CLIPCHAR((y) + LutGu[(u)] + LutGv[(v)])
+#define B_FROMYU(y,u) CLIPCHAR((y) + LutBu[(u)])
 #endif
 
 unsigned char
@@ -62,17 +62,17 @@ return (LutUb[(b)] + LutUbY[(y)]);
 unsigned char
 R_FROMYV(unsigned char y, unsigned char v)
 {
-return CLIP((y) + LutRv[(v)]);
+return CLIPCHAR((y) + LutRv[(v)]);
 }
 unsigned char
 G_FROMYUV(unsigned char y, unsigned char u, unsigned char v)
 {
-return CLIP((y) + LutGu[(u)] + LutGv[(v)]);
+return CLIPCHAR((y) + LutGu[(u)] + LutGv[(v)]);
 }
 unsigned char
 B_FROMYU(unsigned char y, unsigned char u)
 {
-return CLIP((y) + LutBu[(u)]);
+return CLIPCHAR((y) + LutBu[(u)]);
 }
 
 void initLut(void)

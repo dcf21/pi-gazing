@@ -8,6 +8,7 @@
 #include "jpeg/jpeg.h"
 #include "utils/error.h"
 #include "vidtools/v4l2uvc.h"
+#include "utils/asciidouble.h"
 #include "utils/tools.h"
 #include "vidtools/color.h"
 
@@ -40,7 +41,6 @@ static int want_quit=0;
 // Fetch an input frame from v4l2
 int fetchFrame(struct vdIn *videoIn, unsigned char *tmpc)
  {
-  struct vdIn *videoIn = videoHandle;
   int status = uvcGrab(videoIn);
   if (status) return status;
   Pyuv422toMono(videoIn->framebuffer, tmpc, videoIn->width, videoIn->height);
@@ -112,10 +112,6 @@ static void say(const char* message, ...) {
     va_start(args, message);
     vsnprintf(str, sizeof(str) - 1, message, args);
     va_end(args);
-    size_t str_len = strnlen(str, sizeof(str));
-    if(str[str_len - 1] != '\n') {
-        str[str_len] = '\n';
-    }
     if (DEBUG) gnom_log(str);
 }
 
@@ -511,6 +507,7 @@ static OMX_ERRORTYPE fill_output_buffer_done_handler(
 
 int main(int argc, char **argv)
  {
+    char line[4096];
 
     // Initialise video capture process
     if (argc!=4)
@@ -522,18 +519,21 @@ int main(int argc, char **argv)
     const int tstart     = time(NULL) + utcoffset;
     const int tstop      = (int)GetFloat(argv[2],NULL);
 
+    if (DEBUG) { sprintf(line, "Starting video recording run at %s.", StrStrip(FriendlyTimestring(tstart),temp_err_string)); gnom_log(line); }
+    if (DEBUG) { sprintf(line, "Video will end at %s.", StrStrip(FriendlyTimestring(tstop ),temp_err_string)); gnom_log(line); }
+
     struct vdIn *videoIn;
 
     const char *videodevice=VIDEO_DEV;
     const float fps = VIDEO_FPS;       // Requested frame rate
-    const int format = V4L2_PIX_FMT_YUYV;
+    const int v4l_format = V4L2_PIX_FMT_YUYV;
     const int grabmethod = 1;
     char *avifilename = "/tmp/foo";
 
     videoIn = (struct vdIn *) calloc(1, sizeof(struct vdIn));
 
     // Fetch the dimensions of the video stream as returned by V4L (which may differ from what we requested)
-    if (init_videoIn(videoIn, (char *) videodevice, VIDEO_WIDTH, VIDEO_HEIGHT, fps, format, grabmethod, avifilename) < 0) exit(1);
+    if (init_videoIn(videoIn, (char *) videodevice, VIDEO_WIDTH, VIDEO_HEIGHT, fps, v4l_format, grabmethod, avifilename) < 0) exit(1);
     const int width = videoIn->width;
     const int height= videoIn->height;
 
@@ -549,6 +549,8 @@ int main(int argc, char **argv)
     char *frOut = argv[3];
 
     const int frameSize = width * height;
+    unsigned char *tmpc = malloc(frameSize); // Temporary frame buffer for converting YUC data from v4l2 into greyscale unsigned chars
+    if (!tmpc) gnom_fatal(__FILE__,__LINE__,"Malloc fail");
 
     // Init context
     appctx ctx;
@@ -687,7 +689,7 @@ int main(int argc, char **argv)
         die("Allocated encoder input port 200 buffer size %d doesn't equal to the expected buffer size %d", ctx.encoder_ppBuffer_in->nAllocLen, buf_info.size);
     }
 
-    say("Enter encode loop (%d frames), press Ctrl-C to quit...",nfr);
+    say("Enter encode loop, press Ctrl-C to quit...");
 
     int frame_in=0, frame_out=0, firstPass=1;
     size_t input_total_read, output_written;
@@ -725,7 +727,7 @@ int main(int argc, char **argv)
             ctx.encoder_ppBuffer_in->nOffset = 0;
             ctx.encoder_ppBuffer_in->nFilledLen = (buf_info.size - frame_info.size) + input_total_read;
             frame_in++;
-            say("Read from input file and wrote to input buffer %d/%d, frame %d", ctx.encoder_ppBuffer_in->nFilledLen, ctx.encoder_ppBuffer_in->nAllocLen, frame_in);
+            //say("Read from input file and wrote to input buffer %d/%d, frame %d", ctx.encoder_ppBuffer_in->nFilledLen, ctx.encoder_ppBuffer_in->nAllocLen, frame_in);
             if(input_total_read > 0) {
                 ctx.encoder_input_buffer_needed = 0;
                 if((r = OMX_EmptyThisBuffer(ctx.encoder, ctx.encoder_ppBuffer_in)) != OMX_ErrorNone) {
@@ -744,7 +746,7 @@ int main(int argc, char **argv)
             if(output_written != ctx.encoder_ppBuffer_out->nFilledLen) {
                 die("Failed to write to output file: %s", strerror(errno));
             }
-            say("Read from output buffer and wrote to output file %d/%d, frame %d", ctx.encoder_ppBuffer_out->nFilledLen, ctx.encoder_ppBuffer_out->nAllocLen, frame_out + 1);
+            //say("Read from output buffer and wrote to output file %d/%d, frame %d", ctx.encoder_ppBuffer_out->nFilledLen, ctx.encoder_ppBuffer_out->nAllocLen, frame_out + 1);
         }
         if(ctx.encoder_output_buffer_available || firstPass) {
             // Buffer flushed, request a new buffer to be filled by the encoder component
