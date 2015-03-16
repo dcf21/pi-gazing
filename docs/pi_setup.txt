@@ -1,0 +1,48 @@
+# This script lists the commands needed to set up a Pi
+
+# ** Expand partition
+
+# ** Set up password for Pi
+
+passwd # Set user password
+sudo su
+passwd # Set user password
+
+# ** Install raspbian packages
+
+apt-get update
+apt-get dist-upgrade
+apt-get install gpsd gpsd-clients libjpeg-dev libpng-dev libgsl0-dev vim git
+mplayer
+vim /etc/apt/sources # Uncomment apt-src
+apt-get update
+apt-get build-dep luvcview
+
+# ** Set Pi to be headless
+
+vim /etc/network/interfaces
+# iface eth0 inet static
+# address 192.168.1.62
+# netmask 255.255.255.0
+# gateway 192.168.1.1
+
+# ** Set up /etc/fstab to mount external harddisk
+
+vim /etc/fstab
+# /dev/sda1	/mnt/harddisk	ext4	defaults	0 0
+mkdir -p /mnt/harddisk
+reboot
+
+# ** Set up an ssh key for github (will change later to give readonly access)
+
+ssh-keygen
+# install ssh key on github
+git clone git@github.com:camsci/meteor-pi.git
+
+# ** Build code
+
+cd meteor-pi/src/gnomonicStack/
+./prettymake
+cd ../videoProcess/
+./prettymake
+./prettymake openmax
