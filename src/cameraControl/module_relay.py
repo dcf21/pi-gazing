@@ -10,12 +10,12 @@ from module_log import logTxt,getUTC
 def cameraOn():
  logTxt("Turning camera on.")
  GPIO.setmode(GPIO.BOARD)
- GPIO.setup(10, GPIO.OUT)
- GPIO.output(10 ,False)
+ GPIO.setup(12, GPIO.OUT)
+ GPIO.output(12 ,False)
 
 def cameraOff():
  logTxt("Turning camera off.")
  GPIO.setmode(GPIO.BOARD)
- GPIO.setup(10, GPIO.OUT)
- GPIO.output(10 ,True)
+ GPIO.setup(12, GPIO.OUT)
+ GPIO.output(12 ,True)
 

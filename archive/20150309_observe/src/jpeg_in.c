@@ -1,5 +1,5 @@
 // jpeg_in.c
-// $Id: jpeg_in.c 1154 2015-01-09 01:44:13Z pyxplot $
+// $Id$
 
 #include <stdlib.h>
 #include <stdio.h>

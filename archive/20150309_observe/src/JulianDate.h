@@ -1,6 +1,6 @@
 // JulianDate.h
 // Dominic Ford
-// $Id: JulianDate.h 1170 2015-02-05 17:55:31Z pyxplot $
+// $Id$
 // --------------------------------------
 
 #ifndef JULIANDATE_H

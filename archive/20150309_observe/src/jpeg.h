@@ -1,5 +1,5 @@
 // jpeg.h
-// $Id: jpeg.h 1154 2015-01-09 01:44:13Z pyxplot $
+// $Id$
 
 #ifndef JPEG_H
 #define JPEG_H 1

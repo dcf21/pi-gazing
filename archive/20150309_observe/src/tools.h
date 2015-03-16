@@ -1,5 +1,5 @@
 // tools.h
-// $Id: tools.h 1193 2015-02-19 18:09:11Z pyxplot $
+// $Id$
 
 #ifndef TOOLS_H
 #define TOOLS_H 1

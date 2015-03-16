@@ -1,6 +1,6 @@
 // JulianDate.c
 // Dominic Ford
-// $Id: JulianDate.c 1170 2015-02-05 17:55:31Z pyxplot $
+// $Id$
 // --------------------------------------
 
 #include <stdlib.h>

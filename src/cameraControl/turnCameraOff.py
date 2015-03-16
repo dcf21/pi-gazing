@@ -8,8 +8,8 @@ import RPi.GPIO as GPIO
 
 def cameraOn():
  GPIO.setmode(GPIO.BOARD)
- GPIO.setup(10, GPIO.OUT)
- GPIO.output(10 ,True)
+ GPIO.setup(12, GPIO.OUT)
+ GPIO.output(12 ,True)
 
 cameraOn()
 

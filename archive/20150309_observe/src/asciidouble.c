@@ -1,5 +1,5 @@
 // asciidouble.c
-// $Id: asciidouble.c 1178 2015-02-06 21:27:53Z pyxplot $
+// $Id$
 
 #include <stdio.h>
 #include <stdlib.h>

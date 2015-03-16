@@ -1,5 +1,5 @@
 // observe.c
-// $Id: observe.c 1201 2015-02-28 22:50:26Z pyxplot $
+// $Id$
 
 #include <stdio.h>
 #include <stdlib.h>

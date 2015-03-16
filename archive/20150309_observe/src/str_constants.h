@@ -1,5 +1,5 @@
 // str_constants.h
-// $Id: str_constants.h 1154 2015-01-09 01:44:13Z pyxplot $
+// $Id$
 
 #ifndef _STR_CONSTANTS_H
 #define _STR_CONSTANTS_H 1

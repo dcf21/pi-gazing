@@ -1,5 +1,5 @@
 // raw2rgbpng.c
-// $Id: raw2rgbpng.c 1197 2015-02-21 15:17:26Z pyxplot $
+// $Id$
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,5 +1,5 @@
 // error.h
-// $Id: error.h 1154 2015-01-09 01:44:13Z pyxplot $
+// $Id$
 
 // Functions for returning messages to the user
 

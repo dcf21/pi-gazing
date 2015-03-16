@@ -1,5 +1,5 @@
 // asciidouble.h
-// $Id: asciidouble.h 1163 2015-01-20 15:38:31Z pyxplot $
+// $Id$
 
 #ifndef _ASCIIDOUBLE_H
 #define _ASCIIDOUBLE_H 1

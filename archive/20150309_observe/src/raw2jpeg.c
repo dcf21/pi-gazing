@@ -1,5 +1,5 @@
 // raw2jpeg.c
-// $Id: raw2jpeg.c 1180 2015-02-06 23:01:45Z pyxplot $
+// $Id$
 
 #include <stdio.h>
 #include <stdlib.h>

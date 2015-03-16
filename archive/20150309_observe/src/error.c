@@ -1,5 +1,5 @@
 // error.c
-// $Id: error.c 1182 2015-02-07 00:47:21Z pyxplot $
+// $Id$
 
 #include <stdio.h>
 #include <stdlib.h>

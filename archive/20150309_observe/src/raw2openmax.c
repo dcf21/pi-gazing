@@ -1,5 +1,5 @@
 // raw2openmax.c
-// $Id: raw2openmax.c 1186 2015-02-12 17:49:24Z pyxplot $
+// $Id$
 
 #include <stdio.h>
 #include <stdlib.h>

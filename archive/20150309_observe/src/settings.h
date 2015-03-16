@@ -1,5 +1,5 @@
 // settings.h
-// $Id: settings.h 1185 2015-02-12 01:58:31Z pyxplot $
+// $Id$
 
 #ifndef _SETTINGS_H
 #define _SETTINGS_H 1

@@ -1,5 +1,5 @@
 // tools.c
-// $Id: tools.c 1199 2015-02-24 00:16:12Z pyxplot $
+// $Id$
 
 #include <stdio.h>
 #include <stdlib.h>
