@@ -1,0 +1,64 @@
+#!/usr/bin/python
+# The line above helps make syntax highlighting detect that SConscript is python...
+
+import os
+
+# Are we building sources which depend on OpenMAX?
+compileOpenMAX = ARGUMENTS.get('openmax', 0)
+
+# Build options to pass to gcc
+ccFlags   = ['-O1','-Wall','-g','-fopenmp','-D_FILE_OFFSET_BITS=64']
+ccDefines = ['DATE=\\"05/01/2015\\"' , 'VERSION=\\"0.0.1\\"']
+
+# C source files which are common to all binaries we are going to build
+commonFiles = ['analyse/observe.c','jpeg/jpeg_in.c','jpeg/jpeg_out.c','utils/JulianDate.c','utils/asciidouble.c','utils/error.c','utils/tools.c','vidtools/color.c','vidtools/v4l2uvc.c']
+
+# List of all the binaries we are going to build
+# [ Flag: Requires OpenMAX , list of source files , binary name ]
+targets = [ [0, commonFiles + ['frontends/vidRec.c']          , 'vidRec'],
+            [0, commonFiles + ['frontends/realtimeObserve.c'] , 'realtimeObserve'],
+            [1, commonFiles + ['frontends/recordH264.c']      , 'recordH264'],
+            [0, commonFiles + ['frontends/snapshot.c']        , 'snapshot'],
+            [0, commonFiles + ['frontends/makeMedianMap.c']   , 'makeMedianMap'],
+            [0, commonFiles + ['converters/raw2jpeg.c']       , 'raw2jpeg'],
+            [0, commonFiles + ['converters/raw2rgbpng.c']     , 'raw2rgbpng'],
+            [0, commonFiles + ['converters/raw2frames.c']     , 'raw2frm'],
+            [1, commonFiles + ['converters/raw2openmax.c']    , 'raw2opm']
+          ];
+
+subDirs      = ['','analyse','converters','frontends','jpeg','utils','vidtools']
+includePaths = [ os.path.join('src',i) for i in subDirs ]
+libraries    = ['gsl','gslcblas','v4l2','png','jpeg','m']
+libraryPaths = ['/usr/lib']
+
+includePaths_openmax = ['/opt/vc/include','/opt/vc/include/interface/vcos/pthreads','/opt/vc/include/interface/vmcs_host/linux/']
+libraryPaths_openmax = ['/opt/vc/lib']
+libraries_openmax    = ['openmaxil','vcos','bcm_host','pthread']
+
+debugOptions = [ [0,''] , [1,'debug'] ]
+
+envNoDebug = Environment()
+for d in subDirs: envNoDebug.VariantDir(variant_dir = os.path.join('obj',d), src_dir = os.path.join('src',d), duplicate = 0)
+envNoDebug.Append(CPPDEFINES = ccDefines+['DEBUG=0'])
+
+envDebug = Environment()
+for d in subDirs: envDebug.VariantDir(variant_dir = os.path.join('obj','debug',d), src_dir = os.path.join('src',d), duplicate = 0)
+envDebug.Append(CPPDEFINES = ccDefines+['DEBUG=1'])
+
+for env in [envDebug,envNoDebug]:
+  env.Append(CCFLAGS = ccFlags)
+  env.Append(CPPPATH = includePaths + (includePaths_openmax if compileOpenMAX else []))
+  env.Append(LIBS    = libraries + (libraries_openmax if compileOpenMAX else []))
+  env.Append(LIBPATH = libraryPaths + (libraryPaths_openmax if compileOpenMAX else []))
+
+for debugOption in debugOptions:
+  for target in targets:
+     needOpenMax = target[0]
+     if (needOpenMax and not compileOpenMAX): continue
+     outfname    = os.path.join('bin' , debugOption[1] , target[2] )
+     objPrefix   = 'obj/debug' if debugOption[0] else 'obj';
+     srcs        = [ os.path.join(objPrefix,i) for i in target[1] ]
+     objs        = []
+     env         = (envDebug if debugOption[0] else envNoDebug)
+     for s in srcs: objs.append( env.Object(s) )
+     env.Program(outfname, objs)
