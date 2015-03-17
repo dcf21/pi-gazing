@@ -1,6 +1,1 @@
-*/*.py ident
-*/*/*.h ident
-*/*/*.c ident
-*/*/*/*.h ident
-*/*/*/*.c ident
 
