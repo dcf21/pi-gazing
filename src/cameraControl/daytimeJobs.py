@@ -3,11 +3,18 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-import os,time,sys,glob,datetime
+# This script is a very generic file processor. It looks for files in
+# directories with given extensions, works out the time associated with each
+# file from its filename, and performs predefined shell-commands on them if
+# they are newer than a given high-water mark. The list of tasks to be
+# performed is defined in <module_daytimejobs>.
+
+import os,time,sys,glob,datetime,operator
 
 import module_log
 from module_log import logTxt,getUTC
 from module_settings import *
+from module_daytimejobs import *
 
 pid = os.getpid()
 
@@ -21,61 +28,63 @@ quitTime  = float(sys.argv[2])
 module_log.toffset = utcOffset
 
 logTxt("Running daytimeJobs. Need to quit at %s."%(datetime.datetime.fromtimestamp(quitTime).strftime('%Y-%m-%d %H:%M:%S')))
+
+# Cleaning up any output files which are ahead of high water marks
+logTxt("Cleaning up any output files which are ahead of high water marks")
+import daytimeJobsClean
+
+# Read our high water mark, and only analyse more recently-created data
 os.chdir (DATA_PATH)
+highWaterMarks = fetchHWM()
 
-# Read list of days which have already been processed
-finishedDays = []
-if os.path.exists("finishedDays.dat"):
- for line in open("finishedDays.dat"):
-  finishedDays.append(line.strip())
+# We raise this exception if we pass the time when we've been told we need to hand execution back
+class TimeOut(Exception): pass
 
-# Get list of directories
-dirList = glob.glob("2???????")
-dirList.sort() ; dirList.reverse()
-for directory in dirList:
-  if directory not in finishedDays:
-    logTxt("Now processing directory <%s>."%directory)
-    images = glob.glob("%s/*.img"%directory)
-    images.sort()
-    imagesrgb = glob.glob("%s/*.rgb"%directory)
-    imagesrgb.sort()
-    videos = glob.glob("%s/*.vid"%directory)
-    videos.sort()
-    for img in images:
-      if quitTime and (getUTC()>quitTime): break
-      target = img[:-3]+"jpg"
-      if not os.path.exists(target):
-        logTxt("    Working on image <%s>."%img)
-        os.system("%s/raw2jpeg %s %s"%(BINARY_PATH,img,target))
-    for img in imagesrgb:
-      if quitTime and (getUTC()>quitTime): break
-      target = img[:-3]+"png"
-      if not os.path.exists(target+".0"):
-        logTxt("    Working on RGB image <%s>."%img)
-        os.system("%s/raw2rgbpng %s %s"%(BINARY_PATH,img,target))
-    for img in videos:
-      if quitTime and (getUTC()>quitTime): break
-      target = img[:-3]+"mp4"
-      if not os.path.exists(target):
-        logTxt("    Working on video <%s>."%img)
-        os.system("%s/raw2opm %s %s"%(BINARY_PATH,img,"/tmp/pivid_%s.h264"%pid))
-        os.system("avconv -i '%s' -c:v copy -f mp4 '%s'"%("/tmp/pivid_%s.h264"%pid,target))
-        os.system("rm -f /tmp/pivid_%s.h264"%pid)
-    if quitTime and (getUTC()>quitTime):
+try:
+  for taskGroup in dayTimeTasks:
+    [HWMout, taskList] = taskGroup;
+    if HWMout not in highWaterMarks: highWaterMarks[HWMout]=0
+    logtxt("Working on task group <%s>"%HWMout)
+    jobList = []
+    for task in taskList:
+      [inDir,outDirs,inExt,cmd] = tasks
+
+      # Operate on any input files which are newer than HWM
+      for dirName, subdirList, fileList in os.walk(inDir):
+        for f in fileList:
+          if quitTime and (getUTC()>quitTime): raise TimeOut
+          if f.endsWith(".%s"%inExt):
+            utc = module_hwm.filenameToUTC(f)
+            if (utc > highWaterMarks[HWMout]):
+              params = {'binary_path':BINARY_PATH ,
+                        'input':os.path.join(dirName,f) ,
+                        'outdir':outDirs[0] ,
+                        'filename':f[:-len(inExt+1)] ,
+                        'date':fetchDayNameFromFilename(f) ,
+                        'pid':pid ,
+                        'opm': ('_openmax' if I_AM_A_RPI else '') ,
+                       }
+              for outDir in outDirs: os.system("mkdir -p %s"%(os.path.join(outDir,params['date'])))
+              jobs.append( [utc, cmd % params] )
+
+    # Do jobs in order of timestamp; raise high level water mark as we do each job
+    jobList.sort(key=operator.itemgetter(0))
+    for job in jobList:
+      if quitTime and (getUTC()>quitTime): raise TimeOut
+      os.system(job[1])
+      highWaterMarks[HWMout] = job[0]
+    logtxt("Completed %d jobs"%len(jobList))
+
+except TimeOut:
       logTxt("Interrupting processing as we've run out of time")
-      break
-    finishedDays.append(directory)
 
-# Write new list of finished days
-f = open("finishedDays.dat","w")
-finishedDays.sort()
-for i in finishedDays: f.write("%s\n"%i)
-f.close()
+# Write new list of high water marks
+module_hwm.writeHWM(highWaterMarks)
 
 # Twiddle our thumbs
 if quitTime:
   logTxt("Finished daytimeJobs. Now twiddling our thumbs for a bit.")
   timeLeft = quitTime - getUTC()
   if (timeLeft>0): time.sleep(timeLeft)
-  logTxt("Finished daytimeJobs and also twiddling thumbs.")
+  logTxt("Finished daytimeJobs and also finished twiddling thumbs.")
 

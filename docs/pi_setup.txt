@@ -12,8 +12,7 @@ passwd # Set user password
 
 apt-get update
 apt-get dist-upgrade
-apt-get install gpsd gpsd-clients libjpeg-dev libpng-dev libgsl0-dev vim git
-mplayer
+apt-get install gpsd gpsd-clients libjpeg-dev libpng-dev libgsl0-dev vim git qiv screen mplayer
 vim /etc/apt/sources # Uncomment apt-src
 apt-get update
 apt-get build-dep luvcview
@@ -46,3 +45,7 @@ cd meteor-pi/src/gnomonicStack/
 cd ../videoProcess/
 ./prettymake
 ./prettymake openmax
+
+# ** Set up rpi watchdog
+
+# ** Install astrometry.net

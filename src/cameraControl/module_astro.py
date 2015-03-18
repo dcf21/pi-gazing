@@ -9,7 +9,7 @@ from module_log import logTxt,getUTC
 
 deg = pi/180
 
-# See Astronomical Algorithms, pp 163-4
+# Return the [RA, Dec] of the Sun at a given Unix time. See Jean Meeus, Astronomical Algorithms, pp 163-4
 def sunPos(utc=0):
  if not utc: utc = getUTC()
 
@@ -34,6 +34,7 @@ def sunPos(utc=0):
 
  return [RA,Dec]
 
+# Returns the number of seconds between an object at a given declination rising and culminating
 def rs_riseculmgap(decObj,latObs,angBelowHorizon): # all inputs are in radians
   angBelowHorizon = -angBelowHorizon;
   z     = sin(decObj);
@@ -44,6 +45,7 @@ def rs_riseculmgap(decObj,latObs,angBelowHorizon): # all inputs are in radians
   if (isnan(B)): return -1; # Return -1 if requested declination is circumpolar or below horizon
   return 3600*12*(1-abs(B / pi)); # Return number of second between rising and culmination time. Each day, object is above horizon for 2x time period.
 
+# Turns a unix time into a sidereal time (in hours, at Greenwich)
 def siderealTime(utc):
   u = utc;
   j = 40587.5 + u / 86400.0; # Julian date - 2400000
@@ -56,6 +58,7 @@ def siderealTime(utc):
          ) % 360) * 12 / 180;
   return st; # sidereal time, in hours. RA at zenith in Greenwich.
 
+# Returns the UTC times for the rising, culmination and setting of an astronomical object at position [RA,Dec]
 def rs_time_s(unixtime,ra,dec,longitude,latitude,angBelowHorizon):
   unixtime = floor(unixtime/3600/24)*3600*24 # midnight
 
@@ -90,6 +93,7 @@ def rs_time_s(unixtime,ra,dec,longitude,latitude,angBelowHorizon):
 
   return [utcrise , utcculm , utcset]
 
+# Returns unix times for [sunrise , sun culmination , sunset]
 def sunTimes(unixtime=0,longitude=0.12,latitude=52.2):
   if not unixtime: unixtime=getUTC()
  
@@ -100,4 +104,29 @@ def sunTimes(unixtime=0,longitude=0.12,latitude=52.2):
   logTxt("Sunset  at %s"%(datetime.datetime.fromtimestamp(r[2]).strftime('%Y-%m-%d %H:%M:%S')))
 
   return r
+
+# Returns the Julian Day number of a calendar date (British calendar)
+def JulianDay(year, month, day, hour, min, sec):
+  LastJulian     = 17520902.0
+  FirstGregorian = 17520914.0
+  ReqDate        = 10000.0*year + 100*month + day
+
+  if (month<=2):
+   month+=12
+   year-=1
+
+  if (ReqDate <= LastJulian):
+   b = -2 + ((year+4716)/4) - 1179 # Julian calendar
+  elif (ReqDate >= FirstGregorian):
+   b = (year/400) - (year/100) + (year/4) # Gregorian calendar
+  else:
+   raise InputError, "The requested date never happened"
+
+  JD = 365.0*year - 679004.0 + 2400000.5 + b + floor(30.6001*(month+1)) + day
+  DayFraction = (fabs(hour) + fabs(min)/60.0 + fabs(sec)/3600.0) / 24.0
+  return JD + DayFraction
+
+# Returns a UTC timestamp from a Julian Day number
+def UTCfromJD(jd)
+  return 86400.0 * (jd - 2440587.5)
 

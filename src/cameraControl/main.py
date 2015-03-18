@@ -5,7 +5,6 @@
 
 import os,time,datetime
 
-#import module_gps
 import module_astro
 import module_relay
 
@@ -20,11 +19,18 @@ if (not REAL_TIME): os.system("mkdir -p %s/rawvideo"%DATA_PATH)
 
 # Only do these steps on a raspberry pi
 if I_AM_A_RPI:
+  logTxt("Waiting for GPS link")
   os.system("killall gpsd ; gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock")
+  import module_gps
+  [toffset,latitude,longitude] = module_gps.fetchTimeOffset()
+  logTxt("GPS link achieved")
+else:
+  toffset     = 0
+  latitude    = 52.2
+  longitude   = 0.12
+  logTxt("We are not running on a RPi; so not bothering to try to get GPS link")
 
-sunMargin   = 1200 # Wait 20 minute before/after sun is up for observing
-latitude    = 52.2
-longitude   = 0.12
+logtxt("Longitude = %.2f ; Latitude = %.2f ; Clock offset is %.1f"%(longitude,latitude,toffset))
 
 while True:
   logTxt("Camera controller considering what to do next.")

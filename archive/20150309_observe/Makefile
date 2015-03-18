@@ -1,5 +1,5 @@
 # MAKEFILE
-# $Id: Makefile 1194 2015-02-19 21:22:22Z pyxplot $
+# $Id: $
 
 CWD=$(shell pwd)
 

@@ -15,15 +15,15 @@ commonFiles = ['analyse/observe.c','jpeg/jpeg_in.c','jpeg/jpeg_out.c','utils/Jul
 
 # List of all the binaries we are going to build
 # [ Flag: Requires OpenMAX , list of source files , binary name ]
-targets = [ [0, commonFiles + ['frontends/vidRec.c']          , 'vidRec'],
-            [0, commonFiles + ['frontends/realtimeObserve.c'] , 'realtimeObserve'],
-            [1, commonFiles + ['frontends/recordH264.c']      , 'recordH264'],
-            [0, commonFiles + ['frontends/snapshot.c']        , 'snapshot'],
-            [0, commonFiles + ['frontends/makeMedianMap.c']   , 'makeMedianMap'],
-            [0, commonFiles + ['converters/raw2jpeg.c']       , 'raw2jpeg'],
-            [0, commonFiles + ['converters/raw2rgbpng.c']     , 'raw2rgbpng'],
-            [0, commonFiles + ['converters/raw2frames.c']     , 'raw2frm'],
-            [1, commonFiles + ['converters/raw2openmax.c']    , 'raw2opm']
+targets = [ [0, commonFiles + ['frontends/vidRec.c']             , 'vidRec'],
+            [0, commonFiles + ['frontends/realtimeObserve.c']    , 'realtimeObserve'],
+            [1, commonFiles + ['frontends/recordH264.c']         , 'recordH264'],
+            [0, commonFiles + ['frontends/snapshot.c']           , 'snapshot'],
+            [0, commonFiles + ['frontends/makeMedianMap.c']      , 'makeMedianMap'],
+            [0, commonFiles + ['converters/rawimg2jpg.c']        , 'rawimg2jpg'],
+            [0, commonFiles + ['converters/rawrgb2png.c']        , 'rawrgb2png'],
+            [0, commonFiles + ['converters/rawvid2frames.c']     , 'rawvid2frames'],
+            [1, commonFiles + ['converters/rawvid2mp4_openmax.c'], 'rawvid2mp4_openmax']
           ];
 
 subDirs      = ['','analyse','converters','frontends','jpeg','utils','vidtools']
