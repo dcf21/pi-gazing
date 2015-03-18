@@ -6,11 +6,11 @@ SET NAMES UNICODE_FSS;
  * as a user with write access to this database.
  * See https://github.com/camsci/meteor-pi/wiki/Camera-database-configuration
  *
- * Currently only implements the event / image / file part of the
- * information model and not the camera installation and status.
- * Tom Oinn, tomoinn@crypticsquid.com, 16th March 2015
+ * Tom Oinn, tomoinn@crypticsquid.com, 17th March 2015
  */
 CONNECT '/var/lib/firebird/2.5/data/meteorpi.fdb';
+
+CREATE DOMAIN BOOLEAN AS SMALLINT CHECK (value is null or value in (0, 1));
 
 /* Sequence used to allocate internal IDs */
 CREATE SEQUENCE gidSequence;
@@ -60,7 +60,7 @@ CREATE TABLE t_image (
 	imageID char(16) NOT NULL,
 	fileID integer NOT NULL,
 	imageTime timestamp NOT NULL,
-	FOREIGN KEY (fileID) references t_file (internalID), 
+	FOREIGN KEY (fileID) REFERENCES t_file (internalID), 
 	PRIMARY KEY (internalID)
 );
 
@@ -69,8 +69,8 @@ CREATE TABLE t_event_to_file (
 	fileID integer NOT NULL,
 	eventID integer NOT NULL,
 	PRIMARY KEY (fileId, eventId),
-	FOREIGN KEY (eventId) references t_event (internalId),
-	FOREIGN KEY (fileId) references t_file (internalId)
+	FOREIGN KEY (eventId) REFERENCES t_event (internalId),
+	FOREIGN KEY (fileId) REFERENCES t_file (internalId)
 );
 
 /* Link table to associate rows in t_fileMeta with t_file */
@@ -78,8 +78,8 @@ CREATE TABLE t_file_to_filemeta (
 	fileMetaID integer NOT NULL,
 	fileID integer NOT NULL,
 	PRIMARY KEY (fileMetaID, fileID),
-	FOREIGN KEY (fileID) references t_file (internalID),
-	FOREIGN KEY (fileMetaID) references t_fileMeta (internalID)
+	FOREIGN KEY (fileID) REFERENCES t_file (internalID),
+	FOREIGN KEY (fileMetaID) REFERENCES t_fileMeta (internalID)
 );
 
 /* Change the terminator, need to do this so we can actually 
@@ -131,6 +131,48 @@ AS BEGIN
 end ^
 /* Change the terminator back to the semi-colon again */
 SET TERM ; ^
+
+/* Camera status tables */
+
+CREATE TABLE t_cameraStatus (
+	internalID integer NOT NULL,
+	cameraID char(6) NOT NULL,
+	validFrom timestamp NOT NULL,
+	validTo timestamp,
+	softwareVersion integer DEFAULT 0 NOT NULL,
+	orientationAltitude float NOT NULL,
+	orientationAzimuth float NOT NULL,
+	orientationCertainty float NOT NULL,
+	locationLatitude float NOT NULL,
+	locationLongitude float NOT NULL,
+	locationGPS BOOLEAN DEFAULT 0 NOT NULL,
+	lens varchar(40) NOT NULL,
+	camera varchar(40) NOT NULL,
+	instURL varchar(255),
+	instName varchar(255),
+	PRIMARY KEY (internalID)
+);
+
+SET TERM ^ ;
+CREATE OR ALTER TRIGGER assignEventID FOR t_cameraStatus 
+BEFORE INSERT position 0 
+AS BEGIN
+  if ((new.internalID is null) or (new.internalID = 0)) then
+  begin
+    new.internalID = gen_id(gidSequence, 1);
+  end
+end ^
+SET TERM ; ^
+
+CREATE TABLE t_occlusion (
+	cameraStatusId integer NOT NULL,
+	region integer NOT NULL,
+	pointOrder integer DEFAULT 0 NOT NULL,
+	x integer NOT NULL,
+	y integer NOT NULL,
+	FOREIGN KEY (cameraStatusId) REFERENCES t_cameraStatus(internalId),
+	PRIMARY KEY (cameraStatusId, region, pointOrder)
+);
 
 
 
