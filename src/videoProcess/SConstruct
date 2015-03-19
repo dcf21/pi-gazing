@@ -5,25 +5,28 @@ import os
 
 # Are we building sources which depend on OpenMAX?
 compileOpenMAX = ARGUMENTS.get('openmax', 0)
+compileLibav   = ARGUMENTS.get('libav'  , 1)
 
 # Build options to pass to gcc
 ccFlags   = ['-O1','-Wall','-g','-fopenmp','-D_FILE_OFFSET_BITS=64']
+linkFlags = ['-fopenmp']
 ccDefines = ['DATE=\\"05/01/2015\\"' , 'VERSION=\\"0.0.1\\"']
 
 # C source files which are common to all binaries we are going to build
 commonFiles = ['analyse/observe.c','jpeg/jpeg_in.c','jpeg/jpeg_out.c','utils/JulianDate.c','utils/asciidouble.c','utils/error.c','utils/tools.c','vidtools/color.c','vidtools/v4l2uvc.c']
 
 # List of all the binaries we are going to build
-# [ Flag: Requires OpenMAX , list of source files , binary name ]
-targets = [ [0, commonFiles + ['frontends/vidRec.c']             , 'vidRec'],
-            [0, commonFiles + ['frontends/realtimeObserve.c']    , 'realtimeObserve'],
-            [1, commonFiles + ['frontends/recordH264.c']         , 'recordH264'],
-            [0, commonFiles + ['frontends/snapshot.c']           , 'snapshot'],
-            [0, commonFiles + ['frontends/makeMedianMap.c']      , 'makeMedianMap'],
-            [0, commonFiles + ['converters/rawimg2jpg.c']        , 'rawimg2jpg'],
-            [0, commonFiles + ['converters/rawrgb2png.c']        , 'rawrgb2png'],
-            [0, commonFiles + ['converters/rawvid2frames.c']     , 'rawvid2frames'],
-            [1, commonFiles + ['converters/rawvid2mp4_openmax.c'], 'rawvid2mp4_openmax']
+# [ Flag: Requires OpenMAX , Requires libav , list of source files , binary name ]
+targets = [ [0, 0, commonFiles + ['frontends/vidRec.c']             , 'vidRec'],
+            [0, 0, commonFiles + ['frontends/realtimeObserve.c']    , 'realtimeObserve'],
+            [0, 1, commonFiles + ['frontends/analyseH264_libav.c']  , 'analyseH264_libav'],
+            [1, 0, commonFiles + ['frontends/recordH264.c']         , 'recordH264'],
+            [0, 0, commonFiles + ['frontends/snapshot.c']           , 'snapshot'],
+            [0, 0, commonFiles + ['frontends/makeMedianMap.c']      , 'makeMedianMap'],
+            [0, 0, commonFiles + ['converters/rawimg2jpg.c']        , 'rawimg2jpg'],
+            [0, 0, commonFiles + ['converters/rawrgb2png.c']        , 'rawrgb2png'],
+            [0, 0, commonFiles + ['converters/rawvid2frames.c']     , 'rawvid2frames'],
+            [1, 0, commonFiles + ['converters/rawvid2mp4_openmax.c'], 'rawvid2mp4_openmax']
           ];
 
 subDirs      = ['','analyse','converters','frontends','jpeg','utils','vidtools']
@@ -34,6 +37,11 @@ libraryPaths = ['/usr/lib']
 includePaths_openmax = ['/opt/vc/include','/opt/vc/include/interface/vcos/pthreads','/opt/vc/include/interface/vmcs_host/linux/']
 libraryPaths_openmax = ['/opt/vc/lib']
 libraries_openmax    = ['openmaxil','vcos','bcm_host','pthread']
+
+includePaths_libav   = []
+libraryPaths_libav   = []
+libraries_libav      = ['avutil','avcodec']
+
 
 debugOptions = [ [0,''] , [1,'debug'] ]
 
@@ -46,18 +54,21 @@ for d in subDirs: envDebug.VariantDir(variant_dir = os.path.join('obj','debug',d
 envDebug.Append(CPPDEFINES = ccDefines+['DEBUG=1'])
 
 for env in [envDebug,envNoDebug]:
-  env.Append(CCFLAGS = ccFlags)
-  env.Append(CPPPATH = includePaths + (includePaths_openmax if compileOpenMAX else []))
-  env.Append(LIBS    = libraries + (libraries_openmax if compileOpenMAX else []))
-  env.Append(LIBPATH = libraryPaths + (libraryPaths_openmax if compileOpenMAX else []))
+  env.Append(CCFLAGS   = ccFlags)
+  env.Append(LINKFLAGS = linkFlags)
+  env.Append(CPPPATH   = includePaths + (includePaths_openmax if compileOpenMAX else []) + (includePaths_libav if compileLibav else []))
+  env.Append(LIBS      = libraries    + (libraries_openmax    if compileOpenMAX else []) + (libraries_libav    if compileLibav else []))
+  env.Append(LIBPATH   = libraryPaths + (libraryPaths_openmax if compileOpenMAX else []) + (libraryPaths_libav if compileLibav else []))
 
 for debugOption in debugOptions:
   for target in targets:
-     needOpenMax = target[0]
-     if (needOpenMax and not compileOpenMAX): continue
-     outfname    = os.path.join('bin' , debugOption[1] , target[2] )
+     needOpenMAX = target[0]
+     needLibav   = target[1]
+     if (needOpenMAX and not compileOpenMAX): continue
+     if (needLibav   and not compileLibav  ): continue
+     outfname    = os.path.join('bin' , debugOption[1] , target[3] )
      objPrefix   = 'obj/debug' if debugOption[0] else 'obj';
-     srcs        = [ os.path.join(objPrefix,i) for i in target[1] ]
+     srcs        = [ os.path.join(objPrefix,i) for i in target[2] ]
      objs        = []
      env         = (envDebug if debugOption[0] else envNoDebug)
      for s in srcs: objs.append( env.Object(s) )

@@ -6,6 +6,8 @@ from __future__ import division
 from math import *
 import os,sys,time,re
 
+# This is a demo script which produces a timelapse video of frames recorded ever N seconds
+
 PERIOD = 60
 
 pid = os.getpid()

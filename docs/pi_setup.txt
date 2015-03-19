@@ -12,7 +12,7 @@ passwd # Set user password
 
 apt-get update
 apt-get dist-upgrade
-apt-get install gpsd gpsd-clients libjpeg-dev libpng-dev libgsl0-dev vim git qiv screen mplayer
+apt-get install gpsd gpsd-clients libjpeg-dev libpng-dev libgsl0-dev vim git qiv screen mplayer libavutil-dev libavcodec-dev
 vim /etc/apt/sources # Uncomment apt-src
 apt-get update
 apt-get build-dep luvcview

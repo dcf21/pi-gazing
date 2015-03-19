@@ -18,12 +18,15 @@
 
 #include "settings.h"
 
-int fetchFrame(void *videoHandle, unsigned char *tmpc)
+int utcoffset;
+
+int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc)
  {
   struct vdIn *videoIn = videoHandle;
   int status = uvcGrab(videoIn);
   if (status) return status;
   Pyuv422toMono(videoIn->framebuffer, tmpc, videoIn->width, videoIn->height);
+  *utc = time(NULL) + utcoffset;
   return 0;
  }
 
@@ -34,7 +37,7 @@ int main(int argc, char *argv[])
     sprintf(temp_err_string, "ERROR: Need to specify UTC clock offset and observe run stop time on commandline, e.g. 'observe 1234 567'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
-  const int utcoffset  = (int)GetFloat(argv[1],NULL);
+            utcoffset  = (int)GetFloat(argv[1],NULL);
   const int tstart     = time(NULL) + utcoffset;
   const int tstop      = (int)GetFloat(argv[2],NULL);
 
@@ -63,7 +66,7 @@ int main(int argc, char *argv[])
 
   initLut();
 
-  observe((void *)videoIn, utcoffset, tstart, tstop, width, height, &fetchFrame);
+  observe((void *)videoIn, utcoffset, tstart, tstop, width, height, "live", &fetchFrame);
 
   return 0;
  }

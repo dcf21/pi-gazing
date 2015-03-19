@@ -1,28 +1,8 @@
-/*
- * copyright (c) 2001 Fabrice Bellard
- *
- * This file is part of FFmpeg.
- *
- * FFmpeg is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * FFmpeg is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with FFmpeg; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
- */
+// analyseH264_libav.c 
+// Meteor Pi, Cambridge Science Centre
+// Dominic Ford
 
-/**
- * @file
- * H.264 decoder example, takes raw H.264 bitstreams and plays them using SDL
- * Requirements: libavcodec 0.52 or newer with both CONFIG_H264_DECODER *and* CONFIG_H264_PARSER enabled, a recent version of SDL with the video subsystem enabled. 
- */
+// This code is based on the FFmpeg source code; (C) 2001 Fabrice Bellard; distributed under GPL version 2.1
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -33,210 +13,143 @@
 #include <time.h>
 
 #include <libavcodec/avcodec.h>
+#include <libavutil/mem.h>
 #include <libavutil/mathematics.h>
 
-#include <SDL/SDL.h>
+#include "analyse/observe.h"
+#include "utils/asciidouble.h"
+#include "utils/error.h"
+#include "settings.h"
 
-void sigint_handler(int signal) {
-    printf("\n");
-    exit(0);
-}
-
-const char *window_title;
-SDL_Surface *screen;
-SDL_Overlay *yuv_overlay;
+void sigint_handler(int signal) { printf("\n"); exit(0); }
 
 #define INBUF_SIZE 80000
 
-/*
- * Video decoding example
- */
-
-static long get_time_diff(struct timeval time_now) {
-   struct timeval time_now2;
-   gettimeofday(&time_now2,0);
-   return time_now2.tv_sec*1.e6 - time_now.tv_sec*1.e6 + time_now2.tv_usec - time_now.tv_usec;
-}
-
-int video_open(AVCodecContext *avctx, const char *filename){
-    int flags = SDL_HWSURFACE|SDL_ASYNCBLIT|SDL_HWACCEL;
-    int w,h;
-    
-    flags |= SDL_RESIZABLE;
-
-    if (avctx->width){
-        w = avctx->width;
-        h = avctx->height;
-    } else {
-        w = 640;
-        h = 480;
-    }
-
-    if(SDL_Init(SDL_INIT_VIDEO) < 0) {
-	fprintf(stderr, "SDL_INIT_VIDEO failed!\n");
-	exit(1);
-    }
-
-    screen = SDL_SetVideoMode(w, h, 0, flags);
-
-    if (!screen) {
-        fprintf(stderr, "SDL: could not set video mode - exiting\n");
-        return -1;
-    }
-    if (!window_title)
-        window_title = filename;
-    SDL_WM_SetCaption(window_title, window_title);
-
-    yuv_overlay = SDL_CreateYUVOverlay(w, h, SDL_YV12_OVERLAY, screen);
-
-    if (yuv_overlay->hw_overlay) {
-	fprintf(stderr, "Using hardware overlay!\n");
-    } 
-
-    return 0;
-}
-
-int main(int argc, char **argv) {
+typedef struct context
+ {
     AVCodec *codec;
-    AVCodecContext *c= NULL;
-    AVCodecParserContext *parser = NULL;
+    AVCodecContext *c;
+    AVCodecParserContext *parser;
     int frame, got_picture, len2, len;
+    double tstart, tstop, utcoffset, FPS;
     const char *filename;
     FILE *f;
     AVFrame *picture;
-    char *arghwtf = malloc(INBUF_SIZE);
-    char *luma = NULL; 
-    char *chroma = NULL;
-    int i=0;
+    uint8_t *arghwtf;
+    //char *luma;
+    // char *chroma;
     uint64_t in_len;
     int pts, dts;
-    struct timeval t;
-    float inv_fps = 1e6/23.98;
+    //struct timeval t;
+    float inv_fps;
     AVPacket avpkt;
-    SDL_Rect rect;
+ } context;
 
-    /* must be called before using avcodec lib */
-    avcodec_init();
 
-    /* register all the codecs */
-    avcodec_register_all();
+int fetchFrame(void *ctx_void, unsigned char *tmpc, double *utc)
+ {
+  context *ctx = (context *)ctx_void;
+
+  if (utc) *utc = ctx->tstart + ctx->FPS*ctx->frame;
+
+  while (ctx->in_len > 0 && !feof(ctx->f))
+   {
+    ctx->len = av_parser_parse2(ctx->parser, ctx->c, &ctx->avpkt.data, &ctx->avpkt.size, ctx->arghwtf, ctx->in_len, ctx->pts, ctx->dts, AV_NOPTS_VALUE);
+    ctx->len2 = avcodec_decode_video2(ctx->c, ctx->picture, &ctx->got_picture, &ctx->avpkt);
+
+    if (ctx->len2 < 0) { sprintf(temp_err_string, "In input file <%s>, error decoding frame %d", ctx->filename, ctx->frame); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
+
+    if (ctx->got_picture)
+     {
+      int i;
+      if (ctx->frame==0)
+       {
+        ctx->inv_fps = av_q2d(ctx->c->time_base);
+        //ctx->luma = malloc(ctx->c->width*ctx->c->height);
+        //ctx->chroma = malloc(ctx->c->width*ctx->c->height/4);
+       }
+
+      //fprintf(stderr, "\rDisplaying %c:frame %3d (%02d:%02d)...", av_get_pict_type_char(picture->pict_type), frame, frame/1440, (frame/24)%60); fflush(stderr);
+      if (tmpc) for(i=0;i<ctx->c->height;i++) memcpy(tmpc + i * ctx->c->width, ctx->picture->data[0] + i * ctx->picture->linesize[0], ctx->c->width);
+      //memcpy(yuv_overlay->pixels[0], luma, c->width * c->height);
+      //for(i=0;i<c->height/2;i++) memcpy(chroma + i * c->width/2, picture->data[2] + i * picture->linesize[2], c->width/2);
+      //memcpy(yuv_overlay->pixels[1], chroma, c->width * c->height / 4);
+      //for(i=0;i<c->height/2;i++) memcpy(chroma + i * c->width/2, picture->data[1] + i * picture->linesize[1], c->width/2);
+      //memcpy(yuv_overlay->pixels[2], chroma, c->width * c->height / 4);
+
+      ctx->frame++;
+     }
+    memcpy(ctx->arghwtf, ctx->arghwtf + ctx->len, 80000-ctx->len);
+    fread(ctx->arghwtf + 80000 - ctx->len, 1, ctx->len, ctx->f);
+    if (ctx->got_picture) return 0;
+   }
+
+  // some codecs, such as MPEG, transmit the I and P frame with a latency of one frame. You must do the following to have a chance to get the last frame of the video
+  ctx->avpkt.data = NULL;
+  ctx->avpkt.size = 0;
+  ctx->len = avcodec_decode_video2(ctx->c, ctx->picture, &ctx->got_picture, &ctx->avpkt);
+  if (ctx->got_picture)
+   {
+    int i;
+    for(i=0;i<ctx->c->height;i++) memcpy(tmpc + i * ctx->c->width, ctx->picture->data[0] + i * ctx->picture->linesize[0], ctx->c->width);
+    ctx->frame++;
+    return 0;
+   }
+  return 1;
+ }
+
+int main(int argc, char **argv)
+ {
+  context ctx;
+  ctx.c = NULL;
+  ctx.parser = NULL;
+  ctx.arghwtf = malloc(INBUF_SIZE);
+
+  // Register all the codecs
+  avcodec_register_all();
                 
-    filename = argv[1];
+  ctx.filename = argv[1];
+  ctx.tstart   = GetFloat(argv[2],NULL);
+  ctx.tstop    = time(NULL)+3600*24;
+  ctx.utcoffset= 0;
+  ctx.FPS      = VIDEO_FPS;
 
-    av_init_packet(&avpkt);
+  av_init_packet(&ctx.avpkt);
 
-    printf("Decoding file %s...\n", filename);
+  printf("Decoding file <%s>\n", ctx.filename);
 
-    /* find the H.264 video decoder */
-    codec = avcodec_find_decoder(CODEC_ID_H264);
-    if (!codec) {
-        fprintf(stderr, "codec not found\n");
-        exit(1);
-    }
+  // Find the H.264 video decoder
+  ctx.codec = avcodec_find_decoder(CODEC_ID_H264);
+  if (!ctx.codec) { gnom_fatal(__FILE__,__LINE__,"codec not found"); }
 
-    c = avcodec_alloc_context();
-    picture = avcodec_alloc_frame();
+  ctx.c = avcodec_alloc_context3(NULL);
+  ctx.picture = avcodec_alloc_frame();
 
-    c->skip_loop_filter = 48; // skiploopfilter=all
+  ctx.c->skip_loop_filter = 48; // skiploopfilter=all
 
-    if (avcodec_open(c, codec) < 0) {
-        fprintf(stderr, "could not open codec\n");
-        exit(1);
-    }
+  if (avcodec_open2(ctx.c, ctx.codec, NULL) < 0) { gnom_fatal(__FILE__,__LINE__,"codec could not be opened"); }
 
-    /* the codec gives us the frame size, in samples */
-    parser = av_parser_init(c->codec_id);
-    parser->flags |= PARSER_FLAG_ONCE;
+  // The codec gives us the frame size, in samples
+  ctx.parser = av_parser_init(ctx.c->codec_id);
+  ctx.parser->flags |= PARSER_FLAG_ONCE;
 
-    f = fopen(filename, "rb");
-    if (!f) {
-        fprintf(stderr, "could not open %s\n", filename); 
-        exit(1);
-    }
+  ctx.f = fopen(ctx.filename, "rb");
+  if (!ctx.f) { sprintf(temp_err_string, "Could not open input file <%s>", ctx.filename); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
 
-    frame = 0;
-    gettimeofday(&t, 0);
-    if(fread(arghwtf, 1, INBUF_SIZE, f) == 0) {
-	exit(1);
-    }
-	in_len = 80000;
-        while (in_len > 0 && !feof(f)) {
-	    len = av_parser_parse2(parser, c, &avpkt.data, &avpkt.size, arghwtf, in_len,
-                                   pts, dts, AV_NOPTS_VALUE);
+  signal(SIGINT, sigint_handler);
 
-            len2 = avcodec_decode_video2(c, picture, &got_picture, &avpkt);
-            if (len2 < 0) {
-                fprintf(stderr, "Error while decoding frame %d\n", frame);
-                exit(1);
-            }
-            if (got_picture) {
-		if(!screen) {
-		    video_open(c, filename);
+  ctx.frame = 0;
+  if (fread(ctx.arghwtf, 1, INBUF_SIZE, ctx.f) == 0) { exit(1); }
+  ctx.in_len = 80000;
 
-		    rect.x = 0;
-		    rect.y = 0;
-		    rect.w = c->width;
-		    rect.h = c->height;
-		    inv_fps = av_q2d(c->time_base); 
-		    fprintf(stderr, "w:%i h:%i\n", rect.w, rect.h);
+  fetchFrame((void *)&ctx, NULL, NULL); // Get libav to pick up video size
+  observe((void *)&ctx, ctx.utcoffset, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, "live", &fetchFrame);
 
-		    luma = malloc(c->width*c->height);
-		    chroma = malloc(c->width*c->height/4);
+  fclose(ctx.f);
 
-		    SDL_DisplayYUVOverlay(yuv_overlay, &rect);
-
-		    signal(SIGINT, sigint_handler);
-		}		
-                fprintf(stderr, "\rDisplaying %c:frame %3d (%02d:%02d)...", av_get_pict_type_char(picture->pict_type), frame, frame/1440, (frame/24)%60);
-                fflush(stderr);
-
-		SDL_LockYUVOverlay(yuv_overlay);
-
-                for(i=0;i<c->height;i++) {
-                  memcpy(luma + i * c->width, picture->data[0] + i * picture->linesize[0], c->width);
-                }
-		memcpy(yuv_overlay->pixels[0], luma, c->width * c->height);
-                for(i=0;i<c->height/2;i++) {
-                  memcpy(chroma + i * c->width/2, picture->data[2] + i * picture->linesize[2], c->width/2);
-                }
-		memcpy(yuv_overlay->pixels[1], chroma, c->width * c->height / 4);
-                for(i=0;i<c->height/2;i++) {
-                  memcpy(chroma + i * c->width/2, picture->data[1] + i * picture->linesize[1], c->width/2);
-                }
-		memcpy(yuv_overlay->pixels[2], chroma, c->width * c->height / 4);
-
-		SDL_UnlockYUVOverlay(yuv_overlay);
-		SDL_DisplayYUVOverlay(yuv_overlay, &rect);
-
-		while(get_time_diff(t) < inv_fps) {
-		    usleep(1000);
-		}
-                frame++;
-		gettimeofday(&t, 0);
-            }
-	    memcpy(arghwtf, arghwtf + len, 80000-len);
-	    fread(arghwtf + 80000 - len, 1, len, f);
-        }
-
-    /* some codecs, such as MPEG, transmit the I and P frame with a
-       latency of one frame. You must do the following to have a
-       chance to get the last frame of the video */
-    avpkt.data = NULL;
-    avpkt.size = 0;
-    len = avcodec_decode_video2(c, picture, &got_picture, &avpkt);
-    if (got_picture) {
-        printf("saving last frame %3d\n", frame);
-        fflush(stdout);
-
-	/* Display last frame here, same code as in the decoding loop above. */
-
-        frame++;
-    }
-
-    fclose(f);
-
-    avcodec_close(c);
-    av_free(c);
-    av_free(picture);
-    printf("\n");
-}
+  avcodec_close(ctx.c);
+  av_free(ctx.c);
+  av_free(ctx.picture);
+  printf("\n");
+  return 0;
+ }

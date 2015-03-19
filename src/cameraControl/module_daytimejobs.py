@@ -3,7 +3,7 @@
 # Dominic Ford
 
 # Define the tasks we need to do
-rawH264ToTriggers = '%(binary_path)s/h264observe%(opm)s %(input)s'
+rawH264ToTriggers = '%(binary_path)s/h264observe_libav  %(input)s'
 rawImgToJpeg      = '%(binary_path)s/rawimg2jpg         %(input)s %(outdir)s/%(date)s/%(filename)s.jpg'
 rawRgbToPng       = '%(binary_path)s/rawrgb2png         %(input)s %(outdir)s/%(date)s/%(filename)s.png'
 rawVidToMp4       = '%(binary_path)s/rawvid2mp4%(opm)s  %(input)s /tmp/pivid_%(pid)s.h264 ; avconv -i "/tmp/pivid_%(pid)s.h264" -c:v copy -f mp4 %(outdir)s/%(date)s/%(filename)s.mp4 ; rm /tmp/pivid_%(pid)s.h264'
