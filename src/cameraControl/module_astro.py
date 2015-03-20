@@ -126,7 +126,30 @@ def JulianDay(year, month, day, hour, min, sec):
   DayFraction = (fabs(hour) + fabs(min)/60.0 + fabs(sec)/3600.0) / 24.0
   return JD + DayFraction
 
+def InvJulianDay(JD):
+  DayFraction = (JD+0.5) - floor(JD+0.5)
+  hour = int(floor(        24*DayFraction      ))
+  min  = int(floor(fmod( 1440*DayFraction , 60)))
+  sec  =           fmod(86400*DayFraction , 60)
+
+  # Number of whole Julian days. b = Number of centuries since the Council of Nicaea. c = Julian Day number as if century leap years happened.
+  a = int(JD + 0.5)
+  if (a < 2361222.0):
+   b=0; c=int(a+1524) # Julian calendar
+  else:
+   b=int((a-1867216.25)/36524.25); c=int(a+b-(b/4)+1525) # Gregorian calendar
+  d = int((c-122.1)/365.25);   # Number of 365.25 periods, starting the year at the end of February
+  e = int(365*d + d/4); # Number of days accounted for by these
+  f = int((c-e)/30.6001);      # Number of 30.6001 days periods (a.k.a. months) in remainder
+  day   = int(floor(c-e-(int)(30.6001*f)));
+  month = int(floor(f-1-12*(f>=14)));
+  year  = int(floor(d-4715-int(month>=3)));
+  return [year,month,day,hour,min,sec]
+
 # Returns a UTC timestamp from a Julian Day number
-def UTCfromJD(jd)
+def UTCfromJD(jd):
   return 86400.0 * (jd - 2440587.5)
+
+def JDfromUTC(utc):
+  return (utc/86400.0) + 2440587.5
 

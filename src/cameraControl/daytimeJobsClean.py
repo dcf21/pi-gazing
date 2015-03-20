@@ -8,19 +8,21 @@ import os,time
 from module_log import logTxt,getUTC
 from module_settings import *
 from module_daytimejobs import *
+import module_hwm
 
 logTxt("Running daytimeJobsClean")
+CWD = os.getcwd()
 os.chdir (DATA_PATH)
 
 # Clean up any file products which are newer than high water mark
-highWaterMarks = fetchHWM()
+highWaterMarks = module_hwm.fetchHWM()
 
 # Work on each task in turn
 for taskGroup in dayTimeTasks:
-  [HWMout, taskList] = taskGroup;
+  [HWMout, Nmax, taskList] = taskGroup;
   if HWMout not in highWaterMarks: highWaterMarks[HWMout]=0
   for task in taskList:
-    [inDir,outDirs,inExt,HWMin,cmd] = tasks
+    [inDir,outDirs,inExt,cmd] = task
 
     # Remove any output which is newer than HWM
     for outDir in outDirs:
@@ -29,5 +31,6 @@ for taskGroup in dayTimeTasks:
           utc = module_hwm.filenameToUTC(f)
           if (utc > highWaterMarks[HWMout]): os.system("rm -f %s"%os.path.join(dirName,f))
 
+os.chdir(CWD)
 logTxt("Finished daytimeJobsClean")
 

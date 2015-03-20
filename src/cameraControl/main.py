@@ -30,7 +30,7 @@ else:
   longitude   = 0.12
   logTxt("We are not running on a RPi; so not bothering to try to get GPS link")
 
-logtxt("Longitude = %.2f ; Latitude = %.2f ; Clock offset is %.1f"%(longitude,latitude,toffset))
+logTxt("Longitude = %.2f ; Latitude = %.2f ; Clock offset is %.1f"%(longitude,latitude,toffset))
 
 while True:
   logTxt("Camera controller considering what to do next.")

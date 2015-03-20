@@ -3,6 +3,7 @@
 # Dominic Ford
 
 import os,time
+import module_settings
 
 pid = os.getpid()
 
@@ -14,7 +15,7 @@ def getUTC():
 def getUTCoffset():
   return -toffset
 
-logfile = open("piInSky.log","a")
+logfile = open( os.path.join(module_settings.DATA_PATH,"piInSky.log") , "a" )
 
 def logTxt(txt):
  output = "[%s py] %s"%(time.strftime("%b %d %Y %H:%M:%S", time.gmtime(getUTC())),txt)

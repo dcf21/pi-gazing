@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
   for (i=0; i<nfr; i++)
    {
     int x,y,l=0;
-    int p = VIDEO_UPSIDE_DOWN ? ((i+1)*frameSize-1) : 0; // Raw frames are upside down, so we read them backwards from last pixel to first
+    int p=0;
     for (y=0; y<height; y++) for (x=0; x<width; x++)
      {
       OutputImage.data_red[l] =
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
       OutputImage.data_blu[l] = vidRaw[p];
       OutputImage.data_w  [l] = 1;
       l++;
-      if (VIDEO_UPSIDE_DOWN) { p--; } else { p++; }
+      p++;
      }
     char fname[4096]; sprintf(fname,"%s%06d.jpg",frOut,i);
     jpeg_deweight(&OutputImage);

@@ -15,6 +15,7 @@ import module_log
 from module_log import logTxt,getUTC
 from module_settings import *
 from module_daytimejobs import *
+import module_hwm
 
 pid = os.getpid()
 
@@ -34,46 +35,57 @@ logTxt("Cleaning up any output files which are ahead of high water marks")
 import daytimeJobsClean
 
 # Read our high water mark, and only analyse more recently-created data
-os.chdir (DATA_PATH)
-highWaterMarks = fetchHWM()
+os.chdir(DATA_PATH)
+highWaterMarks = module_hwm.fetchHWM()
+
+def runJobGrp(jobGrp):
+  cmd = " & ".join(jobGrp) + " & wait"
+  print cmd
+  os.system(cmd)
 
 # We raise this exception if we pass the time when we've been told we need to hand execution back
 class TimeOut(Exception): pass
 
 try:
   for taskGroup in dayTimeTasks:
-    [HWMout, taskList] = taskGroup;
+    [HWMout, Nmax , taskList] = taskGroup;
     if HWMout not in highWaterMarks: highWaterMarks[HWMout]=0
-    logtxt("Working on task group <%s>"%HWMout)
+    logTxt("Working on task group <%s>"%HWMout)
     jobList = []
     for task in taskList:
-      [inDir,outDirs,inExt,cmd] = tasks
+      [inDir,outDirs,inExt,cmd] = task
 
       # Operate on any input files which are newer than HWM
       for dirName, subdirList, fileList in os.walk(inDir):
         for f in fileList:
           if quitTime and (getUTC()>quitTime): raise TimeOut
-          if f.endsWith(".%s"%inExt):
+          if f.endswith(".%s"%inExt):
             utc = module_hwm.filenameToUTC(f)
             if (utc > highWaterMarks[HWMout]):
               params = {'binary_path':BINARY_PATH ,
                         'input':os.path.join(dirName,f) ,
                         'outdir':outDirs[0] ,
-                        'filename':f[:-len(inExt+1)] ,
-                        'date':fetchDayNameFromFilename(f) ,
+                        'filename':f[:-(len(inExt)+1)] ,
+                        'date':module_hwm.fetchDayNameFromFilename(f) ,
+                        'tstamp':utc ,
                         'pid':pid ,
                         'opm': ('_openmax' if I_AM_A_RPI else '') ,
                        }
               for outDir in outDirs: os.system("mkdir -p %s"%(os.path.join(outDir,params['date'])))
-              jobs.append( [utc, cmd % params] )
+              jobList.append( [utc, cmd % params] )
 
     # Do jobs in order of timestamp; raise high level water mark as we do each job
     jobList.sort(key=operator.itemgetter(0))
+    jobGrp = []
     for job in jobList:
       if quitTime and (getUTC()>quitTime): raise TimeOut
-      os.system(job[1])
+      jobGrp.append(job[1])
+      if len(jobGrp)>=Nmax:
+        runJobGrp(jobGrp)
+        jobGrp = []
       highWaterMarks[HWMout] = job[0]
-    logtxt("Completed %d jobs"%len(jobList))
+    runJobGrp(jobGrp)
+    logTxt("Completed %d jobs"%len(jobList))
 
 except TimeOut:
       logTxt("Interrupting processing as we've run out of time")

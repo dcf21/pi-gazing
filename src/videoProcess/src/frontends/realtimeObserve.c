@@ -26,6 +26,7 @@ int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc)
   int status = uvcGrab(videoIn);
   if (status) return status;
   Pyuv422toMono(videoIn->framebuffer, tmpc, videoIn->width, videoIn->height);
+  if (VIDEO_UPSIDE_DOWN) frameInvert(tmpc, videoIn->width*videoIn->height);
   *utc = time(NULL) + utcoffset;
   return 0;
  }

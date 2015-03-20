@@ -1,16 +1,18 @@
 #!/usr/bin/python
 # The line above helps make syntax highlighting detect that SConscript is python...
 
-import os
+import os,sys
+
+srcdir = os.path.join( Dir('.').abspath , 'src' )
 
 # Are we building sources which depend on OpenMAX?
 compileOpenMAX = ARGUMENTS.get('openmax', 0)
 compileLibav   = ARGUMENTS.get('libav'  , 1)
 
 # Build options to pass to gcc
-ccFlags   = ['-O1','-Wall','-g','-fopenmp','-D_FILE_OFFSET_BITS=64']
+ccFlags   = ['-O2','-Wall','-g','-fopenmp','-D_FILE_OFFSET_BITS=64']
 linkFlags = ['-fopenmp']
-ccDefines = ['DATE=\\"05/01/2015\\"' , 'VERSION=\\"0.0.1\\"']
+ccDefines = ['DATE=\\"05/01/2015\\"' , 'VERSION=\\"0.0.1\\"' , 'SRCDIR=\\"%s\\"'%srcdir ]
 
 # C source files which are common to all binaries we are going to build
 commonFiles = ['analyse/observe.c','jpeg/jpeg_in.c','jpeg/jpeg_out.c','utils/JulianDate.c','utils/asciidouble.c','utils/error.c','utils/tools.c','vidtools/color.c','vidtools/v4l2uvc.c']

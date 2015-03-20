@@ -65,8 +65,8 @@ int testTrigger(const double utc, const int width, const int height, const int *
   unsigned char *triggerB = calloc(1,frameSize);
   int  blockNum     = 1;
 
-  for (y=marginB; y<height-marginT; y++)
-   for (x=marginR;x<width-marginL; x++)
+  for (y=marginT; y<height-marginB; y++)
+   for (x=marginL;x<width-marginR; x++)
     {
      const int o=x+y*width;
      triggerR[o] = CLIP256( 128+(imageB[o]-imageA[o])*256/threshold ); // RED channel - difference between images B and A
@@ -95,7 +95,13 @@ int testTrigger(const double utc, const int width, const int height, const int *
            if (triggerBlock[blockId]>Npixels)
             {
              triggerB[o]=255;
-             if (DEBUG && !output) { sprintf(temp_err_string, "Camera has triggered at (%d,%d).",width-x,height-y); gnom_log(temp_err_string); }
+             if (DEBUG && !output)
+              {
+               int year,month,day,hour,min,status; double sec;
+               double JD = (utc/86400.0) + 2440587.5;
+               InvJulianDay(JD, &year, &month, &day, &hour, &min, &sec, &status, temp_err_string);
+               sprintf(temp_err_string, "Camera has triggered at (%04d/%02d/%02d %02d:%02d:%02d -- x=%d,y=%d).",year,month,day,hour,min,(int)sec,width-x,height-y); gnom_log(temp_err_string);
+              }
              output=1; // We have triggered!
             }
           }
@@ -150,11 +156,10 @@ int readShortBuffer(void *videoHandle, int nfr, int width, int height, unsigned 
 
 int observe(void *videoHandle, const int utcoffset, const int tstart, const int tstop, const int width, const int height, const char *label, int (*fetchFrame)(void *,unsigned char *,double *))
  {
-  char line[4096];
+  char line[4096],line2[1024],line3[1024];
   double utc;
 
-  if (DEBUG) { sprintf(line, "Starting observing run at %s.", StrStrip(FriendlyTimestring(tstart),temp_err_string)); gnom_log(line); }
-  if (DEBUG) { sprintf(line, "Observing run will end at %s.", StrStrip(FriendlyTimestring(tstop ),temp_err_string)); gnom_log(line); }
+  if (DEBUG) { sprintf(line, "Starting observing run at %s; observing run will end at %s.", StrStrip(FriendlyTimestring(tstart),line2),StrStrip(FriendlyTimestring(tstop),line3)); gnom_log(line); }
 
   const float fps = VIDEO_FPS;       // Requested frame rate
 
@@ -172,7 +177,7 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
   unsigned char *maxB    = malloc(frameSize);
 
   // Timelapse buffers
-  int          frameNextTargetTime  = floor(time(NULL)/60+1)*60; // Store exposures once a minute, on the minute
+  double       frameNextTargetTime  = floor(tstart/60+1)*60; // Store exposures once a minute, on the minute
   const double secondsTimelapseBuff = 15;
   const int    nfrtl                = fps * secondsTimelapseBuff;
   int         *stackT               = malloc(frameSize*sizeof(int));
@@ -246,7 +251,7 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
     // Once a minute, dump create a stacked exposure lasting for <secondsTimelapseBuff> seconds
     if (timelapseCount>=0)
       { timelapseCount++; }
-    else if (time(NULL)>frameNextTargetTime)
+    else if (utc>frameNextTargetTime)
       {
        int i; for (i=0; i<frameSize; i++) stackT[i]=0;
        timelapseCount=0;

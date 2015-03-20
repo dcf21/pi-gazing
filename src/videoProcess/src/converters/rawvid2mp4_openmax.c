@@ -695,8 +695,7 @@ int main(int argc, char **argv) {
             int line, xpos;
             for (line=0; line<height; line++)
              for (xpos=0; xpos<width; xpos++)
-              ctx.encoder_ppBuffer_in->pBuffer[ buf_info.p_offset[0] + frame_info.buf_stride*line + xpos] =
-               VIDEO_UPSIDE_DOWN ? (vidRaw[(frame_in+1)*frameSize - 1 - xpos - width*line]) : (vidRaw[frame_in*frameSize + xpos + width*line]);
+              ctx.encoder_ppBuffer_in->pBuffer[ buf_info.p_offset[0] + frame_info.buf_stride*line + xpos] = (vidRaw[frame_in*frameSize + xpos + width*line]);
 
             input_total_read += (frame_info.p_stride[0] * plane_span_y) + (frame_info.p_stride[1] * plane_span_uv)  + (frame_info.p_stride[2] * plane_span_uv);
 

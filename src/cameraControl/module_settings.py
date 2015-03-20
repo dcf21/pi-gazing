@@ -16,7 +16,7 @@ BINARY_PATH = os.path.join(PYTHON_PATH , "../videoProcess/bin")
 I_AM_A_RPI  = os.uname()[4].startswith("arm")
 
 # The directory where we expect to find images and video files
-DATA_PATH   = "/mnt/harddisk/pi/meteorCam"
+DATA_PATH   = "../../datadir"
 
 # Flag telling us whether to hunt for meteors in real time, or record H264 video for subsequent analysis
 REAL_TIME   = False

@@ -37,7 +37,7 @@ typedef struct context
     AVFrame *picture;
     uint8_t *arghwtf;
     //char *luma;
-    // char *chroma;
+    //char *chroma;
     uint64_t in_len;
     int pts, dts;
     //struct timeval t;
@@ -50,7 +50,7 @@ int fetchFrame(void *ctx_void, unsigned char *tmpc, double *utc)
  {
   context *ctx = (context *)ctx_void;
 
-  if (utc) *utc = ctx->tstart + ctx->FPS*ctx->frame;
+  if (utc) *utc = ctx->tstart + ctx->frame / ctx->FPS;
 
   while (ctx->in_len > 0 && !feof(ctx->f))
    {
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
   ctx.codec = avcodec_find_decoder(CODEC_ID_H264);
   if (!ctx.codec) { gnom_fatal(__FILE__,__LINE__,"codec not found"); }
 
-  ctx.c = avcodec_alloc_context3(NULL);
+  ctx.c = avcodec_alloc_context3(ctx.codec);
   ctx.picture = avcodec_alloc_frame();
 
   ctx.c->skip_loop_filter = 48; // skiploopfilter=all
@@ -143,7 +143,7 @@ int main(int argc, char **argv)
   ctx.in_len = 80000;
 
   fetchFrame((void *)&ctx, NULL, NULL); // Get libav to pick up video size
-  observe((void *)&ctx, ctx.utcoffset, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, "live", &fetchFrame);
+  observe((void *)&ctx, ctx.utcoffset, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, "nonlive", &fetchFrame);
 
   fclose(ctx.f);
 

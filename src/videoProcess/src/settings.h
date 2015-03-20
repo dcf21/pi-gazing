@@ -19,8 +19,10 @@
 #define VIDEO_UPSIDE_DOWN 1
 
 // This is the directory into which we dump output video and image files
+// Create a symlink in the meteor-pi root directory to where images should be stored, e.g.:
+// dcf21@ganymede:~/camsci/meteor-pi$ ln -s /mnt/harddisk/pi/meteorCam datadir
 
-#define OUTPUT_PATH  "/mnt/harddisk/pi/meteorCam"
+#define OUTPUT_PATH  SRCDIR "/../../../datadir"
 
 // This is the gain that we apply to stacked images taken as a time-lapse sequence through the night
 

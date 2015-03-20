@@ -113,13 +113,13 @@ int main(int argc, char *argv[])
 
     // Write image data
     int x, y;
-    int p = VIDEO_UPSIDE_DOWN ? (frameSize-1) : 0; // Raw frames are upside down, so we read them backwards from last pixel to first
+    int p=0;
     for (y=0 ; y<height ; y++) {
        for (x=0 ; x<width ; x++) {
           row[x*3+0] = vidRaw[p];
           row[x*3+1] = vidRaw[p];
           row[x*3+2] = vidRaw[p];
-          if (VIDEO_UPSIDE_DOWN) { p--; } else { p++; }
+          p++;
        }
        png_write_row(png_ptr, row);
     }

@@ -13,6 +13,18 @@
 
 #include "settings.h"
 
+void frameInvert(unsigned char *buffer, int len)
+ {
+  int i; int imax=len/2;
+#pragma omp parallel for private(i)
+  for (i=0 ; i<imax ; i++)
+   {
+    int j=len-1-i;
+    unsigned char tmp = buffer[i]; buffer[i]=buffer[j]; buffer[j]=tmp;
+   }
+  return;
+ }
+
 void *videoRecord(struct vdIn *videoIn, double seconds)
  {
   int i;
@@ -30,6 +42,7 @@ void *videoRecord(struct vdIn *videoIn, double seconds)
    {
     if (uvcGrab(videoIn) < 0) { printf("Error grabbing\n"); break; }
     Pyuv422toMono(videoIn->framebuffer, ptr, videoIn->width, videoIn->height);
+    if (VIDEO_UPSIDE_DOWN) frameInvert(ptr, frameSize);
     ptr+=frameSize;
    }
 
