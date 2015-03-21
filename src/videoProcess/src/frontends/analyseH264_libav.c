@@ -23,7 +23,7 @@
 
 void sigint_handler(int signal) { printf("\n"); exit(0); }
 
-#define INBUF_SIZE 80000
+#define INBUF_SIZE 120000
 
 typedef struct context
  {
@@ -57,7 +57,7 @@ int fetchFrame(void *ctx_void, unsigned char *tmpc, double *utc)
     ctx->len = av_parser_parse2(ctx->parser, ctx->c, &ctx->avpkt.data, &ctx->avpkt.size, ctx->arghwtf, ctx->in_len, ctx->pts, ctx->dts, AV_NOPTS_VALUE);
     ctx->len2 = avcodec_decode_video2(ctx->c, ctx->picture, &ctx->got_picture, &ctx->avpkt);
 
-    if (ctx->len2 < 0) { sprintf(temp_err_string, "In input file <%s>, error decoding frame %d", ctx->filename, ctx->frame); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
+    if (ctx->len2 < 0) { sprintf(temp_err_string, "In input file <%s>, error decoding frame %d", ctx->filename, ctx->frame); gnom_error(ERR_GENERAL,temp_err_string); }
 
     if (ctx->got_picture)
      {

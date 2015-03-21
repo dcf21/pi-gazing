@@ -28,5 +28,9 @@
 
 #define STACK_GAIN 4
 
+// Throttle the number of triggers which are allowed
+#define TRIGGER_THROTTLE_PERIOD 10 /* number of minutes */
+#define TRIGGER_THROTTLE_MAXEVT  5 /* number of triggers allowed in that time */
+
 #endif
 

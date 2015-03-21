@@ -133,7 +133,7 @@ int readShortBuffer(void *videoHandle, int nfr, int width, int height, unsigned 
   for (j=0;j<nfr;j++)
    {
     unsigned char *tmpc = buffer+j*frameSize;
-    if ((*fetchFrame)(videoHandle,tmpc,utc) < 0) { if (DEBUG) gnom_log("Error grabbing"); return 1; }
+    if ((*fetchFrame)(videoHandle,tmpc,utc) != 0) { if (DEBUG) gnom_log("Error grabbing"); return 1; }
 #pragma omp parallel for private(i)
     for (i=0; i<frameSize; i++) stack1[i]+=tmpc[i]; // Stack1 is wiped prior to each call to this function
     if (stack2)
@@ -204,6 +204,11 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
   int timelapseCount =-1; // Count used to add up <secondsTimelapseBuff> seconds of data when stacking timelapse frames
   int framesSinceLastTrigger = -260; // Let the camera run for 260 seconds before triggering, as it takes this long to make first median map
 
+  // Trigger throttling
+  const int triggerThrottleCycles = (TRIGGER_THROTTLE_PERIOD * 60. / secondsTriggerBuff);
+  int       triggerThrottleTimer  = 0;
+  int       triggerThrottleCounter= 0;
+
   while (1)
    {
     int t = time(NULL) + utcoffset;
@@ -268,13 +273,18 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
       timelapseCount=-1;
      }
 
+    // Update counters for trigger throttling
+    triggerThrottleTimer++;
+    if (triggerThrottleTimer >= triggerThrottleCycles) { triggerThrottleTimer=0; triggerThrottleCounter=0; }
+
     // If we're not recording, and have not stopped recording within past 2 seconds, test whether motion sensor has triggered
-    if ( (recording<0) && (framesSinceLastTrigger>2) )
+    if ( (recording<0) && (framesSinceLastTrigger>2) && (triggerThrottleCounter<TRIGGER_THROTTLE_MAXEVT) )
      {
       if (testTrigger(  utc , width , height , bufferNum?stackB:stackA , bufferNum?stackA:stackB , nfrt , label ))
        {
+        // Camera has triggered
         char fname[4096];
-        // if (DEBUG) { sprintf(line, "Camera has triggered."); gnom_log(line); }
+        triggerThrottleCounter++;
         sprintf(fname, "%s%s",triggerstub,"2_BS0.rawimg");
         dumpFrameFromInts(width, height, bufferNum?stackB:stackA, nfrt, 1, fname);
         sprintf(fname, "%s%s",triggerstub,"2_BS1.rawimg");
