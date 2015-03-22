@@ -1,4 +1,4 @@
-// raw2rgbpng.c
+// rawrgb2png.c
 // Meteor Pi, Cambridge Science Centre
 // Dominic Ford
 
@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 
   if (argc!=3)
    {
-    sprintf(temp_err_string, "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'raw2rgbjpeg foo.raw frame.jpg'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'rawrgb2png foo.raw frame.jpg'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
   char *rawFname = argv[1];
@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
   unsigned char *vidRawR = malloc(frameSize);
   unsigned char *vidRawG = malloc(frameSize);
   unsigned char *vidRawB = malloc(frameSize);
-  if ( (vidRawR==NULL) || (vidRawG==NULL) || (vidRawB==NULL) ) { sprintf(temp_err_string, "ERROR: malloc fail in raw2rgbjpeg."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
+  if ( (vidRawR==NULL) || (vidRawG==NULL) || (vidRawB==NULL) ) { sprintf(temp_err_string, "ERROR: malloc fail"); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
   i=fread(vidRawR,1,frameSize,infile);
   i=fread(vidRawG,1,frameSize,infile);
   i=fread(vidRawB,1,frameSize,infile);

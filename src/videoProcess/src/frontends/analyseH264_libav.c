@@ -105,15 +105,20 @@ int main(int argc, char **argv)
   ctx.parser = NULL;
   ctx.arghwtf = malloc(INBUF_SIZE);
 
-  // Register all the codecs
-  avcodec_register_all();
-                
+  if (argc!=3)
+   {
+    sprintf(temp_err_string, "ERROR: Need to specify raw video filename on commandline, followed by UTC time of start of video, e.g. 'analyseH264_libav foo.rawvid 1234'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+   }
+
   ctx.filename = argv[1];
   ctx.tstart   = GetFloat(argv[2],NULL);
   ctx.tstop    = time(NULL)+3600*24;
   ctx.utcoffset= 0;
   ctx.FPS      = VIDEO_FPS;
 
+  // Register all the codecs
+  avcodec_register_all();
+                
   av_init_packet(&ctx.avpkt);
 
   printf("Decoding file <%s>\n", ctx.filename);

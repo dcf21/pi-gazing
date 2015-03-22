@@ -28,7 +28,8 @@ targets = [ [0, 0, commonFiles + ['frontends/vidRec.c']             , 'vidRec'],
             [0, 0, commonFiles + ['converters/rawimg2jpg.c']        , 'rawimg2jpg'],
             [0, 0, commonFiles + ['converters/rawrgb2png.c']        , 'rawrgb2png'],
             [0, 0, commonFiles + ['converters/rawvid2frames.c']     , 'rawvid2frames'],
-            [1, 0, commonFiles + ['converters/rawvid2mp4_openmax.c'], 'rawvid2mp4_openmax']
+            [1, 0, commonFiles + ['converters/rawvid2mp4_openmax.c'], 'rawvid2mp4_openmax'],
+            [0, 1, commonFiles + ['converters/rawvid2mp4_libav.c']  , 'rawvid2mp4_libav'],
           ];
 
 subDirs      = ['','analyse','converters','frontends','jpeg','utils','vidtools']
@@ -42,7 +43,7 @@ libraries_openmax    = ['openmaxil','vcos','bcm_host','pthread']
 
 includePaths_libav   = []
 libraryPaths_libav   = []
-libraries_libav      = ['avutil','avcodec']
+libraries_libav      = ['avutil','avcodec','avformat']
 
 
 debugOptions = [ [0,''] , [1,'debug'] ]

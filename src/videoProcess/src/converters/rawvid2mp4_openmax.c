@@ -1,4 +1,4 @@
-// raw2openmax.c
+// rawvid2mp4_openmax.c
 // Meteor Pi, Cambridge Science Centre
 // Dominic Ford
 
@@ -510,7 +510,7 @@ int main(int argc, char **argv) {
 
   if (argc!=3)
    {
-    sprintf(temp_err_string, "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'raw2opm foo.raw frame.mp4'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'rawvid2mp4_openmax foo.raw frame.mp4'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
   char *rawFname = argv[1];
@@ -529,7 +529,7 @@ int main(int argc, char **argv) {
 
   size-=3*sizeof(int);
   unsigned char *vidRaw = malloc(size);
-  if (vidRaw==NULL) { sprintf(temp_err_string, "ERROR: malloc fail in raw2frames."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
+  if (vidRaw==NULL) { sprintf(temp_err_string, "ERROR: malloc fail"); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
   i=fread(vidRaw,1,size,infile);
   fclose(infile);
 
