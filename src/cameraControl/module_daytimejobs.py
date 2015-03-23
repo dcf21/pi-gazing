@@ -2,11 +2,17 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
+from module_settings import *
+
 # Define the tasks we need to do
 rawH264ToTriggers = '%(binary_path)s/debug/analyseH264_libav  %(input)s %(tstamp)s'
 rawImgToJpeg      = '%(binary_path)s/rawimg2jpg               %(input)s %(outdir)s/%(date)s/%(filename)s.jpg'
 rawRgbToPng       = '%(binary_path)s/rawrgb2png               %(input)s %(outdir)s/%(date)s/%(filename)s.png'
-rawVidToMp4       = '%(binary_path)s/rawvid2mp4%(opm)s        %(input)s /tmp/pivid_%(pid)s.h264 ; avconv -i "/tmp/pivid_%(pid)s.h264" -c:v copy -f mp4 %(outdir)s/%(date)s/%(filename)s.mp4 ; rm /tmp/pivid_%(pid)s.h264'
+
+if I_AM_A_RPI:
+  rawVidToMp4     = '%(binary_path)s/rawvid2mp4_openmax       %(input)s /tmp/pivid_%(pid)s.h264 ; avconv -i "/tmp/pivid_%(pid)s.h264" -c:v copy -f mp4 %(outdir)s/%(date)s/%(filename)s.mp4 ; rm /tmp/pivid_%(pid)s.h264'
+else:
+  rawVidToMp4     = '%(binary_path)s/rawvid2mp4_libav         %(input)s %(outdir)s/%(date)s/%(filename)s.mp4'
 
 # Nmax = maximum number of jobs which can run in parallel. NB: OpenMAX can only be used by one process at a time
 

@@ -31,6 +31,11 @@ int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc)
   return 0;
  }
 
+int rewindVideo(void *videoHandle, double *utc)
+ {
+  return 0; // Can't rewind live video!
+ }
+
 int main(int argc, char *argv[])
  {
   if (argc!=3)
@@ -67,7 +72,7 @@ int main(int argc, char *argv[])
 
   initLut();
 
-  observe((void *)videoIn, utcoffset, tstart, tstop, width, height, "live", &fetchFrame);
+  observe((void *)videoIn, utcoffset, tstart, tstop, width, height, "live", &fetchFrame, &rewindVideo);
 
   return 0;
  }

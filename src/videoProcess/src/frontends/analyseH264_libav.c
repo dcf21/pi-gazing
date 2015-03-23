@@ -45,7 +45,6 @@ typedef struct context
     AVPacket avpkt;
  } context;
 
-
 int fetchFrame(void *ctx_void, unsigned char *tmpc, double *utc)
  {
   context *ctx = (context *)ctx_void;
@@ -79,8 +78,8 @@ int fetchFrame(void *ctx_void, unsigned char *tmpc, double *utc)
 
       ctx->frame++;
      }
-    memcpy(ctx->arghwtf, ctx->arghwtf + ctx->len, 80000-ctx->len);
-    fread(ctx->arghwtf + 80000 - ctx->len, 1, ctx->len, ctx->f);
+    memcpy(ctx->arghwtf, ctx->arghwtf + ctx->len, INBUF_SIZE-ctx->len);
+    fread(ctx->arghwtf + INBUF_SIZE - ctx->len, 1, ctx->len, ctx->f);
     if (ctx->got_picture) return 0;
    }
 
@@ -98,11 +97,64 @@ int fetchFrame(void *ctx_void, unsigned char *tmpc, double *utc)
   return 1;
  }
 
+int decoder_init(context *ctx)
+ { 
+  ctx->c = NULL;
+  ctx->parser = NULL;
+  av_init_packet(&ctx->avpkt);
+
+  printf("Decoding file <%s>\n", ctx->filename);
+
+  // Find the H.264 video decoder
+  ctx->codec = avcodec_find_decoder(CODEC_ID_H264);
+  if (!ctx->codec) { gnom_fatal(__FILE__,__LINE__,"codec not found"); }
+
+  ctx->c = avcodec_alloc_context3(ctx->codec);
+  ctx->picture = avcodec_alloc_frame();
+
+  ctx->c->skip_loop_filter = 48; // skiploopfilter=all
+
+  if (avcodec_open2(ctx->c, ctx->codec, NULL) < 0) { gnom_fatal(__FILE__,__LINE__,"codec could not be opened"); }
+
+  // The codec gives us the frame size, in samples
+  ctx->parser = av_parser_init(ctx->c->codec_id);
+  ctx->parser->flags |= PARSER_FLAG_ONCE;
+
+  ctx->f = fopen(ctx->filename, "rb");
+  if (!ctx->f) { sprintf(temp_err_string, "Could not open input file <%s>", ctx->filename); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
+
+  signal(SIGINT, sigint_handler);
+
+  ctx->frame = 0;
+  if (fread(ctx->arghwtf, 1, INBUF_SIZE, ctx->f) == 0) { exit(1); }
+  ctx->in_len = INBUF_SIZE;
+
+  fetchFrame((void *)ctx, NULL, NULL); // Get libav to pick up video size
+  return 0;
+ }
+
+
+int decoder_shutdown(context *ctx)
+ {
+  fclose(ctx->f);
+  avcodec_close(ctx->c);
+  av_free(ctx->c);
+  av_free(ctx->picture);
+  return 0;
+ }
+
+int rewindVideo(void *ctx_void, double *utc)
+ {
+  context *ctx = (context *)ctx_void;
+  decoder_shutdown(ctx);
+  decoder_init(ctx);
+  if (utc) *utc = ctx->tstart;
+  return 0;
+ }
+
 int main(int argc, char **argv)
  {
   context ctx;
-  ctx.c = NULL;
-  ctx.parser = NULL;
   ctx.arghwtf = malloc(INBUF_SIZE);
 
   if (argc!=3)
@@ -118,43 +170,10 @@ int main(int argc, char **argv)
 
   // Register all the codecs
   avcodec_register_all();
-                
-  av_init_packet(&ctx.avpkt);
-
-  printf("Decoding file <%s>\n", ctx.filename);
-
-  // Find the H.264 video decoder
-  ctx.codec = avcodec_find_decoder(CODEC_ID_H264);
-  if (!ctx.codec) { gnom_fatal(__FILE__,__LINE__,"codec not found"); }
-
-  ctx.c = avcodec_alloc_context3(ctx.codec);
-  ctx.picture = avcodec_alloc_frame();
-
-  ctx.c->skip_loop_filter = 48; // skiploopfilter=all
-
-  if (avcodec_open2(ctx.c, ctx.codec, NULL) < 0) { gnom_fatal(__FILE__,__LINE__,"codec could not be opened"); }
-
-  // The codec gives us the frame size, in samples
-  ctx.parser = av_parser_init(ctx.c->codec_id);
-  ctx.parser->flags |= PARSER_FLAG_ONCE;
-
-  ctx.f = fopen(ctx.filename, "rb");
-  if (!ctx.f) { sprintf(temp_err_string, "Could not open input file <%s>", ctx.filename); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
-
-  signal(SIGINT, sigint_handler);
-
-  ctx.frame = 0;
-  if (fread(ctx.arghwtf, 1, INBUF_SIZE, ctx.f) == 0) { exit(1); }
-  ctx.in_len = 80000;
-
-  fetchFrame((void *)&ctx, NULL, NULL); // Get libav to pick up video size
-  observe((void *)&ctx, ctx.utcoffset, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, "nonlive", &fetchFrame);
-
-  fclose(ctx.f);
-
-  avcodec_close(ctx.c);
-  av_free(ctx.c);
-  av_free(ctx.picture);
+  decoder_init(&ctx);
+  observe((void *)&ctx, ctx.utcoffset, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, "nonlive", &fetchFrame, &rewindVideo);
+  decoder_shutdown(&ctx);
   printf("\n");
   return 0;
  }
+

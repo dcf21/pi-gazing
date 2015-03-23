@@ -39,6 +39,7 @@ os.chdir(DATA_PATH)
 highWaterMarks = module_hwm.fetchHWM()
 
 def runJobGrp(jobGrp):
+  if (len(jobGrp)<1): return
   cmd = " & ".join(jobGrp) + " & wait"
   print cmd
   os.system(cmd)
@@ -77,13 +78,16 @@ try:
     # Do jobs in order of timestamp; raise high level water mark as we do each job
     jobList.sort(key=operator.itemgetter(0))
     jobGrp = []
-    for job in jobList:
+    jobListLen = len(jobList);
+    for i in range(jobListLen):
+      job=jobList[i]
       if quitTime and (getUTC()>quitTime): raise TimeOut
       jobGrp.append(job[1])
       if len(jobGrp)>=Nmax:
         runJobGrp(jobGrp)
         jobGrp = []
-      highWaterMarks[HWMout] = job[0]
+      if (i<jobListLen-1): highWaterMarks[HWMout] = jobList[i+1][0]-0.1 # Set HWM so that next job is marked as not yet done (it may have the same timestamp as present job)
+      else               : highWaterMarks[HWMout] = job[0]+0.1 # Set HWM so it's just past the job we've just done (0.1 sec)
     runJobGrp(jobGrp)
     logTxt("Completed %d jobs"%len(jobList))
 

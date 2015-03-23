@@ -17,6 +17,7 @@ I_AM_A_RPI  = os.uname()[4].startswith("arm")
 
 # The directory where we expect to find images and video files
 DATA_PATH   = "../../datadir"
+assert os.path.exists(DATA_PATH), "You need to create a symlink 'datadir' in the root of your meteor-pi working copy, where we store all of the camera data"
 
 # Flag telling us whether to hunt for meteors in real time, or record H264 video for subsequent analysis
 REAL_TIME   = False

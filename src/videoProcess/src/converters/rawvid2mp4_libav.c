@@ -63,8 +63,6 @@ int main(int argc, char **argv)
   AVFrame *pictureEncoded;
   AVPacket avpkt;
 
-  uint8_t *picEncodeBuf;
-
   int frame_in=0, frame_out=0;
 
   AVFormatContext *outContainer = avformat_alloc_context();
@@ -82,25 +80,40 @@ int main(int argc, char **argv)
   ctxEncode = video_avstream->codec;
 
   /* put sample parameters */
-  ctxEncode->bit_rate = 10000000;
-  /* resolution must be a multiple of two */
+  ctxEncode->bit_rate = 10000*1000;
+  ctxEncode->bit_rate_tolerance = 0;
+  ctxEncode->rc_max_rate = 0;
+  ctxEncode->rc_buffer_size = 0;
+  ctxEncode->gop_size = 30;
+  ctxEncode->max_b_frames = 3;
+  ctxEncode->b_frame_strategy = 1;
+  ctxEncode->coder_type = 1;
+  ctxEncode->me_cmp = 1;
+  ctxEncode->me_range = 16;
+  ctxEncode->qmin = 10;
+  ctxEncode->qmax = 51;
+  ctxEncode->scenechange_threshold = 40;
+  ctxEncode->flags |= CODEC_FLAG_LOOP_FILTER;
+  ctxEncode->me_method = ME_HEX;
+  ctxEncode->me_subpel_quality = 5;
+  ctxEncode->i_quant_factor = 0.71;
+  ctxEncode->qcompress = 0.6;
+  ctxEncode->max_qdiff = 4;
+  ctxEncode->trellis = 1; // trellis=1
+
   ctxEncode->width = width;
   ctxEncode->height = height;
-  /* frames per second */
   ctxEncode->time_base= (AVRational){1,VIDEO_FPS};
-  ctxEncode->gop_size = 30; /* emit one intra frame every ten frames */
-  //ctxEncode->max_b_frames=1;
   ctxEncode->pix_fmt = AV_PIX_FMT_YUV420P;
-  //av_opt_set(ctxEncode->priv_data, "preset", "slow", 0);
+
+  AVDictionary* options = NULL;
+  av_dict_set(&options, "preset","veryfast",0);
 
   /* open codec for encoder*/
-  if (avcodec_open2(ctxEncode, codecEncode, NULL) < 0) { gnom_fatal(__FILE__,__LINE__,"could not open codec"); }
+  if (avcodec_open2(ctxEncode, codecEncode, &options) < 0) { gnom_fatal(__FILE__,__LINE__,"could not open codec"); }
 
   pictureEncoded = avcodec_alloc_frame();
   if (!pictureEncoded) { gnom_fatal(__FILE__,__LINE__,"Could not allocate video frame"); }
-  pictureEncoded->format = ctxEncode->pix_fmt;
-  pictureEncoded->width  = ctxEncode->width;
-  pictureEncoded->height = ctxEncode->height;
 
   // some formats want stream headers to be separate
   if (outContainer->oformat->flags & AVFMT_GLOBALHEADER) ctxEncode->flags |= CODEC_FLAG_GLOBAL_HEADER;
@@ -112,22 +125,15 @@ int main(int argc, char **argv)
 
   avformat_write_header(outContainer, NULL);
 
-  /* alloc image and output buffer for encoder*/
-  picEncodeBuf = (uint8_t *)malloc(3*frameSize/2); /* size for YUV 420 */
-  pictureEncoded->data[0] = picEncodeBuf;
-  pictureEncoded->data[1] = pictureEncoded->data[0] + frameSize;
-  pictureEncoded->data[2] = pictureEncoded->data[1] + frameSize / 4;
-  pictureEncoded->linesize[0] = ctxEncode->width;
-  pictureEncoded->linesize[1] = ctxEncode->width / 2;
-  pictureEncoded->linesize[2] = ctxEncode->width / 2; 
-
+//FILE *tmpout=fopen("/tmp/tmp.h264","wb");
   /* encode loop */
   while (frame_in<nfr)
    {
-    memcpy(pictureEncoded->data[0], vidRaw+frame_in*frameSize, width*height);
-    memset(pictureEncoded->data[1], 128, width*height/4);
-    memset(pictureEncoded->data[2], 128, width*height/4);
-    pictureEncoded->pts = AV_NOPTS_VALUE;
+    int j;
+    avpicture_alloc((AVPicture *)pictureEncoded,ctxEncode->pix_fmt,ctxEncode->width,ctxEncode->height);
+    for (j=0;j<height;j++) memcpy(pictureEncoded->data[0]+j*pictureEncoded->linesize[0], vidRaw+frame_in*frameSize+j*width, width);
+    memset(pictureEncoded->data[1], 128, pictureEncoded->linesize[1]*height/2);
+    memset(pictureEncoded->data[2], 128, pictureEncoded->linesize[2]*height/2);
 
     /* encode frame */
     av_init_packet(&avpkt);
@@ -135,7 +141,8 @@ int main(int argc, char **argv)
     avpkt.size = 0;
     pictureEncoded->pts = av_rescale_q(frame_in, video_avstream->codec->time_base, video_avstream->time_base);
     i = avcodec_encode_video2(ctxEncode, &avpkt, pictureEncoded, &got_packet_ptr);
-    //printf("encoding frame %3d (size=%5d)\n", frame_in, avpkt->size);
+//printf(". %d %d %d\n",got_packet_ptr,avpkt.flags,avpkt.size); if (got_packet_ptr) fwrite(avpkt.data,1,avpkt.size,tmpout);
+    avpicture_free((AVPicture *)pictureEncoded);
     if (i) printf("error encoding frame\n");
     frame_in++;
     if (got_packet_ptr) { frame_out++; av_write_frame(outContainer, &avpkt); }
@@ -147,8 +154,8 @@ int main(int argc, char **argv)
     av_init_packet(&avpkt);
     avpkt.data = NULL;    // packet data will be allocated by the encoder
     avpkt.size = 0;
-    pictureEncoded->pts = av_rescale_q(frame_in, video_avstream->codec->time_base, video_avstream->time_base);
     i = avcodec_encode_video2(ctxEncode, &avpkt, NULL, &got_packet_ptr);
+//printf("! %d %d %d\n",got_packet_ptr,avpkt.flags,avpkt.size); if (got_packet_ptr) fwrite(avpkt.data,1,avpkt.size,tmpout);
     //printf("encoding frame %3d (size=%5d)\n", frame_in, avpkt->size);
     if (!got_packet_ptr) break;
     frame_out++;
@@ -156,6 +163,7 @@ int main(int argc, char **argv)
     av_free_packet(&avpkt);
    }
 
+//fclose(tmpout);
   av_write_trailer(outContainer);
   av_freep(video_avstream);
   if (!(outContainer->oformat->flags & AVFMT_NOFILE)) avio_close(outContainer->pb);

@@ -15,6 +15,11 @@
 
 #include "settings.h"
 
+#define framesSinceLastTrigger_INITIAL      -260
+#define framesSinceLastTrigger_REWIND         -2
+#define framesSinceLastTrigger_ALLOWTRIGGER    3
+
+
 // When testTrigger detects a meteor, this string is set to a filename stub with time stamp of the time when the camera triggered
 static char triggerstub[4096];
 
@@ -154,7 +159,7 @@ int readShortBuffer(void *videoHandle, int nfr, int width, int height, unsigned 
   return 0;
  }
 
-int observe(void *videoHandle, const int utcoffset, const int tstart, const int tstop, const int width, const int height, const char *label, int (*fetchFrame)(void *,unsigned char *,double *))
+int observe(void *videoHandle, const int utcoffset, const int tstart, const int tstop, const int width, const int height, const char *label, int (*fetchFrame)(void *,unsigned char *,double *), int (*rewindVideo)(void *, double *))
  {
   char line[4096],line2[1024],line3[1024];
   double utc;
@@ -177,7 +182,7 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
   unsigned char *maxB    = malloc(frameSize);
 
   // Timelapse buffers
-  double       frameNextTargetTime  = floor(tstart/60+1)*60; // Store exposures once a minute, on the minute
+  double       frameNextTargetTime  = 1e40; // Store exposures once a minute, on the minute. This is UTC of next frame, but we don't start until we've done a run-in period
   const double secondsTimelapseBuff = 15;
   const int    nfrtl                = fps * secondsTimelapseBuff;
   int         *stackT               = malloc(frameSize*sizeof(int));
@@ -202,7 +207,7 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
   int medianCount    = 0; // Count frames from 0 to 255 until we're ready to make a new median map
   int recording      =-1; // Count how many seconds we've been recording for. A value of -1 means we're not recording
   int timelapseCount =-1; // Count used to add up <secondsTimelapseBuff> seconds of data when stacking timelapse frames
-  int framesSinceLastTrigger = -260; // Let the camera run for 260 seconds before triggering, as it takes this long to make first median map
+  int framesSinceLastTrigger = framesSinceLastTrigger_INITIAL; // Let the camera run for 260 seconds before triggering, as it takes this long to make first median map
 
   // Trigger throttling
   const int triggerThrottleCycles = (TRIGGER_THROTTLE_PERIOD * 60. / secondsTriggerBuff);
@@ -214,6 +219,13 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
     int t = time(NULL) + utcoffset;
     if (t>=tstop) break; // Check how we're doing for time; if we've reached the time to stop, stop now!
 
+    // Once we've done initial run-in period, rewind the tape to the beginning if we can
+    if (framesSinceLastTrigger==framesSinceLastTrigger_REWIND)
+     {
+      (*rewindVideo)(videoHandle,&utc);
+      frameNextTargetTime = ceil(utc/60)*60; // Start making timelapse video
+     }
+
     // Work out where we're going to read next second of video to. Either bufferA / bufferB, or the long buffer if we're recording
     unsigned char *buffer = bufferNum?bufferB:bufferA;
     if (recording>-1) buffer = bufferL + frameSize*nfrt*recording;
@@ -222,7 +234,7 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
     int status = readShortBuffer(videoHandle, nfrt, width, height, buffer, bufferNum?stackB:stackA, (timelapseCount>=0)?stackT:NULL, bufferNum?maxB:maxA, medianWorkspace, &utc, fetchFrame);
     if (status) break; // We've run out of video
     framesSinceLastTrigger++;
-    if (DEBUG) if (framesSinceLastTrigger==3) { sprintf(line, "Camera is now able to trigger."); gnom_log(line); }
+    if (DEBUG) if (framesSinceLastTrigger==framesSinceLastTrigger_ALLOWTRIGGER) { sprintf(line, "Camera is now able to trigger."); gnom_log(line); }
 
     // If we've stacked 255 frames since we last made a median map, make a new median map
     medianCount++;
@@ -278,7 +290,7 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
     if (triggerThrottleTimer >= triggerThrottleCycles) { triggerThrottleTimer=0; triggerThrottleCounter=0; }
 
     // If we're not recording, and have not stopped recording within past 2 seconds, test whether motion sensor has triggered
-    if ( (recording<0) && (framesSinceLastTrigger>2) && (triggerThrottleCounter<TRIGGER_THROTTLE_MAXEVT) )
+    if ( (recording<0) && (framesSinceLastTrigger>=framesSinceLastTrigger_ALLOWTRIGGER) && (triggerThrottleCounter<TRIGGER_THROTTLE_MAXEVT) )
      {
       if (testTrigger(  utc , width , height , bufferNum?stackB:stackA , bufferNum?stackA:stackB , nfrt , label ))
        {
