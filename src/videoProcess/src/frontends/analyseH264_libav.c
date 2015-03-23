@@ -23,7 +23,7 @@
 
 void sigint_handler(int signal) { printf("\n"); exit(0); }
 
-#define INBUF_SIZE 120000
+#define INBUF_SIZE 200000
 
 typedef struct context
  {
@@ -51,49 +51,29 @@ int fetchFrame(void *ctx_void, unsigned char *tmpc, double *utc)
 
   if (utc) *utc = ctx->tstart + ctx->frame / ctx->FPS;
 
-  while (ctx->in_len > 0 && !feof(ctx->f))
+  while (1)
    {
-    ctx->len = av_parser_parse2(ctx->parser, ctx->c, &ctx->avpkt.data, &ctx->avpkt.size, ctx->arghwtf, ctx->in_len, ctx->pts, ctx->dts, AV_NOPTS_VALUE);
+    av_init_packet(&ctx->avpkt);
+    ctx->len  = av_parser_parse2(ctx->parser, ctx->c, &ctx->avpkt.data, &ctx->avpkt.size, ctx->arghwtf, ctx->in_len, ctx->pts, ctx->dts, AV_NOPTS_VALUE);
     ctx->len2 = avcodec_decode_video2(ctx->c, ctx->picture, &ctx->got_picture, &ctx->avpkt);
 
-    if (ctx->len2 < 0) { sprintf(temp_err_string, "In input file <%s>, error decoding frame %d", ctx->filename, ctx->frame); gnom_error(ERR_GENERAL,temp_err_string); }
+    if (ctx->in_len && (ctx->len < 0)) { sprintf(temp_err_string, "In input file <%s>, error decoding frame %d", ctx->filename, ctx->frame); gnom_error(ERR_GENERAL,temp_err_string); }
 
     if (ctx->got_picture)
      {
       int i;
-      if (ctx->frame==0)
-       {
-        ctx->inv_fps = av_q2d(ctx->c->time_base);
-        //ctx->luma = malloc(ctx->c->width*ctx->c->height);
-        //ctx->chroma = malloc(ctx->c->width*ctx->c->height/4);
-       }
-
-      //fprintf(stderr, "\rDisplaying %c:frame %3d (%02d:%02d)...", av_get_pict_type_char(picture->pict_type), frame, frame/1440, (frame/24)%60); fflush(stderr);
       if (tmpc) for(i=0;i<ctx->c->height;i++) memcpy(tmpc + i * ctx->c->width, ctx->picture->data[0] + i * ctx->picture->linesize[0], ctx->c->width);
-      //memcpy(yuv_overlay->pixels[0], luma, c->width * c->height);
-      //for(i=0;i<c->height/2;i++) memcpy(chroma + i * c->width/2, picture->data[2] + i * picture->linesize[2], c->width/2);
-      //memcpy(yuv_overlay->pixels[1], chroma, c->width * c->height / 4);
-      //for(i=0;i<c->height/2;i++) memcpy(chroma + i * c->width/2, picture->data[1] + i * picture->linesize[1], c->width/2);
-      //memcpy(yuv_overlay->pixels[2], chroma, c->width * c->height / 4);
-
       ctx->frame++;
      }
-    memcpy(ctx->arghwtf, ctx->arghwtf + ctx->len, INBUF_SIZE-ctx->len);
-    fread(ctx->arghwtf + INBUF_SIZE - ctx->len, 1, ctx->len, ctx->f);
+    uint64_t remainingBufLen = ctx->in_len-ctx->len;
+    memcpy(ctx->arghwtf, ctx->arghwtf + ctx->len, remainingBufLen);
+    uint64_t newBufLen = remainingBufLen;
+    if (!feof(ctx->f)) newBufLen += fread(ctx->arghwtf + remainingBufLen, 1, INBUF_SIZE-remainingBufLen, ctx->f);
+    ctx->in_len = newBufLen;
     if (ctx->got_picture) return 0;
+    if ((!ctx->got_picture)&&(feof(ctx->f))) return 1;
    }
 
-  // some codecs, such as MPEG, transmit the I and P frame with a latency of one frame. You must do the following to have a chance to get the last frame of the video
-  ctx->avpkt.data = NULL;
-  ctx->avpkt.size = 0;
-  ctx->len = avcodec_decode_video2(ctx->c, ctx->picture, &ctx->got_picture, &ctx->avpkt);
-  if (ctx->got_picture)
-   {
-    int i;
-    for(i=0;i<ctx->c->height;i++) memcpy(tmpc + i * ctx->c->width, ctx->picture->data[0] + i * ctx->picture->linesize[0], ctx->c->width);
-    ctx->frame++;
-    return 0;
-   }
   return 1;
  }
 
@@ -101,7 +81,6 @@ int decoder_init(context *ctx)
  { 
   ctx->c = NULL;
   ctx->parser = NULL;
-  av_init_packet(&ctx->avpkt);
 
   printf("Decoding file <%s>\n", ctx->filename);
 
@@ -110,15 +89,23 @@ int decoder_init(context *ctx)
   if (!ctx->codec) { gnom_fatal(__FILE__,__LINE__,"codec not found"); }
 
   ctx->c = avcodec_alloc_context3(ctx->codec);
+  if (ctx->codec->capabilities&CODEC_CAP_TRUNCATED) ctx->c->flags|= CODEC_FLAG_TRUNCATED; /* we do not send complete frames */
+
+  ctx->c->width    = VIDEO_WIDTH;
+  ctx->c->height   = VIDEO_HEIGHT;
+  ctx->c->pix_fmt  = AV_PIX_FMT_YUV420P;
+  ctx->c->time_base= (AVRational){1,VIDEO_FPS};
+
   ctx->picture = avcodec_alloc_frame();
 
-  ctx->c->skip_loop_filter = 48; // skiploopfilter=all
+  //ctx->c->skip_loop_filter = 48; // skiploopfilter=all
 
   if (avcodec_open2(ctx->c, ctx->codec, NULL) < 0) { gnom_fatal(__FILE__,__LINE__,"codec could not be opened"); }
 
   // The codec gives us the frame size, in samples
   ctx->parser = av_parser_init(ctx->c->codec_id);
-  ctx->parser->flags |= PARSER_FLAG_ONCE;
+
+  //ctx->parser->flags |= PARSER_FLAG_ONCE;
 
   ctx->f = fopen(ctx->filename, "rb");
   if (!ctx->f) { sprintf(temp_err_string, "Could not open input file <%s>", ctx->filename); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
@@ -126,8 +113,7 @@ int decoder_init(context *ctx)
   signal(SIGINT, sigint_handler);
 
   ctx->frame = 0;
-  if (fread(ctx->arghwtf, 1, INBUF_SIZE, ctx->f) == 0) { exit(1); }
-  ctx->in_len = INBUF_SIZE;
+  if ((ctx->in_len=fread(ctx->arghwtf, 1, INBUF_SIZE, ctx->f)) == 0) { exit(1); }
 
   fetchFrame((void *)ctx, NULL, NULL); // Get libav to pick up video size
   return 0;
