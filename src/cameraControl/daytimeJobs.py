@@ -39,8 +39,11 @@ os.chdir(DATA_PATH)
 highWaterMarks = module_hwm.fetchHWM()
 
 def runJobGrp(jobGrp):
-  if (len(jobGrp)<1): return
-  cmd = " & ".join(jobGrp) + " & wait"
+  if (len(jobGrp)< 1): return
+  if (len(jobGrp)==1):
+    cmd = jobGrp[0]
+  else:
+    cmd = " & ".join(jobGrp) + " & wait"
   print cmd
   os.system(cmd)
 
@@ -52,6 +55,7 @@ try:
     [HWMout, Nmax , taskList] = taskGroup;
     if HWMout not in highWaterMarks: highWaterMarks[HWMout]=0
     logTxt("Working on task group <%s>"%HWMout)
+    HWMmargin = ((VIDEO_MAXRECTIME-5) if HWMout=="rawvideo" else 0.1)
     jobList = []
     for task in taskList:
       [inDir,outDirs,inExt,cmd] = task
@@ -62,6 +66,7 @@ try:
           if quitTime and (getUTC()>quitTime): raise TimeOut
           if f.endswith(".%s"%inExt):
             utc = module_hwm.filenameToUTC(f)
+            if (utc < 0): continue
             if (utc > highWaterMarks[HWMout]):
               params = {'binary_path':BINARY_PATH ,
                         'input':os.path.join(dirName,f) ,
@@ -86,9 +91,10 @@ try:
       if len(jobGrp)>=Nmax:
         runJobGrp(jobGrp)
         jobGrp = []
-      if (i<jobListLen-1): highWaterMarks[HWMout] = jobList[i+1][0]-0.1 # Set HWM so that next job is marked as not yet done (it may have the same timestamp as present job)
-      else               : highWaterMarks[HWMout] = job[0]+0.1 # Set HWM so it's just past the job we've just done (0.1 sec)
+        if (i<jobListLen-1): highWaterMarks[HWMout] = jobList[i+1][0]-0.1 # Set HWM so that next job is marked as not yet done (it may have the same timestamp as present job)
+        else               : highWaterMarks[HWMout] = job[0]+HWMmargin # Set HWM so it's just past the job we've just done (0.1 sec)
     runJobGrp(jobGrp)
+    highWaterMarks[HWMout] = jobList[jobListLen-1][0]+HWMmargin
     logTxt("Completed %d jobs"%len(jobList))
 
 except TimeOut:

@@ -55,7 +55,7 @@ while True:
         time.sleep(10)
         continue
       else:
-        if (secondsTillSunrise>3600): secondsTillSunrise=3600 # Do not record more than an hour of video in one file
+        if (secondsTillSunrise>VIDEO_MAXRECTIME): secondsTillSunrise=VIDEO_MAXRECTIME # Do not record more than an hour of video in one file
         tstop = timeNow+secondsTillSunrise
         logTxt("Starting video recording until %s (running for %d seconds)."%(datetime.datetime.fromtimestamp(tstop).strftime('%Y-%m-%d %H:%M:%S'),secondsTillSunrise))
         module_relay.cameraOn()

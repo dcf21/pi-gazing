@@ -26,6 +26,7 @@ for histogramTitle in fileList:
   histogram[histogramTitle] = {}
   for f in fileList[histogramTitle]:
     utc = module_hwm.filenameToUTC(f)
+    if (utc<0): continue
     hour= floor(utc/3600)*3600
     if (hour<utcMin): utcMin=hour
     if (hour>utcMax): utcMax=hour

@@ -25,3 +25,6 @@ REAL_TIME   = False
 # How many second before/after sun is above horizon do we wait before bothering observing
 sunMargin   = 1200 # 20 minutes
 
+# When observing with non-real-time triggering, this is how many seconds in each video
+VIDEO_MAXRECTIME = 3600
+

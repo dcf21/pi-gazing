@@ -29,6 +29,7 @@ for taskGroup in dayTimeTasks:
       for dirName, subdirList, fileList in os.walk(outDir):
         for f in fileList:
           utc = module_hwm.filenameToUTC(f)
+          if (utc < 0): continue
           if (utc > highWaterMarks[HWMout]): os.system("rm -f %s"%os.path.join(dirName,f))
 
 os.chdir(CWD)

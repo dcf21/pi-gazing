@@ -61,7 +61,7 @@ int testTrigger(const double utc, const int width, const int height, const int *
 
   const int Npixels=30; // To trigger this number of pixels connected together must have brightened
   const int radius=8; // Pixel must be brighter than test pixels this distance away
-  const int threshold=13*coAddedFrames; // Pixel must have brightened by at least 8.
+  const int threshold=12*coAddedFrames; // Pixel must have brightened by at least this amount.
   const int frameSize=width*height;
   int *triggerMap   = calloc(1,frameSize*sizeof(int)); // triggerMap is a 2D array of ints used to mark out pixels which have brightened suspiciously.
   int *triggerBlock = calloc(1,frameSize*sizeof(int)); // triggerBlock is a count of how many pixels are in each numbered connected block

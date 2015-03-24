@@ -12,8 +12,6 @@ from module_settings import *
 from module_daytimejobs import *
 import module_hwm
 
-RAW_VIDEO_LENGTH = 3600 # When observing with non-real-time triggering, this is how many seconds in each video
-
 pid = os.getpid()
 
 # Read our high water mark, and only analyse more recently-created data
@@ -29,9 +27,9 @@ for dirName, subdirList, fileList in os.walk("."):
     rootDir = dirName.split('/')[1]
     if rootDir not in fileCensus: fileCensus[rootDir]={}
     for f in fileList:
-      if f.startswith("20"):
-        utc = module_hwm.filenameToUTC(f)
-        fileCensus[rootDir][utc] = f
+      utc = module_hwm.filenameToUTC(f)
+      if (utc<0): continue
+      fileCensus[rootDir][utc] = f
 
 jobCensus = {}
 jobCensus['behindHwmDone'] = {}
@@ -53,6 +51,7 @@ for taskGroup in dayTimeTasks:
       for f in fileList:
         if f.endswith(".%s"%inExt):
           utc = module_hwm.filenameToUTC(f)
+          if (utc<0): continue
           behindHWM = (utc <= highWaterMarks[HWMout])
           done = False
           for outDir in outDirs:
@@ -61,7 +60,7 @@ for taskGroup in dayTimeTasks:
                 if (utc in fileCensus[outDir]): done=True
               else:
                 for u in fileCensus[outDir].keys():
-                 if ((u>utc)and(u<utc+RAW_VIDEO_LENGTH)): # For files in rawvideo, assume they are processed if we have an output file within some duration of the video's start time
+                 if ((u>utc)and(u<utc+VIDEO_MAXRECTIME)): # For files in rawvideo, assume they are processed if we have an output file within some duration of the video's start time
                    done=True
                    break
           if ((    done) and (not behindHWM)): jobCensus['aheadHwmDone']   [HWMout]+=1
