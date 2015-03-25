@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
   struct vdIn *videoIn;
 
   const char *videodevice=VIDEO_DEV;
-  float fps = VIDEO_FPS;       // Requested frame rate
+  float fps = nearestMultiple(VIDEO_FPS,1);       // Requested frame rate
   int format = V4L2_PIX_FMT_YUYV;
   int grabmethod = 1;
   int queryformats = 0;

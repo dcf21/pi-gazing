@@ -9,6 +9,7 @@
 
 #define CLIP256(X) ( d=X , ((d<0)?0: ((d>255)?255:d) ))
 
+int   nearestMultiple  (double in, int factor);
 void  frameInvert      (unsigned char *buffer, int len);
 void *videoRecord      (struct vdIn *videoIn, double seconds);
 void  snapshot         (struct vdIn *videoIn, int nfr, int zero, double expComp, char *fname, unsigned char *medianRaw);

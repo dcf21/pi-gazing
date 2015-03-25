@@ -525,7 +525,7 @@ int main(int argc, char **argv)
     struct vdIn *videoIn;
 
     const char *videodevice=VIDEO_DEV;
-    const float fps = VIDEO_FPS;       // Requested frame rate
+    const float fps = nearestMultiple(VIDEO_FPS,1);       // Requested frame rate
     const int v4l_format = V4L2_PIX_FMT_YUYV;
     const int grabmethod = 1;
     char *avifilename = "/tmp/foo";

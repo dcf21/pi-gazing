@@ -567,7 +567,7 @@ int main(int argc, char **argv) {
     }
     encoder_portdef.format.video.nFrameWidth  = width;
     encoder_portdef.format.video.nFrameHeight = height;
-    encoder_portdef.format.video.xFramerate   = ((int)VIDEO_FPS) << 16;
+    encoder_portdef.format.video.xFramerate   = nearestMultiple(VIDEO_FPS,1) << 16;
     // Stolen from gstomxvideodec.c of gst-omx
     encoder_portdef.format.video.nStride      = (encoder_portdef.format.video.nFrameWidth + encoder_portdef.nBufferAlignment - 1) & (~(encoder_portdef.nBufferAlignment - 1));
     encoder_portdef.format.video.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;
