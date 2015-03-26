@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <unistd.h>
 #include "vidtools/v4l2uvc.h"
 #include "jpeg/jpeg.h"
@@ -12,6 +13,11 @@
 #include "utils/tools.h"
 
 #include "settings.h"
+
+int nearestMultiple(double in, int factor)
+ {
+  return (int)(round(in/factor)*factor);
+ }
 
 void frameInvert(unsigned char *buffer, int len)
  {

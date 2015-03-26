@@ -61,7 +61,7 @@ int testTrigger(const double utc, const int width, const int height, const int *
 
   const int Npixels=30; // To trigger this number of pixels connected together must have brightened
   const int radius=8; // Pixel must be brighter than test pixels this distance away
-  const int threshold=12*coAddedFrames; // Pixel must have brightened by at least this amount.
+  const int threshold=13*coAddedFrames; // Pixel must have brightened by at least this amount.
   const int frameSize=width*height;
   int *triggerMap   = calloc(1,frameSize*sizeof(int)); // triggerMap is a 2D array of ints used to mark out pixels which have brightened suspiciously.
   int *triggerBlock = calloc(1,frameSize*sizeof(int)); // triggerBlock is a count of how many pixels are in each numbered connected block
@@ -184,12 +184,12 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
   // Timelapse buffers
   double       frameNextTargetTime  = 1e40; // Store exposures once a minute, on the minute. This is UTC of next frame, but we don't start until we've done a run-in period
   const double secondsTimelapseBuff = 15;
-  const int    nfrtl                = fps * secondsTimelapseBuff;
+  const int    nfrtl                = nearestMultiple(fps * secondsTimelapseBuff, nfrt); // Number of frames stacked in all buffers must be a multiple of shortest buffer length
   int         *stackT               = malloc(frameSize*sizeof(int));
 
   // Long buffer. Used to store a video after the camera has triggered
   const double secondsLongBuff = 9;
-  const int nfrl         = fps * secondsLongBuff;
+  const int nfrl         = nearestMultiple(fps * secondsLongBuff, nfrt); // Number of frames stacked in all buffers must be a multiple of shortest buffer length
   const int bllen        = nfrl*frameSize;
   unsigned char *bufferL = malloc(bllen); // A long buffer, used to record 10 seconds of video after we trigger
   int           *stackL  = malloc(frameSize*sizeof(int));

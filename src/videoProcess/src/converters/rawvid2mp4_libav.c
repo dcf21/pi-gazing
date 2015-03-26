@@ -103,7 +103,7 @@ int main(int argc, char **argv)
 
   ctxEncode->width = width;
   ctxEncode->height = height;
-  ctxEncode->time_base= (AVRational){1,VIDEO_FPS};
+  ctxEncode->time_base= (AVRational){1,nearestMultiple(VIDEO_FPS,1)};
   ctxEncode->pix_fmt = AV_PIX_FMT_YUV420P;
 
   AVDictionary* options = NULL;

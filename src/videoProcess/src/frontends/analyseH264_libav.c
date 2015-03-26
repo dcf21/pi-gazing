@@ -19,6 +19,7 @@
 
 #include "analyse/observe.h"
 #include "utils/asciidouble.h"
+#include "utils/tools.h"
 #include "utils/error.h"
 #include "settings.h"
 
