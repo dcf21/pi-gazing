@@ -134,6 +134,11 @@ SET TERM ; ^
 
 /* Camera status tables */
 
+CREATE TABLE t_highWaterMark (
+	cameraID char(12) NOT NULL,
+	mark timestamp NOT NULL
+);
+
 CREATE TABLE t_cameraStatus (
 	internalID integer NOT NULL,
 	cameraID char(12) NOT NULL,
@@ -153,6 +158,16 @@ CREATE TABLE t_cameraStatus (
 	PRIMARY KEY (internalID)
 );
 
+CREATE TABLE t_visibleRegions (
+	cameraStatusId integer NOT NULL,
+	region integer NOT NULL,
+	pointOrder integer DEFAULT 0 NOT NULL,
+	x integer NOT NULL,
+	y integer NOT NULL,
+	FOREIGN KEY (cameraStatusId) REFERENCES t_cameraStatus(internalId) ON DELETE CASCADE,
+	PRIMARY KEY (cameraStatusId, region, pointOrder)
+);
+
 SET TERM ^ ;
 CREATE OR ALTER TRIGGER assignStatusID FOR t_cameraStatus 
 BEFORE INSERT position 10 
@@ -164,15 +179,7 @@ AS BEGIN
 end ^
 SET TERM ; ^
 
-CREATE TABLE t_occlusion (
-	cameraStatusId integer NOT NULL,
-	region integer NOT NULL,
-	pointOrder integer DEFAULT 0 NOT NULL,
-	x integer NOT NULL,
-	y integer NOT NULL,
-	FOREIGN KEY (cameraStatusId) REFERENCES t_cameraStatus(internalId),
-	PRIMARY KEY (cameraStatusId, region, pointOrder)
-);
+
 
 
 

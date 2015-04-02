@@ -9,21 +9,27 @@ con = fdb.connect(dsn='/var/lib/firebird/2.5/data/meteorpi.fdb', user='meteorpi'
 
 # Return a sequence of Camera IDs for all cameras with current status blocks
 def getCameras():
+	"""
+	Get all Camera IDs for cameras in this database with current (i.e. validTo == None) status blocks
+	"""
 	cur = con.cursor()
 	cur.execute('SELECT DISTINCT cameraID from t_cameraStatus where validTo IS NULL')
 	return map(lambda row: row[0], cur.fetchall())
 
 # Update the camera status for the installed camera, taking its ID from getInstallationID()
 def updateCameraStatus(ns, time = datetime.now()):
+	"""
+	Update the status for this installation's camera, optionally specify a time (defaults to datetime.now()).
+	"""
 	timeNow = roundTime(time)
 	cameraID = getInstallationID()
 	cur = con.cursor()
 	# If there's an existing status block then set its end time to now
 	cur.execute('UPDATE t_cameraStatus t SET t.validTo = (?) WHERE t.validTo IS NULL AND t.cameraID = (?)', (timeNow, cameraID))
 	cur.execute('INSERT INTO t_cameraStatus (cameraID, validFrom, validTo, softwareVersion, orientationAltitude, orientationAzimuth, orientationCertainty, locationLatitude, locationLongitude, locationGPS, lens, camera, instURL, instName) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING internalID', (cameraID, timeNow, None, 1, ns.orientation.altitude, ns.orientation.azimuth, ns.orientation.certainty, ns.location.latitude, ns.location.longitude, ns.location.gps, ns.lens, ns.camera, ns.instURL, ns.instName))
-	# Retrieve the newly created internal ID for the status block, use this to insert occlusion regions	
+	# Retrieve the newly created internal ID for the status block, use this to insert visible regions	
 	statusID = cur.fetchone()[0]
-	# TODO - occlusion regions
+	# TODO - visible regions
 	con.commit()
 
 # Get the camera status at a given time
@@ -37,7 +43,6 @@ def getCameraStatus(time = datetime.now()):
 	cur.execute('SELECT lens, camera, instURL, instName, locationLatitude, locationLongitude, locationGPS, orientationAltitude, orientationAzimuth, orientationCertainty, validFrom, validTo, softwareVersion FROM t_cameraStatus t WHERE t.cameraID = (?) AND t.validFrom <= (?) AND (t.validTo IS NULL OR t.validTo>(?))', ( cameraID,  time, time))
 	row = cur.fetchone()
 	if row==None:
-		print "No row found for camera with ID "+cameraID
 		return None
 	cs = mp.CameraStatus(row[0], row[1], row[2], row[3], mp.Orientation(row[7], row[8], row[9]), mp.Location(row[4], row[5], row[6]==True))
 	cs.validFrom = row[10]
@@ -45,10 +50,48 @@ def getCameraStatus(time = datetime.now()):
 	cs.softwareVersion = row[12]
 	print "Camera status at time "+str(time)+" is "+str(cs)
 	return cs;
-	
+
+def getHighWaterMark(cameraID = getInstallationID()):
+	"""
+	Retrieves the current high water mark for a camera installation, or None if none has been set.
+	"""
+	cur = con.cursor()
+	cur.execute('SELECT mark FROM t_highWaterMark t WHERE t.cameraID = (?)', cameraID)
+	row = cur.fetchone()
+	if row==None:
+		return None
+	return row[0] 
+
+def setHighWaterMark(time, cameraID = getInstallationID()):
+	"""
+	Sets the 'high water mark' for this installation. This is the latest point before which all data has been processed,
+	when this call is made any data products (events, images etc) with time stamps later than the high water mark will
+	be removed from the database. Any camera status blocks with validFrom dates after the high water mark will be removed,
+	and any status blocks with validTo dates after the high water mark will have their validTo set to None to make them
+	current
+	"""
+	cur = con.cursor()
+	last = getHighWaterMark(cameraID)
+	if last == None:
+		# No high water mark defined, set it and return
+		cur.execute('INSERT INTO t_highWaterMark (cameraID, mark) values (?,?)', cameraID, time)
+	elif last < time:
+		# Defined, but new one is later, we don't really have to do much
+		cur.execute('UPDATE t_highWaterMark t SET t.mark = (?) WHERE t.cameraID = (?)', (time, cameraID)) 
+	else:
+		# More complicated, we're rolling back time so need to clean up a load of future data
+		cur.execute('UPDATE t_highWaterMark t SET t.mark = (?) WHERE t.cameraID = (?)', (time, cameraID))
+		# First handle camera status, the visibility regions will be handled by a CASCADE in the schema	
+		cur.execute('DELETE FROM t_cameraStatus t WHERE t.validFrom > (?) AND t.cameraID = (?)',(time, cameraID))
+		cur.execute('UPDATE t_cameraStatus t SET t.validTo = NULL WHERE t.validTo >= (?) AND t.cameraID = (?)', (time, cameraID))
+		# TODO events and images
+	cur.commit()
 
 # Get a 48 bit integer from the MAC address of the first network interface on this machine, render as a 12 character hex string
 def getInstallationID():
+	"""
+	Get the installation ID of the current system, using the MAC address rendered as a 12 character hex string
+	"""
 	def toArray(number):
 		result = ''
 		n = number
@@ -60,7 +103,7 @@ def getInstallationID():
 	return toArray(uuid.getnode())
 
 # -----------------------------------------
-# DATABASE UTILITY METHODS BELOW THIS POINT
+# UTILITY METHODS BELOW THIS POINT
 # -----------------------------------------
 
 # Rounds a datetime, discarding the millisecond part. Needed because Python and Firebird precision is different!
