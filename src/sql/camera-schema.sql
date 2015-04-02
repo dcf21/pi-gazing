@@ -19,7 +19,7 @@ CREATE SEQUENCE gidSequence;
 CREATE TABLE t_event (
 	internalID integer NOT NULL,
 	eventID char(16) NOT NULL,
-	cameraID char(6) NOT NULL,
+	cameraID char(12) NOT NULL,
 	eventTime timestamp NOT NULL,
 	intensity integer DEFAULT 0 NOT NULL,
 	x1 integer DEFAULT 0 NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE t_event (
 /* Links to files in whatever external store we use */
 CREATE TABLE t_file (
 	internalID integer NOT NULL,
-	cameraID char(6) NOT NULL,
+	cameraID char(12) NOT NULL,
 	fileID char(16) NOT NULL,
 	mimeType varchar(40) default 'text/plain' NOT NULL,
 	namespace varchar(255) default 'meteorPi' NOT NULL,
@@ -87,7 +87,7 @@ CREATE TABLE t_file_to_filemeta (
 SET TERM ^ ;
 CREATE OR ALTER TRIGGER assignEventID FOR t_event 
 BEFORE INSERT position 0 
-AS BEGIN
+AS begin
   if ((new.internalID is null) or (new.internalID = 0)) then
   begin
     new.internalID = gen_id(gidSequence, 1);
@@ -99,7 +99,7 @@ AS BEGIN
 end ^
 CREATE OR ALTER TRIGGER assignFileID FOR t_file 
 BEFORE INSERT position 0 
-AS BEGIN
+AS begin
   if ((new.internalID is null) or (new.internalID = 0)) then
   begin
     new.internalID = gen_id(gidSequence, 1);
@@ -111,7 +111,7 @@ AS BEGIN
 end ^
 CREATE OR ALTER TRIGGER assignFileMetaID FOR t_fileMeta 
 BEFORE INSERT position 0 
-AS BEGIN
+AS begin
   if ((new.internalID is null) or (new.internalID = 0)) then
   begin
     new.internalID = gen_id(gidSequence, 1);
@@ -136,7 +136,7 @@ SET TERM ; ^
 
 CREATE TABLE t_cameraStatus (
 	internalID integer NOT NULL,
-	cameraID char(6) NOT NULL,
+	cameraID char(12) NOT NULL,
 	validFrom timestamp NOT NULL,
 	validTo timestamp,
 	softwareVersion integer DEFAULT 0 NOT NULL,
@@ -155,7 +155,7 @@ CREATE TABLE t_cameraStatus (
 
 SET TERM ^ ;
 CREATE OR ALTER TRIGGER assignEventID FOR t_cameraStatus 
-BEFORE INSERT position 0 
+BEFORE INSERT position 10 
 AS BEGIN
   if ((new.internalID is null) or (new.internalID = 0)) then
   begin
