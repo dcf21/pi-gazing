@@ -1,7 +1,7 @@
 import fdb
 import uuid
 import meteorpi_model as mp
-from datetime import datetime
+from datetime import datetime, timedelta
 		
 # http://www.firebirdsql.org/file/documentation/drivers_documentation/python/fdb/getting-started.html is helpful!
 
@@ -9,35 +9,41 @@ con = fdb.connect(dsn='/var/lib/firebird/2.5/data/meteorpi.fdb', user='meteorpi'
 
 # Return a sequence of Camera IDs for all cameras with current status blocks
 def getCameras():
-	con.begin()
 	cur = con.cursor()
 	cur.execute('SELECT DISTINCT cameraID from t_cameraStatus where validTo IS NULL')
 	return map(lambda row: row[0], cur.fetchall())
 
 # Update the camera status for the installed camera, taking its ID from getInstallationID()
-def updateCameraStatus(ns):
-	trans = con.trans()
-	timeNow = datetime.now()
+def updateCameraStatus(ns, time = datetime.now()):
+	timeNow = roundTime(time)
 	cameraID = getInstallationID()
-	cur = trans.cursor()
+	cur = con.cursor()
 	# If there's an existing status block then set its end time to now
 	cur.execute('UPDATE t_cameraStatus t SET t.validTo = (?) WHERE t.validTo IS NULL AND t.cameraID = (?)', (timeNow, cameraID))
-	cur.execute('INSERT INTO t_cameraStatus (internalId, cameraID, validFrom, validTo, softwareVersion, orientationAltitude, orientationAzimuth, orientationCertainty, locationLatitude, locationLongitude, locationGPS, lens, camera, instURL, instName) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING internalID', (0, cameraID, timeNow, None, 1, ns.orientation.altitude, ns.orientation.azimuth, ns.orientation.certainty, ns.location.latitude, ns.location.longitude, ns.location.gps, ns.lens, ns.camera, ns.instURL, ns.instName))
-	print 'Newly created row with ID = ', cur.fetchone()[0]
-	trans.commit()
-	print 'Updated camera status'
+	cur.execute('INSERT INTO t_cameraStatus (cameraID, validFrom, validTo, softwareVersion, orientationAltitude, orientationAzimuth, orientationCertainty, locationLatitude, locationLongitude, locationGPS, lens, camera, instURL, instName) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING internalID', (cameraID, timeNow, None, 1, ns.orientation.altitude, ns.orientation.azimuth, ns.orientation.certainty, ns.location.latitude, ns.location.longitude, ns.location.gps, ns.lens, ns.camera, ns.instURL, ns.instName))
+	# Retrieve the newly created internal ID for the status block, use this to insert occlusion regions	
+	statusID = cur.fetchone()[0]
+	# TODO - occlusion regions
+	con.commit()
 
+# Get the camera status at a given time
 def getCameraStatus(time = datetime.now()):
-	trans = con.trans()
-	cur = trans.cursor()
+	"""Return the camera status for a given time, or None if no status is available
+	time : datetime.datetime object, default now.
+	"""
+	time = roundTime(time)
+	cur = con.cursor()
 	cameraID = getInstallationID()
-	cur.execute('SELECT lens, camera, instURL, instName, locationLatitude, locationLongitude, locationGPS, orientationAltitude, orientationAzimuth, orientationCertainty, validFrom, validTo, softwareVersion FROM t_cameraStatus t WHERE t.cameraID = (?) AND t.validFrom <= (?) AND t.validTo IS NULL', ( cameraID,  time))
+	cur.execute('SELECT lens, camera, instURL, instName, locationLatitude, locationLongitude, locationGPS, orientationAltitude, orientationAzimuth, orientationCertainty, validFrom, validTo, softwareVersion FROM t_cameraStatus t WHERE t.cameraID = (?) AND t.validFrom <= (?) AND (t.validTo IS NULL OR t.validTo>(?))', ( cameraID,  time, time))
 	row = cur.fetchone()
-	print row
+	if row==None:
+		print "No row found for camera with ID "+cameraID
+		return None
 	cs = mp.CameraStatus(row[0], row[1], row[2], row[3], mp.Orientation(row[7], row[8], row[9]), mp.Location(row[4], row[5], row[6]==True))
 	cs.validFrom = row[10]
 	cs.validTo = row[11]
 	cs.softwareVersion = row[12]
+	print "Camera status at time "+str(time)+" is "+str(cs)
 	return cs;
 	
 
@@ -56,6 +62,10 @@ def getInstallationID():
 # -----------------------------------------
 # DATABASE UTILITY METHODS BELOW THIS POINT
 # -----------------------------------------
+
+# Rounds a datetime, discarding the millisecond part. Needed because Python and Firebird precision is different!
+def roundTime(time=datetime.now()):
+	return time + timedelta(0, 0, -time.microsecond)
 
 # Retrieves and increments the internal ID from gidSequence, returning it as an integer
 def getNextInternalID():

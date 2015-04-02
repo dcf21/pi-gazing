@@ -154,7 +154,7 @@ CREATE TABLE t_cameraStatus (
 );
 
 SET TERM ^ ;
-CREATE OR ALTER TRIGGER assignEventID FOR t_cameraStatus 
+CREATE OR ALTER TRIGGER assignStatusID FOR t_cameraStatus 
 BEFORE INSERT position 10 
 AS BEGIN
   if ((new.internalID is null) or (new.internalID = 0)) then
