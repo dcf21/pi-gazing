@@ -1,6 +1,44 @@
 # MeteorPi API module
 
 
+class Event:
+
+    """A single observation from the camera."""
+    # TODO
+
+
+class File:
+
+    """A piece of binary data with associated metadata, typically used to store
+    an image or video from the camera."""
+
+    def __init__(self, fileID, cameraID, mimeType, namespace, semanticType):
+        self.fileID = fileID
+        self.cameraID = cameraID
+        self.mimeType = mimeType
+        self.namespace = namespace
+        self.semanticType = semanticType
+    fileID = None
+    cameraID = None
+    mimeType = "text/plain"
+    namespace = "meteorPi"
+    semanticType = ""
+    meta = []
+
+
+class FileMeta:
+
+    """A single piece of metadata pertaining to a File."""
+
+    def __init__(self, namespace="meteorPi", key, stringValue):
+        self.namespace = namespace
+        self.key = key
+        self.stringValue = stringValue
+    namespace = "meteorPi"
+    key = ""
+    stringValue = ""
+
+
 class Location:
 
     """A location fix, consisting of latitude and longitude, and a boolean to
@@ -64,17 +102,19 @@ class CameraStatus:
         self.location = location
 
     def __str__(self):
-        return 'CameraStatus(location={0}, orientation={1}, validFrom={2},'
-        'validTo={3}, version={4}, lens={5}, cam={6}, regions={7})'.format(
-            self.location,
-            self.orientation,
-            self.validFrom,
-            self.validTo,
-            self.softwareVersion,
-            self.lens,
-            self.camera,
-            self.regions)
-    # A sequence of sequences of {x:int, y:int} representing visible regions
+        return (
+            'CameraStatus(location={0}, orientation={1}, validFrom={2},'
+            'validTo={3}, version={4}, lens={5}, cam={6}, regions={7})'.format(
+                self.location,
+                self.orientation,
+                self.validFrom,
+                self.validTo,
+                self.softwareVersion,
+                self.lens,
+                self.camera,
+                self.regions))
+    # A sequence of sequences of {x:int, y:int} representing visible
+    # regions
     regions = []
     lens = ""
     camera = ""

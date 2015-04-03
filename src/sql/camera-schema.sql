@@ -5,8 +5,6 @@ SET NAMES UNICODE_FSS;
  * /var/lib/firebird/2.5/data/meteorpi.fdb, and be connected
  * as a user with write access to this database.
  * See https://github.com/camsci/meteor-pi/wiki/Camera-database-configuration
- *
- * Tom Oinn, tomoinn@crypticsquid.com, 17th March 2015
  */
 CONNECT '/var/lib/firebird/2.5/data/meteorpi.fdb';
 
@@ -41,7 +39,7 @@ CREATE TABLE t_file (
 	mimeType varchar(40) default 'text/plain' NOT NULL,
 	namespace varchar(255) default 'meteorPi' NOT NULL,
 	semanticType varchar(255) NOT NULL,
-	sequenceNumber integer DEFAULT 0 NOT NULL,
+	fileTime timestamp NOT NULL,
 	PRIMARY KEY (internalId)
 );
 
@@ -51,35 +49,19 @@ CREATE TABLE t_fileMeta (
 	namespace varchar(255) DEFAULT 'meteorPi' NOT NULL,
 	key varchar(255) NOT NULL,
 	stringValue varchar(255) NOT NULL,
-	PRIMARY KEY (internalID)
-);
-
-/* Single image table */
-CREATE TABLE t_image (
-	internalID integer NOT NULL,
-	imageID char(16) NOT NULL,
 	fileID integer NOT NULL,
-	imageTime timestamp NOT NULL,
-	FOREIGN KEY (fileID) REFERENCES t_file (internalID), 
-	PRIMARY KEY (internalID)
+	PRIMARY KEY (internalID),
+	FOREIGN KEY (fileID) REFERENCES t_file (internalID) ON DELETE CASCADE
 );
 
 /* Link table to associate rows in t_file with those in t_event */
 CREATE TABLE t_event_to_file (
 	fileID integer NOT NULL,
 	eventID integer NOT NULL,
+	sequenceNumber integer DEFAULT 0 NOT NULL,
 	PRIMARY KEY (fileId, eventId),
-	FOREIGN KEY (eventId) REFERENCES t_event (internalId),
-	FOREIGN KEY (fileId) REFERENCES t_file (internalId)
-);
-
-/* Link table to associate rows in t_fileMeta with t_file */
-CREATE TABLE t_file_to_filemeta (
-	fileMetaID integer NOT NULL,
-	fileID integer NOT NULL,
-	PRIMARY KEY (fileMetaID, fileID),
-	FOREIGN KEY (fileID) REFERENCES t_file (internalID),
-	FOREIGN KEY (fileMetaID) REFERENCES t_fileMeta (internalID)
+	FOREIGN KEY (eventId) REFERENCES t_event (internalId) ON DELETE CASCADE,
+	FOREIGN KEY (fileId) REFERENCES t_file (internalId) ON DELETE CASCADE
 );
 
 /* Change the terminator, need to do this so we can actually 
@@ -115,18 +97,6 @@ AS begin
   if ((new.internalID is null) or (new.internalID = 0)) then
   begin
     new.internalID = gen_id(gidSequence, 1);
-  end
-end ^
-CREATE OR ALTER TRIGGER assignImageID for t_image
-BEFORE INSERT POSITION 0
-AS BEGIN
-  if ((new.internalID is null) or (new.internalID = 0)) then
-  begin
-    new.internalID = gen_id(gidSequence, 1);
-  end
-  if (new.imageID is null) then
-  begin
-    new.imageID = gen_uuid();
   end
 end ^
 /* Change the terminator back to the semi-colon again */

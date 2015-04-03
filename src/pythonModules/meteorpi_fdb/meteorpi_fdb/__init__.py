@@ -42,7 +42,7 @@ def updateCameraStatus(ns, time=datetime.now()):
     time = roundTime(time)
     cameraID = getInstallationID()
     highWaterMark = getHighWaterMark(cameraID)
-    if time < highWaterMark:
+    if highWaterMark is not None and time < highWaterMark:
         # Establishing a status earlier than the current high water mark. This
         # means we need to set the high water mark back to the status validFrom
         # time, removing any computed products after this point.
@@ -52,7 +52,7 @@ def updateCameraStatus(ns, time=datetime.now()):
     cur.execute(
         'UPDATE t_cameraStatus t SET t.validTo = (?) '
         'WHERE t.validTo IS NULL AND t.cameraID = (?)',
-        (timeNow,
+        (time,
          cameraID))
     # Insert the new status into the database
     cur.execute(
@@ -87,8 +87,8 @@ def updateCameraStatus(ns, time=datetime.now()):
                 (statusID,
                  regionIndex,
                  pointIndex,
-                 point.x,
-                 point.y))
+                 point["x"],
+                 point["y"]))
     con.commit()
 
 
@@ -120,13 +120,13 @@ def getCameraStatus(time=datetime.now()):
     cs.validTo = row[11]
     cs.softwareVersion = row[12]
     cameraStatusID = row[13]
-    cur.execute('SELECT region, x, y FROM t_visibleRegions t '
+    cur.execute('SELECT region, pointOrder, x, y FROM t_visibleRegions t '
                 'WHERE t.cameraStatusID = (?) '
-                'ORDER BY region ASC, pointOrder ASC')
+                'ORDER BY region ASC, pointOrder ASC', [cameraStatusID])
     for point in cur.fetchallmap():
-        if len(cs.regions) < point.region:
+        if len(cs.regions) <= point["region"]:
             cs.regions.append([])
-        cs.regions[point.region].append({"x": point.x, "y": point.y})
+        cs.regions[point["region"]].append({"x": point["x"], "y": point["y"]})
     return cs
 
 
@@ -136,7 +136,7 @@ def getHighWaterMark(cameraID=getInstallationID()):
     cur = con.cursor()
     cur.execute(
         'SELECT mark FROM t_highWaterMark t WHERE t.cameraID = (?)',
-        cameraID)
+        [cameraID])
     row = cur.fetchone()
     if row is None:
         return None
@@ -161,8 +161,8 @@ def setHighWaterMark(time, cameraID=getInstallationID()):
         # No high water mark defined, set it and return
         cur.execute(
             'INSERT INTO t_highWaterMark (cameraID, mark) VALUES (?,?)',
-            cameraID,
-            time)
+            (cameraID,
+             time))
     elif last < time:
         # Defined, but new one is later, we don't really have to do much
         cur.execute(
@@ -189,7 +189,23 @@ def setHighWaterMark(time, cameraID=getInstallationID()):
             (time,
              cameraID))
         # TODO events and images
-    cur.commit()
+    con.commit()
+
+
+def clearDatabase():
+    """
+    Delete ALL THE THINGS!
+
+    This doesn't reset any internal counters used to generate IDs but
+    does otherwise remove all data from the database.
+    """
+    cur = con.cursor()
+    cur.execute('DELETE FROM t_cameraStatus')
+    cur.execute('DELETE FROM t_highWaterMark')
+    cur.execute('DELETE FROM t_file')
+    cur.execute('DELETE FROM t_fileMeta')
+    cur.execute('DELETE FROM t_event')
+    con.commit()
 
 
 def roundTime(time=datetime.now()):
