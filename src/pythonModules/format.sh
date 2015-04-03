@@ -5,10 +5,17 @@ read -p "This will reformat source code and doctext in python sources, hit 'y' t
 echo 
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
-    echo "1/2: Applying autopep8 to meteorpi_model, meteorpi_fdb"
-    autopep8 -a -a -a -a -r -i meteorpi_model/meteorpi_model/ meteorpi_fdb/meteorpi_fdb/
-    echo "2/2: Applying docformatter to meteorpi_model, meteorpi_fdb"
-    docformatter --in-place --force-wrap --no-blank --pre-summary-newline -r meteorpi_model/meteorpi_model/ meteorpi_fdb/meteorpi_fdb/
+    for dir in */
+    do
+        module=${dir%*/}
+        echo "Processing $module"
+        echo "1/3: Replacing leading tabs with spaces"
+        find $module/$module -name '*.py' ! -type d -exec bash -c 'expand -t 4 "$0" > /tmp/e && mv /tmp/e "$0"' {} \;
+        echo "2/3: Applying autopep8 to $module"
+        autopep8 -a -a -a -a -r -i $module/$module/
+        echo "3/3: Applying docformatter to $module"
+        docformatter --in-place --force-wrap --no-blank --pre-summary-newline -r $module/$module/
+    done
     echo "Operation completed."
 else
     echo "Operation cancelled, no changes made."
