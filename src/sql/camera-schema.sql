@@ -159,7 +159,7 @@ CREATE TABLE t_cameraStatus (
 );
 
 CREATE TABLE t_visibleRegions (
-	cameraStatusId integer NOT NULL,
+	cameraStatusID integer NOT NULL,
 	region integer NOT NULL,
 	pointOrder integer DEFAULT 0 NOT NULL,
 	x integer NOT NULL,

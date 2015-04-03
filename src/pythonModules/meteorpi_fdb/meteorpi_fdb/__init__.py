@@ -39,8 +39,14 @@ def getCameras():
 def updateCameraStatus(ns, time=datetime.now()):
     """Update the status for this installation's camera, optionally specify a
     time (defaults to datetime.now())."""
-    timeNow = roundTime(time)
+    time = roundTime(time)
     cameraID = getInstallationID()
+    highWaterMark = getHighWaterMark(cameraID)
+    if time < highWaterMark:
+        # Establishing a status earlier than the current high water mark. This
+        # means we need to set the high water mark back to the status validFrom
+        # time, removing any computed products after this point.
+        setHighWaterMark(time, cameraID)
     cur = con.cursor()
     # If there's an existing status block then set its end time to now
     cur.execute(
@@ -48,6 +54,7 @@ def updateCameraStatus(ns, time=datetime.now()):
         'WHERE t.validTo IS NULL AND t.cameraID = (?)',
         (timeNow,
          cameraID))
+    # Insert the new status into the database
     cur.execute(
         'INSERT INTO t_cameraStatus (cameraID, validFrom, validTo, '
         'softwareVersion, orientationAltitude, orientationAzimuth, '
@@ -56,7 +63,7 @@ def updateCameraStatus(ns, time=datetime.now()):
         'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
         'RETURNING internalID',
         (cameraID,
-         timeNow,
+         time,
          None,
          1,
          ns.orientation.altitude,
@@ -72,7 +79,16 @@ def updateCameraStatus(ns, time=datetime.now()):
     # Retrieve the newly created internal ID for the status block, use this to
     # insert visible regions
     statusID = cur.fetchone()[0]
-    # TODO - visible regions
+    for regionIndex, region in enumerate(ns.regions):
+        for pointIndex, point in enumerate(region):
+            cur.execute(
+                'INSERT INTO t_visibleRegions (cameraStatusID, '
+                'region, pointOrder, x, y) VALUES (?,?,?,?,?)',
+                (statusID,
+                 regionIndex,
+                 pointIndex,
+                 point.x,
+                 point.y))
     con.commit()
 
 
@@ -86,7 +102,7 @@ def getCameraStatus(time=datetime.now()):
         'SELECT lens, camera, instURL, instName, locationLatitude, '
         'locationLongitude, locationGPS, orientationAltitude, '
         'orientationAzimuth, orientationCertainty, validFrom, validTo, '
-        'softwareVersion '
+        'softwareVersion, internalID '
         'FROM t_cameraStatus t '
         'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
         'AND (t.validTo IS NULL OR t.validTo>(?))',
@@ -103,7 +119,14 @@ def getCameraStatus(time=datetime.now()):
     cs.validFrom = row[10]
     cs.validTo = row[11]
     cs.softwareVersion = row[12]
-    print "Camera status at time " + str(time) + " is " + str(cs)
+    cameraStatusID = row[13]
+    cur.execute('SELECT region, x, y FROM t_visibleRegions t '
+                'WHERE t.cameraStatusID = (?) '
+                'ORDER BY region ASC, pointOrder ASC')
+    for point in cur.fetchallmap():
+        if len(cs.regions) < point.region:
+            cs.regions.append([])
+        cs.regions[point.region].append({"x": point.x, "y": point.y})
     return cs
 
 
