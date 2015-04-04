@@ -122,7 +122,7 @@ CREATE TABLE t_cameraStatus (
 	locationLongitude float NOT NULL,
 	locationGPS BOOLEAN DEFAULT 0 NOT NULL,
 	lens varchar(40) NOT NULL,
-	camera varchar(40) NOT NULL,
+	sensor varchar(40) NOT NULL,
 	instURL varchar(255),
 	instName varchar(255),
 	PRIMARY KEY (internalID)

@@ -22,7 +22,7 @@ class TestFdb(TestCase):
         self.assertTrue(m.getCameraStatus() is None)
         newStatus = model.CameraStatus(
             'a_lens',
-            'a_camera',
+            'a_sensor',
             'http://foo.bar.com',
             'test installation',
             model.Orientation(

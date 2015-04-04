@@ -59,7 +59,7 @@ def updateCameraStatus(ns, time=datetime.now()):
         'INSERT INTO t_cameraStatus (cameraID, validFrom, validTo, '
         'softwareVersion, orientationAltitude, orientationAzimuth, '
         'orientationCertainty, locationLatitude, locationLongitude, '
-        'locationGPS, lens, camera, instURL, instName) '
+        'locationGPS, lens, sensor, instURL, instName) '
         'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
         'RETURNING internalID',
         (cameraID,
@@ -73,7 +73,7 @@ def updateCameraStatus(ns, time=datetime.now()):
          ns.location.longitude,
          ns.location.gps,
          ns.lens,
-         ns.camera,
+         ns.sensor,
          ns.instURL,
          ns.instName))
     # Retrieve the newly created internal ID for the status block, use this to
@@ -99,7 +99,7 @@ def getCameraStatus(time=datetime.now()):
     cur = con.cursor()
     cameraID = getInstallationID()
     cur.execute(
-        'SELECT lens, camera, instURL, instName, locationLatitude, '
+        'SELECT lens, sensor, instURL, instName, locationLatitude, '
         'locationLongitude, locationGPS, orientationAltitude, '
         'orientationAzimuth, orientationCertainty, validFrom, validTo, '
         'softwareVersion, internalID '
@@ -169,7 +169,7 @@ def setHighWaterMark(time, cameraID=getInstallationID()):
             'UPDATE t_highWaterMark t SET t.mark = (?) WHERE t.cameraID = (?)',
             (time,
              cameraID))
-    else:
+    elif last > time:
         # More complicated, we're rolling back time so need to clean up a load
         # of future data
         cur.execute(

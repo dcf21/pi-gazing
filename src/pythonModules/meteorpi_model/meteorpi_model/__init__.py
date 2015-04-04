@@ -30,7 +30,7 @@ class FileMeta:
 
     """A single piece of metadata pertaining to a File."""
 
-    def __init__(self, namespace="meteorPi", key, stringValue):
+    def __init__(self, namespace, key, stringValue):
         self.namespace = namespace
         self.key = key
         self.stringValue = stringValue
@@ -93,9 +93,9 @@ class CameraStatus:
     the status is current.
     """
 
-    def __init__(self, lens, camera, instURL, instName, orientation, location):
+    def __init__(self, lens, sensor, instURL, instName, orientation, location):
         self.lens = lens
-        self.camera = camera
+        self.sensor = sensor
         self.instURL = instURL
         self.instName = instName
         self.orientation = orientation
@@ -104,20 +104,20 @@ class CameraStatus:
     def __str__(self):
         return (
             'CameraStatus(location={0}, orientation={1}, validFrom={2},'
-            'validTo={3}, version={4}, lens={5}, cam={6}, regions={7})'.format(
+            'validTo={3}, version={4}, lens={5}, sensor={6}, regions={7})'.format(
                 self.location,
                 self.orientation,
                 self.validFrom,
                 self.validTo,
                 self.softwareVersion,
                 self.lens,
-                self.camera,
+                self.sensor,
                 self.regions))
     # A sequence of sequences of {x:int, y:int} representing visible
     # regions
     regions = []
     lens = ""
-    camera = ""
+    sensor = ""
     validFrom = None
     validTo = None
     instURL = ""
