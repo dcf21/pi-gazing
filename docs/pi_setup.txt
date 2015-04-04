@@ -1,18 +1,22 @@
-# This script lists the commands needed to set up a Pi
+# This file lists the shell commands needed to set up a Raspberry Pi to run as a
+# Meteor Pi node. It assumes a starting point of a clean Raspbian install.
 
-# ** Expand partition
+# ** Expand root partition on SD card
 
 # ** Set up password for Pi
 
 passwd # Set user password
 sudo su
-passwd # Set user password
+passwd # Set root password
 
-# ** Install raspbian packages
+# ** Install required raspbian packages
 
 apt-get update
 apt-get dist-upgrade
-apt-get install gpsd gpsd-clients libjpeg-dev libpng-dev libgsl0-dev vim git qiv screen mplayer libavutil-dev libavcodec-dev libavformat-dev libx264-dev scons
+apt-get install gpsd gpsd-clients libjpeg-dev libpng-dev libgsl0-dev vim git qiv screen mplayer libavutil-dev libavcodec-dev libavformat-dev libx264-dev scons firebird2.5-superclassic
+dpkg-reconfigure firebird2.5-superclassic # automatically start firebird server
+apt-get install libcairo2-dev libcfitsio3-dev libnetpbm10-dev netpbm python-pyfits python-scipy python-imaging python-pip
+pip install fdb
 vim /etc/apt/sources # Uncomment apt-src
 apt-get update
 apt-get build-dep luvcview
@@ -40,7 +44,9 @@ git clone git@github.com:camsci/meteor-pi.git
 
 # ** Build code
 
-cd meteor-pi/src/gnomonicStack/
+cd meteor-pi
+ln -s /mnt/harddisk/pi/meteorCam datadir
+cd src/gnomonicStack/
 ./prettymake
 cd ../videoProcess/
 ./prettymake
@@ -57,3 +63,19 @@ sudo vim /etc/watchdog.conf
 #watchdog-device        = /dev/watchdog
 
 # ** Install astrometry.net
+
+wget http://astrometry.net/downloads/astrometry.net-0.46.tar.bz2
+tar xjf astrometry.net-0.46.tar.bz2
+cd astrometry.net-0.46
+make
+make py
+make extra
+sudo make install
+cd /usr/local/astrometry/data
+wget http://broiler.astrometry.net/~dstn/4100/index-4113.fits
+wget http://broiler.astrometry.net/~dstn/4100/index-4114.fits
+wget http://broiler.astrometry.net/~dstn/4100/index-4115.fits
+wget http://broiler.astrometry.net/~dstn/4100/index-4116.fits
+wget http://broiler.astrometry.net/~dstn/4100/index-4117.fits
+wget http://broiler.astrometry.net/~dstn/4100/index-4118.fits
+wget http://broiler.astrometry.net/~dstn/4100/index-4119.fits
