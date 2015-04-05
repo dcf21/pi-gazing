@@ -1,4 +1,4 @@
-// jpeg_in.c
+// image_in.c
 // Meteor Pi, Cambridge Science Centre
 // Dominic Ford
 
@@ -6,51 +6,49 @@
 #include <stdio.h>
 #include <string.h>
 #include <gsl/gsl_math.h>
-#include "jpeg/jpeg.h"
-#include <jpeglib.h>
+#include "png/image.h"
+#include <png.h>
 
-void jpeg_alloc(image_ptr *out, int x, int y)
+void image_alloc(image_ptr *out, int x, int y)
  {
   int i,j=x*y;
 
   out->xsize    = x;
   out->ysize    = y;
+  out->data_w   = 0;
   out->data_red = (double *)malloc(x * y * sizeof(double));
   out->data_grn = (double *)malloc(x * y * sizeof(double));
   out->data_blu = (double *)malloc(x * y * sizeof(double));
-  out->data_w   = (double *)malloc(x * y * sizeof(double));
   for (i=0;i<j;i++) out->data_red[i]=0.0;
   for (i=0;i<j;i++) out->data_grn[i]=0.0;
   for (i=0;i<j;i++) out->data_blu[i]=0.0;
-  for (i=0;i<j;i++) out->data_w  [i]=0.0;
   return;
  }
 
-void jpeg_dealloc(image_ptr *in)
+void image_dealloc(image_ptr *in)
  {
   if (in->data_red!=NULL) free(in->data_red);
   if (in->data_grn!=NULL) free(in->data_grn);
   if (in->data_blu!=NULL) free(in->data_blu);
-  if (in->data_w  !=NULL) free(in->data_w  );
   return;
  }
 
-void jpeg_cp(image_ptr *in, image_ptr *out)
+void image_cp(image_ptr *in, image_ptr *out)
  {
-  jpeg_alloc(out, in->xsize, in->ysize);
+  image_alloc(out, in->xsize, in->ysize);
   memcpy(out->data_red, in->data_red, in->xsize*in->ysize*sizeof(double));
   memcpy(out->data_grn, in->data_grn, in->xsize*in->ysize*sizeof(double));
   memcpy(out->data_blu, in->data_blu, in->xsize*in->ysize*sizeof(double));
-  memcpy(out->data_w  , in->data_w  , in->xsize*in->ysize*sizeof(double));
+  out->data_w = in->data_w;
   return;
  }
 
-void jpeg_deweight(image_ptr *out)
+void image_deweight(image_ptr *out)
  {
   int i, j=out->xsize*out->ysize;
-  for (i=0;i<j;i++) { out->data_red[i] /= out->data_w[i]; if (!gsl_finite(out->data_red[i])) out->data_red[i]=0.0; }
-  for (i=0;i<j;i++) { out->data_grn[i] /= out->data_w[i]; if (!gsl_finite(out->data_grn[i])) out->data_grn[i]=0.0; }
-  for (i=0;i<j;i++) { out->data_blu[i] /= out->data_w[i]; if (!gsl_finite(out->data_blu[i])) out->data_blu[i]=0.0; }
+  for (i=0;i<j;i++) { out->data_red[i] /= out->data_w; if (!gsl_finite(out->data_red[i])) out->data_red[i]=0.0; }
+  for (i=0;i<j;i++) { out->data_grn[i] /= out->data_w; if (!gsl_finite(out->data_grn[i])) out->data_grn[i]=0.0; }
+  for (i=0;i<j;i++) { out->data_blu[i] /= out->data_w; if (!gsl_finite(out->data_blu[i])) out->data_blu[i]=0.0; }
   return;
  }
 

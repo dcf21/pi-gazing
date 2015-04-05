@@ -74,9 +74,11 @@ try:
                         'filename':f[:-(len(inExt)+1)] ,
                         'date':module_hwm.fetchDayNameFromFilename(f) ,
                         'tstamp':utc ,
+                        'fps':VIDEO_FPS ,
                         'pid':pid ,
                         'opm': ('_openmax' if I_AM_A_RPI else '') ,
                        }
+              params += module_hwm.fileToDB(params["filename"]+".txt")
               for outDir in outDirs: os.system("mkdir -p %s"%(os.path.join(outDir,params['date'])))
               jobList.append( [utc, cmd % params] )
 

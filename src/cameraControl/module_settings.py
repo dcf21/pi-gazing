@@ -28,3 +28,14 @@ sunMargin   = 1200 # 20 minutes
 # When observing with non-real-time triggering, this is how many seconds in each video
 VIDEO_MAXRECTIME = 3600
 
+LONGITUDE_DEFAULT = 52.2
+LATITUDE_DEFAULT  = 0.12
+
+# Video settings. THESE SHOULD BE READ FROM THE DATABASE!
+CAMERA_ID         = "x"
+VIDEO_DEV         = "/dev/video0"
+VIDEO_WIDTH       = 720
+VIDEO_HEIGHT      = 480
+VIDEO_FPS         = 24.71
+VIDEO_UPSIDE_DOWN = 1
+

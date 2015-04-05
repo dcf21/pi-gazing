@@ -15,7 +15,7 @@ linkFlags = ['-fopenmp']
 ccDefines = ['DATE=\\"05/01/2015\\"' , 'VERSION=\\"0.0.1\\"' , 'SRCDIR=\\"%s\\"'%srcdir ]
 
 # C source files which are common to all binaries we are going to build
-commonFiles = ['analyse/observe.c','jpeg/jpeg_in.c','jpeg/jpeg_out.c','utils/JulianDate.c','utils/asciidouble.c','utils/error.c','utils/tools.c','vidtools/color.c','vidtools/v4l2uvc.c']
+commonFiles = ['analyse/observe.c','png/image_in.c','png/image_out.c','utils/JulianDate.c','utils/asciidouble.c','utils/error.c','utils/tools.c','vidtools/color.c','vidtools/v4l2uvc.c']
 
 # List of all the binaries we are going to build
 # [ Flag: Requires OpenMAX , Requires libav , list of source files , binary name ]
@@ -25,16 +25,16 @@ targets = [ [0, 0, commonFiles + ['frontends/vidRec.c']             , 'vidRec'],
             [1, 0, commonFiles + ['frontends/recordH264.c']         , 'recordH264'],
             [0, 0, commonFiles + ['frontends/snapshot.c']           , 'snapshot'],
             [0, 0, commonFiles + ['frontends/makeMedianMap.c']      , 'makeMedianMap'],
-            [0, 0, commonFiles + ['converters/rawimg2jpg.c']        , 'rawimg2jpg'],
-            [0, 0, commonFiles + ['converters/rawrgb2png.c']        , 'rawrgb2png'],
+            [0, 0, commonFiles + ['converters/rawimg2png.c']        , 'rawimg2png'],
+            [0, 0, commonFiles + ['converters/rawimg2png3.c']       , 'rawimg2png3'],
             [0, 0, commonFiles + ['converters/rawvid2frames.c']     , 'rawvid2frames'],
             [1, 0, commonFiles + ['converters/rawvid2mp4_openmax.c'], 'rawvid2mp4_openmax'],
             [0, 1, commonFiles + ['converters/rawvid2mp4_libav.c']  , 'rawvid2mp4_libav'],
           ];
 
-subDirs      = ['','analyse','converters','frontends','jpeg','utils','vidtools']
+subDirs      = ['','analyse','converters','frontends','png','utils','vidtools']
 includePaths = [ os.path.join('src',i) for i in subDirs ]
-libraries    = ['gsl','gslcblas','v4l2','png','jpeg','m']
+libraries    = ['gsl','gslcblas','v4l2','png','m']
 libraryPaths = ['/usr/lib']
 
 includePaths_openmax = ['/opt/vc/include','/opt/vc/include/interface/vcos/pthreads','/opt/vc/include/interface/vmcs_host/linux/']

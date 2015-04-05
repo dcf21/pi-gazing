@@ -5,20 +5,26 @@
 import os
 from module_astro import *
 
+# File to database
+def fileToDB(fname,mustBeFloat=False):
+  output = {}
+  if (!os.path.exists(fname)) return output;
+  for line in open(fname):
+     if line.strip()=="": continue
+     if line[0]=="#": continue
+     words   = line.split()
+     keyword = words[0]
+     val     = words[1]
+     try:
+       val=float(val)
+     except:
+       if (mustBeFloat): continue
+     output[keyword] = val
+  return output
+
 # Read our high water marks
 def fetchHWM():
-  highWaterMarks = {}
-  if os.path.exists("highWaterMark.dat"):
-   for line in open("highWaterMark.dat"):
-    words   = line.split()
-    keyword = words[0]
-    utc     = words[1]
-    try:
-      utc=float(utc)
-    except:
-      continue
-    highWaterMarks[keyword] = utc
-  return highWaterMarks
+  return fileToDB("highWaterMark.dat",True)
 
 def writeHWM(highWaterMarks):
   f = open("highWaterMark.dat","w")

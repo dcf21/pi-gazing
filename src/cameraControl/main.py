@@ -23,11 +23,13 @@ if I_AM_A_RPI:
   os.system("killall gpsd ; gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock")
   import module_gps
   [toffset,latitude,longitude] = module_gps.fetchTimeOffset()
+  flagGPS = 1
   logTxt("GPS link achieved")
 else:
   toffset     = 0
-  latitude    = 52.2
-  longitude   = 0.12
+  latitude    = LATITUDE_DEFAULT
+  longitude   = LONGITUDE_DEFAULT
+  flagGPS     = 0
   logTxt("We are not running on a RPi; so not bothering to try to get GPS link")
 
 logTxt("Longitude = %.2f ; Latitude = %.2f ; Clock offset is %.1f"%(longitude,latitude,toffset))
@@ -49,7 +51,7 @@ while True:
         module_relay.cameraOn()
         time.sleep(10)
         logTxt("Camera has been turned on.")
-        os.system("%s/debug/observe %d %d"%(BINARY_PATH,getUTCoffset(),tstop))
+        os.system("%s/debug/observe %d %d %d %s %s %d %d %s %s %s %d %d %s/rawvideo/%s"%(BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,VIDEO_WIDTH,VIDEO_HEIGHT,VIDEO_FPS,latitude,longitude,flagGPS,VIDEO_UPSIDE_DOWN,DATA_PATH,timekey))
         module_relay.cameraOff()
         logTxt("Camera has been turned off.")
         time.sleep(10)
@@ -62,7 +64,7 @@ while True:
         time.sleep(10)
         logTxt("Camera has been turned on.")
         timekey = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
-        os.system("%s/debug/recordH264 %d %d %s/rawvideo/%s.h264"%(BINARY_PATH,getUTCoffset(),tstop,DATA_PATH,timekey))
+        os.system("%s/debug/recordH264 %d %d %d %s %s %d %d %s %s %s %d %d %s/rawvideo/%s"%(BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,VIDEO_WIDTH,VIDEO_HEIGHT,VIDEO_FPS,latitude,longitude,flagGPS,VIDEO_UPSIDE_DOWN,DATA_PATH,timekey))
         module_relay.cameraOff()
         logTxt("Camera has been turned off.")
         time.sleep(10)

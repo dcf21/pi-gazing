@@ -57,8 +57,12 @@ int fetchFrame(void *ctx_void, unsigned char *tmpc, double *utc)
 
     if (ctx->got_picture)
      {
-      int i;
-      if (tmpc) for(i=0;i<ctx->c->height;i++) memcpy(tmpc + i * ctx->c->width, ctx->picture->data[0] + i * ctx->picture->linesize[0], ctx->c->width);
+      if (tmpc)
+       {
+        memcpy(tmpc              , ctx->picture->data[0], frameSize  );
+        memcpy(tmpc+frameSize    , ctx->picture->data[1], frameSize/4);
+        memcpy(tmpc+frameSize*5/4, ctx->picture->data[2], frameSize/4);
+       }
       ctx->frame++;
      }
     av_free_packet(&ctx->avpkt);
@@ -106,16 +110,17 @@ int main(int argc, char **argv)
  {
   context ctx;
 
-  if (argc!=3)
+  if (argc!=4)
    {
-    sprintf(temp_err_string, "ERROR: Need to specify raw video filename on commandline, followed by UTC time of start of video, e.g. 'analyseH264_libav foo.rawvid 1234'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Command line syntax is:\n\n analyseH264_libav <filename> <tstart> <fps>\n\ne.g.\n\n analyseH264_libav foo.rawvid 1234 24.71\n"); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
   ctx.filename = argv[1];
   ctx.tstart   = GetFloat(argv[2],NULL);
   ctx.tstop    = time(NULL)+3600*24;
   ctx.utcoffset= 0;
-  ctx.FPS      = VIDEO_FPS;
+  ctx.FPS      = GetFloat(argv[3],NULL);
+  initLut();
 
   // Register all the codecs
   av_register_all();

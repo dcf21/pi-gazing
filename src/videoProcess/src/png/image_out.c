@@ -1,10 +1,10 @@
-// jpeg_out.c
+// image_out.c
 // Meteor Pi, Cambridge Science Centre
 // Dominic Ford
 
 #include <stdlib.h>
 #include <stdio.h>
-#include "jpeg/jpeg.h"
+#include "png/image.h"
 #include <jpeglib.h>
 
 /* JPEG_PUT(): Turns bitmap data into a jpeg file */

@@ -74,6 +74,7 @@ struct vdIn {
     int framecount;
     int recordstart;
     int recordtime;
+    int upsideDown;
 };
 
 int check_videoIn(struct vdIn *vd, char *device);

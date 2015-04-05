@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "utils/tools.h"
-#include "jpeg/jpeg.h"
+#include "png/image.h"
 #include "utils/error.h"
 
 #include "settings.h"

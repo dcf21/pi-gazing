@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "utils/tools.h"
-#include "jpeg/jpeg.h"
+#include "png/image.h"
 #include "utils/error.h"
 
 #include "settings.h"
@@ -50,7 +50,8 @@ int main(int argc, char **argv)
   i=fread(vidRaw,1,size,infile);
   fclose(infile);
 
-  const int frameSize = width * height;
+  const int imageSize = width * height;
+  const int frameSize = width * height * 1.5;
   const int nfr = size / frameSize;
 
   // Init context
@@ -131,9 +132,9 @@ int main(int argc, char **argv)
    {
     int j;
     avpicture_alloc((AVPicture *)pictureEncoded,ctxEncode->pix_fmt,ctxEncode->width,ctxEncode->height);
-    for (j=0;j<height;j++) memcpy(pictureEncoded->data[0]+j*pictureEncoded->linesize[0], vidRaw+frame_in*frameSize+j*width, width);
-    memset(pictureEncoded->data[1], 128, pictureEncoded->linesize[1]*height/2);
-    memset(pictureEncoded->data[2], 128, pictureEncoded->linesize[2]*height/2);
+    for (j=0;j<height  ;j++) memcpy(pictureEncoded->data[0]+j*pictureEncoded->linesize[0], vidRaw+frame_in*frameSize+              j*width  , width  );
+    for (j=0;j<height/2;j++) memcpy(pictureEncoded->data[1]+j*pictureEncoded->linesize[1], vidRaw+frame_in*frameSize+imageSize    +j*width/2, width/2);
+    for (j=0;j<height/2;j++) memcpy(pictureEncoded->data[2]+j*pictureEncoded->linesize[2], vidRaw+frame_in*frameSize+imageSize*5/4+j*width/2, width/2);
 
     /* encode frame */
     av_init_packet(&avpkt);

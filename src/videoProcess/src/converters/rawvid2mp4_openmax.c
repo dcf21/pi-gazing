@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "utils/tools.h"
-#include "jpeg/jpeg.h"
+#include "png/image.h"
 #include "utils/error.h"
 
 #include "settings.h"
@@ -533,7 +533,8 @@ int main(int argc, char **argv) {
   i=fread(vidRaw,1,size,infile);
   fclose(infile);
 
-  const int frameSize = width * height;
+  const int imageSize = width * height;
+  const int frameSize = width * height * 1.5;
   const int nfr = size / frameSize;
 
     // Init context
@@ -691,11 +692,13 @@ int main(int argc, char **argv) {
         // a need for a buffer to be filled by us
         if(ctx.encoder_input_buffer_needed) {
             input_total_read = 0;
-            memset(ctx.encoder_ppBuffer_in->pBuffer, 128, ctx.encoder_ppBuffer_in->nAllocLen);
             int line, xpos;
-            for (line=0; line<height; line++)
-             for (xpos=0; xpos<width; xpos++)
-              ctx.encoder_ppBuffer_in->pBuffer[ buf_info.p_offset[0] + frame_info.buf_stride*line + xpos] = (vidRaw[frame_in*frameSize + xpos + width*line]);
+            for (line=0; line<height  ; line++)
+              memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[0] + frame_info.buf_stride  *line , vidRaw + frame_in*frameSize +               width  *line , width);
+            for (line=0; line<height/2; line++)
+              memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[1] + frame_info.buf_stride/2*line , vidRaw + frame_in*frameSize + imageSize   + width/2*line , width/2);
+            for (line=0; line<height/2; line++)
+              memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[2] + frame_info.buf_stride/2*line , vidRaw + frame_in*frameSize + imageSize*5/4+ width/2*line , width/2);
 
             input_total_read += (frame_info.p_stride[0] * plane_span_y) + (frame_info.p_stride[1] * plane_span_uv)  + (frame_info.p_stride[2] * plane_span_uv);
 

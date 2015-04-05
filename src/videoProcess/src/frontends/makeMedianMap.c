@@ -52,13 +52,13 @@ int main(int argc, char *argv[])
   int tstart = time(NULL);
   if (DEBUG) { sprintf(line, "Commencing makeMedianMap at %s.", FriendlyTimestring(tstart)); gnom_log(line); }
 
-  unsigned char *tmpc = malloc(frameSize);
+  unsigned char *tmpc = malloc(frameSize*1.5);
   if (!tmpc) { sprintf(temp_err_string, "ERROR: malloc fail in makeMedianMap."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
-  int *tmpi = malloc(frameSize*sizeof(int));
+  int *tmpi = malloc(frameSize*1.5*sizeof(int));
   if (!tmpi) { sprintf(temp_err_string, "ERROR: malloc fail in makeMedianMap."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
 
-  unsigned char *medianWorkspace = calloc(1,frameSize*256);
-  unsigned char *medianMap       = calloc(1,frameSize);
+  unsigned char *medianWorkspace = calloc(1,3*frameSize*256);
+  unsigned char *medianMap       = calloc(1,3*frameSize);
   if ((!medianWorkspace)||(!medianMap)) { sprintf(temp_err_string, "ERROR: malloc fail in makeMedianMap."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
 
   int f;
@@ -71,17 +71,18 @@ int main(int argc, char *argv[])
     for (j=0;j<nfr;j++)
      {
       if (uvcGrab(videoIn) < 0) { printf("Error grabbing\n"); break; }
-      Pyuv422toMono(videoIn->framebuffer, tmpc, videoIn->width, videoIn->height);
-      for (i=0; i<frameSize; i++) tmpi[i]+=tmpc[i];
+      Pyuv422torgbstack(videoIn->framebuffer, tmpi, tmpi+frameSize, tmpi+frameSize*2, videoIn->width, videoIn->height);
      }
 
-    for (i=0; i<frameSize; i++)
-     {
-      int pixelVal = tmpi[i]/nfr;
-      if (pixelVal<0  ) pixelVal=0;
-      if (pixelVal>255) pixelVal=255;
-      medianWorkspace[i + pixelVal*frameSize]++;
-     }
+#pragma omp parallel for private(i,j)
+    for (j=0; j<3; j++)
+     for (i=0; i<frameSize; i++)
+      {
+       int pixelVal = tmpi[i+j*frameSize]/nfr;
+       if (pixelVal<0  ) pixelVal=0;
+       if (pixelVal>255) pixelVal=255;
+       medianWorkspace[j*frameSize*256 + i + pixelVal*frameSize]++;
+      }
    }
 
   medianCalculate(width, height, medianWorkspace, medianMap);

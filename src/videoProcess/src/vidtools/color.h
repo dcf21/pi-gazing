@@ -77,6 +77,8 @@ B_FROMYU(unsigned char y, unsigned char u);
 void initLut(void);
 void freeLut(void);
 
-void Pyuv422torgb24(unsigned char * input_ptr, unsigned char * output_ptr, unsigned int image_width, unsigned int image_height);
-void Pyuv422toMono(unsigned char * input_ptr, unsigned char * output_ptr, unsigned int image_width, unsigned int image_height);
+void Pyuv422torgbstack(unsigned char * input_ptr, int *outR, int *outG, int *outB, unsigned int width, unsigned int height);
+void Pyuv420torgbstack(unsigned char *Ydata, unsigned char *Udata, unsigned char *Vdata, int *outR, int *outG, int *outB, const unsigned int width, const unsigned int height);
+void Pyuv422toMono(unsigned char * input_ptr, unsigned char * output_ptr, const unsigned int width, const unsigned int height, const int upsideDown);
+void Pyuv422to420(unsigned char * input_ptr, unsigned char * output_ptr, const unsigned int width, const unsigned int height, const int upsideDown);
 

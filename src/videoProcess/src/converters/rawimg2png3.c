@@ -1,4 +1,4 @@
-// rawrgb2png.c
+// rawimg2png3.c 
 // Meteor Pi, Cambridge Science Centre
 // Dominic Ford
 
@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "utils/tools.h"
-#include "jpeg/jpeg.h"
+#include "png/image.h"
 #include "utils/error.h"
 #include "png.h"
 #include "settings.h"
@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 
   if (argc!=3)
    {
-    sprintf(temp_err_string, "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'rawrgb2png foo.raw frame.jpg'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'rawimg2png3 foo.raw frame.jpg'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
   char *rawFname = argv[1];

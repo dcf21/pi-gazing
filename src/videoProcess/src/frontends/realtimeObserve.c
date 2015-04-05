@@ -25,8 +25,7 @@ int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc)
   struct vdIn *videoIn = videoHandle;
   int status = uvcGrab(videoIn);
   if (status) return status;
-  Pyuv422toMono(videoIn->framebuffer, tmpc, videoIn->width, videoIn->height);
-  if (VIDEO_UPSIDE_DOWN) frameInvert(tmpc, videoIn->width*videoIn->height);
+  Pyuv422to420(videoIn->framebuffer, tmpc, videoIn->width, videoIn->height, videoIn->upsideDown);
   *utc = time(NULL) + utcoffset;
   return 0;
  }
@@ -38,19 +37,33 @@ int rewindVideo(void *videoHandle, double *utc)
 
 int main(int argc, char *argv[])
  {
-  if (argc!=3)
+  // Initialise video capture process
+  if (argc!=14)
    {
-    sprintf(temp_err_string, "ERROR: Need to specify UTC clock offset and observe run stop time on commandline, e.g. 'observe 1234 567'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Command line syntax is:\n\n observe <UTC clock offset> <UTC start> <UTC stop> <cameraId> <video device> <width> <height> <fps> <lat> <long> <flagGPS> <flagUpsideDown> <output filename>\n\ne.g.:\n\n observe 0 1428162067 1428165667 1 /dev/video0 720 480 24.71 52.2 0.12 0 1 output.h264\n"); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
-            utcoffset  = (int)GetFloat(argv[1],NULL);
-  const int tstart     = time(NULL) + utcoffset;
-  const int tstop      = (int)GetFloat(argv[2],NULL);
+  videoMetadata vmd;
+
+  const double utcoffset  = GetFloat(argv[1],NULL);
+  vmd.tstart              = GetFloat(argv[2],NULL);
+  vmd.tstop               = GetFloat(argv[3],NULL);
+  vmd.nframe              = 0;
+  vmd.cameraId            = argv[4];
+  vmd.videoDevice         = argv[5];
+  vmd.width               = (int)GetFloat(argv[6],NULL);
+  vmd.height              = (int)GetFloat(argv[7],NULL);
+  vmd.fps                 = GetFloat(argv[8],NULL);
+  vmd.lat                 = GetFloat(argv[9],NULL);
+  vmd.lng                 = GetFloat(argv[10],NULL);
+  vmd.flagGPS             = GetFloat(argv[11],NULL) ? 1 : 0;
+  vmd.flagUpsideDown      = GetFloat(argv[12],NULL) ? 1 : 0;
+  vmd.filename            = argv[13];
 
   struct vdIn *videoIn;
 
-  const char *videodevice=VIDEO_DEV;
-  const float fps = nearestMultiple(VIDEO_FPS,1); // Requested frame rate
+  const char *videodevice=vmd.videoDevice;
+  const float fps = nearestMultiple(vmd.fps,1); // Requested frame rate
   const int format = V4L2_PIX_FMT_YUYV;
   const int grabmethod = 1;
   const int queryformats = 0;
@@ -65,12 +78,16 @@ int main(int argc, char *argv[])
     exit(1);
    }
 
+  initLut();
+
   // Fetch the dimensions of the video stream as returned by V4L (which may differ from what we requested)
-  if (init_videoIn(videoIn, (char *) videodevice, VIDEO_WIDTH, VIDEO_HEIGHT, fps, format, grabmethod, avifilename) < 0) exit(1);
+  if (init_videoIn(videoIn, (char *) videodevice, vmd.width, vmd.height, fps, format, grabmethod, avifilename) < 0) exit(1);
   const int width = videoIn->width;
   const int height= videoIn->height;
-
-  initLut();
+  vmd.width  = width;
+  vmd.height = height;
+  writeMetadata(vmd);
+  videoIn->upsideDown = vmd.flagUpsideDown;
 
   observe((void *)videoIn, utcoffset, tstart, tstop, width, height, "live", &fetchFrame, &rewindVideo);
 

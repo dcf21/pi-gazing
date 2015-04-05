@@ -132,43 +132,93 @@ void freeLut(void){
    free(LutBu);
 }
 
-void Pyuv422torgb24(unsigned char * input_ptr, unsigned char * output_ptr, unsigned int image_width, unsigned int image_height)
+void Pyuv422torgbstack(unsigned char * input_ptr, int *outR, int *outG, int *outB, unsigned int width, unsigned int height)
  {
-   unsigned int i, size;
-   unsigned char Y, Y1, U, V;
-   unsigned char *buff = input_ptr;
-   unsigned char *output_pt = output_ptr;
-   size = image_width * image_height /2;
-   for (i = size; i > 0; i--) {
-      /* bgr instead rgb ?? */
-      Y = buff[0] ;
-      U = buff[1] ;
-      Y1 = buff[2];
-      V = buff[3];
-      buff += 4;
-      *output_pt++ = R_FROMYV(Y,V);
-      *output_pt++ = G_FROMYUV(Y,U,V); //b
-      *output_pt++ = B_FROMYU(Y,U); //v
+   unsigned int i;
+   const    int size = width * height;
+#pragma omp parallel for private(i)
+   for (i = 0; i<size/2; i++)
+    {
+     unsigned char *b  = input_ptr + i*4;
+     unsigned char  Y  = b[0];
+     unsigned char  U  = b[1];
+     unsigned char  Y1 = b[2];
+     unsigned char  V  = b[3];
+     int           *R  = outR + i*2;
+     int           *G  = outG + i*2;
+     int           *B  = outB + i*2;
 
-      *output_pt++ = R_FROMYV(Y1,V);
-      *output_pt++ = G_FROMYUV(Y1,U,V); //b
-      *output_pt++ = B_FROMYU(Y1,U); //v
-   }
+     *R++ = R_FROMYV(Y,V);
+     *G++ = G_FROMYUV(Y,U,V); //b
+     *B++ = B_FROMYU(Y,U); //v
+
+     *R  += R_FROMYV(Y1,V);
+     *G  += G_FROMYUV(Y1,U,V); //b
+     *B  += B_FROMYU(Y1,U); //v
+    }
  }
 
-void Pyuv422toMono(unsigned char * input_ptr, unsigned char * output_ptr, unsigned int image_width, unsigned int image_height)
+void Pyuv420torgbstack(unsigned char *Ydata, unsigned char *Udata, unsigned char *Vdata, int *outR, int *outG, int *outB, const unsigned int width, const unsigned int height)
  {
-   unsigned int i, size;
-   unsigned char Y, Y1;
+   unsigned int i,j;
+   const    int size   = width * height;
    unsigned char *buff = input_ptr;
-   unsigned char *output_pt = output_ptr;
-   size = image_width * image_height /2;
-   for (i = size; i > 0; i--) {
-      Y = buff[0] ;
-      Y1 = buff[2];
-      buff += 4;
-      *output_pt++ = Y;
-      *output_pt++ = Y1;
-   }
+
+   const int stride0 = width;
+   const int stride1 = width/2;
+   const int stride2 = width/2;
+#pragma omp parallel for private(i,j)
+   for (i=0;i<height;i++) for(j=0;j<width;j++)
+    {
+     unsigned char Y = Ydata +  i    * stride0 +  j;
+     unsigned char U = Udata + (i/2) * stride1 + (j/2);
+     unsigned char V = Vdata + (i/2) * stride2 + (j/2);
+     *( outR+i*width+j ) += R_FROMYV(Y,V);
+     *( outG+i*width+j ) += G_FROMYUV(Y,U,V);
+     *( outB+i*width+j ) += B_FROMYU(Y,U);
+    }
  }
 
+void Pyuv422toMono(unsigned char * input_ptr, unsigned char * output_ptr, const unsigned int width, const unsigned int height, const int upsideDown)
+ {
+   unsigned int  i;
+   const    int size = width * height /2;
+#pragma omp parallel for private(i)
+   for (i=0; i<size; i++)
+    {
+     unsigned char *b = input_ptr + 4*(upsideDown?i:(size-i-1));
+     unsigned char Y  = b[0];
+     unsigned char Y1 = b[2];
+     unsigned char *output_pt = output_ptr + 2*i;
+     if (!upsideDown) { *output_pt++=Y ; *output_pt=Y1; }
+     else             { *output_pt++=Y1; *output_pt=Y;  }
+    }
+ }
+
+void Pyuv422to420(unsigned char * input_ptr, unsigned char * output_ptr, const unsigned int width, const unsigned int height, const int upsideDown)
+ {
+   int i;
+   const int size = width * height;
+#pragma omp parallel for private(i)
+   for (i=0;i<height;i++)
+    {
+     unsigned char *b;
+     unsigned char *outY = output_ptr + i*width;
+     unsigned char *outU = output_ptr + (i/2)*width + size;
+     unsigned char *outV = output_ptr + (i/2)*width + size*5/4;
+     if (!upsideDown) b = input_ptr + 2*width*i;
+     else             b = input_ptr - 2*width*i + 2*width*height - 4;
+
+     int j;
+     for(j=0;j<width/2;j++)
+      {
+       unsigned char  Y  = b[0];
+       unsigned char  U  = b[1];
+       unsigned char  Y1 = b[2];
+       unsigned char  V  = b[3];
+
+       if (!upsideDown) { *outY++=Y ; *outY++=Y1; } else { *outY++=Y1; *outY++=Y; }
+       *outU++=U; *outV++=V;
+      }
+    }
+ }
