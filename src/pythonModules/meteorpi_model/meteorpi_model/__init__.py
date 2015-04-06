@@ -27,7 +27,14 @@ class Event:
     processing tools and zero or more files containing images, video or any
     other appropriate information to support the event."""
 
-    def __init__(self, cameraID, eventTime, eventID, intensity, bezier, fileRecords=[]):
+    def __init__(
+            self,
+            cameraID,
+            eventTime,
+            eventID,
+            intensity,
+            bezier,
+            fileRecords=[]):
         self.cameraID = cameraID
         self.eventTime = eventTime
         # Will be a uuid.UUID when stored in the database

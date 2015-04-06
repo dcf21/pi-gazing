@@ -77,32 +77,44 @@ class TestFdb(TestCase):
         m = db.MeteorDatabase()
         # Clear the database
         m.clearDatabase()
-        file1 = m.registerFile(tempfile.mkstemp(suffix='.tmp', prefix='meteorpi_test_')[1],
-                               'text/plain',
-                               'meteorpi',
-                               'test_file',
-                               datetime.now(),
-                               [model.FileMeta('meteorpi',
-                                               'meta1',
-                                               'value1'),
-                                model.FileMeta('meteorpi',
-                                               'meta2',
-                                               'value2')])
-        file2 = m.registerFile(tempfile.mkstemp(suffix='.tmp', prefix='meteorpi_test_')[1],
-                               'text/plain',
-                               'meteorpi',
-                               'test_file',
-                               datetime.now(),
-                               [model.FileMeta('meteorpi',
-                                               'meta3',
-                                               'value3'),
-                                model.FileMeta('meteorpi',
-                                               'meta4',
-                                               'value4')])
+        file1 = m.registerFile(
+            tempfile.mkstemp(
+                suffix='.tmp',
+                prefix='meteorpi_test_')[1],
+            'text/plain',
+            'meteorpi',
+            'test_file',
+            datetime.now(),
+            [
+                model.FileMeta(
+                    'meteorpi',
+                    'meta1',
+                    'value1'),
+                model.FileMeta(
+                    'meteorpi',
+                    'meta2',
+                    'value2')])
+        file2 = m.registerFile(
+            tempfile.mkstemp(
+                suffix='.tmp',
+                prefix='meteorpi_test_')[1],
+            'text/plain',
+            'meteorpi',
+            'test_file',
+            datetime.now(),
+            [
+                model.FileMeta(
+                    'meteorpi',
+                    'meta3',
+                    'value3'),
+                model.FileMeta(
+                    'meteorpi',
+                    'meta4',
+                    'value4')])
         event = m.registerEvent(
-            db.getInstallationID(), 
-            datetime.now(), 
-            0.5, 
+            db.getInstallationID(),
+            datetime.now(),
+            0.5,
             model.Bezier(
-                0, 1, 2, 3, 4, 5, 6, 7), 
+                0, 1, 2, 3, 4, 5, 6, 7),
             [file1, file2])
