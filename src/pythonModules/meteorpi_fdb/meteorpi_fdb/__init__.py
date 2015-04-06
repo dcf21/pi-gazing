@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import os.path as path
 import os
 import shutil
+import uuid
 
 # http://www.firebirdsql.org/file/documentation/drivers_documentation/python/fdb/getting-started.html
 # is helpful!
@@ -85,14 +86,14 @@ class MeteorDatabase:
             'INSERT INTO t_file (cameraID, mimeType, namespace, '
             'semanticType, fileTime, fileSize) '
             'VALUES (?, ?, ?, ?, ?, ?) '
-            'RETURNING internalID, uuid_to_char(fileID), fileTime',
+            'RETURNING internalID, fileID, fileTime',
             (cameraID, mimeType, namespace, semanticType, fileTime, fileSizeBytes))
         resultRow = cur.fetchone()
         # Retrieve the internal ID of the file row to link fileMeta if required
         fileInternalID = resultRow[0]
         # Retrieve the generated file ID, used to build the File object and to
         # name the source file
-        fileID = resultRow[1]
+        fileID = uuid.UUID(bytes=resultRow[1])
         # Retrieve the file time as stored in the DB
         storedFileTime = resultRow[2]
         resultFile = mp.FileRecord(cameraID, mimeType, namespace, semanticType)
@@ -117,10 +118,34 @@ class MeteorDatabase:
                     fileMeta.stringValue))
         self.con.commit()
         # Move the original file from its path
-        targetFilePath = path.join(self.fileStorePath, resultFile.fileID)
+        targetFilePath = path.join(self.fileStorePath, resultFile.fileID.hex)
         shutil.move(filePath, targetFilePath)
         # Return the resultant file object
         return resultFile
+
+    def getFile(self, fileID):
+        cur = self.con.cursor()
+        cur.execute(
+            'SELECT internalID, cameraID, mimeType, namespace, '
+            'semanticType, fileTime, fileSize '
+            'FROM t_file t WHERE t.fileID=(?)', (fileID.bytes,))
+        row = cur.fetchone()
+        if row is None:
+            raise ValueError('File with ID {0} not found!'.format(fileID))
+        fileRecord = mp.FileRecord(row[1], row[2], row[3], row[4])
+        fileRecord.fileID = fileID
+        fileRecord.fileSize = row[6]
+        fileRecord.fileTime = row[5]
+        internalFileID = row[0]
+        cur.execute(
+            'SELECT namespace, key, stringValue '
+            'FROM t_fileMeta t '
+            'WHERE t.fileID = (?) '
+            'ORDER BY metaIndex ASC',
+            (internalFileID,))
+        for meta in cur.fetchall():
+            fileRecord.meta.append(mp.FileMeta(meta[0], meta[1], meta[2]))
+        return fileRecord
 
     def getCameras(self):
         """Get all Camera IDs for cameras in this database with current (i.e.

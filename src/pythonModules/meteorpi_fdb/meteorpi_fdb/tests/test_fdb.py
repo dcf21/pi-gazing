@@ -10,7 +10,6 @@ class TestFdb(TestCase):
 
     def testGetInstallationID(self):
         m = db.MeteorDatabase()
-        print m
         installationID = db.getInstallationID()
         self.assertTrue(len(installationID) == 12)
 
@@ -52,7 +51,6 @@ class TestFdb(TestCase):
         self.assertTrue(len(status.regions) == 2)
         self.assertTrue(len(status.regions[0]) == 3)
         self.assertTrue(len(status.regions[1]) == 3)
-        print status
 
     def testInsertFile(self):
         m = db.MeteorDatabase()
@@ -70,4 +68,7 @@ class TestFdb(TestCase):
                                  model.FileMeta('meteorpi',
                                                 'meta2',
                                                 'value2')])
-        print record
+        record2 = m.getFile(record.fileID)
+        self.assertEqual(len(record.meta), 2)
+        self.assertEqual(str(record), str(record2))
+        self.assertFalse(record is record2)

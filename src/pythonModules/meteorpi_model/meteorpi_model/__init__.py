@@ -12,12 +12,13 @@ class FileRecord:
         self.mimeType = mimeType
         self.namespace = namespace
         self.semanticType = semanticType
+        self.meta = []
 
     def __str__(self):
         return(
             'FileRecord(fileID={0} cameraID={1} mime={2} '
             'ns={3} stype={4} time={5} size={6} meta={7}'.format(
-                self.fileID,
+                self.fileID.hex,
                 self.cameraID,
                 self.mimeType,
                 self.namespace,
@@ -25,15 +26,6 @@ class FileRecord:
                 self.fileTime,
                 self.fileSize,
                 str([str(obj) for obj in self.meta])))
-
-    fileID = None
-    cameraID = None
-    mimeType = "text/plain"
-    namespace = "meteorPi"
-    semanticType = ""
-    fileTime = None
-    fileSize = 0
-    meta = []
 
 
 class FileMeta:
@@ -51,10 +43,6 @@ class FileMeta:
             self.key,
             self.stringValue)
 
-    namespace = "meteorPi"
-    key = ""
-    stringValue = ""
-
 
 class Location:
 
@@ -71,9 +59,6 @@ class Location:
             self.latitude,
             self.longitude,
             self.gps)
-    latitude = 0.0
-    longitude = 0.0
-    gps = False
 
 
 class Orientation:
@@ -95,9 +80,6 @@ class Orientation:
             self.altitude,
             self.azimuth,
             self.certainty)
-    altitude = 0.0
-    azimuth = 0.0
-    certainty = 0.0
 
 
 class CameraStatus:
@@ -117,6 +99,10 @@ class CameraStatus:
         self.instName = instName
         self.orientation = orientation
         self.location = location
+        self.softwareVersion = 1
+        self.validFrom = None
+        self.validTo = None
+        self.regions = []
 
     def __str__(self):
         return (
@@ -130,15 +116,3 @@ class CameraStatus:
                 self.lens,
                 self.sensor,
                 self.regions))
-    # A sequence of sequences of {x:int, y:int} representing visible
-    # regions
-    regions = []
-    lens = ""
-    sensor = ""
-    validFrom = None
-    validTo = None
-    instURL = ""
-    instName = ""
-    orientation = Orientation()
-    location = Location()
-    softwareVersion = 1

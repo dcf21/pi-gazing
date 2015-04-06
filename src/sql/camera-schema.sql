@@ -16,7 +16,7 @@ CREATE SEQUENCE gidSequence;
 /* A single observed event from a particular camera */
 CREATE TABLE t_event (
 	internalID integer NOT NULL,
-	eventID char(16) NOT NULL,
+	eventID char(16) CHARACTER SET OCTETS NOT NULL, /* Always use literal byte values */
 	cameraID char(12) NOT NULL,
 	eventTime timestamp NOT NULL,
 	intensity integer DEFAULT 0 NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE t_event (
 CREATE TABLE t_file (
 	internalID integer NOT NULL,
 	cameraID char(12) NOT NULL,
-	fileID char(16) NOT NULL,
+	fileID char(16) CHARACTER SET OCTETS NOT NULL, /* Always use literal byte values */
 	mimeType varchar(40) default 'text/plain' NOT NULL,
 	namespace varchar(255) default 'meteorPi' NOT NULL,
 	semanticType varchar(255) NOT NULL,
