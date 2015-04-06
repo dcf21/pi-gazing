@@ -1,21 +1,25 @@
 from unittest import TestCase
 
-import meteorpi_fdb as m
+import meteorpi_fdb as db
 import meteorpi_model as model
 
 
 class TestFdb(TestCase):
 
     def testGetInstallationID(self):
-        installationID = m.getInstallationID()
+        m = db.MeteorDatabase()
+        print m
+        installationID = db.getInstallationID()
         self.assertTrue(len(installationID) == 12)
 
     def testGetNextInternalId(self):
+        m = db.MeteorDatabase()
         id1 = m.getNextInternalID()
         id2 = m.getNextInternalID()
         self.assertTrue(id2 == id1 + 1)
 
     def testInsertCamera(self):
+        m = db.MeteorDatabase()
         # Clear the database
         m.clearDatabase()
         self.assertTrue(len(m.getCameras()) == 0)
