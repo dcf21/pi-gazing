@@ -1,7 +1,9 @@
 from unittest import TestCase
-
 import meteorpi_fdb as db
 import meteorpi_model as model
+import tempfile
+import os
+from datetime import datetime
 
 
 class TestFdb(TestCase):
@@ -51,3 +53,21 @@ class TestFdb(TestCase):
         self.assertTrue(len(status.regions[0]) == 3)
         self.assertTrue(len(status.regions[1]) == 3)
         print status
+
+    def testInsertFile(self):
+        m = db.MeteorDatabase()
+        m.clearDatabase()
+        tf = tempfile.mkstemp(suffix='.tmp', prefix='meteorpi_test_')
+        tfPath = tf[1]
+        record = m.registerFile(tfPath,
+                                'text/plain',
+                                'meteorpi',
+                                'test_file',
+                                datetime.now(),
+                                [model.FileMeta('meteorpi',
+                                                'meta1',
+                                                'value1'),
+                                 model.FileMeta('meteorpi',
+                                                'meta2',
+                                                'value2')])
+        print record

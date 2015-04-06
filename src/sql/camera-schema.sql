@@ -40,6 +40,7 @@ CREATE TABLE t_file (
 	namespace varchar(255) default 'meteorPi' NOT NULL,
 	semanticType varchar(255) NOT NULL,
 	fileTime timestamp NOT NULL,
+	fileSize integer NOT NULL,
 	PRIMARY KEY (internalId)
 );
 
@@ -50,6 +51,7 @@ CREATE TABLE t_fileMeta (
 	key varchar(255) NOT NULL,
 	stringValue varchar(255) NOT NULL,
 	fileID integer NOT NULL,
+	metaIndex integer DEFAULT 0 NOT NULL,
 	PRIMARY KEY (internalID),
 	FOREIGN KEY (fileID) REFERENCES t_file (internalID) ON DELETE CASCADE
 );

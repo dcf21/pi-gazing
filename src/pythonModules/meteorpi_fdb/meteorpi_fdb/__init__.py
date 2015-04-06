@@ -2,7 +2,9 @@ import fdb
 import uuid
 import meteorpi_model as mp
 from datetime import datetime, timedelta
-from os.path import expanduser
+import os.path as path
+import os
+import shutil
 
 # http://www.firebirdsql.org/file/documentation/drivers_documentation/python/fdb/getting-started.html
 # is helpful!
@@ -39,12 +41,17 @@ class MeteorDatabase:
     def __init__(
             self,
             dbPath='/var/lib/firebird/2.5/data/meteorpi.fdb',
-            fileStorePath=expanduser("~/meteorpi_files")):
+            fileStorePath=path.expanduser("~/meteorpi_files")):
         self.con = fdb.connect(
             dsn=dbPath,
             user='meteorpi',
             password='meteorpi')
         self.dbPath = dbPath
+        if path.exists(fileStorePath) == False:
+            os.makedirs(fileStorePath)
+        if path.isdir(fileStorePath) == False:
+            raise ValueError(
+                'File store path already exists but is not a directory!')
         self.fileStorePath = fileStorePath
 
     def __str__(self):
@@ -52,13 +59,68 @@ class MeteorDatabase:
             self.dbPath,
             self.fileStorePath)
 
-    def registerFile(self, path, f):
+    def registerFile(
+            self,
+            filePath,
+            mimeType,
+            namespace,
+            semanticType,
+            fileTime,
+            fileMetas,
+            cameraID=getInstallationID()):
         """
         Register a new row in t_file representing a file on disk.
 
-        At the same time, move the file at the specified path to the
-        local store
+        At the same time once the transaction has committed, move the
+        file at the specified path to the local store. Returns the
+        FileRecord object produced.
         """
+        # Check the file exists, and retrieve its size
+        if path.exists(filePath) == False:
+            raise ValueError('No file exists at {0}'.format(filePath))
+        fileSizeBytes = os.stat(filePath).st_size
+        # Handle the database parts
+        cur = self.con.cursor()
+        cur.execute(
+            'INSERT INTO t_file (cameraID, mimeType, namespace, '
+            'semanticType, fileTime, fileSize) '
+            'VALUES (?, ?, ?, ?, ?, ?) '
+            'RETURNING internalID, uuid_to_char(fileID), fileTime',
+            (cameraID, mimeType, namespace, semanticType, fileTime, fileSizeBytes))
+        resultRow = cur.fetchone()
+        # Retrieve the internal ID of the file row to link fileMeta if required
+        fileInternalID = resultRow[0]
+        # Retrieve the generated file ID, used to build the File object and to
+        # name the source file
+        fileID = resultRow[1]
+        # Retrieve the file time as stored in the DB
+        storedFileTime = resultRow[2]
+        resultFile = mp.FileRecord(cameraID, mimeType, namespace, semanticType)
+        resultFile.fileTime = storedFileTime
+        resultFile.fileID = fileID
+        resultFile.fileSize = fileSizeBytes
+        # Store the fileMeta
+        for fileMetaIndex, fileMeta in enumerate(fileMetas):
+            cur.execute(
+                'INSERT INTO t_fileMeta '
+                '(fileID, namespace, key, stringValue, metaIndex) '
+                'VALUES (?, ?, ?, ?, ?)',
+                (fileInternalID,
+                 fileMeta.namespace,
+                 fileMeta.key,
+                 fileMeta.stringValue,
+                 fileMetaIndex))
+            resultFile.meta.append(
+                mp.FileMeta(
+                    fileMeta.namespace,
+                    fileMeta.key,
+                    fileMeta.stringValue))
+        self.con.commit()
+        # Move the original file from its path
+        targetFilePath = path.join(self.fileStorePath, resultFile.fileID)
+        shutil.move(filePath, targetFilePath)
+        # Return the resultant file object
+        return resultFile
 
     def getCameras(self):
         """Get all Camera IDs for cameras in this database with current (i.e.
@@ -143,7 +205,7 @@ class MeteorDatabase:
             'softwareVersion, internalID '
             'FROM t_cameraStatus t '
             'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
-            'AND (t.validTo IS NULL OR t.validTo>(?))',
+            'AND (t.validTo IS NULL OR t.validTo > (?))',
             (cameraID,
              time,
              time))
@@ -225,7 +287,21 @@ class MeteorDatabase:
                 'WHERE t.validTo >= (?) AND t.cameraID = (?)',
                 (time,
                  cameraID))
-            # TODO events and images
+            # Delete files from the future
+            cur.execute(
+                'SELECT fileID FROM t_file t '
+                'WHERE t.fileTime > (?) AND t.cameraID = (?)',
+                (time, cameraID))
+            # Delete the corresponding entries in t_file, t_fileMeta should
+            # CASCADE
+            for row in cur.fetchAll():
+                targetFilePath = path.join(fileStorePath, row[0])
+                os.remove(targetFilePath)
+            cur.execute(
+                'DELETE FROM t_file t '
+                'WHERE t.fileTime > (?) AND t.cameraID = (?)',
+                (time, cameraID))
+            # TODO events
         self.con.commit()
 
     def clearDatabase(self):
@@ -233,7 +309,8 @@ class MeteorDatabase:
         Delete ALL THE THINGS!
 
         This doesn't reset any internal counters used to generate IDs
-        but does otherwise remove all data from the database.
+        but does otherwise remove all data from the database. Also
+        purges all files from the fileStore
         """
         cur = self.con.cursor()
         cur.execute('DELETE FROM t_cameraStatus')
@@ -242,6 +319,8 @@ class MeteorDatabase:
         cur.execute('DELETE FROM t_fileMeta')
         cur.execute('DELETE FROM t_event')
         self.con.commit()
+        shutil.rmtree(self.fileStorePath)
+        os.makedirs(self.fileStorePath)
 
     def getNextInternalID(self):
         """Retrieves and increments the internal ID from gidSequence, returning

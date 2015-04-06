@@ -1,28 +1,38 @@
 # MeteorPi API module
+from datetime import datetime
 
 
-class Event:
-
-    """A single observation from the camera."""
-    # TODO
-
-
-class File:
+class FileRecord:
 
     """A piece of binary data with associated metadata, typically used to store
     an image or video from the camera."""
 
-    def __init__(self, fileID, cameraID, mimeType, namespace, semanticType):
-        self.fileID = fileID
+    def __init__(self, cameraID, mimeType, namespace, semanticType):
         self.cameraID = cameraID
         self.mimeType = mimeType
         self.namespace = namespace
         self.semanticType = semanticType
+
+    def __str__(self):
+        return(
+            'FileRecord(fileID={0} cameraID={1} mime={2} '
+            'ns={3} stype={4} time={5} size={6} meta={7}'.format(
+                self.fileID,
+                self.cameraID,
+                self.mimeType,
+                self.namespace,
+                self.semanticType,
+                self.fileTime,
+                self.fileSize,
+                str([str(obj) for obj in self.meta])))
+
     fileID = None
     cameraID = None
     mimeType = "text/plain"
     namespace = "meteorPi"
     semanticType = ""
+    fileTime = None
+    fileSize = 0
     meta = []
 
 
@@ -34,6 +44,13 @@ class FileMeta:
         self.namespace = namespace
         self.key = key
         self.stringValue = stringValue
+
+    def __str__(self):
+        return '(ns={0}, key={1}, val={2})'.format(
+            self.namespace,
+            self.key,
+            self.stringValue)
+
     namespace = "meteorPi"
     key = ""
     stringValue = ""
