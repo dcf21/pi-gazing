@@ -60,6 +60,56 @@ class MeteorDatabase:
             self.dbPath,
             self.fileStorePath)
 
+    def registerEvent(
+            self,
+            cameraID,
+            eventTime,
+            intensity,
+            bezier,
+            fileRecords=[]):
+        """Register a new row in t_event, returning the Event object."""
+        if intensity > 1.0:
+            raise ValueError('Intensity must be at most 1.0')
+        if intensity < 0:
+            raise ValueError('Intensity must not be negative')
+        cur = self.con.cursor()
+        cur.execute(
+            'INSERT INTO t_event (cameraID, eventTime, intensity, '
+            'x1, y1, x2, y2, x3, y3, x4, y4) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
+            'RETURNING internalID, eventID, eventTime',
+            (cameraID,
+             eventTime,
+             intensity * 1000,
+             bezier[0]["x"],
+             bezier[0]["y"],
+             bezier[1]["x"],
+             bezier[1]["y"],
+             bezier[2]["x"],
+             bezier[2]["y"],
+             bezier[3]["x"],
+             bezier[3]["y"]))
+        ids = cur.fetchone()
+        eventInternalID = ids[0]
+        eventID = uuid.UUID(bytes=ids[1])
+        event = mp.Event(cameraID, ids[2], eventID, intensity, bezier)
+        for fileRecordIndex, fileRecord in enumerate(fileRecords):
+            event.fileRecords.append(fileRecord)
+            cur.execute(
+                'SELECT internalID FROM t_file WHERE fileID = (?)',
+                (fileRecord.fileID.bytes,
+                 ))
+            fileInternalID = cur.fetchone()[0]
+            cur.execute(
+                'INSERT INTO t_event_to_file '
+                '(fileID, eventID, sequenceNumber) '
+                'VALUES (?, ?, ?)',
+                (fileInternalID,
+                 eventInternalID,
+                 fileRecordIndex))
+        self.con.commit()
+        return event
+
     def registerFile(
             self,
             filePath,

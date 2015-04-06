@@ -2,6 +2,43 @@
 from datetime import datetime
 
 
+class Bezier:
+
+    """A four-point two dimensional curve, consisting of four control
+    points."""
+
+    def __init__(self, x1, y1, x2, y2, x3, y3, x4, y4):
+        self.points = []
+        self.points.append({"x": x1, "y": y1})
+        self.points.append({"x": x2, "y": y2})
+        self.points.append({"x": x3, "y": y3})
+        self.points.append({"x": x4, "y": y4})
+
+    def __str__(self):
+        return str(self.points)
+
+    def __getitem__(self, index):
+        return self.points[index]
+
+
+class Event:
+
+    """A single meteor observation, containing a set of data from the image
+    processing tools and zero or more files containing images, video or any
+    other appropriate information to support the event."""
+
+    def __init__(self, cameraID, eventTime, eventID, intensity, bezier, fileRecords=[]):
+        self.cameraID = cameraID
+        self.eventTime = eventTime
+        # Will be a uuid.UUID when stored in the database
+        self.eventID = eventID
+        self.eventTime = eventTime
+        self.intensity = intensity
+        self.bezier = bezier
+        # Sequence of FileRecord
+        self.fileRecords = fileRecords
+
+
 class FileRecord:
 
     """A piece of binary data with associated metadata, typically used to store
@@ -13,6 +50,9 @@ class FileRecord:
         self.namespace = namespace
         self.semanticType = semanticType
         self.meta = []
+        self.fileID = None
+        self.fileTime = None
+        self.fileSize = 0
 
     def __str__(self):
         return(
