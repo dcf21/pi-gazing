@@ -68,7 +68,7 @@ class TestFdb(TestCase):
                                            model.FileMeta('meteorpi',
                                                           'meta2',
                                                           'value2')])
-        record2 = m.getFile(record.fileID)
+        record2 = m.getFile(fileID=record.fileID)
         self.assertEqual(len(record.meta), 2)
         self.assertEqual(str(record), str(record2))
         self.assertFalse(record is record2)
@@ -118,3 +118,6 @@ class TestFdb(TestCase):
             bezier=model.Bezier(
                 0, 1, 2, 3, 4, 5, 6, 7),
             fileRecords=[file1, file2])
+        print event.eventID.hex
+        event2 = m.getEvents(eventID=event.eventID)[0]
+        print event2.__dict__
