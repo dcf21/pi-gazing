@@ -40,7 +40,7 @@ class TestFdb(TestCase):
                 True))
         newStatus.regions = [[{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 0, "y": 100}], [
             {"x": 100, "y": 100}, {"x": 100, "y": 0}, {"x": 0, "y": 100}]]
-        m.updateCameraStatus(newStatus)
+        m.updateCameraStatus(ns=newStatus)
         # Check that we now have a camera in the database
         self.assertTrue(len(m.getCameras()) == 1)
         status = m.getCameraStatus()
@@ -57,18 +57,67 @@ class TestFdb(TestCase):
         m.clearDatabase()
         tf = tempfile.mkstemp(suffix='.tmp', prefix='meteorpi_test_')
         tfPath = tf[1]
-        record = m.registerFile(tfPath,
-                                'text/plain',
-                                'meteorpi',
-                                'test_file',
-                                datetime.now(),
-                                [model.FileMeta('meteorpi',
-                                                'meta1',
-                                                'value1'),
-                                 model.FileMeta('meteorpi',
-                                                'meta2',
-                                                'value2')])
-        record2 = m.getFile(record.fileID)
+        record = m.registerFile(filePath=tfPath,
+                                mimeType='text/plain',
+                                namespace='meteorpi',
+                                semanticType='test_file',
+                                fileTime=datetime.now(),
+                                fileMetas=[model.FileMeta('meteorpi',
+                                                          'meta1',
+                                                          'value1'),
+                                           model.FileMeta('meteorpi',
+                                                          'meta2',
+                                                          'value2')])
+        record2 = m.getFile(fileID=record.fileID)
         self.assertEqual(len(record.meta), 2)
         self.assertEqual(str(record), str(record2))
         self.assertFalse(record is record2)
+
+    def testInsertEvent(self):
+        m = db.MeteorDatabase()
+        # Clear the database
+        m.clearDatabase()
+        file1 = m.registerFile(
+            tempfile.mkstemp(
+                suffix='.tmp',
+                prefix='meteorpi_test_')[1],
+            'text/plain',
+            'meteorpi',
+            'test_file',
+            datetime.now(),
+            [
+                model.FileMeta(
+                    'meteorpi',
+                    'meta1',
+                    'value1'),
+                model.FileMeta(
+                    'meteorpi',
+                    'meta2',
+                    'value2')])
+        file2 = m.registerFile(
+            tempfile.mkstemp(
+                suffix='.tmp',
+                prefix='meteorpi_test_')[1],
+            'text/plain',
+            'meteorpi',
+            'test_file',
+            datetime.now(),
+            [
+                model.FileMeta(
+                    'meteorpi',
+                    'meta3',
+                    'value3'),
+                model.FileMeta(
+                    'meteorpi',
+                    'meta4',
+                    'value4')])
+        event = m.registerEvent(
+            cameraID=db.getInstallationID(),
+            eventTime=datetime.now(),
+            intensity=0.5,
+            bezier=model.Bezier(
+                0, 1, 2, 3, 4, 5, 6, 7),
+            fileRecords=[file1, file2])
+        print event.eventID.hex
+        event2 = m.getEvents(eventID=event.eventID)[0]
+        print event2.__dict__

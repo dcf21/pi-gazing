@@ -60,6 +60,104 @@ class MeteorDatabase:
             self.dbPath,
             self.fileStorePath)
 
+    def getEvents(self, eventID=None, internalIDs=None, cursor=None):
+        """Retrieve Events by an eventID, set of internalIDs or by a cursor
+        which should contain a result set of rows from t_event."""
+        if eventID is None and internalIDs is None and cursor is None:
+            raise ValueError(
+                'Must specify one of eventID, internalIDs or cursor!')
+        # If we have a cursor use it, otherwise get one.
+        if (cursor is None):
+            _cur = self.con.cursor()
+            if eventID is not None:
+                # Use event ID
+                _cur.execute(
+                    'SELECT cameraID, eventID, internalID, eventTime, '
+                    'intensity, x1, y1, x2, y2, x3, y3, x4, y4 '
+                    'FROM t_event '
+                    'WHERE eventID = (?)', (eventID.bytes,))
+            else:
+                _cur.execute(
+                    'SELECT cameraID, eventID, internalID, eventTime, '
+                    'intensity, x1, y1, x2, y2, x3, y3, x4, y4 '
+                    'FROM t_event '
+                    'WHERE internalID IN (?)', (internalIDs,))
+        else:
+            _cur = cursor
+        events = {}
+        for row in _cur.fetchallmap():
+            internalID = row['internalID']
+            events[str(internalID)] = mp.Event(
+                row['cameraID'],
+                row['eventTime'],
+                uuid.UUID(bytes=row['eventID']),
+                row['intensity'] / 1000.0,
+                mp.Bezier(row['x1'], row['y1'], row['x2'], row['y2'],
+                          row['x3'], row['y3'], row['x4'], row['y4']),
+                [])
+        result = []
+        print events
+        for internalID, event in events.iteritems():
+            print 'internalID={}, event={}'.format(internalID, event)
+            _cur.execute(
+                'SELECT fileID from t_event_to_file '
+                'WHERE eventID = (?) '
+                'ORDER BY sequenceNumber ASC', (internalID,))
+            for row in _cur.fetchall():
+                event.fileRecords.append(self.getFile(internalID=row[0]))
+            result.append(event)
+        return result
+
+    def registerEvent(
+            self,
+            cameraID,
+            eventTime,
+            intensity,
+            bezier,
+            fileRecords=[]):
+        """Register a new row in t_event, returning the Event object."""
+        if intensity > 1.0:
+            raise ValueError('Intensity must be at most 1.0')
+        if intensity < 0:
+            raise ValueError('Intensity must not be negative')
+        cur = self.con.cursor()
+        cur.execute(
+            'INSERT INTO t_event (cameraID, eventTime, intensity, '
+            'x1, y1, x2, y2, x3, y3, x4, y4) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
+            'RETURNING internalID, eventID, eventTime',
+            (cameraID,
+             eventTime,
+             intensity * 1000,
+             bezier[0]["x"],
+             bezier[0]["y"],
+             bezier[1]["x"],
+             bezier[1]["y"],
+             bezier[2]["x"],
+             bezier[2]["y"],
+             bezier[3]["x"],
+             bezier[3]["y"]))
+        ids = cur.fetchone()
+        eventInternalID = ids[0]
+        eventID = uuid.UUID(bytes=ids[1])
+        event = mp.Event(cameraID, ids[2], eventID, intensity, bezier)
+        for fileRecordIndex, fileRecord in enumerate(fileRecords):
+            event.fileRecords.append(fileRecord)
+            cur.execute(
+                'SELECT internalID FROM t_file WHERE fileID = (?)',
+                (fileRecord.fileID.bytes,
+                 ))
+            fileInternalID = cur.fetchone()[0]
+            cur.execute(
+                'INSERT INTO t_event_to_file '
+                '(fileID, eventID, sequenceNumber) '
+                'VALUES (?, ?, ?)',
+                (fileInternalID,
+                 eventInternalID,
+                 fileRecordIndex))
+        self.con.commit()
+        return event
+
     def registerFile(
             self,
             filePath,
@@ -123,17 +221,28 @@ class MeteorDatabase:
         # Return the resultant file object
         return resultFile
 
-    def getFile(self, fileID):
+    def getFile(self, fileID=None, internalID=None):
+        if (fileID is None and internalID is None):
+            raise ValueError('Must specify either fileID or internalID!')
         cur = self.con.cursor()
-        cur.execute(
-            'SELECT internalID, cameraID, mimeType, namespace, '
-            'semanticType, fileTime, fileSize '
-            'FROM t_file t WHERE t.fileID=(?)', (fileID.bytes,))
+        if (internalID is not None):
+            cur.execute(
+                'SELECT internalID, cameraID, mimeType, namespace, '
+                'semanticType, fileTime, fileSize, fileID '
+                'FROM t_file t WHERE t.internalID=(?)', (internalID,))
+        elif (fileID is not None):
+            cur.execute(
+                'SELECT internalID, cameraID, mimeType, namespace, '
+                'semanticType, fileTime, fileSize, fileID '
+                'FROM t_file t WHERE t.fileID=(?)', (fileID.bytes,))
         row = cur.fetchone()
         if row is None:
-            raise ValueError('File with ID {0} not found!'.format(fileID))
+            raise ValueError(
+                'File with ID {0} or internal ID {1} not found!'.format(
+                    fileID.hex,
+                    internalID))
         fileRecord = mp.FileRecord(row[1], row[2], row[3], row[4])
-        fileRecord.fileID = fileID
+        fileRecord.fileID = uuid.UUID(bytes=row[7])
         fileRecord.fileSize = row[6]
         fileRecord.fileTime = row[5]
         internalFileID = row[0]
