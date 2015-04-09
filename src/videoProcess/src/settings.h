@@ -32,5 +32,15 @@
 #define TRIGGER_THROTTLE_PERIOD 10 /* number of minutes */
 #define TRIGGER_THROTTLE_MAXEVT  5 /* number of triggers allowed in that time */
 
+#define TRIGGER_RECORDLEN  9   /* second of video to record after trigger */
+#define TRIGGER_COMPARELEN 0.5 /* triggering is calculated on the basis of comparing buffers of this length */
+
+// Timelapse
+#define TIMELAPSE_EXPOSURE 29 /* Exposure length for timelapse photography */
+#define TIMELAPSE_INTERVAL 30 /* Interval between timelapse frames */
+
+// Size of buffer used for storing filenames
+#define FNAME_BUFFER 4096
+
 #endif
 

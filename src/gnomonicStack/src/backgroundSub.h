@@ -5,7 +5,7 @@
 #ifndef BACKSUB_H
 #define BACKSUB_H 1
 
-#include "jpeg.h"
+#include "image.h"
 #include "settings.h"
 
 void backgroundSubtract(image_ptr img, settingsIn *si);

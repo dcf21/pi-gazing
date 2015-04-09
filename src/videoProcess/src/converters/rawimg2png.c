@@ -17,11 +17,14 @@ int main(int argc, char *argv[])
 
   if (argc!=3)
    {
-    sprintf(temp_err_string, "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'rawimg2png rawimg2jpg foo.raw frame.jpg'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'rawimg2png foo.raw frame.png'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
   char *rawFname = argv[1];
-  char *frOut = argv[2];
+  char *fname = argv[2];
+
+  char frOut[FNAME_BUFFER];
+  sprintf(frOut,"%s.png",fname);
 
   FILE *infile;
   if ((infile = fopen(rawFname,"rb")) == NULL)
@@ -42,7 +45,8 @@ int main(int argc, char *argv[])
   const int nfr=1;
 
   image_ptr OutputImage;
-  jpeg_alloc(&OutputImage, width, height);
+  image_alloc(&OutputImage, width, height);
+  OutputImage.data_w = 1;
   for (i=0; i<nfr; i++)
    {
     int x,y,l=0;
@@ -52,13 +56,12 @@ int main(int argc, char *argv[])
       OutputImage.data_red[l] =
       OutputImage.data_grn[l] =
       OutputImage.data_blu[l] = vidRaw[p];
-      OutputImage.data_w  [l] = 1;
       l++; p++;
      }
-    jpeg_deweight(&OutputImage);
-    jpeg_put(frOut, OutputImage);
+    image_deweight(&OutputImage);
+    image_put(frOut, OutputImage);
    }
-  jpeg_dealloc(&OutputImage);
+  image_dealloc(&OutputImage);
   free(vidRaw);
   return 0;
  }

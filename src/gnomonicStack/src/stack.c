@@ -15,7 +15,7 @@
 #include "error.h"
 #include "gnomonic.h"
 #include "imageProcess.h"
-#include "jpeg.h"
+#include "image.h"
 #include "readConfig.h"
 #include "settings.h"
 #include "str_constants.h"
@@ -96,7 +96,7 @@ Usage: stack.bin <filename>\n\
   if (readConfig(filename, feed_s, s_in, &s_in_default, &nImages)) return 1;
 
   // Malloc output image
-  jpeg_alloc(&OutputImage, feed_s->XSize, feed_s->YSize);
+  image_alloc(&OutputImage, feed_s->XSize, feed_s->YSize);
 
   // Straightforward stacking (no cloud masking)
   for (i=0; i<nImages; i++)
@@ -104,7 +104,7 @@ Usage: stack.bin <filename>\n\
     image_ptr InputImage;
 
     // Read image
-    InputImage = jpeg_get(s_in[i].InFName);
+    InputImage = image_get(s_in[i].InFName);
     if (InputImage.data_red==NULL) gnom_fatal(__FILE__,__LINE__,"Could not read input image file");
     if (feed_s->cloudMask==0) backgroundSubtract(InputImage, s_in+i); // Do not do background subtraction if we're doing cloud masking
 
@@ -112,16 +112,16 @@ Usage: stack.bin <filename>\n\
     StackImage(InputImage, OutputImage, NULL, NULL, feed_s, s_in+i);
 
     // Free image
-    jpeg_dealloc(&InputImage);
+    image_dealloc(&InputImage);
    }
 
-  jpeg_deweight(&OutputImage);
+  image_deweight(&OutputImage);
 
   // If requested, do stacking again with cloud masking
   if (feed_s->cloudMask!=0)
    {
     image_ptr CloudMaskAvg = OutputImage;
-    jpeg_alloc(&OutputImage, feed_s->XSize, feed_s->YSize);
+    image_alloc(&OutputImage, feed_s->XSize, feed_s->YSize);
 
     // Stacking with mask
     for (i=0; i<nImages; i++)
@@ -129,26 +129,26 @@ Usage: stack.bin <filename>\n\
       image_ptr InputImage, CloudMaskThis;
 
       // Read image
-      InputImage = jpeg_get(s_in[i].InFName);
+      InputImage = image_get(s_in[i].InFName);
       if (InputImage.data_red==NULL) gnom_fatal(__FILE__,__LINE__,"Could not read input image file");
-      jpeg_cp(&InputImage,&CloudMaskThis);
+      image_cp(&InputImage,&CloudMaskThis);
       backgroundSubtract(InputImage, s_in+i);
 
       // Process image
       StackImage(InputImage, OutputImage, &CloudMaskAvg, &CloudMaskThis, feed_s, s_in+i);
 
       // Free image
-      jpeg_dealloc(&InputImage);
-      jpeg_dealloc(&CloudMaskThis);
+      image_dealloc(&InputImage);
+      image_dealloc(&CloudMaskThis);
      }
 
-    jpeg_deweight(&OutputImage);
-    jpeg_dealloc(&CloudMaskAvg);
+    image_deweight(&OutputImage);
+    image_dealloc(&CloudMaskAvg);
    }
 
   // Write image
-  jpeg_put(feed_s->OutFName, OutputImage);
-  jpeg_dealloc(&OutputImage);
+  image_put(feed_s->OutFName, OutputImage);
+  image_dealloc(&OutputImage);
 
   if (DEBUG) gnom_log("Terminating normally.");
   return 0;

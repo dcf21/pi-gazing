@@ -12,6 +12,7 @@
 #include "utils/tools.h"
 #include "utils/error.h"
 #include "utils/JulianDate.h"
+#include "vidtools/color.h"
 
 #include "settings.h"
 
@@ -19,15 +20,16 @@
 #define framesSinceLastTrigger_REWIND         -2
 #define framesSinceLastTrigger_ALLOWTRIGGER    3
 
+#define YUV420  3/2 /* Each pixel is 1.5 bytes in YUV420 stream */
 
 // When testTrigger detects a meteor, this string is set to a filename stub with time stamp of the time when the camera triggered
-static char triggerstub[4096];
+static char triggerstub[FNAME_BUFFER];
 
 
 // Generate a filename stub with a timestamp. Warning: not thread safe. Returns a pointer to static string
 char *fNameGenerate(int utc, char *tag, const char *dirname, const char *label)
  {
-  static char path[4096], output[4096];
+  static char path[FNAME_BUFFER], output[FNAME_BUFFER];
   const double JD = utc / 86400.0 + 2440587.5;
   int year,month,day,hour,min,status; double sec;
   InvJulianDay(JD-0.5,&year,&month,&day,&hour,&min,&sec,&status,output); // Subtract 0.5 from Julian Day as we want days to start at noon, not midnight
@@ -65,9 +67,10 @@ int testTrigger(const double utc, const int width, const int height, const int *
   const int frameSize=width*height;
   int *triggerMap   = calloc(1,frameSize*sizeof(int)); // triggerMap is a 2D array of ints used to mark out pixels which have brightened suspiciously.
   int *triggerBlock = calloc(1,frameSize*sizeof(int)); // triggerBlock is a count of how many pixels are in each numbered connected block
-  unsigned char *triggerR = calloc(1,frameSize);
-  unsigned char *triggerG = calloc(1,frameSize); // These arrays are used to produce diagnostic images when the camera triggers
-  unsigned char *triggerB = calloc(1,frameSize);
+  unsigned char *triggerRGB = calloc(1,frameSize*3);
+  unsigned char *triggerR = triggerRGB;
+  unsigned char *triggerG = triggerRGB + frameSize*1; // These arrays are used to produce diagnostic images when the camera triggers
+  unsigned char *triggerB = triggerRGB + frameSize*2;
   int  blockNum     = 1;
 
   for (y=marginT; y<height-marginB; y++)
@@ -118,12 +121,12 @@ int testTrigger(const double utc, const int width, const int height, const int *
   if (output)
    {
     strcpy(triggerstub, fNameGenerate(utc,"trigger","triggers_raw",label));
-    char fname[4096];
+    char fname[FNAME_BUFFER];
     sprintf(fname, "%s%s",triggerstub,"_MAP.rawrgb");
-    dumpFrameRGB(width, height, triggerR, triggerG, triggerB, fname);
+    dumpFrameRGB(width, height, triggerRGB, fname);
    }
 
-  free(triggerMap); free(triggerBlock); free(triggerR); free(triggerG); free(triggerB);
+  free(triggerMap); free(triggerBlock); free(triggerRGB);
   return output;
  }
 
@@ -132,36 +135,41 @@ int readShortBuffer(void *videoHandle, int nfr, int width, int height, unsigned 
  {
   const int frameSize = width*height;
   int i,j;
-  for (i=0; i<frameSize; i++) stack1[i]=0;
-  for (i=0; i<frameSize; i++) maxMap[i]=0;
+  for (i=0; i<frameSize*3; i++) stack1[i]=0;
+  for (i=0; i<frameSize*3; i++) maxMap[i]=0;
+
+  unsigned char *tmprgb = malloc(3*frameSize);
 
   for (j=0;j<nfr;j++)
    {
-    unsigned char *tmpc = buffer+j*frameSize;
+    unsigned char *tmpc = buffer+j*frameSize*YUV420;
     if ((*fetchFrame)(videoHandle,tmpc,utc) != 0) { if (DEBUG) gnom_log("Error grabbing"); return 1; }
+    Pyuv420torgb(tmpc,tmpc+frameSize,tmpc+frameSize*5/4,tmprgb,tmprgb+frameSize,tmprgb+frameSize*2,width,height);
 #pragma omp parallel for private(i)
-    for (i=0; i<frameSize; i++) stack1[i]+=tmpc[i]; // Stack1 is wiped prior to each call to this function
+    for (i=0; i<frameSize*3; i++) stack1[i]+=tmprgb[i]; // Stack1 is wiped prior to each call to this function
     if (stack2)
      {
 #pragma omp parallel for private(i)
-      for (i=0; i<frameSize; i++) stack2[i]+=tmpc[i]; // Stack2 can stack output of many calls to this function
+      for (i=0; i<frameSize*3; i++) stack2[i]+=tmprgb[i]; // Stack2 can stack output of many calls to this function
      }
 #pragma omp parallel for private(i)
-    for (i=0; i<frameSize; i++) if (maxMap[i]<tmpc[i]) maxMap[i]=tmpc[i];
+    for (i=0; i<frameSize*3; i++) if (maxMap[i]<tmprgb[i]) maxMap[i]=tmprgb[i];
    }
 
   // Add the pixel values in this stack into the histogram in medianWorkspace
-  for (i=0; i<frameSize; i++)
-   {
-    int d, pixelVal = CLIP256(stack1[i]/nfr);
-    medianWorkspace[i + pixelVal*frameSize]++;
-   }
+  for (j=0; j<3; j++)
+   for (i=0; i<frameSize*3; i++)
+    {
+     int d, pixelVal = CLIP256(stack1[i]/nfr);
+     medianWorkspace[j*frameSize*256 + i + pixelVal*frameSize]++;
+    }
+  free(tmprgb);
   return 0;
  }
 
 int observe(void *videoHandle, const int utcoffset, const int tstart, const int tstop, const int width, const int height, const char *label, int (*fetchFrame)(void *,unsigned char *,double *), int (*rewindVideo)(void *, double *))
  {
-  char line[4096],line2[1024],line3[1024];
+  char line[FNAME_BUFFER],line2[FNAME_BUFFER],line3[FNAME_BUFFER];
   double utc;
 
   if (DEBUG) { sprintf(line, "Starting observing run at %s; observing run will end at %s.", StrStrip(FriendlyTimestring(tstart),line2),StrStrip(FriendlyTimestring(tstop),line3)); gnom_log(line); }
@@ -171,34 +179,34 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
   const int frameSize = width * height;
 
   // Trigger buffers. These are used to store 1 second of video for comparison with the next
-  const double secondsTriggerBuff = 0.5;
+  const double secondsTriggerBuff = TRIGGER_COMPARELEN;
   const int      nfrt    = fps   * secondsTriggerBuff;
-  const int      btlen   = nfrt*frameSize;
+  const int      btlen   = nfrt*frameSize*YUV420;
   unsigned char *bufferA = malloc(btlen); // Two buffers, A and B, each hold alternate seconds of video data which we compare to see if anything has happened
   unsigned char *bufferB = malloc(btlen);
-  int           *stackA  = malloc(frameSize*sizeof(int)); // A stacked version of the video data in buffers A and B
-  int           *stackB  = malloc(frameSize*sizeof(int));
-  unsigned char *maxA    = malloc(frameSize); // Maximum recorded pixel intensity
-  unsigned char *maxB    = malloc(frameSize);
+  int           *stackA  = malloc(frameSize*sizeof(int)*3); // A stacked version of the video data in buffers A and B
+  int           *stackB  = malloc(frameSize*sizeof(int)*3);
+  unsigned char *maxA    = malloc(frameSize*3); // Maximum recorded pixel intensity
+  unsigned char *maxB    = malloc(frameSize*3);
 
   // Timelapse buffers
   double       frameNextTargetTime  = 1e40; // Store exposures once a minute, on the minute. This is UTC of next frame, but we don't start until we've done a run-in period
-  const double secondsTimelapseBuff = 15;
+  const double secondsTimelapseBuff = TIMELAPSE_EXPOSURE;
   const int    nfrtl                = nearestMultiple(fps * secondsTimelapseBuff, nfrt); // Number of frames stacked in all buffers must be a multiple of shortest buffer length
   int         *stackT               = malloc(frameSize*sizeof(int));
 
   // Long buffer. Used to store a video after the camera has triggered
-  const double secondsLongBuff = 9;
+  const double secondsLongBuff = TRIGGER_RECORDLEN;
   const int nfrl         = nearestMultiple(fps * secondsLongBuff, nfrt); // Number of frames stacked in all buffers must be a multiple of shortest buffer length
-  const int bllen        = nfrl*frameSize;
+  const int bllen        = nfrl*frameSize*YUV420;
   unsigned char *bufferL = malloc(bllen); // A long buffer, used to record 10 seconds of video after we trigger
-  int           *stackL  = malloc(frameSize*sizeof(int));
-  unsigned char *maxL    = malloc(frameSize);
+  int           *stackL  = malloc(frameSize*sizeof(int)*3);
+  unsigned char *maxL    = malloc(frameSize*3);
 
   // Median maps are used for background subtraction. Maps A and B are used alternately and contain the median value of each pixel.
-  unsigned char *medianMapA      = calloc(1,frameSize); // The median value of each pixel, sampled over 255 stacked images
-  unsigned char *medianMapB      = calloc(1,frameSize);
-  unsigned char *medianWorkspace = calloc(1,frameSize*256); // Workspace which counts the number of times any given pixel has a particular value over 255 images
+  unsigned char *medianMapA      = calloc(1,frameSize*3); // The median value of each pixel, sampled over 255 stacked images
+  unsigned char *medianMapB      = calloc(1,frameSize*3);
+  unsigned char *medianWorkspace = calloc(1,frameSize*3*256); // Workspace which counts the number of times any given pixel has a particular value over 255 images
 
   if ((!bufferA)||(!bufferB)||(!bufferL) || (!stackA)||(!stackB)||(!stackT)||(!stackL) || (!maxA)||(!maxB)||(!maxL) ||  (!medianMapA)||(!medianMapB)||(!medianWorkspace)) { sprintf(temp_err_string, "ERROR: malloc fail in observe."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
 
@@ -228,7 +236,7 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
 
     // Work out where we're going to read next second of video to. Either bufferA / bufferB, or the long buffer if we're recording
     unsigned char *buffer = bufferNum?bufferB:bufferA;
-    if (recording>-1) buffer = bufferL + frameSize*nfrt*recording;
+    if (recording>-1) buffer = bufferL + frameSize*YUV420*nfrt*recording;
 
     // Read the next second of video
     int status = readShortBuffer(videoHandle, nfrt, width, height, buffer, bufferNum?stackB:stackA, (timelapseCount>=0)?stackT:NULL, bufferNum?maxB:maxA, medianWorkspace, &utc, fetchFrame);
@@ -248,18 +256,18 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
       int *stackbuf = bufferNum?stackB:stackA;
       recording++;
 #pragma omp parallel for private(i)
-      for (i=0; i<frameSize; i++) if (maxbuf[i]>maxL[i]) maxL[i]=maxbuf[i];
+      for (i=0; i<frameSize*3; i++) if (maxbuf[i]>maxL[i]) maxL[i]=maxbuf[i];
 #pragma omp parallel for private(i)
-      for (i=0; i<frameSize; i++) stackL[i]+=stackbuf[i];
+      for (i=0; i<frameSize*3; i++) stackL[i]+=stackbuf[i];
       if (recording>=nfrl/nfrt)
        {
-        char fname[4096];
-        sprintf(fname, "%s%s",triggerstub,"3_MAX.rawimg");
-        dumpFrame(width, height, maxL, fname);
-        sprintf(fname, "%s%s",triggerstub,"3_BS0.rawimg");
-        dumpFrameFromInts(width, height, stackL, nfrt+nfrl, 1, fname);
-        sprintf(fname, "%s%s",triggerstub,"3_BS1.rawimg");
-        dumpFrameFromISub(width, height, stackL, nfrt+nfrl, STACK_GAIN, medianNum?medianMapB:medianMapA, fname);
+        char fname[FNAME_BUFFER];
+        sprintf(fname, "%s%s",triggerstub,"3_MAX.rawrgb");
+        dumpFrameRGB(width, height, maxL, fname);
+        sprintf(fname, "%s%s",triggerstub,"3_BS0.rawrgb");
+        dumpFrameRGBFromInts(width, height, stackL, nfrt+nfrl, 1, fname);
+        sprintf(fname, "%s%s",triggerstub,"3_BS1.rawrgb");
+        dumpFrameRGBFromISub(width, height, stackL, nfrt+nfrl, STACK_GAIN, medianNum?medianMapB:medianMapA, fname);
         sprintf(fname, "%s%s",triggerstub,".rawvid");
         dumpVideo(nfrt, nfrl, width, height, bufferNum?bufferA:bufferB, bufferNum?bufferB:bufferA, bufferL, fname);
         recording=-1; framesSinceLastTrigger=0;
@@ -276,12 +284,12 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
 
     if (timelapseCount>=nfrtl/nfrt)
      {
-      char fstub[4096], fname[4096]; strcpy(fstub, fNameGenerate(utc,"frame_","timelapse_raw",label));
-      sprintf(fname, "%s%s",fstub,"BS0.rawimg");
-      dumpFrameFromInts(width, height, stackT, nfrtl, 1, fname);
-      sprintf(fname, "%s%s",fstub,"BS1.rawimg");
-      dumpFrameFromISub(width, height, stackT, nfrtl, STACK_GAIN, medianNum?medianMapB:medianMapA, fname);
-      frameNextTargetTime+=60;
+      char fstub[FNAME_BUFFER], fname[FNAME_BUFFER]; strcpy(fstub, fNameGenerate(utc,"frame_","timelapse_raw",label));
+      sprintf(fname, "%s%s",fstub,"BS0.rawrgb");
+      dumpFrameRGBFromInts(width, height, stackT, nfrtl, 1, fname);
+      sprintf(fname, "%s%s",fstub,"BS1.rawrgb");
+      dumpFrameRGBFromISub(width, height, stackT, nfrtl, STACK_GAIN, medianNum?medianMapB:medianMapA, fname);
+      frameNextTargetTime+=TIMELAPSE_INTERVAL;
       timelapseCount=-1;
      }
 
@@ -295,21 +303,21 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
       if (testTrigger(  utc , width , height , bufferNum?stackB:stackA , bufferNum?stackA:stackB , nfrt , label ))
        {
         // Camera has triggered
-        char fname[4096];
+        char fname[FNAME_BUFFER];
         triggerThrottleCounter++;
-        sprintf(fname, "%s%s",triggerstub,"2_BS0.rawimg");
-        dumpFrameFromInts(width, height, bufferNum?stackB:stackA, nfrt, 1, fname);
-        sprintf(fname, "%s%s",triggerstub,"2_BS1.rawimg");
-        dumpFrameFromISub(width, height, bufferNum?stackB:stackA, nfrt, STACK_GAIN, medianNum?medianMapB:medianMapA, fname);
-        sprintf(fname, "%s%s",triggerstub,"2_MAX.rawimg");
-        dumpFrame        (width, height, bufferNum?maxB:maxA, fname);
+        sprintf(fname, "%s%s",triggerstub,"2_BS0.rawrgb");
+        dumpFrameRGBFromInts(width, height, bufferNum?stackB:stackA, nfrt, 1, fname);
+        sprintf(fname, "%s%s",triggerstub,"2_BS1.rawrgb");
+        dumpFrameRGBFromISub(width, height, bufferNum?stackB:stackA, nfrt, STACK_GAIN, medianNum?medianMapB:medianMapA, fname);
+        sprintf(fname, "%s%s",triggerstub,"2_MAX.rawrgb");
+        dumpFrameRGB        (width, height, bufferNum?maxB:maxA, fname);
 
-        sprintf(fname, "%s%s",triggerstub,"1_BS0.rawimg");
-        dumpFrameFromInts(width, height, bufferNum?stackA:stackB, nfrt, 1, fname);
-        sprintf(fname, "%s%s",triggerstub,"1_BS1.rawimg");
-        dumpFrameFromISub(width, height, bufferNum?stackA:stackB, nfrt, STACK_GAIN, medianNum?medianMapB:medianMapA, fname);
-        sprintf(fname, "%s%s",triggerstub,"1_MAX.rawimg");
-        dumpFrame        (width, height, bufferNum?maxA:maxB, fname);
+        sprintf(fname, "%s%s",triggerstub,"1_BS0.rawrgb");
+        dumpFrameRGBFromInts(width, height, bufferNum?stackA:stackB, nfrt, 1, fname);
+        sprintf(fname, "%s%s",triggerstub,"1_BS1.rawrgb");
+        dumpFrameRGBFromISub(width, height, bufferNum?stackA:stackB, nfrt, STACK_GAIN, medianNum?medianMapB:medianMapA, fname);
+        sprintf(fname, "%s%s",triggerstub,"1_MAX.rawrgb");
+        dumpFrameRGB        (width, height, bufferNum?maxA:maxB, fname);
 
         memcpy(maxL  , bufferNum?maxB:maxA    , frameSize);
         memcpy(stackL, bufferNum?stackB:stackA, frameSize*sizeof(int));

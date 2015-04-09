@@ -15,7 +15,7 @@
 #include "error.h"
 #include "gnomonic.h"
 #include "imageProcess.h"
-#include "jpeg.h"
+#include "image.h"
 #include "readConfig.h"
 #include "settings.h"
 #include "str_constants.h"
@@ -118,7 +118,7 @@ Usage: barrel.bin <filename> <camera model> <output filename>\n\
 
     // Read image
     strcpy(s_in_default.InFName, filename[0]);
-    InputImage = jpeg_get(filename[0]);
+    InputImage = image_get(filename[0]);
     if (InputImage.data_red==NULL) gnom_fatal(__FILE__,__LINE__,"Could not read input image file");
 
     feed_s->mode   = MODE_GNOMONIC;
@@ -131,19 +131,19 @@ Usage: barrel.bin <filename> <camera model> <output filename>\n\
     s_in_default.InYScale *= ((double)InputImage.ysize)/InputImage.xsize;
 
     // Malloc output image
-    jpeg_alloc(&OutputImage, feed_s->XSize, feed_s->YSize);
+    image_alloc(&OutputImage, feed_s->XSize, feed_s->YSize);
 
     // Process image
     StackImage(InputImage, OutputImage, NULL, NULL, feed_s, &s_in_default);
     
     // Free image
-    jpeg_dealloc(&InputImage);
+    image_dealloc(&InputImage);
    }
 
   // Write image
-  jpeg_deweight(&OutputImage);
-  jpeg_put(feed_s->OutFName, OutputImage);
-  jpeg_dealloc(&OutputImage);
+  image_deweight(&OutputImage);
+  image_put(feed_s->OutFName, OutputImage);
+  image_dealloc(&OutputImage);
 
   if (DEBUG) gnom_log("Terminating normally.");
   return 0;

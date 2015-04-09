@@ -507,7 +507,7 @@ static OMX_ERRORTYPE fill_output_buffer_done_handler(
 
 int main(int argc, char **argv)
  {
-    char line[4096];
+    char line[FNAME_BUFFER];
 
     // Initialise video capture process
     if (argc!=14)

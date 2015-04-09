@@ -9,7 +9,7 @@ DATE    = 08/10/2014
 
 COMPILE = $(CC) -Wall -g -fopenmp `gsl-config --cflags` -c -I $(CWD)/src
 LINK    = $(CC) -Wall -g -fopenmp
-LIBS    = `gsl-config --libs` -ljpeg -lm
+LIBS    = `gsl-config --libs` -lpng -lm
 
 OPTIMISATION = -O1
 
@@ -21,11 +21,11 @@ LOCAL_OBJDIR = obj
 LOCAL_DOCDIR = doc
 LOCAL_BINDIR = bin
 
-STACK_FILES = asciidouble.c backgroundSub.c error.c gnomonic.c imageProcess.c jpeg_in.c jpeg_out.c readConfig.c settings.c stack.c
-CAMFT_FILES = asciidouble.c backgroundSub.c error.c gnomonic.c imageProcess.c jpeg_in.c jpeg_out.c readConfig.c settings.c cameraFit.c
-BARRL_FILES = asciidouble.c backgroundSub.c error.c gnomonic.c imageProcess.c jpeg_in.c jpeg_out.c readConfig.c settings.c barrel.c
+STACK_FILES = asciidouble.c backgroundSub.c error.c gnomonic.c imageProcess.c image_in.c image_out.c readConfig.c settings.c stack.c
+CAMFT_FILES = asciidouble.c backgroundSub.c error.c gnomonic.c imageProcess.c image_in.c image_out.c readConfig.c settings.c cameraFit.c
+BARRL_FILES = asciidouble.c backgroundSub.c error.c gnomonic.c imageProcess.c image_in.c image_out.c readConfig.c settings.c barrel.c
 
-HEADERS = asciidouble.h backgroundSub.h error.h gnomonic.h imageProcess.h jpeg.h readConfig.h settings.h str_constants.h
+HEADERS = asciidouble.h backgroundSub.h error.h gnomonic.h imageProcess.h image.h readConfig.h settings.h str_constants.h
 
 STACK_SOURCES         = $(STACK_FILES:%.c=$(LOCAL_SRCDIR)/%.c)
 STACK_OBJECTS         = $(STACK_FILES:%.c=$(LOCAL_OBJDIR)/%.o)

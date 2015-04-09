@@ -15,7 +15,7 @@
 #include "error.h"
 #include "gnomonic.h"
 #include "imageProcess.h"
-#include "jpeg.h"
+#include "image.h"
 #include "settings.h"
 #include "str_constants.h"
 #include "backgroundSub.h"

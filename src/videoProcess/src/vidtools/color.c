@@ -132,7 +132,7 @@ void freeLut(void){
    free(LutBu);
 }
 
-void Pyuv422torgbstack(unsigned char * input_ptr, int *outR, int *outG, int *outB, unsigned int width, unsigned int height)
+void Pyuv422torgbstack(unsigned char * input_ptr, int *outR, int *outG, int *outB, unsigned int width, unsigned int height, const int upsideDown)
  {
    unsigned int i;
    const    int size = width * height;
@@ -144,25 +144,39 @@ void Pyuv422torgbstack(unsigned char * input_ptr, int *outR, int *outG, int *out
      unsigned char  U  = b[1];
      unsigned char  Y1 = b[2];
      unsigned char  V  = b[3];
-     int           *R  = outR + i*2;
-     int           *G  = outG + i*2;
-     int           *B  = outB + i*2;
 
-     *R++ = R_FROMYV(Y,V);
-     *G++ = G_FROMYUV(Y,U,V); //b
-     *B++ = B_FROMYU(Y,U); //v
+     if (upsideDown)
+      {
+       int *R  = outR + (size-1) - i*2;
+       int *G  = outG + (size-1) - i*2;
+       int *B  = outB + (size-1) - i*2;
 
-     *R  += R_FROMYV(Y1,V);
-     *G  += G_FROMYUV(Y1,U,V); //b
-     *B  += B_FROMYU(Y1,U); //v
+       *R-- += R_FROMYV(Y,V);
+       *G-- += G_FROMYUV(Y,U,V); //b
+       *B-- += B_FROMYU(Y,U); //v
+
+       *R   += R_FROMYV(Y1,V);
+       *G   += G_FROMYUV(Y1,U,V); //b
+       *B   += B_FROMYU(Y1,U); //v
+      } else {
+       int *R  = outR + i*2;
+       int *G  = outG + i*2;
+       int *B  = outB + i*2;
+
+       *R++ += R_FROMYV(Y,V);
+       *G++ += G_FROMYUV(Y,U,V); //b
+       *B++ += B_FROMYU(Y,U); //v
+
+       *R   += R_FROMYV(Y1,V);
+       *G   += G_FROMYUV(Y1,U,V); //b
+       *B   += B_FROMYU(Y1,U); //v
+      }
     }
  }
 
-void Pyuv420torgbstack(unsigned char *Ydata, unsigned char *Udata, unsigned char *Vdata, int *outR, int *outG, int *outB, const unsigned int width, const unsigned int height)
+void Pyuv420torgb(unsigned char *Ydata, unsigned char *Udata, unsigned char *Vdata, unsigned char *outR, unsigned char *outG, unsigned char *outB, const unsigned int width, const unsigned int height)
  {
    unsigned int i,j;
-   const    int size   = width * height;
-   unsigned char *buff = input_ptr;
 
    const int stride0 = width;
    const int stride1 = width/2;
@@ -170,12 +184,12 @@ void Pyuv420torgbstack(unsigned char *Ydata, unsigned char *Udata, unsigned char
 #pragma omp parallel for private(i,j)
    for (i=0;i<height;i++) for(j=0;j<width;j++)
     {
-     unsigned char Y = Ydata +  i    * stride0 +  j;
-     unsigned char U = Udata + (i/2) * stride1 + (j/2);
-     unsigned char V = Vdata + (i/2) * stride2 + (j/2);
-     *( outR+i*width+j ) += R_FROMYV(Y,V);
-     *( outG+i*width+j ) += G_FROMYUV(Y,U,V);
-     *( outB+i*width+j ) += B_FROMYU(Y,U);
+     unsigned char Y = Ydata [  i    * stride0 +  j    ];
+     unsigned char U = Udata [ (i/2) * stride1 + (j/2) ];
+     unsigned char V = Vdata [ (i/2) * stride2 + (j/2) ];
+     *( outR+i*width+j ) = R_FROMYV(Y,V);
+     *( outG+i*width+j ) = G_FROMYUV(Y,U,V);
+     *( outB+i*width+j ) = B_FROMYU(Y,U);
     }
  }
 

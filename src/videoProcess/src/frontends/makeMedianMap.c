@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     sprintf(temp_err_string, "ERROR: Need to specify output filename for median map on commandline, e.g. 'makeMedianMap tmp.raw'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
-  char line[4096];
+  char line[FNAME_BUFFER];
 
   struct vdIn *videoIn;
 
@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
     for (j=0;j<nfr;j++)
      {
       if (uvcGrab(videoIn) < 0) { printf("Error grabbing\n"); break; }
-      Pyuv422torgbstack(videoIn->framebuffer, tmpi, tmpi+frameSize, tmpi+frameSize*2, videoIn->width, videoIn->height);
+      Pyuv422torgbstack(videoIn->framebuffer, tmpi, tmpi+frameSize, tmpi+frameSize*2, videoIn->width, videoIn->height, VIDEO_UPSIDE_DOWN);
      }
 
 #pragma omp parallel for private(i,j)

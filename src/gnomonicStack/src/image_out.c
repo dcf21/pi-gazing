@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include "png/image.h"
+#include "image.h"
 #include <png.h>
 
 /* IMAGE_PUT(): Turns bitmap data into a image file */

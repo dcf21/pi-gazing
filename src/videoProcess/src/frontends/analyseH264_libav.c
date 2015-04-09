@@ -21,6 +21,7 @@
 #include "utils/asciidouble.h"
 #include "utils/tools.h"
 #include "utils/error.h"
+#include "vidtools/color.h"
 #include "settings.h"
 
 void sigint_handler(int signal) { printf("\n"); exit(0); }
@@ -57,6 +58,7 @@ int fetchFrame(void *ctx_void, unsigned char *tmpc, double *utc)
 
     if (ctx->got_picture)
      {
+      const int frameSize = ctx->c->width * ctx->c->height;
       if (tmpc)
        {
         memcpy(tmpc              , ctx->picture->data[0], frameSize  );

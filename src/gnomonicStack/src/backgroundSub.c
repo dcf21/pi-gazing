@@ -11,7 +11,7 @@
 #include "asciidouble.h"
 #include "error.h"
 #include "gnomonic.h"
-#include "jpeg.h"
+#include "image.h"
 #include "settings.h"
 #include "str_constants.h"
 

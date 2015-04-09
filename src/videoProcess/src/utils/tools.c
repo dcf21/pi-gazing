@@ -16,16 +16,16 @@
 
 void writeMetadata(videoMetadata v)
  {
-  char fname[4096];
-  sprintf(fname,"%s.txt",v.filename)
-  FILE *f = open(fname,"w");
+  char fname[FNAME_BUFFER];
+  sprintf(fname,"%s.txt",v.filename);
+  FILE *f = fopen(fname,"w");
   if (!f) return;
   fprintf(f,"cameraId %s\n",v.cameraId);
   fprintf(f,"tstart %.1f\n",v.tstart);
   fprintf(f,"tstop %.1f\n",v.tstop);
   fprintf(f,"nframe %d\n",v.nframe);
   fprintf(f,"fps %.6f\n",v.nframe / (v.tstop-v.tstart));
-  fprintf(f,"flagGPS %d\n",v.flagFPS);
+  fprintf(f,"flagGPS %d\n",v.flagGPS);
   fprintf(f,"lat %.6f\n",v.lat);
   fprintf(f,"lng %.6f\n",v.lng);
   fclose(f);
@@ -85,10 +85,9 @@ void snapshot(struct vdIn *videoIn, int nfr, int zero, double expComp, char *fna
    }
 
   image_ptr img;
-  jpeg_alloc(&img, videoIn->width, videoIn->height);
-  img.weight = nfr;
+  image_alloc(&img, videoIn->width, videoIn->height);
+  img.data_w = nfr;
 
-  // Invert order of pixels in tmpi and medianRaw because camera is upside down
   if (!medianRaw)
    {
     for (i=0; i<frameSize; i++) img.data_red[i]=(tmpi[i            ]-zero*nfr)*expComp;
@@ -100,9 +99,9 @@ void snapshot(struct vdIn *videoIn, int nfr, int zero, double expComp, char *fna
     for (i=0; i<frameSize; i++) img.data_blu[i]=(tmpi[i+2*frameSize]-(zero-medianRaw[i+2*frameSize])*nfr)*expComp;
    }
 
-  jpeg_deweight(&img);
-  jpeg_put(fname, img);
-  jpeg_dealloc(&img);
+  image_deweight(&img);
+  image_put(fname, img);
+  image_dealloc(&img);
 
   free(tmpi);
   return;
@@ -154,7 +153,7 @@ int dumpFrame(int width, int height, unsigned char *buffer, char *fName)
   return 0;
  }
 
-int dumpFrameRGB(int width, int height, unsigned char *bufferR, unsigned char *bufferG, unsigned char *bufferB, char *fName)
+int dumpFrameRGB(int width, int height, unsigned char *bufferRGB, char *fName)
  {
   FILE *outfile;
   int frameSize = width*height;
@@ -164,16 +163,14 @@ int dumpFrameRGB(int width, int height, unsigned char *bufferR, unsigned char *b
     return 1;
    }
 
-  fwrite(&width ,1,sizeof(int),outfile);
-  fwrite(&height,1,sizeof(int),outfile);
-  fwrite(bufferR,1,frameSize  ,outfile);
-  fwrite(bufferG,1,frameSize  ,outfile);
-  fwrite(bufferB,1,frameSize  ,outfile);
+  fwrite(&width   ,1,sizeof(int),outfile);
+  fwrite(&height  ,1,sizeof(int),outfile);
+  fwrite(bufferRGB,1,frameSize*3,outfile);
   fclose(outfile);
   return 0;
  }
 
-int dumpFrameRGBFromInts(int width, int height, int *bufferR, int *bufferG, int *bufferB, int nfr, int gain, char *fName)
+int dumpFrameRGBFromInts(int width, int height, int *bufferRGB, int nfr, int gain, char *fName)
  {
   FILE *outfile;
   int frameSize = width*height;
@@ -187,9 +184,8 @@ int dumpFrameRGBFromInts(int width, int height, int *bufferR, int *bufferG, int 
    }
 
   int i,d;
-  for (i=0; i<frameSize; i++) tmpc[i            ]=CLIP256( bufferR[i] * gain / nfr );
-  for (i=0; i<frameSize; i++) tmpc[i+frameSize  ]=CLIP256( bufferG[i] * gain / nfr );
-  for (i=0; i<frameSize; i++) tmpc[i+frameSize*2]=CLIP256( bufferB[i] * gain / nfr );
+#pragma omp parallel for private(i,d)
+  for (i=0; i<frameSize*3; i++) tmpc[i]=CLIP256( bufferRGB[i] * gain / nfr );
 
   fwrite(&width ,1,sizeof(int),outfile);
   fwrite(&height,1,sizeof(int),outfile);
@@ -199,7 +195,7 @@ int dumpFrameRGBFromInts(int width, int height, int *bufferR, int *bufferG, int 
   return 0;
  }
 
-int dumpFrameRGBFromISub(int width, int height, int *bufferR, int *bufferG, int *bufferB, int nfr, int gain, unsigned char *buffer2, char *fName)
+int dumpFrameRGBFromISub(int width, int height, int *bufferRGB, int nfr, int gain, unsigned char *buffer2, char *fName)
  {
   FILE *outfile;
   int frameSize = width*height;
@@ -213,13 +209,12 @@ int dumpFrameRGBFromISub(int width, int height, int *bufferR, int *bufferG, int 
    }
 
   int i,d;
-  for (i=0; i<frameSize; i++) tmpc[i            ]=CLIP256( (bufferR[i] - nfr*buffer2[i            ]) * gain / nfr );
-  for (i=0; i<frameSize; i++) tmpc[i+frameSize  ]=CLIP256( (bufferG[i] - nfr*buffer2[i+frameSize  ]) * gain / nfr );
-  for (i=0; i<frameSize; i++) tmpc[i+frameSize*2]=CLIP256( (bufferB[i] - nfr*buffer2[i+frameSize*2]) * gain / nfr );
+#pragma omp parallel for private(i,d)
+  for (i=0; i<frameSize*3; i++) tmpc[i]=CLIP256( (bufferRGB[i] - nfr*buffer2[i]) * gain / nfr );
 
   fwrite(&width ,1,sizeof(int),outfile);
   fwrite(&height,1,sizeof(int),outfile);
-  fwrite(tmpc*3 ,1,frameSize  ,outfile);
+  fwrite(tmpc   ,1,frameSize*3,outfile);
   fclose(outfile);
   free(tmpc);
   return 0;
