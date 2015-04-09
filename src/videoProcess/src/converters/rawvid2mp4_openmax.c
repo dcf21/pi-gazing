@@ -692,7 +692,7 @@ int main(int argc, char **argv) {
         // a need for a buffer to be filled by us
         if(ctx.encoder_input_buffer_needed) {
             input_total_read = 0;
-            int line, xpos;
+            int line;
             for (line=0; line<height  ; line++)
               memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[0] + frame_info.buf_stride  *line , vidRaw + frame_in*frameSize +               width  *line , width);
             for (line=0; line<height/2; line++)
