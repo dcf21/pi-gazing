@@ -123,7 +123,7 @@ int testTrigger(const double utc, const int width, const int height, const int *
    {
     strcpy(triggerstub, fNameGenerate(utc,"trigger","triggers_raw",label));
     char fname[FNAME_BUFFER];
-    sprintf(fname, "%s%s",triggerstub,"_MAP.rgb");
+    sprintf(fname, "%s%s",triggerstub,"_MAP.sep");
     dumpFrameRGB(width, height, triggerRGB, fname);
    }
 
