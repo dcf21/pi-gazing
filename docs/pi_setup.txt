@@ -15,7 +15,7 @@ apt-get update
 apt-get dist-upgrade
 apt-get install gpsd gpsd-clients libjpeg-dev libpng-dev libgsl0-dev vim git qiv screen mplayer libavutil-dev libavcodec-dev libavformat-dev libx264-dev scons firebird2.5-superclassic
 dpkg-reconfigure firebird2.5-superclassic # automatically start firebird server
-apt-get install libcairo2-dev libcfitsio3-dev libnetpbm10-dev netpbm python-pyfits python-scipy python-imaging python-dateutil python-pip swig
+apt-get install libcairo2-dev libcfitsio3-dev libnetpbm10-dev netpbm python-pyfits python-scipy python-imaging python-dateutil python-pip swig ffmpeg
 pip install fdb
 vim /etc/apt/sources # Uncomment apt-src
 apt-get update
