@@ -38,9 +38,11 @@ gpsp.start()
 # gpsp now polls every .2 seconds for new data, storing it in self.current_value
 
 def fetchTimeOffset():
+  tstart = time.time()
   while 1:
     x = gpsp.get_current_value()
     if x and ('mode' in x) and (x.mode==3): return [ gpsp.clockoffset , gpsp.latitude , gpsp.longitude ]
+    if (time.time() > tstart+30): return False # Give up after 30 seconds
     time.sleep(2)
 
 if __name__ == '__main__':

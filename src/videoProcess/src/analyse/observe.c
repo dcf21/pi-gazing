@@ -136,8 +136,8 @@ int readShortBuffer(void *videoHandle, int nfr, int width, int height, unsigned 
  {
   const int frameSize = width*height;
   int i,j;
-  for (i=0; i<frameSize*3; i++) stack1[i]=0;
-  for (i=0; i<frameSize*3; i++) maxMap[i]=0;
+  memset(stack1, 0, frameSize*3*sizeof(int));
+  memset(maxMap, 0, frameSize*3);
 
   unsigned char *tmprgb = malloc(3*frameSize);
 
@@ -232,6 +232,7 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
     // Once we've done initial run-in period, rewind the tape to the beginning if we can
     if (framesSinceLastTrigger==framesSinceLastTrigger_REWIND)
      {
+      if (DEBUG) { sprintf(line, "Run-in period completed."); gnom_log(line); }
       (*rewindVideo)(videoHandle,&utc);
       frameNextTargetTime = ceil(utc/60)*60; // Start making timelapse video
      }
@@ -280,7 +281,7 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
       { timelapseCount++; }
     else if (utc>frameNextTargetTime)
       {
-       int i; for (i=0; i<frameSize*3; i++) stackT[i]=0;
+       memset(stackT, 0, frameSize*3*sizeof(int));
        timelapseCount=0;
       }
 

@@ -25,6 +25,7 @@ void writeMetadata(videoMetadata v)
   fprintf(f,"tstop %.1f\n",v.tstop);
   fprintf(f,"nframe %d\n",v.nframe);
   fprintf(f,"fps %.6f\n",v.nframe / (v.tstop-v.tstart));
+  fprintf(f,"fpsTarget %.6f\n",v.fps);
   fprintf(f,"flagGPS %d\n",v.flagGPS);
   fprintf(f,"lat %.6f\n",v.lat);
   fprintf(f,"lng %.6f\n",v.lng);
