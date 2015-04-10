@@ -31,7 +31,7 @@
 #include <IL/OMX_Broadcom.h>
 
 // Hard coded parameters
-#define VIDEO_BITRATE   10000000
+#define VIDEO_BITRATE   1500000
 
 static int want_quit=0;
 

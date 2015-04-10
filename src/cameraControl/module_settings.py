@@ -20,16 +20,16 @@ DATA_PATH   = "../../datadir"
 assert os.path.exists(DATA_PATH), "You need to create a symlink 'datadir' in the root of your meteor-pi working copy, where we store all of the camera data"
 
 # Flag telling us whether to hunt for meteors in real time, or record H264 video for subsequent analysis
-REAL_TIME   = False
+REAL_TIME   = True
 
 # How many second before/after sun is above horizon do we wait before bothering observing
 sunMargin   = 1200 # 20 minutes
 
 # When observing with non-real-time triggering, this is how many seconds in each video
-VIDEO_MAXRECTIME = 3600
+VIDEO_MAXRECTIME = 7200
 
-LONGITUDE_DEFAULT = 52.2
-LATITUDE_DEFAULT  = 0.12
+LONGITUDE_DEFAULT = 0.12
+LATITUDE_DEFAULT  = 52.2
 
 # Video settings. THESE SHOULD BE READ FROM THE DATABASE!
 CAMERA_ID         = "x"
