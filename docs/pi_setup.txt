@@ -40,12 +40,12 @@ git clone git@github.com:camsci/meteor-pi.git
 # ** Build code
 
 cd meteor-pi
-ln -s /mnt/harddisk/pi/meteorCam datadir
+mkdir datadir
 cd src/gnomonicStack/
 ./prettymake
 cd ../videoProcess/
 ./prettymake
-./prettymake openmax
+./prettymake openmax=1
 
 # ** Set up rpi watchdog
 
@@ -83,3 +83,4 @@ vim /etc/fstab
 # /dev/sda1	/mnt/harddisk	ext4	defaults	0 0
 mkdir -p /mnt/harddisk
 
+ln -s /mnt/harddisk/pi/meteorCam datadir

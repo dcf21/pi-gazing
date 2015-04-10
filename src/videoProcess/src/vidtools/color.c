@@ -19,6 +19,7 @@
 ****************************************************************************/ 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h> 
 #include "vidtools/color.h"
 
@@ -200,7 +201,7 @@ void Pyuv422toMono(unsigned char * input_ptr, unsigned char * output_ptr, const 
 #pragma omp parallel for private(i)
    for (i=0; i<size; i++)
     {
-     unsigned char *b = input_ptr + 4*(upsideDown?i:(size-i-1));
+     unsigned char *b = input_ptr + 4*(upsideDown?i:(size-1-i));
      unsigned char Y  = b[0];
      unsigned char Y1 = b[2];
      unsigned char *output_pt = output_ptr + 2*i;
@@ -213,13 +214,14 @@ void Pyuv422to420(unsigned char * input_ptr, unsigned char * output_ptr, const u
  {
    int i;
    const int size = width * height;
+
 #pragma omp parallel for private(i)
    for (i=0;i<height;i++)
     {
      unsigned char *b;
      unsigned char *outY = output_ptr + i*width;
-     unsigned char *outU = output_ptr + (i/2)*width + size;
-     unsigned char *outV = output_ptr + (i/2)*width + size*5/4;
+     unsigned char *outU = output_ptr + (i/2)*(width/2) + size;
+     unsigned char *outV = output_ptr + (i/2)*(width/2) + size*5/4;
      if (!upsideDown) b = input_ptr + 2*width*i;
      else             b = input_ptr - 2*width*i + 2*width*height - 4;
 
@@ -231,8 +233,9 @@ void Pyuv422to420(unsigned char * input_ptr, unsigned char * output_ptr, const u
        unsigned char  Y1 = b[2];
        unsigned char  V  = b[3];
 
-       if (!upsideDown) { *outY++=Y ; *outY++=Y1; } else { *outY++=Y1; *outY++=Y; }
-       *outU++=U; *outV++=V;
+       if (!upsideDown) { *(outY++)=Y ; *(outY++)=Y1; b+=4; } else { *(outY++)=Y1; *(outY++)=Y; b-=4; }
+       *(outU++)=U; *(outV++)=V;
       }
     }
  }
+

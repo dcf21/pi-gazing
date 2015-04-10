@@ -8,7 +8,7 @@ from module_astro import *
 # File to database
 def fileToDB(fname,mustBeFloat=False):
   output = {}
-  if (!os.path.exists(fname)) return output;
+  if (not os.path.exists(fname)): return output
   for line in open(fname):
      if line.strip()=="": continue
      if line[0]=="#": continue

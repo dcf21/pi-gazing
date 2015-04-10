@@ -8,15 +8,13 @@
 #define _SETTINGS_H 1
 
 // Define the device from which to capture video, and the resolution and frame-rate we expect from it
+// These parameters affect test bench routines such as vidRec and snapshot. Main observe process overrides these with data passed on the command line
 
 #define VIDEO_DEV    "/dev/video0"
 #define VIDEO_WIDTH  720
 #define VIDEO_HEIGHT 480
-#define VIDEO_FPS    24.71 // Empirically determined
-
-// If this flag is set, we assume the camera is mounted upside down. Video is flipped before analysis.
-
-#define VIDEO_UPSIDE_DOWN 1
+#define VIDEO_FPS    24.71 /* Empirically determined */
+#define VIDEO_UPSIDE_DOWN 1 /* If this flag is set, we assume the camera is mounted upside down. Video is flipped before analysis. */
 
 // This is the directory into which we dump output video and image files
 // Create a symlink in the meteor-pi root directory to where images should be stored, e.g.:

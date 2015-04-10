@@ -51,7 +51,7 @@ int main(int argc, char **argv)
   fclose(infile);
 
   const int imageSize = width * height;
-  const int frameSize = width * height * 1.5;
+  const int frameSize = width * height * 3/2;
   const int nfr = size / frameSize;
 
   // Init context
@@ -126,7 +126,6 @@ int main(int argc, char **argv)
 
   avformat_write_header(outContainer, NULL);
 
-//FILE *tmpout=fopen("/tmp/tmp.h264","wb");
   /* encode loop */
   while (frame_in<nfr)
    {

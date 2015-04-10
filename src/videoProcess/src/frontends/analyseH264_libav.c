@@ -58,12 +58,15 @@ int fetchFrame(void *ctx_void, unsigned char *tmpc, double *utc)
 
     if (ctx->got_picture)
      {
-      const int frameSize = ctx->c->width * ctx->c->height;
       if (tmpc)
        {
-        memcpy(tmpc              , ctx->picture->data[0], frameSize  );
-        memcpy(tmpc+frameSize    , ctx->picture->data[1], frameSize/4);
-        memcpy(tmpc+frameSize*5/4, ctx->picture->data[2], frameSize/4);
+        const int w = ctx->c->width;
+        const int h = ctx->c->height;
+        const int s = w*h;
+        int i;
+        for (i=0;i<h  ;i++) memcpy(tmpc +       + i*w  , ctx->picture->data[0] + i*ctx->picture->linesize[0], w  );
+        for (i=0;i<h/2;i++) memcpy(tmpc + s     + i*w/2, ctx->picture->data[1] + i*ctx->picture->linesize[1], w/2);
+        for (i=0;i<h/2;i++) memcpy(tmpc + s*5/4 + i*w/2, ctx->picture->data[2] + i*ctx->picture->linesize[2], w/2);
        }
       ctx->frame++;
      }

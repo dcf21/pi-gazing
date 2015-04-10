@@ -731,7 +731,6 @@ int main(int argc, char **argv)
         // a need for a buffer to be filled by us
         if(ctx.encoder_input_buffer_needed) {
             input_total_read = 0;
-            memset(ctx.encoder_ppBuffer_in->pBuffer, 128, ctx.encoder_ppBuffer_in->nAllocLen);
 
             if (fetchFrame(videoIn, tmpc, vmd.flagUpsideDown)) { want_quit=1; break; }
 

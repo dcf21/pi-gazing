@@ -6,6 +6,7 @@
 #define TOOLS_H 1
 
 #include "vidtools/v4l2uvc.h"
+#include "png/image.h"
 
 #define CLIP256(X) ( d=X , ((d<0)?0: ((d>255)?255:d) ))
 
@@ -21,6 +22,7 @@ int   nearestMultiple     (double in, int factor);
 void  frameInvert         (unsigned char *buffer, int len);
 void *videoRecord         (struct vdIn *videoIn, double seconds);
 void  snapshot            (struct vdIn *videoIn, int nfr, int zero, double expComp, char *fname, unsigned char *medianRaw);
+double calculateSkyClarity(image_ptr *img);
 void  medianCalculate     (int width, int height, unsigned char *medianWorkspace, unsigned char *medianMap);
 int   dumpFrame           (int width, int height, unsigned char *buffer, char *fName);
 int   dumpFrameRGB        (int width, int height, unsigned char *bufferRGB, char *fName);

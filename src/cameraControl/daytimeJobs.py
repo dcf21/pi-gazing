@@ -78,26 +78,27 @@ try:
                         'pid':pid ,
                         'opm': ('_openmax' if I_AM_A_RPI else '') ,
                        }
-              params += module_hwm.fileToDB(params["filename"]+".txt")
+              params.update(module_hwm.fileToDB(params["filename"]+".txt"))
               for outDir in outDirs: os.system("mkdir -p %s"%(os.path.join(outDir,params['date'])))
               jobList.append( [utc, cmd % params] )
 
     # Do jobs in order of timestamp; raise high level water mark as we do each job
     jobList.sort(key=operator.itemgetter(0))
     jobGrp = []
-    jobListLen = len(jobList);
-    for i in range(jobListLen):
-      job=jobList[i]
-      if quitTime and (getUTC()>quitTime): raise TimeOut
-      jobGrp.append(job[1])
-      if len(jobGrp)>=Nmax:
-        runJobGrp(jobGrp)
-        jobGrp = []
-        if (i<jobListLen-1): highWaterMarks[HWMout] = jobList[i+1][0]-0.1 # Set HWM so that next job is marked as not yet done (it may have the same timestamp as present job)
-        else               : highWaterMarks[HWMout] = job[0]+HWMmargin # Set HWM so it's just past the job we've just done (0.1 sec)
-    runJobGrp(jobGrp)
-    highWaterMarks[HWMout] = jobList[jobListLen-1][0]+HWMmargin
-    logTxt("Completed %d jobs"%len(jobList))
+    jobListLen = len(jobList)
+    if jobListLen:
+      for i in range(jobListLen):
+        job=jobList[i]
+        if quitTime and (getUTC()>quitTime): raise TimeOut
+        jobGrp.append(job[1])
+        if len(jobGrp)>=Nmax:
+          runJobGrp(jobGrp)
+          jobGrp = []
+          if (i<jobListLen-1): highWaterMarks[HWMout] = jobList[i+1][0]-0.1 # Set HWM so that next job is marked as not yet done (it may have the same timestamp as present job)
+          else               : highWaterMarks[HWMout] = job[0]+HWMmargin # Set HWM so it's just past the job we've just done (0.1 sec)
+      runJobGrp(jobGrp)
+      highWaterMarks[HWMout] = jobList[jobListLen-1][0]+HWMmargin
+      logTxt("Completed %d jobs"%len(jobList))
 
 except TimeOut:
       logTxt("Interrupting processing as we've run out of time")

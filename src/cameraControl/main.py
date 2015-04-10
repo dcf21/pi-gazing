@@ -72,7 +72,7 @@ while True:
 
   nextObservingTime = secondsTillSunset + sunMargin
   if (nextObservingTime<0): nextObservingTime += 3600*24 - 300
-  if (nextObservingTime > 600):
+  if (nextObservingTime > 600) and (REAL_TIME or not I_AM_A_RPI): # Do daytimejobs on a RPi only if we are doing real-time observation
     tstop = timeNow+nextObservingTime
     logTxt("Starting daytime jobs until %s (running for %d seconds)."%(datetime.datetime.fromtimestamp(tstop).strftime('%Y-%m-%d %H:%M:%S'),nextObservingTime))
     os.system("cd %s ; python daytimeJobs.py %d %d"%(PYTHON_PATH,getUTCoffset(),tstop))

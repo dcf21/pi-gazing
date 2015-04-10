@@ -51,7 +51,7 @@ void frameInvert(unsigned char *buffer, int len)
 void *videoRecord(struct vdIn *videoIn, double seconds)
  {
   int i;
-  const int frameSize = videoIn->width * videoIn->height*1.5;
+  const int frameSize = videoIn->width * videoIn->height * 3/2;
   const int nfr       = videoIn->fps   * seconds;
   const int blen = sizeof(int) + 2*sizeof(int) + nfr*frameSize;
   void *out = malloc(blen);
@@ -105,6 +105,34 @@ void snapshot(struct vdIn *videoIn, int nfr, int zero, double expComp, char *fna
 
   free(tmpi);
   return;
+ }
+
+double calculateSkyClarity(image_ptr *img)
+ {
+  int       i,j,score=0;
+  const int gridsize = 8;
+  const int stride   = img->xsize;
+  for (i=1;i<gridsize-1;i++) for (j=1;j<gridsize-1;j++)
+   {
+    const int xmin = img->xsize* j   /gridsize;
+    const int ymin = img->ysize* i   /gridsize;
+    const int xmax = img->xsize*(j+1)/gridsize;
+    const int ymax = img->ysize*(i+1)/gridsize;
+    int x,y,count=0;
+    for (y=ymin;y<ymax;y++) for (x=xmin;x<xmax;x++)
+     {
+      if ( (img->data_grn[y*stride+x] > img->data_grn[(y  )*stride+(x+6)]+16) &&
+           (img->data_grn[y*stride+x] > img->data_grn[(y+6)*stride+(x+6)]+16) &&
+           (img->data_grn[y*stride+x] > img->data_grn[(y+6)*stride+(x  )]+16) &&
+           (img->data_grn[y*stride+x] > img->data_grn[(y+6)*stride+(x-6)]+16) &&
+           (img->data_grn[y*stride+x] > img->data_grn[(y  )*stride+(x-6)]+16) &&
+           (img->data_grn[y*stride+x] > img->data_grn[(y-6)*stride+(x-6)]+16) &&
+           (img->data_grn[y*stride+x] > img->data_grn[(y-6)*stride+(x  )]+16) &&
+           (img->data_grn[y*stride+x] > img->data_grn[(y-6)*stride+(x+6)]+16) ) count++;
+     }
+    if (count>2) score++;
+   }
+  return (100. * score) / pow(gridsize-1,2);
  }
 
 void medianCalculate(int width, int height, unsigned char *medianWorkspace, unsigned char *medianMap)

@@ -8,6 +8,7 @@
 #include "utils/tools.h"
 #include "png/image.h"
 #include "utils/error.h"
+#include "utils/tools.h"
 
 #include "settings.h"
 
@@ -42,25 +43,30 @@ int main(int argc, char *argv[])
   i=fread(vidRaw,1,frameSize,infile);
   fclose(infile);
 
-  const int nfr=1;
-
   image_ptr OutputImage;
   image_alloc(&OutputImage, width, height);
   OutputImage.data_w = 1;
-  for (i=0; i<nfr; i++)
+
+  int x,y,l=0;
+  i=0;
+  for (y=0; y<height; y++) for (x=0; x<width; x++)
    {
-    int x,y,l=0;
-    int p=0;
-    for (y=0; y<height; y++) for (x=0; x<width; x++)
-     {
-      OutputImage.data_red[l] =
-      OutputImage.data_grn[l] =
-      OutputImage.data_blu[l] = vidRaw[p];
-      l++; p++;
-     }
-    image_deweight(&OutputImage);
-    image_put(frOut, OutputImage);
+    OutputImage.data_red[l] =
+    OutputImage.data_grn[l] =
+    OutputImage.data_blu[l] = vidRaw[i];
+    l++; i++;
    }
+  image_deweight(&OutputImage);
+  image_put(frOut, OutputImage);
+
+  sprintf(frOut,"%s.txt",fname);
+  FILE *f = fopen(frOut,"w");
+  if (f)
+   {
+    fprintf(f,"skyClarity %.2f\n", calculateSkyClarity(&OutputImage));
+    fclose(f);
+   }
+
   image_dealloc(&OutputImage);
   free(vidRaw);
   return 0;
