@@ -78,12 +78,14 @@ wget http://broiler.astrometry.net/~dstn/4100/index-4119.fits
 
 # ** Set up database
 
+sudo su
 source /etc/firebird/*/SYSDBA.password
 gsec -user sysdba -password $ISC_PASSWORD
 add meteorpi -pw meteorpi
-cd ~/meteor-pi/src/sql
-./rebuild.sh
-cd ../meteorpi_model
+
+cd /home/pi/meteor-pi/src/sql
+sudo ./rebuild.sh
+cd ../pythonModules/meteorpi_model
 sudo python setup.py install
 cd ../meteorpi_fdb
 sudo python setup.py install

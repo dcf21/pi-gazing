@@ -20,7 +20,7 @@
 #define medianMapUseEveryNthStack              8
 #define medianMapUseNImages                   16
 #define medianMapResolution                   16
-#define framesSinceLastTrigger_INITIAL      -medianMapUseEveryNthStack*medianMapUseNImages
+#define framesSinceLastTrigger_INITIAL        -8 - medianMapUseEveryNthStack*medianMapUseNImages
 #define framesSinceLastTrigger_REWIND         -2
 #define framesSinceLastTrigger_ALLOWTRIGGER    3
 
@@ -41,7 +41,7 @@ char *fNameGenerate(int utc, char *tag, const char *dirname, const char *label)
   sprintf(path,"%s/%s_%s/%04d%02d%02d", OUTPUT_PATH, dirname, label, year, month, day);
   sprintf(output, "mkdir -p %s", path); status=system(output);
   InvJulianDay(JD,&year,&month,&day,&hour,&min,&sec,&status,output);
-  sprintf(output,"%s/%04d%02d%02d%02d%02d%02d_%s", path, year, month, day, hour, min, (int)sec, tag);
+  sprintf(output,"%s/%04d%02d%02d%02d%02d%02d_%s_%s", path, year, month, day, hour, min, (int)sec, analysisCameraId, tag);
   return output;
  }
 
@@ -192,14 +192,14 @@ int readShortBuffer(void *videoHandle, int nfr, int width, int height, unsigned 
 #pragma omp parallel for private(j)
     for (j=0; j<3; j++)
      {
-      int x,y,i=0;
+      const int mapSize = medianMapResolution*medianMapResolution;
+      int x,y,i=j*frameSize;
       for (y=0;y<height;y++) for (x=0;x<width;x++,i++)
        {
         int d;
         int pixelVal = CLIP256(stack1[i]/nfr);
         int xm = x*medianMapResolution/width;
         int ym = y*medianMapResolution/height;
-        const int mapSize = medianMapResolution*medianMapResolution;
         medianWorkspace[ ( j*mapSize + ym*medianMapResolution + xm)*256 + pixelVal]++;
        }
      }
@@ -284,7 +284,7 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
     framesSinceLastTrigger++;
     if (DEBUG) if (framesSinceLastTrigger==framesSinceLastTrigger_ALLOWTRIGGER) { sprintf(line, "Camera is now able to trigger."); gnom_log(line); }
 
-    // If we've stacked 255 frames since we last made a median map, make a new median map
+    // If we've stacked enough frames since we last made a median map, make a new median map
     medianCount++;
     if (medianCount==medianMapUseNImages*medianMapUseEveryNthStack)
      {

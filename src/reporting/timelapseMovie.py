@@ -11,10 +11,20 @@ from math import *
 from module_settings import *
 import module_hwm
 
+import meteorpi_fdb
+
 pid = os.getpid()
 os.chdir(DATA_PATH)
 
-fileList = glob.glob("timelapse_img_processed/*/*BS0.png")
+utcMin   = 0
+utcMax   = time.time()
+cameraId = meteorpi_fdb.getInstallationID()
+
+if len(sys.argv)>1: utcMin   = float(sys.argv[1])
+if len(sys.argv)>2: utcMax   = float(sys.argv[2])
+if len(sys.argv)>3: cameraId =       sys.argv[3]
+
+fileList = glob.glob("timelapse_img_processed/*/*_%s_BS0.png"%cameraId)
 fileList.sort()
 
 filestub="/tmp/frame_%d_%%08d.jpg"%pid
