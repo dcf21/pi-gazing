@@ -177,30 +177,50 @@ int readShortBuffer(void *videoHandle, int nfr, int width, int height, unsigned 
     Pyuv420torgb(tmpc,tmpc+frameSize,tmpc+frameSize*5/4,tmprgb,tmprgb+frameSize,tmprgb+frameSize*2,width,height);
 #pragma omp parallel for private(i)
     for (i=0; i<frameSize*3; i++) stack1[i]+=tmprgb[i]; // Stack1 is wiped prior to each call to this function
-    if (stack2)
-     {
-#pragma omp parallel for private(i)
-      for (i=0; i<frameSize*3; i++) stack2[i]+=tmprgb[i]; // Stack2 can stack output of many calls to this function
-     }
 #pragma omp parallel for private(i)
     for (i=0; i<frameSize*3; i++) if (maxMap[i]<tmprgb[i]) maxMap[i]=tmprgb[i];
    }
 
+  if (stack2)
+   {
+#pragma omp parallel for private(i)
+    for (i=0; i<frameSize*3; i++) stack2[i]+=stack1[i]; // Stack2 can stack output of many calls to this function
+   }
+
   // Add the pixel values in this stack into the histogram in medianWorkspace
+  // Look-up tables used for the grid cell numbers associated with each pixel, because a lot of CPU is used here
   if (medianWorkspace)
    {
+    const int mapSize = medianMapResolution*medianMapResolution;
+    static int *xm=NULL, *ym=NULL;
+    if (xm==NULL)
+     {
+      int x;
+      xm=malloc(width *sizeof(int)); if (!xm) { sprintf(temp_err_string, "ERROR: malloc fail in readShortBuffer."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
+#pragma omp parallel for private(x)
+      for (x=0;x<width ;x++) xm[x] = x*medianMapResolution/width * 256;
+     }
+    if (ym==NULL)
+     {
+      int y;
+      ym=malloc(height*sizeof(int)); if (!ym) { sprintf(temp_err_string, "ERROR: malloc fail in readShortBuffer."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
+#pragma omp parallel for private(y)
+      for (y=0;y<height;y++) ym[y] = (y*medianMapResolution/height) * medianMapResolution * 256;
+     }
 #pragma omp parallel for private(j)
     for (j=0; j<3; j++)
      {
-      const int mapSize = medianMapResolution*medianMapResolution;
+      int *mw = medianWorkspace + j*mapSize*256;
       int x,y,i=j*frameSize;
-      for (y=0;y<height;y++) for (x=0;x<width;x++,i++)
+      for (y=0;y<height;y++)
        {
-        int d;
-        int pixelVal = CLIP256(stack1[i]/nfr);
-        int xm = x*medianMapResolution/width;
-        int ym = y*medianMapResolution/height;
-        medianWorkspace[ ( j*mapSize + ym*medianMapResolution + xm)*256 + pixelVal]++;
+        int *mwrow = mw + ym[y];
+        for (x=0;x<width;x++,i++)
+         {
+          int d;
+          int pixelVal = CLIP256(stack1[i]/nfr);
+          mwrow[xm[x] + pixelVal]++;
+         }
        }
      }
    }
