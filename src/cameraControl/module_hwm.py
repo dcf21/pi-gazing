@@ -22,15 +22,18 @@ def fileToDB(fname,mustBeFloat=False):
      output[keyword] = val
   return output
 
+def DBtoFile(fname, db):
+  f = open(fname,"w")
+  for keyword,value in db.iteritems():
+    f.write("%16s %s\n"%(keyword,value))
+  f.close()
+
 # Read our high water marks
 def fetchHWM():
   return fileToDB("highWaterMark.dat",True)
 
 def writeHWM(highWaterMarks):
-  f = open("highWaterMark.dat","w")
-  for keyword,utc in highWaterMarks.iteritems():
-    f.write("%16s %s\n"%(keyword,utc))
-  f.close()
+  DBtoFile("highWaterMark.dat", highWaterMarks)
 
 # Function for turning filenames into Unix times
 def filenameToUTC(f):

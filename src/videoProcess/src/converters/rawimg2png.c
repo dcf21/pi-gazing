@@ -38,24 +38,17 @@ int main(int argc, char *argv[])
   i=fread(&height,sizeof(int),1,infile);
 
   const int frameSize=width*height;
-  unsigned char *vidRaw = malloc(frameSize);
-  if (vidRaw==NULL) { sprintf(temp_err_string, "ERROR: malloc fail"); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
-  i=fread(vidRaw,1,frameSize,infile);
+  unsigned char *imgRaw = malloc(3*frameSize);
+  if (imgRaw==NULL) { sprintf(temp_err_string, "ERROR: malloc fail"); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
+  i=fread(imgRaw,1,3*frameSize,infile);
   fclose(infile);
 
   image_ptr OutputImage;
   image_alloc(&OutputImage, width, height);
   OutputImage.data_w = 1;
-
-  int x,y,l=0;
-  i=0;
-  for (y=0; y<height; y++) for (x=0; x<width; x++)
-   {
-    OutputImage.data_red[l] =
-    OutputImage.data_grn[l] =
-    OutputImage.data_blu[l] = vidRaw[i];
-    l++; i++;
-   }
+  for (i=0; i<frameSize; i++) OutputImage.data_red[i] = imgRaw[i              ];
+  for (i=0; i<frameSize; i++) OutputImage.data_grn[i] = imgRaw[i + frameSize  ];
+  for (i=0; i<frameSize; i++) OutputImage.data_blu[i] = imgRaw[i + frameSize*2];
   image_deweight(&OutputImage);
   image_put(frOut, OutputImage);
 
@@ -68,7 +61,7 @@ int main(int argc, char *argv[])
    }
 
   image_dealloc(&OutputImage);
-  free(vidRaw);
+  free(imgRaw);
   return 0;
  }
 

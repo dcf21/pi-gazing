@@ -14,7 +14,7 @@ import module_hwm
 pid = os.getpid()
 os.chdir(DATA_PATH)
 
-fileList = glob.glob("timelapse_img_processed/*/*BS0.jpg")
+fileList = glob.glob("timelapse_img_processed/*/*BS0.png")
 fileList.sort()
 
 filestub="/tmp/frame_%d_%%08d.jpg"%pid

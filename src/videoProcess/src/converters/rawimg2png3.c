@@ -34,13 +34,13 @@ int main(int argc, char *argv[])
   i=fread(&height,sizeof(int),1,infile);
 
   const int frameSize=width*height;
-  unsigned char *vidRawR = malloc(frameSize);
-  unsigned char *vidRawG = malloc(frameSize);
-  unsigned char *vidRawB = malloc(frameSize);
-  if ( (vidRawR==NULL) || (vidRawG==NULL) || (vidRawB==NULL) ) { sprintf(temp_err_string, "ERROR: malloc fail"); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
-  i=fread(vidRawR,1,frameSize,infile);
-  i=fread(vidRawG,1,frameSize,infile);
-  i=fread(vidRawB,1,frameSize,infile);
+  unsigned char *imgRawR = malloc(frameSize);
+  unsigned char *imgRawG = malloc(frameSize);
+  unsigned char *imgRawB = malloc(frameSize);
+  if ( (imgRawR==NULL) || (imgRawG==NULL) || (imgRawB==NULL) ) { sprintf(temp_err_string, "ERROR: malloc fail"); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
+  i=fread(imgRawR,1,frameSize,infile);
+  i=fread(imgRawG,1,frameSize,infile);
+  i=fread(imgRawB,1,frameSize,infile);
   fclose(infile);
 
   image_ptr out;
@@ -53,21 +53,21 @@ int main(int argc, char *argv[])
     int j;
     if (code) break;
 
-    unsigned char *vidRaw = NULL;
-    if      (i==0) vidRaw=vidRawR;
-    else if (i==1) vidRaw=vidRawG;
-    else           vidRaw=vidRawB;
+    unsigned char *imgRaw = NULL;
+    if      (i==0) imgRaw=imgRawR;
+    else if (i==1) imgRaw=imgRawG;
+    else           imgRaw=imgRawB;
 
-    for (j=0; j<frameSize; j++) out.data_red[j]=vidRaw[j];
-    for (j=0; j<frameSize; j++) out.data_grn[j]=vidRaw[j];
-    for (j=0; j<frameSize; j++) out.data_blu[j]=vidRaw[j];
+    for (j=0; j<frameSize; j++) out.data_red[j]=imgRaw[j];
+    for (j=0; j<frameSize; j++) out.data_grn[j]=imgRaw[j];
+    for (j=0; j<frameSize; j++) out.data_blu[j]=imgRaw[j];
 
     char frOut[FNAME_BUFFER];
     sprintf(frOut,"%s.%d.png",fname,i);
     code = image_put(frOut,out);
    }
 
-  free(vidRawR); free(vidRawG); free(vidRawB);
+  free(imgRawR); free(imgRawG); free(imgRawB);
   return code;
  }
 

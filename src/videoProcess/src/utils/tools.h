@@ -23,7 +23,7 @@ void  frameInvert         (unsigned char *buffer, int len);
 void *videoRecord         (struct vdIn *videoIn, double seconds);
 void  snapshot            (struct vdIn *videoIn, int nfr, int zero, double expComp, char *fname, unsigned char *medianRaw);
 double calculateSkyClarity(image_ptr *img);
-void  medianCalculate     (int width, int height, unsigned char *medianWorkspace, unsigned char *medianMap);
+void  medianCalculate     (const int width, const int height, const int medianMapResolution, int *medianWorkspace, unsigned char *medianMap);
 int   dumpFrame           (int width, int height, unsigned char *buffer, char *fName);
 int   dumpFrameRGB        (int width, int height, unsigned char *bufferRGB, char *fName);
 int   dumpFrameRGBFromInts(int width, int height, int *bufferRGB, int nfr, int gain, char *fName);

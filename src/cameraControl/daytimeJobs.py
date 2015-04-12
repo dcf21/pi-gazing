@@ -40,12 +40,24 @@ highWaterMarks = module_hwm.fetchHWM()
 
 def runJobGrp(jobGrp):
   if (len(jobGrp)< 1): return
-  if (len(jobGrp)==1):
-    cmd = jobGrp[0]
+
+  # Run shell commands associated with this group of jobs
+  shellcmds = [ " ".join((job[1]%job[2]).split()) for job in jobGrp]
+  for cmd in shellcmds:
+    logTxt("Running command: %s"%cmd)
+  if (len(shellcmds)==1):
+    cmd = shellcmds[0]
   else:
-    cmd = " & ".join(jobGrp) + " & wait"
-  print cmd
+    cmd = " & ".join(shellcmds) + " & wait"
   os.system(cmd)
+
+  # Cascade metadata from input files to output files
+  for job in jobGrp:
+    m = job[2] # Dictionary of metadata
+    if os.path.exists( "%(filename_out)s.%(outExt)s"%m ):
+      metadata = m['metadata'] # Metadata that was associated with input file
+      metadata.update( module_hwm.fileToDB( "%(filename_out)s.txt"%params ) )
+      module_hwm.DBtoFile( "%(filename_out)s.txt"%params , metadata )
 
 # We raise this exception if we pass the time when we've been told we need to hand execution back
 class TimeOut(Exception): pass
@@ -58,7 +70,7 @@ try:
     HWMmargin = ((VIDEO_MAXRECTIME-5) if HWMout=="rawvideo" else 0.1)
     jobList = []
     for task in taskList:
-      [inDir,outDirs,inExt,cmd] = task
+      [inDir,outDirs,inExt,outExt,cmd] = task
 
       # Operate on any input files which are newer than HWM
       for dirName, subdirList, fileList in os.walk(inDir):
@@ -72,15 +84,20 @@ try:
                         'input':os.path.join(dirName,f) ,
                         'outdir':outDirs[0] ,
                         'filename':f[:-(len(inExt)+1)] ,
+                        'inExt':inExt ,
+                        'outExt':outExt ,
                         'date':module_hwm.fetchDayNameFromFilename(f) ,
                         'tstamp':utc ,
                         'fps':VIDEO_FPS ,
+                        'cameraId':CAMERA_ID ,
                         'pid':pid ,
                         'opm': ('_openmax' if I_AM_A_RPI else '') ,
                        }
-              params.update(module_hwm.fileToDB(params["filename"]+".txt"))
+              params['filename_out'] = "%(outdir)s/%(date)s/%(filename)s"%params
+              params['metadata']     = module_hwm.fileToDB("%(input)s.txt"%params)
+              params.update( params['metadata'] )
               for outDir in outDirs: os.system("mkdir -p %s"%(os.path.join(outDir,params['date'])))
-              jobList.append( [utc, cmd % params] )
+              jobList.append( [utc, cmd , params] )
 
     # Do jobs in order of timestamp; raise high level water mark as we do each job
     jobList.sort(key=operator.itemgetter(0))
@@ -90,7 +107,7 @@ try:
       for i in range(jobListLen):
         job=jobList[i]
         if quitTime and (getUTC()>quitTime): raise TimeOut
-        jobGrp.append(job[1])
+        jobGrp.append(job)
         if len(jobGrp)>=Nmax:
           runJobGrp(jobGrp)
           jobGrp = []

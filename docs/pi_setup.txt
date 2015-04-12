@@ -15,7 +15,7 @@ apt-get update
 apt-get dist-upgrade
 apt-get install gpsd gpsd-clients libjpeg-dev libpng-dev libgsl0-dev vim git qiv screen mplayer libavutil-dev libavcodec-dev libavformat-dev libx264-dev scons firebird2.5-superclassic
 dpkg-reconfigure firebird2.5-superclassic # automatically start firebird server
-apt-get install libcairo2-dev libcfitsio3-dev libnetpbm10-dev netpbm python-pyfits python-scipy python-imaging python-dateutil python-pip swig ffmpeg
+apt-get install libcairo2-dev libcfitsio3-dev libnetpbm10-dev netpbm python-pyfits python-scipy python-imaging python-dateutil python-pip swig ffmpeg python-setuptools
 pip install fdb
 vim /etc/apt/sources # Uncomment apt-src
 apt-get update
@@ -59,6 +59,7 @@ sudo vim /etc/watchdog.conf
 
 # ** Install astrometry.net
 
+cd
 wget http://astrometry.net/downloads/astrometry.net-0.46.tar.bz2
 tar xjf astrometry.net-0.46.tar.bz2
 cd astrometry.net-0.46
@@ -74,6 +75,18 @@ wget http://broiler.astrometry.net/~dstn/4100/index-4116.fits
 wget http://broiler.astrometry.net/~dstn/4100/index-4117.fits
 wget http://broiler.astrometry.net/~dstn/4100/index-4118.fits
 wget http://broiler.astrometry.net/~dstn/4100/index-4119.fits
+
+# ** Set up database
+
+source /etc/firebird/*/SYSDBA.password
+gsec -user sysdba -password $ISC_PASSWORD
+add meteorpi -pw meteorpi
+cd ~/meteor-pi/src/sql
+./rebuild.sh
+cd ../meteorpi_model
+sudo python setup.py install
+cd ../meteorpi_fdb
+sudo python setup.py install
 
 # ---- DEAD STEPS WHICH ARE NO LONGER NEEDED -----
 

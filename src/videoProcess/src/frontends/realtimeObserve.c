@@ -18,6 +18,8 @@
 
 #include "settings.h"
 
+extern char *analysisCameraId;
+
 int utcoffset;
 
 int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc)
@@ -59,6 +61,8 @@ int main(int argc, char *argv[])
   vmd.flagGPS             = GetFloat(argv[11],NULL) ? 1 : 0;
   vmd.flagUpsideDown      = GetFloat(argv[12],NULL) ? 1 : 0;
   vmd.filename            = argv[13];
+
+  analysisCameraId = vmd.cameraId;
 
   struct vdIn *videoIn;
 

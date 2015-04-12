@@ -11,6 +11,7 @@ compileLibav   = ARGUMENTS.get('libav'  , 1)
 
 # Build options to pass to gcc
 ccFlags   = ['-O2','-Wall','-g','-fopenmp','-D_FILE_OFFSET_BITS=64']
+#ccFlags   = ['-O0','-Wall','-g','-D_FILE_OFFSET_BITS=64'] # Use this version for debugging only
 linkFlags = ['-fopenmp']
 ccDefines = ['DATE=\\"05/01/2015\\"' , 'VERSION=\\"0.0.1\\"' , 'SRCDIR=\\"%s\\"'%srcdir ]
 

@@ -15,11 +15,15 @@
 
 #include "settings.h"
 
+#define medianMapUseEveryNthStack     1
+#define medianMapUseNImages           8
+#define medianMapResolution          16
+
 int main(int argc, char *argv[])
  {
   if (argc!=2)
    {
-    sprintf(temp_err_string, "ERROR: Need to specify output filename for median map on commandline, e.g. 'makeMedianMap tmp.raw'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Need to specify output filename for median map on commandline, e.g. 'makeMedianMap tmp'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
   char line[FNAME_BUFFER];
@@ -31,7 +35,11 @@ int main(int argc, char *argv[])
   int format = V4L2_PIX_FMT_YUYV;
   int grabmethod = 1;
   int queryformats = 0;
-  char *avifilename = argv[1];
+  char *stub = argv[1];
+
+  char rawfname[FNAME_BUFFER], frOut[FNAME_BUFFER];
+  sprintf(rawfname, "%s.rgb", stub);
+  sprintf(frOut   , "%s.png", stub);
 
   videoIn = (struct vdIn *) calloc(1, sizeof(struct vdIn));
 
@@ -42,7 +50,7 @@ int main(int argc, char *argv[])
     exit(1);
    }
 
-  if (init_videoIn(videoIn, (char *) videodevice, VIDEO_WIDTH, VIDEO_HEIGHT, fps, format, grabmethod, avifilename) < 0) exit(1);
+  if (init_videoIn(videoIn, (char *) videodevice, VIDEO_WIDTH, VIDEO_HEIGHT, fps, format, grabmethod, rawfname) < 0) exit(1);
   const int width = videoIn->width;
   const int height= videoIn->height;
   const int frameSize = width*height;
@@ -54,39 +62,63 @@ int main(int argc, char *argv[])
 
   unsigned char *tmpc = malloc(frameSize*1.5);
   if (!tmpc) { sprintf(temp_err_string, "ERROR: malloc fail in makeMedianMap."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
-  int *tmpi = malloc(frameSize*1.5*sizeof(int));
+  int *tmpi = malloc(frameSize*3*sizeof(int));
   if (!tmpi) { sprintf(temp_err_string, "ERROR: malloc fail in makeMedianMap."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
 
-  unsigned char *medianWorkspace = calloc(1,3*frameSize*256);
+  int           *medianWorkspace = calloc(1,medianMapResolution*medianMapResolution*3*256*sizeof(int));
   unsigned char *medianMap       = calloc(1,3*frameSize);
   if ((!medianWorkspace)||(!medianMap)) { sprintf(temp_err_string, "ERROR: malloc fail in makeMedianMap."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
 
-  int f;
-  for (f=0; f<256; f++)
-   {
-    const int nfr=25; // Stack 25 frames
-    int i,j;
-    for (i=0; i<frameSize; i++) tmpi[i]=0;
+  int f,i;
 
+  const int totalRequiredStacks = medianMapUseEveryNthStack*medianMapUseNImages;
+  for (f=0; f<totalRequiredStacks; f++)
+   {
+    const int nfr=12; // Stack 12 frames
+    int j;
+    memset(tmpi, 0, 3*frameSize*sizeof(int));
+
+    // Make a stack of nfr frames
     for (j=0;j<nfr;j++)
      {
       if (uvcGrab(videoIn) < 0) { printf("Error grabbing\n"); break; }
       Pyuv422torgbstack(videoIn->framebuffer, tmpi, tmpi+frameSize, tmpi+frameSize*2, videoIn->width, videoIn->height, VIDEO_UPSIDE_DOWN);
      }
 
-#pragma omp parallel for private(i,j)
+    if ((f % medianMapUseEveryNthStack) != 0) continue;
+
+    // Add stacked image into median map
+#pragma omp parallel for private(j)
     for (j=0; j<3; j++)
-     for (i=0; i<frameSize; i++)
-      {
-       int pixelVal = tmpi[i+j*frameSize]/nfr;
-       if (pixelVal<0  ) pixelVal=0;
-       if (pixelVal>255) pixelVal=255;
-       medianWorkspace[j*frameSize*256 + i + pixelVal*frameSize]++;
-      }
+     {
+      int x,y,i=0;
+      for (y=0;y<height;y++) for (x=0;x<width;x++,i++)
+       {
+        int d;
+        int pixelVal = CLIP256( tmpi[i+j*frameSize]/nfr );
+        int xm = x*medianMapResolution/width;
+        int ym = y*medianMapResolution/height;
+        const int mapSize = medianMapResolution*medianMapResolution;
+        medianWorkspace[ ( j*mapSize + ym*medianMapResolution + xm)*256 + pixelVal]++;
+       }
+     }
    }
 
-  medianCalculate(width, height, medianWorkspace, medianMap);
-  dumpFrame(width, height, medianMap, avifilename);
+  // Calculate median map
+  medianCalculate(width, height, medianMapResolution, medianWorkspace, medianMap);
+  dumpFrameRGB(width, height, medianMap, rawfname);
+
+  // Make a PNG version for diagnostic use
+  image_ptr OutputImage;
+  image_alloc(&OutputImage, width, height);
+  OutputImage.data_w = 1;
+  for (i=0; i<frameSize; i++) OutputImage.data_red[i] = medianMap[i              ];
+  for (i=0; i<frameSize; i++) OutputImage.data_grn[i] = medianMap[i + frameSize  ];
+  for (i=0; i<frameSize; i++) OutputImage.data_blu[i] = medianMap[i + frameSize*2];
+  image_deweight(&OutputImage);
+  image_put(frOut, OutputImage);
+
+  // Clean up
   free(medianWorkspace); free(medianMap);
 
   int tstop = time(NULL);

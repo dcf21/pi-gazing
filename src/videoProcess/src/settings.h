@@ -14,7 +14,7 @@
 #define VIDEO_WIDTH  720
 #define VIDEO_HEIGHT 480
 #define VIDEO_FPS    24.71 /* Empirically determined */
-#define VIDEO_UPSIDE_DOWN 1 /* If this flag is set, we assume the camera is mounted upside down. Video is flipped before analysis. */
+#define VIDEO_UPSIDE_DOWN 0 /* If this flag is set, we assume the camera is mounted upside down. Video is flipped before analysis. */
 
 // This is the directory into which we dump output video and image files
 // Create a symlink in the meteor-pi root directory to where images should be stored, e.g.:

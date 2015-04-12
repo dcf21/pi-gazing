@@ -3,6 +3,7 @@
 # Dominic Ford
 
 import os
+import meteorpi_fdb
 
 # The settings below control how the camera controller works
 
@@ -32,7 +33,7 @@ LONGITUDE_DEFAULT = 0.12
 LATITUDE_DEFAULT  = 52.2
 
 # Video settings. THESE SHOULD BE READ FROM THE DATABASE!
-CAMERA_ID         = "x"
+CAMERA_ID         = meteorpi_fdb.getInstallationID()
 VIDEO_DEV         = "/dev/video0"
 VIDEO_WIDTH       = 720
 VIDEO_HEIGHT      = 480

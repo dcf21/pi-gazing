@@ -24,6 +24,8 @@
 #include "vidtools/color.h"
 #include "settings.h"
 
+extern char *analysisCameraId;
+
 void sigint_handler(int signal) { printf("\n"); exit(0); }
 
 #define INBUF_SIZE 200000
@@ -115,9 +117,9 @@ int main(int argc, char **argv)
  {
   context ctx;
 
-  if (argc!=4)
+  if (argc!=5)
    {
-    sprintf(temp_err_string, "ERROR: Command line syntax is:\n\n analyseH264_libav <filename> <tstart> <fps>\n\ne.g.\n\n analyseH264_libav foo.rawvid 1234 24.71\n"); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Command line syntax is:\n\n analyseH264_libav <filename> <tstart> <fps> <cameraId>\n\ne.g.\n\n analyseH264_libav foo.rawvid 1234 24.71 xxx\n"); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
   ctx.filename = argv[1];
@@ -125,6 +127,7 @@ int main(int argc, char **argv)
   ctx.tstop    = time(NULL)+3600*24;
   ctx.utcoffset= 0;
   ctx.FPS      = GetFloat(argv[3],NULL);
+  analysisCameraId = argv[4];
   initLut();
 
   // Register all the codecs
