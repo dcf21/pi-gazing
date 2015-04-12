@@ -34,7 +34,7 @@
 #define TRIGGER_COMPARELEN 0.5 /* triggering is calculated on the basis of comparing buffers of this length */
 
 // Timelapse
-#define TIMELAPSE_EXPOSURE 29 /* Exposure length for timelapse photography */
+#define TIMELAPSE_EXPOSURE 28 /* Exposure length for timelapse photography */
 #define TIMELAPSE_INTERVAL 30 /* Interval between timelapse frames */
 
 // Size of buffer used for storing filenames

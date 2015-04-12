@@ -17,7 +17,7 @@
 
 #include "settings.h"
 
-#define medianMapUseEveryNthStack              8
+#define medianMapUseEveryNthStack             16
 #define medianMapUseNImages                   16
 #define medianMapResolution                   16
 #define framesSinceLastTrigger_INITIAL        -8 - medianMapUseEveryNthStack*medianMapUseNImages
@@ -166,7 +166,7 @@ int readShortBuffer(void *videoHandle, int nfr, int width, int height, unsigned 
   const int frameSize = width*height;
   int i,j;
   memset(stack1, 0, frameSize*3*sizeof(int));
-  memset(maxMap, 0, frameSize*3);
+//  memset(maxMap, 0, frameSize*3);
 
   unsigned char *tmprgb = malloc(3*frameSize);
 
@@ -177,8 +177,8 @@ int readShortBuffer(void *videoHandle, int nfr, int width, int height, unsigned 
     Pyuv420torgb(tmpc,tmpc+frameSize,tmpc+frameSize*5/4,tmprgb,tmprgb+frameSize,tmprgb+frameSize*2,width,height);
 #pragma omp parallel for private(i)
     for (i=0; i<frameSize*3; i++) stack1[i]+=tmprgb[i]; // Stack1 is wiped prior to each call to this function
-#pragma omp parallel for private(i)
-    for (i=0; i<frameSize*3; i++) if (maxMap[i]<tmprgb[i]) maxMap[i]=tmprgb[i];
+//#pragma omp parallel for private(i)
+//    for (i=0; i<frameSize*3; i++) if (maxMap[i]<tmprgb[i]) maxMap[i]=tmprgb[i];
    }
 
   if (stack2)
@@ -316,19 +316,19 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
     if (recording>-1)
      {
       int i;
-      unsigned char *maxbuf = bufferNum?maxB:maxA;
+//      unsigned char *maxbuf = bufferNum?maxB:maxA;
       int *stackbuf = bufferNum?stackB:stackA;
       recording++;
-#pragma omp parallel for private(i)
-      for (i=0; i<frameSize*3; i++) if (maxbuf[i]>maxL[i]) maxL[i]=maxbuf[i];
+//#pragma omp parallel for private(i)
+//      for (i=0; i<frameSize*3; i++) if (maxbuf[i]>maxL[i]) maxL[i]=maxbuf[i];
 #pragma omp parallel for private(i)
       for (i=0; i<frameSize*3; i++) stackL[i]+=stackbuf[i];
       if (recording>=nfrl/nfrt)
        {
         char fname[FNAME_BUFFER];
-        sprintf(fname, "%s%s",triggerstub,"3_MAX.rgb");
-        dumpFrameRGB(width, height, maxL, fname);
-        writeMetaData(fname, 1, "cameraId", analysisCameraId);
+//        sprintf(fname, "%s%s",triggerstub,"3_MAX.rgb");
+//        dumpFrameRGB(width, height, maxL, fname);
+//        writeMetaData(fname, 1, "cameraId", analysisCameraId);
         sprintf(fname, "%s%s",triggerstub,"3_BS0.rgb");
         dumpFrameRGBFromInts(width, height, stackL, nfrt+nfrl, 1, fname);
         writeMetaData(fname, 1, "cameraId", analysisCameraId);
@@ -381,9 +381,9 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
         sprintf(fname, "%s%s",triggerstub,"2_BS1.rgb");
         dumpFrameRGBFromISub(width, height, bufferNum?stackB:stackA, nfrt, STACK_GAIN, medianMap, fname);
         writeMetaData(fname, 1, "cameraId", analysisCameraId);
-        sprintf(fname, "%s%s",triggerstub,"2_MAX.rgb");
-        dumpFrameRGB        (width, height, bufferNum?maxB:maxA, fname);
-        writeMetaData(fname, 1, "cameraId", analysisCameraId);
+//        sprintf(fname, "%s%s",triggerstub,"2_MAX.rgb");
+//        dumpFrameRGB        (width, height, bufferNum?maxB:maxA, fname);
+//        writeMetaData(fname, 1, "cameraId", analysisCameraId);
 
         sprintf(fname, "%s%s",triggerstub,"1_BS0.rgb");
         dumpFrameRGBFromInts(width, height, bufferNum?stackA:stackB, nfrt, 1, fname);
@@ -391,11 +391,11 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
         sprintf(fname, "%s%s",triggerstub,"1_BS1.rgb");
         dumpFrameRGBFromISub(width, height, bufferNum?stackA:stackB, nfrt, STACK_GAIN, medianMap, fname);
         writeMetaData(fname, 1, "cameraId", analysisCameraId);
-        sprintf(fname, "%s%s",triggerstub,"1_MAX.rgb");
-        dumpFrameRGB        (width, height, bufferNum?maxA:maxB, fname);
-        writeMetaData(fname, 1, "cameraId", analysisCameraId);
+//        sprintf(fname, "%s%s",triggerstub,"1_MAX.rgb");
+//        dumpFrameRGB        (width, height, bufferNum?maxA:maxB, fname);
+//        writeMetaData(fname, 1, "cameraId", analysisCameraId);
 
-        memcpy(maxL  , bufferNum?maxB:maxA    , frameSize*3);
+//        memcpy(maxL  , bufferNum?maxB:maxA    , frameSize*3);
         memcpy(stackL, bufferNum?stackB:stackA, frameSize*3*sizeof(int));
         recording=0;
        }
