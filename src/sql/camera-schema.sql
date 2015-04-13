@@ -6,7 +6,7 @@ SET NAMES UNICODE_FSS;
  * as a user with write access to this database.
  * See https://github.com/camsci/meteor-pi/wiki/Camera-database-configuration
  */
-CONNECT '/var/lib/firebird/2.5/data/meteorpi.fdb';
+CONNECT 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb';
 
 CREATE DOMAIN BOOLEAN AS SMALLINT CHECK (value is null or value in (0, 1));
 

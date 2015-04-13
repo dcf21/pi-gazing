@@ -41,7 +41,7 @@ class MeteorDatabase:
 
     def __init__(
             self,
-            dbPath='/var/lib/firebird/2.5/data/meteorpi.fdb',
+            dbPath='localhost:/var/lib/firebird/2.5/data/meteorpi.fdb',
             fileStorePath=path.expanduser("~/meteorpi_files")):
         self.con = fdb.connect(
             dsn=dbPath,
