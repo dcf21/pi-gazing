@@ -13,6 +13,54 @@ CREATE DOMAIN BOOLEAN AS SMALLINT CHECK (value is null or value in (0, 1));
 /* Sequence used to allocate internal IDs */
 CREATE SEQUENCE gidSequence;
 
+/* Camera status tables */
+
+CREATE TABLE t_highWaterMark (
+	cameraID char(12) NOT NULL,
+	mark timestamp NOT NULL
+);
+
+CREATE TABLE t_cameraStatus (
+	internalID integer NOT NULL,
+	cameraID char(12) NOT NULL,
+	validFrom timestamp NOT NULL,
+	validTo timestamp,
+	softwareVersion integer DEFAULT 0 NOT NULL,
+	orientationAltitude float NOT NULL,
+	orientationAzimuth float NOT NULL,
+	orientationCertainty float NOT NULL,
+	locationLatitude float NOT NULL,
+	locationLongitude float NOT NULL,
+	locationGPS BOOLEAN DEFAULT 0 NOT NULL,
+    locationCertainty float NOT NULL,
+	lens varchar(40) NOT NULL,
+	sensor varchar(40) NOT NULL,
+	instURL varchar(255),
+	instName varchar(255),
+	PRIMARY KEY (internalID)
+);
+
+CREATE TABLE t_visibleRegions (
+	cameraStatusID integer NOT NULL,
+	region integer NOT NULL,
+	pointOrder integer DEFAULT 0 NOT NULL,
+	x integer NOT NULL,
+	y integer NOT NULL,
+	FOREIGN KEY (cameraStatusId) REFERENCES t_cameraStatus(internalId) ON DELETE CASCADE,
+	PRIMARY KEY (cameraStatusId, region, pointOrder)
+);
+
+SET TERM ^ ;
+CREATE OR ALTER TRIGGER assignStatusID FOR t_cameraStatus 
+BEFORE INSERT position 10 
+AS BEGIN
+  if ((new.internalID is null) or (new.internalID = 0)) then
+  begin
+    new.internalID = gen_id(gidSequence, 1);
+  end
+end ^
+SET TERM ; ^
+
 /* A single observed event from a particular camera */
 CREATE TABLE t_event (
 	internalID integer NOT NULL,
@@ -28,6 +76,8 @@ CREATE TABLE t_event (
 	y3 integer DEFAULT 0 NOT NULL,
 	x4 integer DEFAULT 0 NOT NULL,
 	y4 integer DEFAULT 0 NOT NULL,
+    statusID integer NOT NULL,
+    FOREIGN KEY (statusID) REFERENCES t_cameraStatus (internalID) ON DELETE CASCADE,
 	PRIMARY KEY (internalID)
 );
 
@@ -41,6 +91,8 @@ CREATE TABLE t_file (
 	semanticType varchar(255) NOT NULL,
 	fileTime timestamp NOT NULL,
 	fileSize integer NOT NULL,
+    statusID integer NOT NULL,
+    FOREIGN KEY (statusID) REFERENCES t_cameraStatus (internalID) ON DELETE CASCADE,
 	PRIMARY KEY (internalId)
 );
 
@@ -104,52 +156,6 @@ end ^
 /* Change the terminator back to the semi-colon again */
 SET TERM ; ^
 
-/* Camera status tables */
-
-CREATE TABLE t_highWaterMark (
-	cameraID char(12) NOT NULL,
-	mark timestamp NOT NULL
-);
-
-CREATE TABLE t_cameraStatus (
-	internalID integer NOT NULL,
-	cameraID char(12) NOT NULL,
-	validFrom timestamp NOT NULL,
-	validTo timestamp,
-	softwareVersion integer DEFAULT 0 NOT NULL,
-	orientationAltitude float NOT NULL,
-	orientationAzimuth float NOT NULL,
-	orientationCertainty float NOT NULL,
-	locationLatitude float NOT NULL,
-	locationLongitude float NOT NULL,
-	locationGPS BOOLEAN DEFAULT 0 NOT NULL,
-	lens varchar(40) NOT NULL,
-	sensor varchar(40) NOT NULL,
-	instURL varchar(255),
-	instName varchar(255),
-	PRIMARY KEY (internalID)
-);
-
-CREATE TABLE t_visibleRegions (
-	cameraStatusID integer NOT NULL,
-	region integer NOT NULL,
-	pointOrder integer DEFAULT 0 NOT NULL,
-	x integer NOT NULL,
-	y integer NOT NULL,
-	FOREIGN KEY (cameraStatusId) REFERENCES t_cameraStatus(internalId) ON DELETE CASCADE,
-	PRIMARY KEY (cameraStatusId, region, pointOrder)
-);
-
-SET TERM ^ ;
-CREATE OR ALTER TRIGGER assignStatusID FOR t_cameraStatus 
-BEFORE INSERT position 10 
-AS BEGIN
-  if ((new.internalID is null) or (new.internalID = 0)) then
-  begin
-    new.internalID = gen_id(gidSequence, 1);
-  end
-end ^
-SET TERM ; ^
 
 
 

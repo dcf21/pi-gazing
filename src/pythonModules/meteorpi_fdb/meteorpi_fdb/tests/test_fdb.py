@@ -8,6 +8,25 @@ from datetime import datetime
 
 class TestFdb(TestCase):
 
+    def __init__(self, *args, **kwargs):
+        super(TestFdb, self).__init__(*args, **kwargs)
+        self._status1 = model.CameraStatus(
+            'a_lens',
+            'a_sensor',
+            'http://foo.bar.com',
+            'test installation',
+            model.Orientation(
+                0.5,
+                0.6,
+                0.7),
+            model.Location(
+                20.0,
+                30.0,
+                True,
+                1.0))
+        self._status1.regions = [[{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 0, "y": 100}], [
+            {"x": 100, "y": 100}, {"x": 100, "y": 0}, {"x": 0, "y": 100}]]
+
     def testGetInstallationID(self):
         m = db.MeteorDatabase()
         installationID = db.getInstallationID()
@@ -25,22 +44,7 @@ class TestFdb(TestCase):
         m.clearDatabase()
         self.assertTrue(len(m.getCameras()) == 0)
         self.assertTrue(m.getCameraStatus() is None)
-        newStatus = model.CameraStatus(
-            'a_lens',
-            'a_sensor',
-            'http://foo.bar.com',
-            'test installation',
-            model.Orientation(
-                0.5,
-                0.6,
-                0.7),
-            model.Location(
-                20.0,
-                30.0,
-                True))
-        newStatus.regions = [[{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 0, "y": 100}], [
-            {"x": 100, "y": 100}, {"x": 100, "y": 0}, {"x": 0, "y": 100}]]
-        m.updateCameraStatus(ns=newStatus)
+        m.updateCameraStatus(ns=self._status1)
         # Check that we now have a camera in the database
         self.assertTrue(len(m.getCameras()) == 1)
         status = m.getCameraStatus()
@@ -55,6 +59,8 @@ class TestFdb(TestCase):
     def testInsertFile(self):
         m = db.MeteorDatabase()
         m.clearDatabase()
+        # Have to have a status block otherwise we should fail
+        m.updateCameraStatus(ns=self._status1)
         tf = tempfile.mkstemp(suffix='.tmp', prefix='meteorpi_test_')
         tfPath = tf[1]
         record = m.registerFile(filePath=tfPath,
@@ -77,6 +83,8 @@ class TestFdb(TestCase):
         m = db.MeteorDatabase()
         # Clear the database
         m.clearDatabase()
+        # Have to have a status block otherwise we should fail
+        m.updateCameraStatus(ns=self._status1)
         file1 = m.registerFile(
             tempfile.mkstemp(
                 suffix='.tmp',

@@ -96,16 +96,18 @@ class Location:
     """A location fix, consisting of latitude and longitude, and a boolean to
     indicate whether the fix had a GPS lock or not."""
 
-    def __init__(self, latitude=0.0, longitude=0.0, gps=False):
+    def __init__(self, latitude=0.0, longitude=0.0, gps=False, certainty=0.0):
         self.latitude = latitude
         self.longitude = longitude
         self.gps = gps
+        self.certainty = certainty
 
     def __str__(self):
-        return '(lat={0}, long={1}, gps={2})'.format(
+        return '(lat={0}, long={1}, gps={2}, p={3})'.format(
             self.latitude,
             self.longitude,
-            self.gps)
+            self.gps,
+            self.certainty)
 
 
 class Orientation:
