@@ -1,93 +1,105 @@
-import fdb
-import uuid
-import meteorpi_model as mp
 from datetime import datetime, timedelta
 import os.path as path
 import os
 import shutil
 import uuid
 
+import fdb
+
+import meteorpi_model as mp
+
+
+
+
+
+
+
 # http://www.firebirdsql.org/file/documentation/drivers_documentation/python/fdb/getting-started.html
 # is helpful!
 
 
-def getInstallationID():
+def get_installation_id():
     """Get the installation ID of the current system, using the MAC address
     rendered as a 12 character hex string."""
-    def toArray(number):
+
+    def _to_array(number):
         result = ''
         n = number
-        while (n > 0):
+        while n > 0:
             (div, mod) = divmod(n, 256)
             n = (n - mod) / 256
             result = ('%0.2x' % mod) + result
         return result
-    return toArray(uuid.getnode())
+
+    return _to_array(uuid.getnode())
 
 
-def roundTime(time=datetime.now()):
+def round_time(time=None):
     """
     Rounds a datetime, discarding the millisecond part.
 
     Needed because Python and Firebird precision is different!
     """
+    if time is None:
+        time = datetime.now()
     return time + timedelta(0, 0, -time.microsecond)
 
 
-class MeteorDatabase:
+SOFTWARE_VERSION = 1
 
+
+class MeteorDatabase:
     """Class representing a single MeteorPi relational database and file
     store."""
 
     def __init__(
             self,
-            dbPath='localhost:/var/lib/firebird/2.5/data/meteorpi.fdb',
-            fileStorePath=path.expanduser("~/meteorpi_files")):
+            db_path='localhost:/var/lib/firebird/2.5/data/meteorpi.fdb',
+            file_store_path=path.expanduser("~/meteorpi_files")):
         self.con = fdb.connect(
-            dsn=dbPath,
+            dsn=db_path,
             user='meteorpi',
             password='meteorpi')
-        self.dbPath = dbPath
-        if path.exists(fileStorePath) == False:
-            os.makedirs(fileStorePath)
-        if path.isdir(fileStorePath) == False:
+        self.db_path = db_path
+        if not path.exists(file_store_path):
+            os.makedirs(file_store_path)
+        if not path.isdir(file_store_path):
             raise ValueError(
                 'File store path already exists but is not a directory!')
-        self.fileStorePath = fileStorePath
+        self.file_store_path = file_store_path
 
     def __str__(self):
-        return 'MeteorDatabase(db={0}, fileStorePath={1}'.format(
-            self.dbPath,
-            self.fileStorePath)
+        return 'MeteorDatabase(db={0}, file_store_path={1}'.format(
+            self.db_path,
+            self.file_store_path)
 
-    def getEvents(self, eventID=None, internalIDs=None, cursor=None):
+    def get_events(self, event_id=None, internal_ids=None, cursor=None):
         """Retrieve Events by an eventID, set of internalIDs or by a cursor
         which should contain a result set of rows from t_event."""
-        if eventID is None and internalIDs is None and cursor is None:
+        if event_id is None and internal_ids is None and cursor is None:
             raise ValueError(
                 'Must specify one of eventID, internalIDs or cursor!')
         # If we have a cursor use it, otherwise get one.
-        if (cursor is None):
+        if cursor is None:
             _cur = self.con.cursor()
-            if eventID is not None:
+            if event_id is not None:
                 # Use event ID
                 _cur.execute(
                     'SELECT cameraID, eventID, internalID, eventTime, '
                     'intensity, x1, y1, x2, y2, x3, y3, x4, y4 '
                     'FROM t_event '
-                    'WHERE eventID = (?)', (eventID.bytes,))
+                    'WHERE eventID = (?)', (event_id.bytes,))
             else:
                 _cur.execute(
                     'SELECT cameraID, eventID, internalID, eventTime, '
                     'intensity, x1, y1, x2, y2, x3, y3, x4, y4 '
                     'FROM t_event '
-                    'WHERE internalID IN (?)', (internalIDs,))
+                    'WHERE internalID IN (?)', (internal_ids,))
         else:
             _cur = cursor
         events = {}
         for row in _cur.fetchallmap():
-            internalID = row['internalID']
-            events[str(internalID)] = mp.Event(
+            events[str(row['internalID'])] = mp.Event(
                 row['cameraID'],
                 row['eventTime'],
                 uuid.UUID(bytes=row['eventID']),
@@ -96,30 +108,30 @@ class MeteorDatabase:
                           row['x3'], row['y3'], row['x4'], row['y4']),
                 [])
         result = []
-        for internalID, event in events.iteritems():
+        for internal_id, event in events.iteritems():
             _cur.execute(
                 'SELECT fileID from t_event_to_file '
                 'WHERE eventID = (?) '
-                'ORDER BY sequenceNumber ASC', (internalID,))
-            for row in _cur.fetchall():
-                event.fileRecords.append(self.getFile(internalID=row[0]))
+                'ORDER BY sequenceNumber ASC', (internal_id,))
+            for row in _cur.fetchallmap():
+                event.file_records.append(self.get_file(internal_id=row['fileID']))
             result.append(event)
         return result
 
-    def registerEvent(
+    def register_event(
             self,
-            cameraID,
-            eventTime,
+            camera_id,
+            event_time,
             intensity,
             bezier,
-            fileRecords=[]):
+            file_records=[]):
         """Register a new row in t_event, returning the Event object."""
         if intensity > 1.0:
             raise ValueError('Intensity must be at most 1.0')
         if intensity < 0:
             raise ValueError('Intensity must not be negative')
-        statusID = self._getCameraStatusID(cameraID=cameraID, time=eventTime)
-        if statusID is None:
+        status_id = self._get_camera_status_id(camera_id=camera_id, time=event_time)
+        if status_id is None:
             raise ValueError('No status defined for this ID and time!')
         cur = self.con.cursor()
         cur.execute(
@@ -127,8 +139,8 @@ class MeteorDatabase:
             'x1, y1, x2, y2, x3, y3, x4, y4, statusID) '
             'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
             'RETURNING internalID, eventID, eventTime',
-            (cameraID,
-             eventTime,
+            (camera_id,
+             event_time,
              intensity * 1000,
              bezier[0]["x"],
              bezier[0]["y"],
@@ -138,37 +150,37 @@ class MeteorDatabase:
              bezier[2]["y"],
              bezier[3]["x"],
              bezier[3]["y"],
-             statusID))
+             status_id))
         ids = cur.fetchone()
-        eventInternalID = ids[0]
-        eventID = uuid.UUID(bytes=ids[1])
-        event = mp.Event(cameraID, ids[2], eventID, intensity, bezier)
-        for fileRecordIndex, fileRecord in enumerate(fileRecords):
-            event.fileRecords.append(fileRecord)
+        event_internal_id = ids[0]
+        event_id = uuid.UUID(bytes=ids[1])
+        event = mp.Event(camera_id, ids[2], event_id, intensity, bezier)
+        for file_record_index, file_record in enumerate(file_records):
+            event.file_records.append(file_record)
             cur.execute(
                 'SELECT internalID FROM t_file WHERE fileID = (?)',
-                (fileRecord.fileID.bytes,
+                (file_record.file_id.bytes,
                  ))
-            fileInternalID = cur.fetchone()[0]
+            file_internal_id = cur.fetchone()[0]
             cur.execute(
                 'INSERT INTO t_event_to_file '
                 '(fileID, eventID, sequenceNumber) '
                 'VALUES (?, ?, ?)',
-                (fileInternalID,
-                 eventInternalID,
-                 fileRecordIndex))
+                (file_internal_id,
+                 event_internal_id,
+                 file_record_index))
         self.con.commit()
         return event
 
-    def registerFile(
+    def register_file(
             self,
-            filePath,
-            mimeType,
+            file_path,
+            mime_type,
             namespace,
-            semanticType,
-            fileTime,
-            fileMetas,
-            cameraID=getInstallationID()):
+            semantic_type,
+            file_time,
+            file_metas,
+            camera_id=get_installation_id()):
         """
         Register a new row in t_file representing a file on disk.
 
@@ -177,12 +189,12 @@ class MeteorDatabase:
         FileRecord object produced.
         """
         # Check the file exists, and retrieve its size
-        if path.exists(filePath) == False:
-            raise ValueError('No file exists at {0}'.format(filePath))
-        fileSizeBytes = os.stat(filePath).st_size
+        if not path.exists(file_path):
+            raise ValueError('No file exists at {0}'.format(file_path))
+        file_size_bytes = os.stat(file_path).st_size
         # Handle the database parts
-        statusID = self._getCameraStatusID(cameraID=cameraID, time=fileTime)
-        if statusID is None:
+        status_id = self._get_camera_status_id(camera_id=camera_id, time=file_time)
+        if status_id is None:
             raise ValueError('No status defined for this ID and time!')
         cur = self.con.cursor()
         cur.execute(
@@ -190,84 +202,84 @@ class MeteorDatabase:
             'semanticType, fileTime, fileSize, statusID) '
             'VALUES (?, ?, ?, ?, ?, ?, ?) '
             'RETURNING internalID, fileID, fileTime',
-            (cameraID,
-             mimeType,
+            (camera_id,
+             mime_type,
              namespace,
-             semanticType,
-             fileTime,
-             fileSizeBytes,
-             statusID))
-        resultRow = cur.fetchone()
+             semantic_type,
+             file_time,
+             file_size_bytes,
+             status_id))
+        row = cur.fetchonemap()
         # Retrieve the internal ID of the file row to link fileMeta if required
-        fileInternalID = resultRow[0]
+        file_internal_id = row['internalID']
         # Retrieve the generated file ID, used to build the File object and to
         # name the source file
-        fileID = uuid.UUID(bytes=resultRow[1])
+        file_id = uuid.UUID(bytes=row['fileID'])
         # Retrieve the file time as stored in the DB
-        storedFileTime = resultRow[2]
-        resultFile = mp.FileRecord(cameraID, mimeType, namespace, semanticType)
-        resultFile.fileTime = storedFileTime
-        resultFile.fileID = fileID
-        resultFile.fileSize = fileSizeBytes
+        stored_file_time = row['fileTime']
+        result_file = mp.FileRecord(camera_id, mime_type, namespace, semantic_type)
+        result_file.file_time = stored_file_time
+        result_file.file_id = file_id
+        result_file.file_size = file_size_bytes
         # Store the fileMeta
-        for fileMetaIndex, fileMeta in enumerate(fileMetas):
+        for file_meta_index, file_meta in enumerate(file_metas):
             cur.execute(
                 'INSERT INTO t_fileMeta '
                 '(fileID, namespace, key, stringValue, metaIndex) '
                 'VALUES (?, ?, ?, ?, ?)',
-                (fileInternalID,
-                 fileMeta.namespace,
-                 fileMeta.key,
-                 fileMeta.stringValue,
-                 fileMetaIndex))
-            resultFile.meta.append(
+                (file_internal_id,
+                 file_meta.namespace,
+                 file_meta.key,
+                 file_meta.string_value,
+                 file_meta_index))
+            result_file.meta.append(
                 mp.FileMeta(
-                    fileMeta.namespace,
-                    fileMeta.key,
-                    fileMeta.stringValue))
+                    file_meta.namespace,
+                    file_meta.key,
+                    file_meta.string_value))
         self.con.commit()
         # Move the original file from its path
-        targetFilePath = path.join(self.fileStorePath, resultFile.fileID.hex)
-        shutil.move(filePath, targetFilePath)
+        target_file_path = path.join(self.file_store_path, result_file.file_id.hex)
+        shutil.move(file_path, target_file_path)
         # Return the resultant file object
-        return resultFile
+        return result_file
 
-    def getFile(self, fileID=None, internalID=None):
-        if (fileID is None and internalID is None):
+    def get_file(self, file_id=None, internal_id=None):
+        if file_id is None and internal_id is None:
             raise ValueError('Must specify either fileID or internalID!')
         cur = self.con.cursor()
-        if (internalID is not None):
+        if internal_id is not None:
             cur.execute(
                 'SELECT internalID, cameraID, mimeType, namespace, '
                 'semanticType, fileTime, fileSize, fileID '
-                'FROM t_file t WHERE t.internalID=(?)', (internalID,))
-        elif (fileID is not None):
+                'FROM t_file t WHERE t.internalID=(?)', (internal_id,))
+        elif file_id is not None:
             cur.execute(
                 'SELECT internalID, cameraID, mimeType, namespace, '
                 'semanticType, fileTime, fileSize, fileID '
-                'FROM t_file t WHERE t.fileID=(?)', (fileID.bytes,))
-        row = cur.fetchone()
+                'FROM t_file t WHERE t.fileID=(?)', (file_id.bytes,))
+        row = cur.fetchonemap()
         if row is None:
             raise ValueError(
                 'File with ID {0} or internal ID {1} not found!'.format(
-                    fileID.hex,
-                    internalID))
-        fileRecord = mp.FileRecord(row[1], row[2], row[3], row[4])
-        fileRecord.fileID = uuid.UUID(bytes=row[7])
-        fileRecord.fileSize = row[6]
-        fileRecord.fileTime = row[5]
-        internalFileID = row[0]
+                    file_id.hex,
+                    internal_id))
+        file_record = mp.FileRecord(row['cameraID'], row['mimeType'], row['namespace'], row['semanticType'])
+        file_record.file_id = uuid.UUID(bytes=row['fileID'])
+        file_record.file_size = row['fileSize']
+        file_record.file_time = row['fileTime']
+        internal_file_id = row['internalID']
         cur.execute(
             'SELECT namespace, key, stringValue '
             'FROM t_fileMeta t '
             'WHERE t.fileID = (?) '
             'ORDER BY metaIndex ASC',
-            (internalFileID,))
-        for meta in cur.fetchall():
-            fileRecord.meta.append(mp.FileMeta(meta[0], meta[1], meta[2]))
-        return fileRecord
+            (internal_file_id,))
+        for meta in cur.fetchallmap():
+            file_record.meta.append(mp.FileMeta(meta['namespace'], meta['key'], meta['stringValue']))
+        return file_record
 
-    def getCameras(self):
+    def get_cameras(self):
         """Get all Camera IDs for cameras in this database with current (i.e.
         validTo == None) status blocks."""
         cur = self.con.cursor()
@@ -276,7 +288,7 @@ class MeteorDatabase:
             'WHERE validTo IS NULL')
         return map(lambda row: row[0], cur.fetchall())
 
-    def updateCameraStatus(self, ns, time=datetime.now()):
+    def update_camera_status(self, ns, time=None):
         """
         Update the status for this installation's camera, optionally specify a
         time (defaults to datetime.now()).
@@ -285,21 +297,23 @@ class MeteorDatabase:
         camera any data products derived after that time will be deleted
         as if setHighWaterMark was called.
         """
-        time = roundTime(time)
-        cameraID = getInstallationID()
-        highWaterMark = self.getHighWaterMark(cameraID)
-        if highWaterMark is not None and time < highWaterMark:
+        if time is None:
+            time = datetime.now()
+        time = round_time(time)
+        camera_id = get_installation_id()
+        high_water_mark = self.get_high_water_mark(camera_id)
+        if high_water_mark is not None and time < high_water_mark:
             # Establishing a status earlier than the current high water mark. This
             # means we need to set the high water mark back to the status validFrom
             # time, removing any computed products after this point.
-            setHighWaterMark(time, cameraID)
+            set_high_water_mark(time, camera_id)
         cur = self.con.cursor()
         # If there's an existing status block then set its end time to now
         cur.execute(
             'UPDATE t_cameraStatus t SET t.validTo = (?) '
             'WHERE t.validTo IS NULL AND t.cameraID = (?)',
             (time,
-             cameraID))
+             camera_id))
         # Insert the new status into the database
         cur.execute(
             'INSERT INTO t_cameraStatus (cameraID, validFrom, validTo, '
@@ -308,10 +322,10 @@ class MeteorDatabase:
             'locationGPS, lens, sensor, instURL, instName, locationCertainty) '
             'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
             'RETURNING internalID',
-            (cameraID,
+            (camera_id,
              time,
              None,
-             1,
+             SOFTWARE_VERSION,
              ns.orientation.altitude,
              ns.orientation.azimuth,
              ns.orientation.certainty,
@@ -320,95 +334,100 @@ class MeteorDatabase:
              ns.location.gps,
              ns.lens,
              ns.sensor,
-             ns.instURL,
-             ns.instName,
+             ns.inst_url,
+             ns.inst_name,
              ns.location.certainty))
         # Retrieve the newly created internal ID for the status block, use this to
         # insert visible regions
-        statusID = cur.fetchone()[0]
-        for regionIndex, region in enumerate(ns.regions):
-            for pointIndex, point in enumerate(region):
+        status_id = cur.fetchone()[0]
+        for region_index, region in enumerate(ns.regions):
+            for point_index, point in enumerate(region):
                 cur.execute(
                     'INSERT INTO t_visibleRegions (cameraStatusID, '
                     'region, pointOrder, x, y) VALUES (?,?,?,?,?)',
-                    (statusID,
-                     regionIndex,
-                     pointIndex,
-                     point["x"],
-                     point["y"]))
+                    (status_id,
+                     region_index,
+                     point_index,
+                     point['x'],
+                     point['y']))
         self.con.commit()
 
-    def _getCameraStatusID(
+    def _get_camera_status_id(
             self,
-            time=datetime.now(),
-            cameraID=getInstallationID()):
+            time=None,
+            camera_id=get_installation_id()):
         """Return the integer internal ID of the camera status block for the
         given time and camera, or None if there wasn't one."""
-        time = roundTime(time)
+        if time is None:
+            time = datetime.now()
+        time = round_time(time)
         cur = self.con.cursor()
         cur.execute(
             'SELECT internalID from t_cameraStatus t '
             'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
             'AND (t.validTo IS NULL OR t.validTo > (?))',
-            (cameraID, time, time))
+            (camera_id, time, time))
         row = cur.fetchone()
         if row is None:
             return None
         return row[0]
 
-    def getCameraStatus(
+    def get_camera_status(
             self,
-            time=datetime.now(),
-            cameraID=getInstallationID()):
+            time=None,
+            cameraID=get_installation_id()):
         """Return the camera status for a given time, or None if no status is
         available time : datetime.datetime object, default now."""
-        time = roundTime(time)
+        if time is None:
+            time = datetime.now()
+        time = round_time(time)
         cur = self.con.cursor()
         cur.execute(
             'SELECT lens, sensor, instURL, instName, locationLatitude, '
-            'locationLongitude, locationGPS, orientationAltitude, '
+            'locationLongitude, locationGPS, locationCertainty, orientationAltitude, '
             'orientationAzimuth, orientationCertainty, validFrom, validTo, '
-            'softwareVersion, internalID, locationCertainty '
+            'softwareVersion, internalID '
             'FROM t_cameraStatus t '
             'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
             'AND (t.validTo IS NULL OR t.validTo > (?))',
             (cameraID,
              time,
              time))
-        row = cur.fetchone()
+        row = cur.fetchonemap()
         if row is None:
             return None
         cs = mp.CameraStatus(
-            row[0], row[1], row[2], row[3], mp.Orientation(
-                row[7], row[8], row[9]), mp.Location(
-                row[4], row[5], row[6] == True, row[14]))
-        cs.validFrom = row[10]
-        cs.validTo = row[11]
-        cs.softwareVersion = row[12]
-        cameraStatusID = row[13]
+            row['lens'], row['sensor'], row['instURL'], row['instName'], mp.Orientation(
+                row['orientationAltitude'], row['orientationAzimuth'], row['orientationCertainty']), mp.Location(
+                row['locationLatitude'], row['locationLongitude'], row['locationGPS'] == True,
+                row['locationCertainty']))
+        cs.valid_from = row['validFrom']
+        cs.valid_to = row['validTo']
+        cs.software_version = row['softwareVersion']
+        camera_status_id = row['internalID']
         cur.execute('SELECT region, pointOrder, x, y FROM t_visibleRegions t '
                     'WHERE t.cameraStatusID = (?) '
-                    'ORDER BY region ASC, pointOrder ASC', [cameraStatusID])
+                    'ORDER BY region ASC, pointOrder ASC', [camera_status_id])
         for point in cur.fetchallmap():
-            if len(cs.regions) <= point["region"]:
+            if len(cs.regions) <= point['region']:
                 cs.regions.append([])
-            cs.regions[point["region"]].append(
-                {"x": point["x"], "y": point["y"]})
+            cs.regions[point['region']].append(
+                {'x': point['x'], 'y': point['y']})
         return cs
 
-    def getHighWaterMark(self, cameraID=getInstallationID()):
+    def get_high_water_mark(self, camera_id=get_installation_id()):
         """Retrieves the current high water mark for a camera installation, or
         None if none has been set."""
         cur = self.con.cursor()
         cur.execute(
             'SELECT mark FROM t_highWaterMark t WHERE t.cameraID = (?)',
-            [cameraID])
+            (camera_id,))
         row = cur.fetchone()
         if row is None:
             return None
         return row[0]
 
-    def setHighWaterMark(self, time, cameraID=getInstallationID()):
+    def set_high_water_mark(self, time, camera_id=get_installation_id()):
         """
         Sets the 'high water mark' for this installation.
 
@@ -421,49 +440,49 @@ class MeteorDatabase:
         will have their validTo set to None to make them current
         """
         cur = self.con.cursor()
-        last = getHighWaterMark(cameraID)
+        last = self.get_high_water_mark(camera_id)
         if last is None:
             # No high water mark defined, set it and return
             cur.execute(
                 'INSERT INTO t_highWaterMark (cameraID, mark) VALUES (?,?)',
-                (cameraID,
+                (camera_id,
                  time))
         elif last < time:
             # Defined, but new one is later, we don't really have to do much
             cur.execute(
                 'UPDATE t_highWaterMark t SET t.mark = (?) WHERE t.cameraID = (?)',
                 (time,
-                 cameraID))
+                 camera_id))
         elif last > time:
             # More complicated, we're rolling back time so need to clean up a load
             # of future data
             cur.execute(
                 'UPDATE t_highWaterMark t SET t.mark = (?) WHERE t.cameraID = (?)',
                 (time,
-                 cameraID))
+                 camera_id))
             # First handle camera status, the visibility regions will be handled by
             # a CASCADE in the schema
             cur.execute(
                 'DELETE FROM t_cameraStatus t '
                 'WHERE t.validFrom > (?) AND t.cameraID = (?)',
                 (time,
-                 cameraID))
+                 camera_id))
             cur.execute(
                 'UPDATE t_cameraStatus t SET t.validTo = NULL '
                 'WHERE t.validTo >= (?) AND t.cameraID = (?)',
                 (time,
-                 cameraID))
+                 camera_id))
             # Delete files from the future
             cur.execute(
                 'SELECT fileID FROM t_file t '
                 'WHERE t.fileTime > (?) AND t.cameraID = (?)',
-                (time, cameraID))
+                (time, camera_id))
             for row in cur.fetchAll():
-                targetFilePath = path.join(fileStorePath, row[0])
-                os.remove(targetFilePath)
+                target_file_path = path.join(self.file_store_path, row[0])
+                os.remove(target_file_path)
         self.con.commit()
 
-    def clearDatabase(self):
+    def clear_database(self):
         """
         Delete ALL THE THINGS!
 
@@ -478,14 +497,14 @@ class MeteorDatabase:
         cur.execute('DELETE FROM t_fileMeta')
         cur.execute('DELETE FROM t_event')
         self.con.commit()
-        shutil.rmtree(self.fileStorePath)
-        os.makedirs(self.fileStorePath)
+        shutil.rmtree(self.file_store_path)
+        os.makedirs(self.file_store_path)
 
-    def getNextInternalID(self):
+    def get_next_internal_id(self):
         """Retrieves and increments the internal ID from gidSequence, returning
         it as an integer."""
         self.con.begin()
-        nextID = self.con.cursor().execute(
+        next_id = self.con.cursor().execute(
             'SELECT NEXT VALUE FOR gidSequence FROM RDB$DATABASE').fetchone()[0]
         self.con.commit()
-        return nextID
+        return next_id

@@ -1,9 +1,7 @@
 # MeteorPi API module
-from datetime import datetime
 
 
 class Bezier:
-
     """A four-point two dimensional curve, consisting of four control
     points."""
 
@@ -22,77 +20,75 @@ class Bezier:
 
 
 class Event:
-
     """A single meteor observation, containing a set of data from the image
     processing tools and zero or more files containing images, video or any
     other appropriate information to support the event."""
 
     def __init__(
             self,
-            cameraID,
-            eventTime,
-            eventID,
+            camera_id,
+            event_time,
+            event_id,
             intensity,
             bezier,
-            fileRecords=[]):
-        self.cameraID = cameraID
-        self.eventTime = eventTime
+            file_records=None):
+        self.camera_id = camera_id
         # Will be a uuid.UUID when stored in the database
-        self.eventID = eventID
-        self.eventTime = eventTime
+        self.event_id = event_id
+        self.event_time = event_time
         self.intensity = intensity
         self.bezier = bezier
         # Sequence of FileRecord
-        self.fileRecords = fileRecords
+        if file_records is None:
+            self.file_records = []
+        else:
+            self.file_records = file_records
 
 
 class FileRecord:
-
     """A piece of binary data with associated metadata, typically used to store
     an image or video from the camera."""
 
-    def __init__(self, cameraID, mimeType, namespace, semanticType):
-        self.cameraID = cameraID
-        self.mimeType = mimeType
+    def __init__(self, camera_id, mime_type, namespace, semantic_type):
+        self.camera_id = camera_id
+        self.mime_type = mime_type
         self.namespace = namespace
-        self.semanticType = semanticType
+        self.semantic_type = semantic_type
         self.meta = []
-        self.fileID = None
-        self.fileTime = None
-        self.fileSize = 0
+        self.file_id = None
+        self.file_time = None
+        self.file_size = 0
 
     def __str__(self):
-        return(
+        return (
             'FileRecord(fileID={0} cameraID={1} mime={2} '
             'ns={3} stype={4} time={5} size={6} meta={7}'.format(
-                self.fileID.hex,
-                self.cameraID,
-                self.mimeType,
+                self.file_id.hex,
+                self.camera_id,
+                self.mime_type,
                 self.namespace,
-                self.semanticType,
-                self.fileTime,
-                self.fileSize,
+                self.semantic_type,
+                self.file_time,
+                self.file_size,
                 str([str(obj) for obj in self.meta])))
 
 
 class FileMeta:
-
     """A single piece of metadata pertaining to a File."""
 
-    def __init__(self, namespace, key, stringValue):
+    def __init__(self, namespace, key, string_value):
         self.namespace = namespace
         self.key = key
-        self.stringValue = stringValue
+        self.string_value = string_value
 
     def __str__(self):
         return '(ns={0}, key={1}, val={2})'.format(
             self.namespace,
             self.key,
-            self.stringValue)
+            self.string_value)
 
 
 class Location:
-
     """A location fix, consisting of latitude and longitude, and a boolean to
     indicate whether the fix had a GPS lock or not."""
 
@@ -111,7 +107,6 @@ class Location:
 
 
 class Orientation:
-
     """
     An orientation fix, consisting of altitude, azimuth and certainty.
 
@@ -132,7 +127,6 @@ class Orientation:
 
 
 class CameraStatus:
-
     """
     Represents the status of a single camera for a range of times.
 
@@ -141,16 +135,16 @@ class CameraStatus:
     the status is current.
     """
 
-    def __init__(self, lens, sensor, instURL, instName, orientation, location):
+    def __init__(self, lens, sensor, inst_url, inst_name, orientation, location):
         self.lens = lens
         self.sensor = sensor
-        self.instURL = instURL
-        self.instName = instName
+        self.inst_url = inst_url
+        self.inst_name = inst_name
         self.orientation = orientation
         self.location = location
-        self.softwareVersion = 1
-        self.validFrom = None
-        self.validTo = None
+        self.software_version = 1
+        self.valid_from = None
+        self.valid_to = None
         self.regions = []
 
     def __str__(self):
@@ -159,9 +153,9 @@ class CameraStatus:
             'validTo={3}, version={4}, lens={5}, sensor={6}, regions={7})'.format(
                 self.location,
                 self.orientation,
-                self.validFrom,
-                self.validTo,
-                self.softwareVersion,
+                self.valid_from,
+                self.valid_to,
+                self.software_version,
                 self.lens,
                 self.sensor,
                 self.regions))
