@@ -1,5 +1,31 @@
 # MeteorPi API module
 
+class EventSearch:
+    """Encapsulates the possible parameters which can be used to search for
+    Event instances in the database.
+
+    If parameters are set to None this means they won't be used to
+    restrict the possible set of results.
+    """
+
+    def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
+                 before=None):
+        if camera_ids is None == False and len(camera_ids) == 0:
+            raise ValueError('If camera_ids is specified it must contain at least one ID')
+        if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
+            raise ValueError('Latitude max cannot be less than latitude minimum')
+        if long_min is None == False and long_max is None == False and long_max < long_min:
+            raise ValueError('Longitude max cannot be less than longitude minimum')
+        if after is None == False and before is None == False and before < after:
+            raise ValueError('From time cannot be after before time')
+        self.camera_ids = camera_ids
+        self.lat_min = lat_min
+        self.lat_max = lat_max
+        self.long_min = long_min
+        self.long_max = long_max
+        self.after = after
+        self.before = before
+
 
 class Bezier:
     """A four-point two dimensional curve, consisting of four control
@@ -107,11 +133,11 @@ class Location:
 
 
 class Orientation:
-    """
-    An orientation fix, consisting of altitude, azimuth and certainty.
+    """An orientation fix, consisting of altitude, azimuth and certainty.
 
     Certainty ranges from 0.0 to 1.0, where 0.0 means we have no idea
     where we're pointing and 1.0 is totally certain
+
     """
 
     def __init__(self, altitude=0.0, azimuth=0.0, certainty=0.0):
@@ -127,12 +153,12 @@ class Orientation:
 
 
 class CameraStatus:
-    """
-    Represents the status of a single camera for a range of times.
+    """Represents the status of a single camera for a range of times.
 
     The status is valid from the given validFrom datetime (inclusively),
     and up until before the given validTo datetime; if this is None then
     the status is current.
+
     """
 
     def __init__(self, lens, sensor, inst_url, inst_name, orientation, location):

@@ -11,12 +11,8 @@ import meteorpi_model as mp
 
 
 
-
-
-
 # http://www.firebirdsql.org/file/documentation/drivers_documentation/python/fdb/getting-started.html
 # is helpful!
-
 
 def get_installation_id():
     """Get the installation ID of the current system, using the MAC address
@@ -73,6 +69,55 @@ class MeteorDatabase:
             self.db_path,
             self.file_store_path)
 
+    def search_events(self, search):
+        """Search for events based on an EventSearch"""
+        # ",".join(str(bit) for bit in l)
+        def _search_events(camera_id=None):
+            sql_args = []
+            where_clauses = []
+            if camera_id is not None:
+                where_clauses.append('e.cameraID = (?)')
+                sql_args.append(camera_id)
+            if search.lat_min is not None:
+                where_clauses.append('s.locationLatitude >= (?)')
+                sql_args.append(search.lat_min)
+            if search.lat_max is not None:
+                where_clauses.append('s.locationLatitude <= (?)')
+                sql_args.append(search.lat_max)
+            if search.long_min is not None:
+                where_clauses.append('s.locationLongitude >= (?)')
+                sql_args.append(search.long_min)
+            if search.long_max is not None:
+                where_clauses.append('s.locationLongitude <= (?)')
+                sql_args.append(search.long_max)
+            if search.before is not None:
+                where_clauses.append('e.eventTime <= (?)')
+                sql_args.append(search.before)
+            if search.after is not None:
+                where_clauses.append('e.eventTime >= (?)')
+                sql_args.append(search.after)
+            # Build the SQL statement
+            sql = 'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, e.intensity, ' \
+                  'e.x1, e.y1, e.x2, e.y2, e.x3, e.y3, e.x4, e.y4 ' \
+                  'FROM t_event e, t_cameraStatus s WHERE e.statusID = s.internalID'
+            if len(sql_args) > 0:
+                sql += ' AND '
+            sql += ' AND '.join(where_clauses)
+            print sql
+            cur = self.con.cursor()
+            cur.execute(sql, sql_args)
+            return self.get_events(cursor=cur)
+
+        camera_ids = search.camera_ids
+        if camera_ids is None:
+            camera_ids = [None]
+        result = []
+        for camera_id in camera_ids:
+            for event in _search_events(camera_id):
+                result.append(event)
+        return result
+
+
     def get_events(self, event_id=None, internal_ids=None, cursor=None):
         """Retrieve Events by an eventID, set of internalIDs or by a cursor
         which should contain a result set of rows from t_event."""
@@ -117,6 +162,7 @@ class MeteorDatabase:
                 event.file_records.append(self.get_file(internal_id=row['fileID']))
             result.append(event)
         return result
+
 
     def register_event(
             self,
@@ -171,6 +217,7 @@ class MeteorDatabase:
                  file_record_index))
         self.con.commit()
         return event
+
 
     def register_file(
             self,
@@ -244,6 +291,7 @@ class MeteorDatabase:
         # Return the resultant file object
         return result_file
 
+
     def get_file(self, file_id=None, internal_id=None):
         if file_id is None and internal_id is None:
             raise ValueError('Must specify either fileID or internalID!')
@@ -279,6 +327,7 @@ class MeteorDatabase:
             file_record.meta.append(mp.FileMeta(meta['namespace'], meta['key'], meta['stringValue']))
         return file_record
 
+
     def get_cameras(self):
         """Get all Camera IDs for cameras in this database with current (i.e.
         validTo == None) status blocks."""
@@ -287,6 +336,7 @@ class MeteorDatabase:
             'SELECT DISTINCT cameraID from t_cameraStatus '
             'WHERE validTo IS NULL')
         return map(lambda row: row[0], cur.fetchall())
+
 
     def update_camera_status(self, ns, time=None):
         """
@@ -306,7 +356,7 @@ class MeteorDatabase:
             # Establishing a status earlier than the current high water mark. This
             # means we need to set the high water mark back to the status validFrom
             # time, removing any computed products after this point.
-            set_high_water_mark(time, camera_id)
+            self.set_high_water_mark(time, camera_id)
         cur = self.con.cursor()
         # If there's an existing status block then set its end time to now
         cur.execute(
@@ -352,6 +402,7 @@ class MeteorDatabase:
                      point['y']))
         self.con.commit()
 
+
     def _get_camera_status_id(
             self,
             time=None,
@@ -371,6 +422,7 @@ class MeteorDatabase:
         if row is None:
             return None
         return row[0]
+
 
     def get_camera_status(
             self,
@@ -415,6 +467,7 @@ class MeteorDatabase:
                 {'x': point['x'], 'y': point['y']})
         return cs
 
+
     def get_high_water_mark(self, camera_id=get_installation_id()):
         """Retrieves the current high water mark for a camera installation, or
         None if none has been set."""
@@ -426,6 +479,7 @@ class MeteorDatabase:
         if row is None:
             return None
         return row[0]
+
 
     def set_high_water_mark(self, time, camera_id=get_installation_id()):
         """
@@ -482,6 +536,7 @@ class MeteorDatabase:
                 os.remove(target_file_path)
         self.con.commit()
 
+
     def clear_database(self):
         """
         Delete ALL THE THINGS!
@@ -499,6 +554,7 @@ class MeteorDatabase:
         self.con.commit()
         shutil.rmtree(self.file_store_path)
         os.makedirs(self.file_store_path)
+
 
     def get_next_internal_id(self):
         """Retrieves and increments the internal ID from gidSequence, returning

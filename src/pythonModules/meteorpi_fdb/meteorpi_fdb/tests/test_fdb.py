@@ -26,18 +26,18 @@ class TestFdb(TestCase):
         self._status1.regions = [[{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 0, "y": 100}], [
             {"x": 100, "y": 100}, {"x": 100, "y": 0}, {"x": 0, "y": 100}]]
 
-    def testGetInstallationID(self):
+    def test_get_installation_id(self):
         m = db.MeteorDatabase()
         installation_id = db.get_installation_id()
         self.assertTrue(len(installation_id) == 12)
 
-    def testGetNextInternalId(self):
+    def test_get_next_internal_id(self):
         m = db.MeteorDatabase()
         id1 = m.get_next_internal_id()
         id2 = m.get_next_internal_id()
         self.assertTrue(id2 == id1 + 1)
 
-    def testInsertCamera(self):
+    def test_insert_camera(self):
         m = db.MeteorDatabase()
         # Clear the database
         m.clear_database()
@@ -55,7 +55,7 @@ class TestFdb(TestCase):
         self.assertTrue(len(status.regions[0]) == 3)
         self.assertTrue(len(status.regions[1]) == 3)
 
-    def testInsertFile(self):
+    def test_insert_file(self):
         m = db.MeteorDatabase()
         m.clear_database()
         # Have to have a status block otherwise we should fail
@@ -78,7 +78,7 @@ class TestFdb(TestCase):
         self.assertEqual(str(record), str(record2))
         self.assertFalse(record is record2)
 
-    def testInsertEvent(self):
+    def test_insert_event(self):
         m = db.MeteorDatabase()
         # Clear the database
         m.clear_database()
@@ -125,6 +125,10 @@ class TestFdb(TestCase):
             bezier=model.Bezier(
                 0, 1, 2, 3, 4, 5, 6, 7),
             file_records=[file1, file2])
-        print event.event_id.hex
         event2 = m.get_events(event_id=event.event_id)[0]
-        print event2.__dict__
+
+    def test_event_search(self):
+        m = db.MeteorDatabase()
+        m.clear_database()
+        events = m.search_events(model.EventSearch())
+        # TODO - verify that this has done the right thing. It doesn't crash at least...
