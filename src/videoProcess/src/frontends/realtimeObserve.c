@@ -18,6 +18,8 @@
 
 #include "settings.h"
 
+extern char *analysisCameraId;
+
 int utcoffset;
 
 int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc)
@@ -60,6 +62,8 @@ int main(int argc, char *argv[])
   vmd.flagUpsideDown      = GetFloat(argv[12],NULL) ? 1 : 0;
   vmd.filename            = argv[13];
 
+  analysisCameraId = vmd.cameraId;
+
   struct vdIn *videoIn;
 
   const char *videodevice=vmd.videoDevice;
@@ -89,7 +93,7 @@ int main(int argc, char *argv[])
   writeMetadata(vmd);
   videoIn->upsideDown = vmd.flagUpsideDown;
 
-  observe((void *)videoIn, utcoffset, tstart, tstop, width, height, "live", &fetchFrame, &rewindVideo);
+  observe((void *)videoIn, utcoffset, vmd.tstart, vmd.tstop, width, height, "live", &fetchFrame, &rewindVideo);
 
   return 0;
  }

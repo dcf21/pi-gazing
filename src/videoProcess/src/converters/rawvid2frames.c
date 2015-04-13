@@ -8,6 +8,7 @@
 #include "utils/tools.h"
 #include "png/image.h"
 #include "utils/error.h"
+#include "vidtools/color.h"
 
 #include "settings.h"
 
@@ -40,30 +41,34 @@ int main(int argc, char *argv[])
   i=fread(vidRaw,1,size,infile);
   fclose(infile);
 
-  const int frameSize = width * height;
+  const int frameSize = width * height * 3/2;
   const int nfr = size / frameSize;
 
   image_ptr OutputImage;
-  jpeg_alloc(&OutputImage, width, height);
+  image_alloc(&OutputImage, width, height);
+  OutputImage.data_w = 1;
+
+  long l=0;
+  unsigned char *tmprgb = malloc(frameSize*3);
+
   for (i=0; i<nfr; i++)
    {
-    int x,y,l=0;
-    int p=0;
+    int x,y,p=0;
+    Pyuv420torgb(vidRaw+l,vidRaw+l+frameSize,vidRaw+l+frameSize*5/4,tmprgb,tmprgb+frameSize,tmprgb+frameSize*2,width,height);
     for (y=0; y<height; y++) for (x=0; x<width; x++)
      {
-      OutputImage.data_red[l] =
-      OutputImage.data_grn[l] =
-      OutputImage.data_blu[l] = vidRaw[p];
-      OutputImage.data_w  [l] = 1;
-      l++;
+      OutputImage.data_red[l] = tmprgb[p+frameSize*0];
+      OutputImage.data_grn[l] = tmprgb[p+frameSize*1];
+      OutputImage.data_blu[l] = tmprgb[p+frameSize*2];
       p++;
      }
-    char fname[4096]; sprintf(fname,"%s%06d.jpg",frOut,i);
-    jpeg_deweight(&OutputImage);
-    jpeg_put(fname, OutputImage);
+    l+=frameSize * 3/2;
+    char fname[FNAME_BUFFER]; sprintf(fname,"%s%06d.png",frOut,i);
+    image_deweight(&OutputImage);
+    image_put(fname, OutputImage);
    }
-  jpeg_dealloc(&OutputImage);
-  free(vidRaw);
+  image_dealloc(&OutputImage);
+  free(vidRaw); free(tmprgb);
   return 0;
  }
 

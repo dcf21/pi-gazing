@@ -21,7 +21,10 @@
 #include "utils/asciidouble.h"
 #include "utils/tools.h"
 #include "utils/error.h"
+#include "vidtools/color.h"
 #include "settings.h"
+
+extern char *analysisCameraId;
 
 void sigint_handler(int signal) { printf("\n"); exit(0); }
 
@@ -59,9 +62,13 @@ int fetchFrame(void *ctx_void, unsigned char *tmpc, double *utc)
      {
       if (tmpc)
        {
-        memcpy(tmpc              , ctx->picture->data[0], frameSize  );
-        memcpy(tmpc+frameSize    , ctx->picture->data[1], frameSize/4);
-        memcpy(tmpc+frameSize*5/4, ctx->picture->data[2], frameSize/4);
+        const int w = ctx->c->width;
+        const int h = ctx->c->height;
+        const int s = w*h;
+        int i;
+        for (i=0;i<h  ;i++) memcpy(tmpc +       + i*w  , ctx->picture->data[0] + i*ctx->picture->linesize[0], w  );
+        for (i=0;i<h/2;i++) memcpy(tmpc + s     + i*w/2, ctx->picture->data[1] + i*ctx->picture->linesize[1], w/2);
+        for (i=0;i<h/2;i++) memcpy(tmpc + s*5/4 + i*w/2, ctx->picture->data[2] + i*ctx->picture->linesize[2], w/2);
        }
       ctx->frame++;
      }
@@ -110,9 +117,9 @@ int main(int argc, char **argv)
  {
   context ctx;
 
-  if (argc!=4)
+  if (argc!=5)
    {
-    sprintf(temp_err_string, "ERROR: Command line syntax is:\n\n analyseH264_libav <filename> <tstart> <fps>\n\ne.g.\n\n analyseH264_libav foo.rawvid 1234 24.71\n"); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Command line syntax is:\n\n analyseH264_libav <filename> <tstart> <fps> <cameraId>\n\ne.g.\n\n analyseH264_libav foo.rawvid 1234 24.71 xxx\n"); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
   ctx.filename = argv[1];
@@ -120,6 +127,7 @@ int main(int argc, char **argv)
   ctx.tstop    = time(NULL)+3600*24;
   ctx.utcoffset= 0;
   ctx.FPS      = GetFloat(argv[3],NULL);
+  analysisCameraId = argv[4];
   initLut();
 
   // Register all the codecs

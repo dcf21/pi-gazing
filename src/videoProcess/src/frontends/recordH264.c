@@ -34,7 +34,7 @@
 #include <IL/OMX_Broadcom.h>
 
 // Hard coded parameters
-#define VIDEO_BITRATE   10000000
+#define VIDEO_BITRATE   1000000
 
 static int want_quit=0;
 
@@ -507,7 +507,7 @@ static OMX_ERRORTYPE fill_output_buffer_done_handler(
 
 int main(int argc, char **argv)
  {
-    char line[4096];
+    char line[FNAME_BUFFER];
 
     // Initialise video capture process
     if (argc!=14)
@@ -534,7 +534,7 @@ int main(int argc, char **argv)
 
     // Append .h264 suffix to output filename
     char frOut[4096];
-    sprintf(frOut, "%s.h264", vmd.filename)
+    sprintf(frOut, "%s.h264", vmd.filename);
 
     if (DEBUG) { sprintf(line, "Starting video recording run at %s.", StrStrip(FriendlyTimestring(vmd.tstart),temp_err_string)); gnom_log(line); }
     if (DEBUG) { sprintf(line, "Video will end at %s.", StrStrip(FriendlyTimestring(vmd.tstop ),temp_err_string)); gnom_log(line); }
@@ -724,21 +724,19 @@ int main(int argc, char **argv)
     while (!want_quit) {
 
         int t = time(NULL) - utcoffset;
-        if (t>=tstop) break; // Check how we're doing for time; if we've reached the time to stop, stop now!
+        if (t>=vmd.tstop) break; // Check how we're doing for time; if we've reached the time to stop, stop now!
 
 
         // empty_input_buffer_done_handler() has marked that there's
         // a need for a buffer to be filled by us
         if(ctx.encoder_input_buffer_needed) {
             input_total_read = 0;
-            memset(ctx.encoder_ppBuffer_in->pBuffer, 128, ctx.encoder_ppBuffer_in->nAllocLen);
-            int line, xpos;
 
-            if (fetchFrame(videoIn, tmpc, vmd.upsideDown)) { want_quit=1; break; }
+            if (fetchFrame(videoIn, tmpc, vmd.flagUpsideDown)) { want_quit=1; break; }
 
-            memcpy(buf_info.p_offset[0] , tmpc               , frameSize  ); // Y
-            memcpy(buf_info.p_offset[1] , tmpc+frameSize     , frameSize/4); // U
-            memcpy(buf_info.p_offset[2] , tmpc+frameSize*5/4 , frameSize/4); // V
+            memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[0] , tmpc               , frameSize  ); // Y
+            memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[1] , tmpc+frameSize     , frameSize/4); // U
+            memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[2] , tmpc+frameSize*5/4 , frameSize/4); // V
 
             input_total_read += (frame_info.p_stride[0] * plane_span_y) + (frame_info.p_stride[1] * plane_span_uv)  + (frame_info.p_stride[2] * plane_span_uv);
 
@@ -835,7 +833,7 @@ int main(int argc, char **argv)
         omx_die(r, "OMX de-initalization failed");
     }
 
-    vmd.nframe = j
+    vmd.nframe = frame_in;
     vmd.tstop  = time(NULL) + utcoffset;
     writeMetadata(vmd);
     say("Exit!");

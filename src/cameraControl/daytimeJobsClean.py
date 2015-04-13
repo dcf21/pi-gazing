@@ -22,7 +22,7 @@ for taskGroup in dayTimeTasks:
   [HWMout, Nmax, taskList] = taskGroup;
   if HWMout not in highWaterMarks: highWaterMarks[HWMout]=0
   for task in taskList:
-    [inDir,outDirs,inExt,cmd] = task
+    [inDir,outDirs,inExt,outExt,cmd] = task
 
     # Remove any output which is newer than HWM
     for outDir in outDirs:

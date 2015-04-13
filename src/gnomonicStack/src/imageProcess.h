@@ -7,7 +7,7 @@
 
 #include <stdlib.h>
 
-#include "jpeg.h"
+#include "image.h"
 #include "settings.h"
 
 void   StackImage (image_ptr InputImage, image_ptr OutputImage, image_ptr *CloudMaskAvg, image_ptr *CloudMaskThis, settings *s, settingsIn *si);

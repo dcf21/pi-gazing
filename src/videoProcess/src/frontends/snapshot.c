@@ -19,10 +19,10 @@ int main(int argc, char *argv[])
  {
   if ( (argc!=3) && (argc!=4) )
    {
-    sprintf(temp_err_string, "ERROR: Need to specify output filename for snapshot and number of frames to stack on commandline, e.g. 'snapshot tmp.jpg 500'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Need to specify output filename for snapshot and number of frames to stack on commandline, e.g. 'snapshot tmp.png 500'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
-  char line[4096];
+  char line[FNAME_BUFFER];
   int nfr = (int)GetFloat(argv[2],NULL);
   if (nfr<1) nfr=1;
 

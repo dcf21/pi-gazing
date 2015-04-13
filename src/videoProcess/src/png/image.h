@@ -2,8 +2,8 @@
 // Meteor Pi, Cambridge Science Centre
 // Dominic Ford
 
-#ifndef JPEG_H
-#define JPEG_H 1
+#ifndef IMAGE_H
+#define IMAGE_H 1
 
 /* Variable format used to store images */
 

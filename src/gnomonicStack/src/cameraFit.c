@@ -17,7 +17,7 @@
 #include "error.h"
 #include "gnomonic.h"
 #include "imageProcess.h"
-#include "jpeg.h"
+#include "image.h"
 #include "readConfig.h"
 #include "settings.h"
 #include "str_constants.h"
@@ -38,7 +38,7 @@ double fitSlave(const gsl_vector *x, void *params)
   double offset=0;
 
   // Malloc output image
-  jpeg_alloc(&OutputImage, feed_s->XSize, feed_s->YSize);
+  image_alloc(&OutputImage, feed_s->XSize, feed_s->YSize);
 
   for (i=0; i<nImages; i++)
    {
@@ -51,7 +51,7 @@ double fitSlave(const gsl_vector *x, void *params)
    }
 
   // Normalise image
-  jpeg_deweight(&OutputImage);
+  image_deweight(&OutputImage);
 
   for (i=0; i<nImages; i++)
    {
@@ -62,10 +62,10 @@ double fitSlave(const gsl_vector *x, void *params)
   // End
    {
     char fname[1024]; sprintf(fname,"/tmp/camfit_fr%06d.jpg",framecount);
-    jpeg_put(fname, OutputImage);
+    image_put(fname, OutputImage);
     framecount++;
    }
-  jpeg_dealloc(&OutputImage);
+  image_dealloc(&OutputImage);
   printf("Tried (%9.5f,%9.5f,%9.5f) -- offset %e\n",gsl_vector_get(x,0),gsl_vector_get(x,1),gsl_vector_get(x,2),offset);
   return offset;
  }
@@ -142,7 +142,7 @@ Usage: camfit.bin <filename>\n\
   for (i=0; i<nImages; i++)
    {
     // Read image
-    InputImage[i] = jpeg_get(s_in[i].InFName);
+    InputImage[i] = image_get(s_in[i].InFName);
     if (InputImage[i].data_red==NULL) gnom_fatal(__FILE__,__LINE__,"Could not read input image file");
     backgroundSubtract(InputImage[i], s_in+i);
    }
@@ -183,7 +183,7 @@ Usage: camfit.bin <filename>\n\
   // Free images
   for (i=0; i<nImages; i++)
    {
-    jpeg_dealloc(InputImage+i);
+    image_dealloc(InputImage+i);
    }
 
 

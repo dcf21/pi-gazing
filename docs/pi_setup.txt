@@ -15,7 +15,7 @@ apt-get update
 apt-get dist-upgrade
 apt-get install gpsd gpsd-clients libjpeg-dev libpng-dev libgsl0-dev vim git qiv screen mplayer libavutil-dev libavcodec-dev libavformat-dev libx264-dev scons firebird2.5-superclassic
 dpkg-reconfigure firebird2.5-superclassic # automatically start firebird server
-apt-get install libcairo2-dev libcfitsio3-dev libnetpbm10-dev netpbm python-pyfits python-scipy python-imaging python-pip swig
+apt-get install libcairo2-dev libcfitsio3-dev libnetpbm10-dev netpbm python-pyfits python-scipy python-imaging python-dateutil python-pip swig ffmpeg python-setuptools
 pip install fdb
 vim /etc/apt/sources # Uncomment apt-src
 apt-get update
@@ -29,11 +29,6 @@ vim /etc/network/interfaces
 # netmask 255.255.255.0
 # gateway 192.168.1.1
 
-# ** Set up /etc/fstab to mount external harddisk
-
-vim /etc/fstab
-# /dev/sda1	/mnt/harddisk	ext4	defaults	0 0
-mkdir -p /mnt/harddisk
 reboot
 
 # ** Set up an ssh key for github (will change later to give readonly access)
@@ -45,12 +40,12 @@ git clone git@github.com:camsci/meteor-pi.git
 # ** Build code
 
 cd meteor-pi
-ln -s /mnt/harddisk/pi/meteorCam datadir
+mkdir datadir
 cd src/gnomonicStack/
 ./prettymake
 cd ../videoProcess/
 ./prettymake
-./prettymake openmax
+./prettymake openmax=1
 
 # ** Set up rpi watchdog
 
@@ -64,6 +59,7 @@ sudo vim /etc/watchdog.conf
 
 # ** Install astrometry.net
 
+cd
 wget http://astrometry.net/downloads/astrometry.net-0.46.tar.bz2
 tar xjf astrometry.net-0.46.tar.bz2
 cd astrometry.net-0.46
@@ -79,3 +75,27 @@ wget http://broiler.astrometry.net/~dstn/4100/index-4116.fits
 wget http://broiler.astrometry.net/~dstn/4100/index-4117.fits
 wget http://broiler.astrometry.net/~dstn/4100/index-4118.fits
 wget http://broiler.astrometry.net/~dstn/4100/index-4119.fits
+
+# ** Set up database
+
+sudo su
+source /etc/firebird/*/SYSDBA.password
+gsec -user sysdba -password $ISC_PASSWORD
+add meteorpi -pw meteorpi
+
+cd /home/pi/meteor-pi/src/sql
+sudo ./rebuild.sh
+cd ../pythonModules/meteorpi_model
+sudo python setup.py install
+cd ../meteorpi_fdb
+sudo python setup.py install
+
+# ---- DEAD STEPS WHICH ARE NO LONGER NEEDED -----
+
+# ** Set up /etc/fstab to mount external harddisk
+
+vim /etc/fstab
+# /dev/sda1	/mnt/harddisk	ext4	defaults	0 0
+mkdir -p /mnt/harddisk
+
+ln -s /mnt/harddisk/pi/meteorCam datadir
