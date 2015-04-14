@@ -1,4 +1,58 @@
 # MeteorPi API module
+import uuid
+import datetime
+import time
+
+
+def _string_from_dict(d, key):
+    if key in d:
+        return str(d[key])
+    else:
+        return None
+
+
+def _uuid_from_dict(d, key):
+    if key in d:
+        return uuid.UUID(hex=str(d[key]))
+    else:
+        return None
+
+
+def _datetime_from_dict(d, key):
+    if key in d:
+        return datetime.datetime.fromtimestamp(timestamp=d[key])
+    else:
+        return None
+
+
+def _value_from_dict(d, key):
+    if key in d:
+        return d[key]
+    else:
+        return None
+
+
+def _add_string(d, key, value):
+    if value is not None:
+        d[key] = str(value)
+
+
+def _add_uuid(d, key, uuid_value):
+    if uuid_value is not None:
+        d[key] = uuid_value.hex
+
+
+def _add_datetime(d, key, datetime_value):
+    if datetime_value is not None:
+        d[key] = time.mktime((datetime_value.year, datetime_value.month, datetime_value.day,
+                              datetime_value.hour, datetime_value.minute, datetime_value.second,
+                              -1, -1, -1)) + datetime_value.microsecond / 1e6
+
+
+def _add_value(d, key, value):
+    if value is not None:
+        d[key] = value
+
 
 class EventSearch:
     """Encapsulates the possible parameters which can be used to search for
@@ -26,6 +80,28 @@ class EventSearch:
         self.after = after
         self.before = before
 
+    def as_dict(self):
+        d = {}
+        _add_value(d, 'camera_ids', self.camera_ids)
+        _add_value(d, 'lat_min', self.lat_min)
+        _add_value(d, 'lat_max', self.lat_max)
+        _add_value(d, 'long_min', self.long_min)
+        _add_value(d, 'long_max', self.long_max)
+        _add_datetime(d, 'after', self.after)
+        _add_datetime(d, 'before', self.before)
+        return d
+
+    @staticmethod
+    def from_dict(d):
+        camera_ids = _value_from_dict(d, 'camera_ids')
+        lat_min = _value_from_dict(d, 'lat_min')
+        lat_max = _value_from_dict(d, 'lat_max')
+        long_min = _value_from_dict(d, 'long_min')
+        long_max = _value_from_dict(d, 'long_max')
+        after = _datetime_from_dict(d, 'after')
+        before = _datetime_from_dict(d, 'before')
+        return EventSearch(camera_ids, lat_min, lat_max, long_min, long_max, after, before)
+
 
 class Bezier:
     """A four-point two dimensional curve, consisting of four control
@@ -43,6 +119,16 @@ class Bezier:
 
     def __getitem__(self, index):
         return self.points[index]
+
+    def as_dict(self):
+        return {'x1': self.points[0]['x'], 'y1': self.points[0]['y'],
+                'x2': self.points[1]['x'], 'y2': self.points[1]['y'],
+                'x3': self.points[2]['x'], 'y3': self.points[2]['y'],
+                'x4': self.points[3]['x'], 'y4': self.points[3]['y']}
+
+    @staticmethod
+    def from_dict(d):
+        return Bezier(d['x1'], d['y1'], d['x2'], d['y2'], d['x3'], d['y3'], d['x4'], d['y4'])
 
 
 class Event:

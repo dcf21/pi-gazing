@@ -8,4 +8,6 @@ setup(name='meteorpi_model',
       author_email='tomoinn@crypticsquid.com',
       license='GPL',
       packages=['meteorpi_model'],
+      test_suite='nose.collector',
+      tests_require=['nose'],
       zip_safe=False)
