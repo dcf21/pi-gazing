@@ -94,7 +94,7 @@ try:
                         'opm': ('_openmax' if I_AM_A_RPI else '') ,
                        }
               params['filename_out'] = "%(outdir)s/%(date)s/%(filename)s"%params
-              params['metadata']     = module_hwm.fileToDB("%(input)s.txt"%params)
+              params['metadata']     = module_hwm.fileToDB("%s.txt"%os.path.join(dirName,params['filename']))
               params.update( params['metadata'] )
               for outDir in outDirs: os.system("mkdir -p %s"%(os.path.join(outDir,params['date'])))
               jobList.append( [utc, cmd , params] )

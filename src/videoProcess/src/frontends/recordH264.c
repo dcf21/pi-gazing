@@ -730,13 +730,17 @@ int main(int argc, char **argv)
         // empty_input_buffer_done_handler() has marked that there's
         // a need for a buffer to be filled by us
         if(ctx.encoder_input_buffer_needed) {
+            int line;
             input_total_read = 0;
 
             if (fetchFrame(videoIn, tmpc, vmd.flagUpsideDown)) { want_quit=1; break; }
 
-            memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[0] , tmpc               , frameSize  ); // Y
-            memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[1] , tmpc+frameSize     , frameSize/4); // U
-            memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[2] , tmpc+frameSize*5/4 , frameSize/4); // V
+#pragma omp parallel for private(line)
+            for (line=0; line<height  ; line++) memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[0] + frame_info.buf_stride  *line , tmpc + width*line                     , width);
+#pragma omp parallel for private(line)
+            for (line=0; line<height/2; line++) memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[1] + frame_info.buf_stride/2*line , tmpc + (width/2)*line + frameSize     , width/2);
+#pragma omp parallel for private(line)
+            for (line=0; line<height/2; line++) memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[2] + frame_info.buf_stride/2*line , tmpc + (width/2)*line + frameSize*5/4 , width/2);
 
             input_total_read += (frame_info.p_stride[0] * plane_span_y) + (frame_info.p_stride[1] * plane_span_uv)  + (frame_info.p_stride[2] * plane_span_uv);
 
