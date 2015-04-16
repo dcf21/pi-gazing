@@ -2,6 +2,7 @@
 import uuid
 import datetime
 import time
+from itertools import izip
 
 
 def _string_from_dict(d, key):
@@ -156,6 +157,16 @@ class Event:
         else:
             self.file_records = file_records
 
+    def as_dict(self):
+        d = {}
+        _add_uuid(d, 'event_id', self.event_id)
+        _add_value(d, 'camera_id', self.camera_id)
+        _add_datetime(d, 'event_time', self.event_time)
+        _add_value(d, 'intensity', self.intensity)
+        d['bezier'] = self.bezier.as_dict()
+        d['files'] = (fr.as_dict() for fr in self.file_records)
+        return d
+
 
 class FileRecord:
     """A piece of binary data with associated metadata, typically used to store
@@ -183,6 +194,32 @@ class FileRecord:
                 self.file_time,
                 self.file_size,
                 str([str(obj) for obj in self.meta])))
+
+    def as_dict(self):
+        d = {}
+        _add_uuid(d, 'file_id', self.file_id)
+        _add_string(d, 'camera_id', self.camera_id)
+        _add_string(d, 'mime_type', self.mime_type)
+        _add_string(d, 'namespace', self.namespace)
+        _add_datetime(d, 'file_time', self.file_time)
+        _add_value(d, 'file_size', self.file_size)
+        d['meta'] = list({'namespace': fm.namespace, 'key': fm.key, 'string_value': fm.string_value} for fm in self.meta)
+        return d
+
+    @staticmethod
+    def from_dict(d):
+        fr = FileRecord(
+            camera_id=_string_from_dict(d, 'camera_id'),
+            mime_type=_string_from_dict(d, 'mime_type'),
+            namespace=_string_from_dict(d, 'namespace'),
+            semantic_type=_string_from_dict(d, 'semantic_type')
+        )
+        fr.file_size = int(_value_from_dict(d, 'file_size'))
+        fr.file_time=_datetime_from_dict(d, 'file_time')
+        fr.file_id=_uuid_from_dict(d, 'file_id')
+        fr.meta=(FileMeta(m['namespace'], m['key'], m['string_value']) for m in d['meta'])
+        return fr
+
 
 
 class FileMeta:
@@ -271,3 +308,7 @@ class CameraStatus:
                 self.lens,
                 self.sensor,
                 self.regions))
+
+    def add_region(self, r):
+        a = iter(r)
+        self.regions.append(list({'x': x, 'y': y} for x, y in izip(a, a)))
