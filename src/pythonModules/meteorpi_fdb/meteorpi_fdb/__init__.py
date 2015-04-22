@@ -11,6 +11,8 @@ import meteorpi_model as mp
 
 
 
+
+
 # http://www.firebirdsql.org/file/documentation/drivers_documentation/python/fdb/getting-started.html
 # is helpful!
 
@@ -338,7 +340,7 @@ class MeteorDatabase:
         return map(lambda row: row[0], cur.fetchall())
 
 
-    def update_camera_status(self, ns, time=None):
+    def update_camera_status(self, ns, time=None, camera_id=get_installation_id()):
         """
         Update the status for this installation's camera, optionally specify a
         time (defaults to datetime.now()).
@@ -350,7 +352,6 @@ class MeteorDatabase:
         if time is None:
             time = datetime.now()
         time = round_time(time)
-        camera_id = get_installation_id()
         high_water_mark = self.get_high_water_mark(camera_id)
         if high_water_mark is not None and time < high_water_mark:
             # Establishing a status earlier than the current high water mark. This
