@@ -203,7 +203,8 @@ class FileRecord:
         _add_string(d, 'namespace', self.namespace)
         _add_datetime(d, 'file_time', self.file_time)
         _add_value(d, 'file_size', self.file_size)
-        d['meta'] = list({'namespace': fm.namespace, 'key': fm.key, 'string_value': fm.string_value} for fm in self.meta)
+        d['meta'] = list(
+            {'namespace': fm.namespace, 'key': fm.key, 'string_value': fm.string_value} for fm in self.meta)
         return d
 
     @staticmethod
@@ -215,11 +216,10 @@ class FileRecord:
             semantic_type=_string_from_dict(d, 'semantic_type')
         )
         fr.file_size = int(_value_from_dict(d, 'file_size'))
-        fr.file_time=_datetime_from_dict(d, 'file_time')
-        fr.file_id=_uuid_from_dict(d, 'file_id')
-        fr.meta=(FileMeta(m['namespace'], m['key'], m['string_value']) for m in d['meta'])
+        fr.file_time = _datetime_from_dict(d, 'file_time')
+        fr.file_id = _uuid_from_dict(d, 'file_id')
+        fr.meta = (FileMeta(m['namespace'], m['key'], m['string_value']) for m in d['meta'])
         return fr
-
 
 
 class FileMeta:
