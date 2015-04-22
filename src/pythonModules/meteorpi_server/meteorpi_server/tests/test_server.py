@@ -22,8 +22,8 @@ class TestServer(TestCase):
         self.stop()
         self.server = None
 
-    def test_server(self):
+    def test_list_cameras(self):
         print requests.get(self.server.base_url() + '/cameras').text
 
-    def test_server_again(self):
-        print requests.get(self.server.base_url() + '/cameras/test_id').text
+    def test_get_camera_status(self):
+        print requests.get(self.server.base_url() + '/cameras/{0}/status'.format('aabbccddeeff')).text

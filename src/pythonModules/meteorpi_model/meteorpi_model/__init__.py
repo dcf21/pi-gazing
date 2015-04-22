@@ -263,6 +263,12 @@ class Location:
             self.gps,
             self.certainty)
 
+    def as_dict(self):
+        return {'lat': self.latitude,
+                'long': self.longitude,
+                'gps': self.gps,
+                'certainty': self.certainty}
+
 
 class Orientation:
     """An orientation fix, consisting of altitude, azimuth and certainty.
@@ -282,6 +288,11 @@ class Orientation:
             self.altitude,
             self.azimuth,
             self.certainty)
+
+    def as_dict(self):
+        return {'alt': self.altitude,
+                'az': self.azimuth,
+                'certainty': self.certainty}
 
 
 class CameraStatus:
@@ -321,3 +332,17 @@ class CameraStatus:
     def add_region(self, r):
         a = iter(r)
         self.regions.append(list({'x': x, 'y': y} for x, y in izip(a, a)))
+
+    def as_dict(self):
+        d = {}
+        _add_string(d, 'lens', self.lens)
+        _add_string(d, 'sensor', self.sensor)
+        _add_string(d, 'inst_url', self.inst_url)
+        _add_string(d, 'inst_name', self.inst_name)
+        _add_datetime(d, 'valid_from', self.valid_from)
+        _add_datetime(d, 'valid_to', self.valid_to)
+        _add_value(d, 'software_version', self.software_version)
+        d['location'] = self.location.as_dict()
+        d['orientation'] = self.orientation.as_dict()
+        d['regions'] = self.regions
+        return d

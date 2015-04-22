@@ -1,8 +1,10 @@
 from unittest import TestCase
 import tempfile
 from datetime import datetime
+import json
 
 import meteorpi_fdb as db
+import meteorpi_fdb.testing.dummy_data as dummy
 import meteorpi_model as model
 
 
@@ -129,6 +131,7 @@ class TestFdb(TestCase):
 
     def test_event_search(self):
         m = db.MeteorDatabase()
-        m.clear_database()
+        dummy.setup_dummy_data(m, clear=True)
         events = m.search_events(model.EventSearch())
+        print json.dumps(list(e.as_dict() for e in events), indent=1, sort_keys=True)
         # TODO - verify that this has done the right thing. It doesn't crash at least...

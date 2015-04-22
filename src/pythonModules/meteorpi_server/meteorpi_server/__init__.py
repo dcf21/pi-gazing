@@ -1,5 +1,6 @@
 import os.path as path
 import threading
+from datetime import datetime
 
 import flask
 from tornado.ioloop import IOLoop
@@ -41,13 +42,17 @@ class MeteorServer():
         # Routes below this point
 
         @app.route('/cameras', methods=['GET'])
-        def hello_world():
+        def get_active_cameras():
             cameras = self.db.get_cameras()
             return flask.jsonify({'cameras':cameras})
 
-        @app.route('/cameras/<camera_id>', methods=['GET'])
-        def hello_world_again(camera_id):
-            return 'Hello World Again {0}'.format(camera_id)
+        @app.route('/cameras/<camera_id>/status', methods=['GET'])
+        def get_current_camera_status(camera_id):
+            status = self.db.get_camera_status(datetime.now(), camera_id)
+            if status is None:
+                return 'No active camera with ID {0}'.format(camera_id), 404
+            else:
+                return flask.jsonify({'status': status.as_dict()})
 
     def __str__(self):
         return 'MeteorServer(port={0}, db_path={1}, file_path={2})'.format(self.port, self.db.db_path,
