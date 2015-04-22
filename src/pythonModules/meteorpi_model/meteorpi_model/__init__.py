@@ -164,8 +164,17 @@ class Event:
         _add_datetime(d, 'event_time', self.event_time)
         _add_value(d, 'intensity', self.intensity)
         d['bezier'] = self.bezier.as_dict()
-        d['files'] = (fr.as_dict() for fr in self.file_records)
+        d['files'] = list(fr.as_dict() for fr in self.file_records)
         return d
+
+    @staticmethod
+    def from_dict(d):
+        return Event(camera_id=_value_from_dict(d, 'camera_id'),
+                     event_id=_uuid_from_dict(d, 'event_id'),
+                     event_time=_datetime_from_dict(d, 'event_time'),
+                     intensity=_value_from_dict(d, 'intensity'),
+                     bezier=Bezier.from_dict(d['bezier']),
+                     file_records=(FileRecord.from_dict(frd) for frd in d['files']))
 
 
 class FileRecord:

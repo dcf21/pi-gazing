@@ -68,3 +68,12 @@ class TestModel(TestCase):
         self.assertDictEqual(
             self._file1.as_dict(),
             model.FileRecord.from_dict(self._file1.as_dict()).as_dict())
+
+    def test_event_serialisation(self):
+        e = model.Event(camera_id='aabbccddeeff',
+                        event_id=uuid.uuid4(),
+                        event_time=datetime.now(),
+                        intensity=0.5,
+                        bezier=model.Bezier(0, 1, 2, 3, 4, 5, 6, 7),
+                        file_records=[self._file1, self._file2])
+        self.assertDictEqual(e.as_dict(), model.Event.from_dict(e.as_dict()).as_dict())
