@@ -16,6 +16,10 @@ DEFAULT_FILE_PATH = path.expanduser("~/meteorpi_files")
 DEFAULT_PORT = 12345
 
 
+def _datetime_from_timestamp(time_string):
+    return datetime.fromtimestamp(timestamp=float(time_string))
+
+
 class MeteorServer():
     """HTTP server which responds to API requests and returns JSON formatted domain objects"""
 
@@ -32,6 +36,7 @@ class MeteorServer():
         def stop(self):
             self.loop.stop()
 
+
     def __init__(self, db_path=DEFAULT_DB_PATH, file_store_path=DEFAULT_FILE_PATH, port=DEFAULT_PORT):
         app = flask.Flask(__name__)
         self.db = meteorpi_fdb.MeteorDatabase(db_path=db_path, file_store_path=file_store_path)
@@ -39,20 +44,33 @@ class MeteorServer():
         self.server = tornado.httpserver.HTTPServer(tornado_application)
         self.port = port
 
+        def _build_datetime(datetime_string):
+            """Build a datetime from a string used as a URL component"""
+            return datetime.datetime.fromtimestamp(timestamp=datetime_string)
+
         # Routes below this point
 
         @app.route('/cameras', methods=['GET'])
         def get_active_cameras():
             cameras = self.db.get_cameras()
-            return flask.jsonify({'cameras':cameras})
+            return flask.jsonify({'cameras': cameras})
 
         @app.route('/cameras/<camera_id>/status', methods=['GET'])
         def get_current_camera_status(camera_id):
-            status = self.db.get_camera_status(datetime.now(), camera_id)
+            status = self.db.get_camera_status(camera_id=camera_id)
             if status is None:
                 return 'No active camera with ID {0}'.format(camera_id), 404
             else:
                 return flask.jsonify({'status': status.as_dict()})
+
+        @app.route('/cameras/<camera_id>/status/<time_string>', methods=['GET'])
+        def get_camera_status(camera_id, time_string):
+            status = self.db.get_camera_status(camera_id=camera_id, time=_datetime_from_timestamp(time_string))
+            if status is None:
+                return 'No active camera with ID {0}'.format(camera_id), 404
+            else:
+                return flask.jsonify({'status': status.as_dict()})
+
 
     def __str__(self):
         return 'MeteorServer(port={0}, db_path={1}, file_path={2})'.format(self.port, self.db.db_path,

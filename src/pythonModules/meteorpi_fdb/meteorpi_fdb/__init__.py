@@ -15,6 +15,7 @@ import meteorpi_model as mp
 
 
 
+
 # http://www.firebirdsql.org/file/documentation/drivers_documentation/python/fdb/getting-started.html
 # is helpful!
 
@@ -430,7 +431,7 @@ class MeteorDatabase:
     def get_camera_status(
             self,
             time=None,
-            cameraID=get_installation_id()):
+            camera_id=get_installation_id()):
         """Return the camera status for a given time, or None if no status is
         available time : datetime.datetime object, default now."""
         if time is None:
@@ -445,7 +446,7 @@ class MeteorDatabase:
             'FROM t_cameraStatus t '
             'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
             'AND (t.validTo IS NULL OR t.validTo > (?))',
-            (cameraID,
+            (camera_id,
              time,
              time))
         row = cur.fetchonemap()

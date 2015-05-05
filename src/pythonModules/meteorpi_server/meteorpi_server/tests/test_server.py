@@ -32,7 +32,7 @@ class TestServer(TestCase):
         self.assertSequenceEqual(cameras_from_db, cameras_from_api)
 
     def test_get_camera_status(self):
-        status_from_db = self.server.db.get_camera_status(cameraID='aabbccddeeff')
-        response = requests.get(self.server.base_url() + '/cameras/{0}/status'.format('aabbccddeeff')).text
+        status_from_db = self.server.db.get_camera_status(camera_id=dummy.CAMERA_1)
+        response = requests.get(self.server.base_url() + '/cameras/{0}/status'.format(dummy.CAMERA_1)).text
         status_from_api = model.CameraStatus.from_dict(yaml.safe_load(response)['status'])
         self.assertDictEqual(status_from_api.as_dict(), status_from_db.as_dict())
