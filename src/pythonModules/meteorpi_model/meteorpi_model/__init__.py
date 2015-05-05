@@ -263,12 +263,6 @@ class Location:
             self.gps,
             self.certainty)
 
-    def as_dict(self):
-        return {'lat': self.latitude,
-                'long': self.longitude,
-                'gps': self.gps,
-                'certainty': self.certainty}
-
 
 class Orientation:
     """An orientation fix, consisting of altitude, azimuth and certainty.
@@ -288,11 +282,6 @@ class Orientation:
             self.altitude,
             self.azimuth,
             self.certainty)
-
-    def as_dict(self):
-        return {'alt': self.altitude,
-                'az': self.azimuth,
-                'certainty': self.certainty}
 
 
 class CameraStatus:
@@ -342,7 +331,32 @@ class CameraStatus:
         _add_datetime(d, 'valid_from', self.valid_from)
         _add_datetime(d, 'valid_to', self.valid_to)
         _add_value(d, 'software_version', self.software_version)
-        d['location'] = self.location.as_dict()
-        d['orientation'] = self.orientation.as_dict()
+        d['location'] = {'lat': self.location.latitude,
+                         'long': self.location.longitude,
+                         'gps': self.location.gps,
+                         'certainty': self.location.certainty}
+        d['orientation'] = {'alt': self.orientation.altitude,
+                            'az': self.orientation.azimuth,
+                            'certainty': self.orientation.certainty}
         d['regions'] = self.regions
         return d
+
+    @staticmethod
+    def from_dict(d):
+        od = d['orientation']
+        ld = d['location']
+        cs = CameraStatus(lens=_string_from_dict(d, 'lens'),
+                          sensor=_string_from_dict(d, 'sensor'),
+                          inst_url=_string_from_dict(d, 'inst_url'),
+                          inst_name=_string_from_dict(d, 'inst_name'),
+                          orientation=Orientation(altitude=_value_from_dict(od, 'alt'),
+                                                  azimuth=_value_from_dict(od, 'az'),
+                                                  certainty=_value_from_dict(od, 'certainty')),
+                          location=Location(latitude=_value_from_dict(ld, 'lat'),
+                                            longitude=_value_from_dict(ld, 'long'), gps=_value_from_dict(ld, 'gps'),
+                                            certainty=_value_from_dict(ld, 'certainty')))
+        cs.valid_from = _datetime_from_dict(d, 'valid_from')
+        cs.valid_to = _datetime_from_dict(d, 'valid_to')
+        cs.software_version = _value_from_dict(d, 'software_version')
+        cs.regions = d['regions']
+        return cs

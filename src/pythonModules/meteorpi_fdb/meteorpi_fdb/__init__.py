@@ -13,6 +13,8 @@ import meteorpi_model as mp
 
 
 
+
+
 # http://www.firebirdsql.org/file/documentation/drivers_documentation/python/fdb/getting-started.html
 # is helpful!
 
@@ -36,7 +38,7 @@ def round_time(time=None):
     """
     Rounds a datetime, discarding the millisecond part.
 
-    Needed because Python and Firebird precision is different!
+    Needed because Python and Firebird precision is different! Default value returned is the rounded version of datetime.now()
     """
     if time is None:
         time = datetime.now()

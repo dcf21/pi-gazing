@@ -1,8 +1,11 @@
 from unittest import TestCase
 import requests
 
+import yaml
+
 import meteorpi_server
 import meteorpi_fdb.testing.dummy_data as dummy
+import meteorpi_model as model
 
 
 class TestServer(TestCase):
@@ -23,7 +26,13 @@ class TestServer(TestCase):
         self.server = None
 
     def test_list_cameras(self):
-        print requests.get(self.server.base_url() + '/cameras').text
+        cameras_from_db = self.server.db.get_cameras()
+        response = requests.get(self.server.base_url() + '/cameras').text
+        cameras_from_api = yaml.safe_load(response)['cameras']
+        self.assertSequenceEqual(cameras_from_db, cameras_from_api)
 
     def test_get_camera_status(self):
-        print requests.get(self.server.base_url() + '/cameras/{0}/status'.format('aabbccddeeff')).text
+        status_from_db = self.server.db.get_camera_status(cameraID='aabbccddeeff')
+        response = requests.get(self.server.base_url() + '/cameras/{0}/status'.format('aabbccddeeff')).text
+        status_from_api = model.CameraStatus.from_dict(yaml.safe_load(response)['status'])
+        self.assertDictEqual(status_from_api.as_dict(), status_from_db.as_dict())
