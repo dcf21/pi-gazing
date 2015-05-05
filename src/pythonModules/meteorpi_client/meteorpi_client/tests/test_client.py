@@ -29,9 +29,11 @@ class TestClient(TestCase):
         self.assertSequenceEqual(cameras_from_db, cameras_from_client)
 
     def test_get_camera_status(self):
+        # Test acquiring status with no time, should use the current time.
         status_from_db_now = self.server.db.get_camera_status(camera_id=dummy.CAMERA_1)
         status_from_client_now = self.client.get_camera_status(camera_id=dummy.CAMERA_1)
         self.assertDictEqual(status_from_db_now.as_dict(), status_from_client_now.as_dict())
+        # Test that an unknown camera results in a status of None (logs will show a 404 from the server)
         self.assertEquals(self.client.get_camera_status(camera_id='nosuchcamera'), None)
         for t in range(0, 30):
             # At time 0 there shouldn't be a status and both should return None
