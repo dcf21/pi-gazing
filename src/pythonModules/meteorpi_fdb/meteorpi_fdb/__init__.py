@@ -18,6 +18,7 @@ import meteorpi_model as mp
 
 
 
+
 # http://www.firebirdsql.org/file/documentation/drivers_documentation/python/fdb/getting-started.html
 # is helpful!
 
@@ -536,7 +537,7 @@ class MeteorDatabase:
                 'SELECT fileID FROM t_file t '
                 'WHERE t.fileTime > (?) AND t.cameraID = (?)',
                 (time, camera_id))
-            for row in cur.fetchAll():
+            for row in cur.fetchall():
                 target_file_path = path.join(self.file_store_path, row[0])
                 os.remove(target_file_path)
         self.con.commit()
