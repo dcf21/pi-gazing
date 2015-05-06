@@ -16,6 +16,8 @@ import meteorpi_model as mp
 
 
 
+
+
 # http://www.firebirdsql.org/file/documentation/drivers_documentation/python/fdb/getting-started.html
 # is helpful!
 
@@ -108,7 +110,6 @@ class MeteorDatabase:
             if len(sql_args) > 0:
                 sql += ' AND '
             sql += ' AND '.join(where_clauses)
-            print sql
             cur = self.con.cursor()
             cur.execute(sql, sql_args)
             return self.get_events(cursor=cur)

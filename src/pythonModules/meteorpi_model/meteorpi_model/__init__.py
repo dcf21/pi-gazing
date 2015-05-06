@@ -55,7 +55,27 @@ def _add_value(d, key, value):
         d[key] = value
 
 
-class EventSearch:
+class ModelEqualityMixin():
+    """Taken from http://stackoverflow.com/questions/390250/"""
+
+    def __eq__(self, other):
+        """Override the default Equals behavior"""
+        if isinstance(other, self.__class__):
+            return self.__dict__ == other.__dict__
+        return NotImplemented
+
+    def __ne__(self, other):
+        """Define a non-equality test"""
+        if isinstance(other, self.__class__):
+            return not self.__eq__(other)
+        return NotImplemented
+
+    def __hash__(self):
+        """Override the default hash behavior (that returns the id or the object)"""
+        return hash(tuple(sorted(self.__dict__.items())))
+
+
+class EventSearch(ModelEqualityMixin):
     """Encapsulates the possible parameters which can be used to search for
     Event instances in the database.
 
@@ -73,6 +93,8 @@ class EventSearch:
             raise ValueError('Longitude max cannot be less than longitude minimum')
         if after is None == False and before is None == False and before < after:
             raise ValueError('From time cannot be after before time')
+        if isinstance(camera_ids, basestring):
+            camera_ids = [camera_ids]
         self.camera_ids = camera_ids
         self.lat_min = lat_min
         self.lat_max = lat_max
@@ -104,7 +126,7 @@ class EventSearch:
         return EventSearch(camera_ids, lat_min, lat_max, long_min, long_max, after, before)
 
 
-class Bezier:
+class Bezier(ModelEqualityMixin):
     """A four-point two dimensional curve, consisting of four control
     points."""
 
@@ -132,7 +154,7 @@ class Bezier:
         return Bezier(d['x1'], d['y1'], d['x2'], d['y2'], d['x3'], d['y3'], d['x4'], d['y4'])
 
 
-class Event:
+class Event(ModelEqualityMixin):
     """A single meteor observation, containing a set of data from the image
     processing tools and zero or more files containing images, video or any
     other appropriate information to support the event."""
@@ -157,6 +179,15 @@ class Event:
         else:
             self.file_records = file_records
 
+    def __str__(self):
+        return (
+            'Event(camera_id={0}, event_id={1}, time={2})'.format(
+                self.camera_id,
+                self.event_id,
+                self.event_time
+            )
+        )
+
     def as_dict(self):
         d = {}
         _add_uuid(d, 'event_id', self.event_id)
@@ -177,7 +208,7 @@ class Event:
                      file_records=(FileRecord.from_dict(frd) for frd in d['files']))
 
 
-class FileRecord:
+class FileRecord(ModelEqualityMixin):
     """A piece of binary data with associated metadata, typically used to store
     an image or video from the camera."""
 
@@ -193,7 +224,7 @@ class FileRecord:
 
     def __str__(self):
         return (
-            'FileRecord(fileID={0} cameraID={1} mime={2} '
+            'FileRecord(file_id={0} camera_id={1} mime={2} '
             'ns={3} stype={4} time={5} size={6} meta={7}'.format(
                 self.file_id.hex,
                 self.camera_id,
@@ -231,7 +262,7 @@ class FileRecord:
         return fr
 
 
-class FileMeta:
+class FileMeta(ModelEqualityMixin):
     """A single piece of metadata pertaining to a File."""
 
     def __init__(self, namespace, key, string_value):
@@ -246,7 +277,7 @@ class FileMeta:
             self.string_value)
 
 
-class Location:
+class Location(ModelEqualityMixin):
     """A location fix, consisting of latitude and longitude, and a boolean to
     indicate whether the fix had a GPS lock or not."""
 
@@ -264,7 +295,7 @@ class Location:
             self.certainty)
 
 
-class Orientation:
+class Orientation(ModelEqualityMixin):
     """An orientation fix, consisting of altitude, azimuth and certainty.
 
     Certainty ranges from 0.0 to 1.0, where 0.0 means we have no idea
@@ -284,7 +315,7 @@ class Orientation:
             self.certainty)
 
 
-class CameraStatus:
+class CameraStatus(ModelEqualityMixin):
     """Represents the status of a single camera for a range of times.
 
     The status is valid from the given validFrom datetime (inclusively),

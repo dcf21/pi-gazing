@@ -7,8 +7,10 @@ from tornado.ioloop import IOLoop
 from tornado.wsgi import WSGIContainer
 from tornado.web import FallbackHandler, Application
 import tornado.httpserver
+from yaml import safe_load
 
 import meteorpi_fdb
+import meteorpi_model as model
 
 
 DEFAULT_DB_PATH = 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb'
@@ -71,6 +73,10 @@ class MeteorServer():
             else:
                 return flask.jsonify({'status': status.as_dict()})
 
+        @app.route('/events/<search_string>', methods=['GET'])
+        def search_events(search_string):
+            search = model.EventSearch.from_dict(safe_load(search_string))
+            return flask.jsonify({'events': list(x.as_dict() for x in self.db.search_events(search))})
 
     def __str__(self):
         return 'MeteorServer(port={0}, db_path={1}, file_path={2})'.format(self.port, self.db.db_path,

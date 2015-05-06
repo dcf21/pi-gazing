@@ -3,6 +3,7 @@ from unittest import TestCase
 import meteorpi_server
 import meteorpi_fdb.testing.dummy_data as dummy
 import meteorpi_client as client
+import meteorpi_model as model
 
 
 class TestClient(TestCase):
@@ -43,3 +44,18 @@ class TestClient(TestCase):
                 self.assertDictEqual(status_from_db.as_dict(), status_from_client.as_dict())
             else:
                 self.assertEquals(status_from_db, status_from_client)
+
+    def test_search_events(self):
+        # Run all the searches in the list below, checking that results from the db and the client match
+        searches = [
+            model.EventSearch(),
+            model.EventSearch(camera_ids=dummy.CAMERA_1),
+            model.EventSearch(camera_ids=[dummy.CAMERA_1, dummy.CAMERA_2])
+        ]
+        for search in searches:
+            events_from_db = self.server.db.search_events(search)
+            events_from_client = self.client.search_events(search)
+            # Check results based on dictionary equality
+            self.assertSequenceEqual(
+                list(x.as_dict() for x in events_from_db),
+                list(x.as_dict() for x in events_from_client))
