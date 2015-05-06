@@ -140,4 +140,4 @@ class TestFdb(TestCase):
         m = db.MeteorDatabase()
         dummy.setup_dummy_data(m, clear=True)
         print m.get_high_water_mark(camera_id=dummy.CAMERA_1)
-        m.set_high_water_mark(camera_id=dummy.CAMERA_1, time=dummy.make_time(1))
+        m.set_high_water_mark(camera_id=dummy.CAMERA_1, time=dummy.make_time(6))

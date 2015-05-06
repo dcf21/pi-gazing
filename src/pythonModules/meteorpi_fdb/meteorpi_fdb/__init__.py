@@ -9,18 +9,6 @@ import fdb
 import meteorpi_model as mp
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 # http://www.firebirdsql.org/file/documentation/drivers_documentation/python/fdb/getting-started.html
 # is helpful!
 
@@ -187,7 +175,7 @@ class MeteorDatabase:
             raise ValueError('Intensity must not be negative')
         status_id = self._get_camera_status_id(camera_id=camera_id, time=event_time)
         if status_id is None:
-            raise ValueError('No status defined for camera id <%s> at time <%s>!'%(camera_id,event_time))
+            raise ValueError('No status defined for camera id <%s> at time <%s>!' % (camera_id, event_time))
         cur = self.con.cursor()
         cur.execute(
             'INSERT INTO t_event (cameraID, eventTime, intensity, '
@@ -251,7 +239,7 @@ class MeteorDatabase:
         # Handle the database parts
         status_id = self._get_camera_status_id(camera_id=camera_id, time=file_time)
         if status_id is None:
-            raise ValueError('No status defined for camera id <%s> at time <%s>!'%(camera_id,file_time))
+            raise ValueError('No status defined for camera id <%s> at time <%s>!' % (camera_id, file_time))
         cur = self.con.cursor()
         cur.execute(
             'INSERT INTO t_file (cameraID, mimeType, namespace, '
@@ -359,12 +347,9 @@ class MeteorDatabase:
         if time is None:
             time = datetime.now()
         time = round_time(time)
-        high_water_mark = self.get_high_water_mark(camera_id=camera_id)
-        if high_water_mark is not None and time < high_water_mark:
-            # Establishing a status earlier than the current high water mark. This
-            # means we need to set the high water mark back to the status validFrom
-            # time, removing any computed products after this point.
-            self.set_high_water_mark(time, camera_id)
+        # Set the high water mark, allowing it to advance to this point or to rollback if
+        # we have data products produced after this status' time.
+        self.set_high_water_mark(camera_id=camera_id, time=time, allow_rollback=True, allow_advance=True)
         cur = self.con.cursor()
         # If there's an existing status block then set its end time to now
         cur.execute(
@@ -489,7 +474,7 @@ class MeteorDatabase:
         return row[0]
 
 
-    def set_high_water_mark(self, time, camera_id=get_installation_id()):
+    def set_high_water_mark(self, time, camera_id=get_installation_id(), allow_rollback=True, allow_advance=True):
         """
         Sets the 'high water mark' for this installation.
 
@@ -503,25 +488,37 @@ class MeteorDatabase:
         """
         cur = self.con.cursor()
         last = self.get_high_water_mark(camera_id)
-        if last is None:
+        if last is None and allow_advance:
             # No high water mark defined, set it and return
             cur.execute(
                 'INSERT INTO t_highWaterMark (cameraID, mark) VALUES (?,?)',
                 (camera_id,
                  time))
-        elif last < time:
+        elif last is not None and last < time and allow_advance:
             # Defined, but new one is later, we don't really have to do much
             cur.execute(
                 'UPDATE t_highWaterMark t SET t.mark = (?) WHERE t.cameraID = (?)',
                 (time,
                  camera_id))
-        elif last > time:
+        elif last is not None and last > time and allow_rollback:
             # More complicated, we're rolling back time so need to clean up a load
             # of future data
             cur.execute(
                 'UPDATE t_highWaterMark t SET t.mark = (?) WHERE t.cameraID = (?)',
                 (time,
                  camera_id))
+            # Delete files from the future
+            cur.execute(
+                'SELECT fileID FROM t_file t '
+                'WHERE t.fileTime > (?) AND t.cameraID = (?)',
+                (time, camera_id))
+            for row in cur.fetchall():
+                # Get the filename from the UUID object constructed from the byte array
+                # we get back from the database as the file ID
+                file_name = uuid.UUID(bytes=row[0]).hex
+                # print 'removing {0}'.format(file_name)
+                target_file_path = path.join(self.file_store_path, file_name)
+                os.remove(target_file_path)
             # First handle camera status, the visibility regions will be handled by
             # a CASCADE in the schema
             cur.execute(
@@ -534,14 +531,7 @@ class MeteorDatabase:
                 'WHERE t.validTo >= (?) AND t.cameraID = (?)',
                 (time,
                  camera_id))
-            # Delete files from the future
-            cur.execute(
-                'SELECT fileID FROM t_file t '
-                'WHERE t.fileTime > (?) AND t.cameraID = (?)',
-                (time, camera_id))
-            for row in cur.fetchall():
-                target_file_path = path.join(self.file_store_path, row[0])
-                os.remove(target_file_path)
+
         self.con.commit()
 
 

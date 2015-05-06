@@ -20,6 +20,7 @@ def add_dummy_file(db, camera, time, meta):
     """Add a dummy file to the specified DB"""
     tf = tempfile.mkstemp(suffix='.tmp', prefix='meteor_pi_test_')
     tf_path = tf[1]
+    db.set_high_water_mark(camera_id=camera, time=make_time(time), allow_rollback=False)
     return db.register_file(camera_id=camera,
                             file_path=tf_path,
                             mime_type='text/plain',
@@ -39,6 +40,7 @@ def add_dummy_event(db, camera, time, intensity, file_records=None, file_count=N
         file_records = []
         if file_count is not None:
             file_records = list(add_dummy_file(db=db, camera=camera, time=time, meta=x + 1) for x in range(file_count))
+    db.set_high_water_mark(camera_id=camera, time=make_time(time), allow_rollback=False)
     return db.register_event(camera_id=camera,
                              event_time=make_time(time),
                              intensity=intensity,
