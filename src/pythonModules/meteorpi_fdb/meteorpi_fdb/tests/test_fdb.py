@@ -135,3 +135,9 @@ class TestFdb(TestCase):
         events = m.search_events(model.EventSearch())
         print json.dumps(list(e.as_dict() for e in events), indent=1, sort_keys=True)
         # TODO - verify that this has done the right thing. It doesn't crash at least...
+
+    def test_rollback(self):
+        m = db.MeteorDatabase()
+        dummy.setup_dummy_data(m, clear=True)
+        print m.get_high_water_mark(camera_id=dummy.CAMERA_1)
+        m.set_high_water_mark(camera_id=dummy.CAMERA_1, time=dummy.make_time(1))

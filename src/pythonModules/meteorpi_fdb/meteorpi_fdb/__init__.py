@@ -19,6 +19,8 @@ import meteorpi_model as mp
 
 
 
+
+
 # http://www.firebirdsql.org/file/documentation/drivers_documentation/python/fdb/getting-started.html
 # is helpful!
 
@@ -357,7 +359,7 @@ class MeteorDatabase:
         if time is None:
             time = datetime.now()
         time = round_time(time)
-        high_water_mark = self.get_high_water_mark(camera_id)
+        high_water_mark = self.get_high_water_mark(camera_id=camera_id)
         if high_water_mark is not None and time < high_water_mark:
             # Establishing a status earlier than the current high water mark. This
             # means we need to set the high water mark back to the status validFrom
