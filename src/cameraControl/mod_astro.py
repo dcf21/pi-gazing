@@ -1,11 +1,11 @@
-# module_astro.py
+# mod_astro.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
 from math import *
 import time,datetime
 
-from module_log import logTxt,getUTC
+from mod_log import logTxt,getUTC
 
 deg = pi/180
 

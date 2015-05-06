@@ -1,9 +1,9 @@
-# module_log.py
+# mod_log.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
 import os,time
-import module_settings
+import mod_settings
 
 pid = os.getpid()
 
@@ -15,7 +15,7 @@ def getUTC():
 def getUTCoffset():
   return -toffset
 
-logfile = open( os.path.join(module_settings.DATA_PATH,"piInSky.log") , "a" )
+logfile = open( os.path.join(mod_settings.DATA_PATH,"piInSky.log") , "a" )
 
 def logTxt(txt):
  output = "[%s py] %s"%(time.strftime("%b %d %Y %H:%M:%S", time.gmtime(getUTC())),txt)

@@ -8,8 +8,8 @@
 import os,time,sys,glob,datetime,operator
 from math import *
 
-from module_settings import *
-import module_hwm
+from mod_settings import *
+import mod_hwm
 
 pid = os.getpid()
 os.chdir(DATA_PATH)
@@ -25,7 +25,7 @@ utcMax = 0
 for histogramTitle in fileList:
   histogram[histogramTitle] = {}
   for f in fileList[histogramTitle]:
-    utc = module_hwm.filenameToUTC(f)
+    utc = mod_hwm.filenameToUTC(f)
     if (utc<0): continue
     hour= floor(utc/3600)*3600
     if (hour<utcMin): utcMin=hour

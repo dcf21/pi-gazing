@@ -8,8 +8,8 @@
 import os,time,sys,glob,datetime,operator
 from math import *
 
-from module_settings import *
-import module_hwm
+from mod_settings import *
+import mod_hwm
 
 import meteorpi_fdb
 
@@ -40,7 +40,7 @@ count=1
 for f in fileList:
   count+=1
   if not (count%useEveryNthImage==0): continue
-  utc = module_hwm.filenameToUTC(os.path.split(f)[1])
+  utc = mod_hwm.filenameToUTC(os.path.split(f)[1])
   if (not utc): continue
   if (utc < utcMin): continue
   if (utc > utcMax): continue

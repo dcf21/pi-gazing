@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<lenses>
+ <lens>
+  <name>null</name>
+  <fov>0</fov>
+  <barrel_a>0</barrel_a>
+  <barrel_b>0</barrel_b>
+  <barrel_c>0</barrel_c>
+ </lens>
+ <lens>
+  <name>watec_default</name>
+  <fov>32</fov>
+  <barrel_a> 0.00331</barrel_a>
+  <barrel_b>-0.01965</barrel_b>
+  <barrel_c> 0.00738</barrel_c>
+ </lens>
+</lenses>
