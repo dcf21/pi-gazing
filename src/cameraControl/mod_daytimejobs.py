@@ -1,8 +1,8 @@
-# module_daytimejobs.py
+# mod_daytimejobs.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-from module_settings import *
+from mod_settings import *
 
 # Define the tasks we need to do
 rawH264ToTriggers = '%(binary_path)s/debug/analyseH264_libav  %(input)s %(tstamp)s %(fps)s %(cameraId)s'

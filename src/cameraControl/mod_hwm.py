@@ -1,9 +1,9 @@
-# module_hwm.py
+# mod_hwm.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
 import os
-from module_astro import *
+from mod_astro import *
 
 # File to database
 def fileToDB(fname,mustBeFloat=False):
@@ -37,8 +37,8 @@ def writeHWM(highWaterMarks):
 
 # Function for turning filenames into Unix times
 def filenameToUTC(f):
-  if not f.startswith("20"): return -1;
   f = os.path.split(f)[1]
+  if not f.startswith("20"): return -1;
   year = int(f[ 0: 4])
   mon  = int(f[ 4: 6])
   day  = int(f[ 6: 8])
@@ -48,6 +48,7 @@ def filenameToUTC(f):
   return UTCfromJD(JulianDay(year, mon, day, hour, minu, sec))
 
 def fetchDayNameFromFilename(f):
+  f = os.path.split(f)[1]
   if not f.startswith("20"): return None;
   utc = filenameToUTC(f)
   utc = utc - 12*3600

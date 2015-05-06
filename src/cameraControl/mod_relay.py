@@ -1,11 +1,11 @@
-# module_relay.py
+# mod_relay.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
 import os,time
 import RPi.GPIO as GPIO
 
-from module_log import logTxt,getUTC
+from mod_log import logTxt,getUTC
 
 def cameraOn():
  logTxt("Turning camera on.")

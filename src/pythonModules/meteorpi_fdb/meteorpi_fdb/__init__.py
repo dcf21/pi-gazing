@@ -187,7 +187,7 @@ class MeteorDatabase:
             raise ValueError('Intensity must not be negative')
         status_id = self._get_camera_status_id(camera_id=camera_id, time=event_time)
         if status_id is None:
-            raise ValueError('No status defined for this ID and time!')
+            raise ValueError('No status defined for camera id <%s> at time <%s>!'%(camera_id,event_time))
         cur = self.con.cursor()
         cur.execute(
             'INSERT INTO t_event (cameraID, eventTime, intensity, '
@@ -251,7 +251,7 @@ class MeteorDatabase:
         # Handle the database parts
         status_id = self._get_camera_status_id(camera_id=camera_id, time=file_time)
         if status_id is None:
-            raise ValueError('No status defined for this ID and time!')
+            raise ValueError('No status defined for camera id <%s> at time <%s>!'%(camera_id,file_time))
         cur = self.con.cursor()
         cur.execute(
             'INSERT INTO t_file (cameraID, mimeType, namespace, '

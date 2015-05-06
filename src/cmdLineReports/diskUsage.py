@@ -7,8 +7,8 @@
 
 import os,time,sys,glob,datetime,operator
 
-from module_settings import *
-import module_hwm
+from mod_settings import *
+import mod_hwm
 
 pid = os.getpid()
 os.chdir(DATA_PATH)
@@ -22,7 +22,7 @@ for dirName, subdirList, fileList in os.walk("."):
     rootDir = dirName.split('/')[1]
     for f in fileList:
       if f.startswith("20"):
-        dayName = module_hwm.fetchDayNameFromFilename(f)
+        dayName = mod_hwm.fetchDayNameFromFilename(f)
         if rootDir not in fileCensus         : fileCensus[rootDir]={}
         if dayName not in fileCensus[rootDir]: fileCensus[rootDir][dayName]=0
         fileCensus[rootDir][dayName] += os.path.getsize(os.path.join(dirName,f))

@@ -1,1 +1,0 @@
-../cameraControl/module_settings.py

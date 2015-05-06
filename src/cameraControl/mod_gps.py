@@ -1,4 +1,4 @@
-# module_gps.py
+# mod_gps.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 

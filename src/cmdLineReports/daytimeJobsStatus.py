@@ -8,15 +8,15 @@
 
 import os,time,sys,glob,datetime,operator
 
-from module_settings import *
-from module_daytimejobs import *
-import module_hwm
+from mod_settings import *
+from mod_daytimejobs import *
+import mod_hwm
 
 pid = os.getpid()
 
 # Read our high water mark, and only analyse more recently-created data
 os.chdir(DATA_PATH)
-highWaterMarks = module_hwm.fetchHWM()
+highWaterMarks = mod_hwm.fetchHWM()
 
 fileCensus = {}
 
@@ -27,7 +27,7 @@ for dirName, subdirList, fileList in os.walk("."):
     rootDir = dirName.split('/')[1]
     if rootDir not in fileCensus: fileCensus[rootDir]={}
     for f in fileList:
-      utc = module_hwm.filenameToUTC(f)
+      utc = mod_hwm.filenameToUTC(f)
       if (utc<0): continue
       fileCensus[rootDir][utc] = f
 
@@ -50,7 +50,7 @@ for taskGroup in dayTimeTasks:
     for dirName, subdirList, fileList in os.walk(inDir):
       for f in fileList:
         if f.endswith(".%s"%inExt):
-          utc = module_hwm.filenameToUTC(f)
+          utc = mod_hwm.filenameToUTC(f)
           if (utc<0): continue
           behindHWM = (utc <= highWaterMarks[HWMout])
           done = False

@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<sensors>
+ <sensor>
+  <name>watec_902h</name>
+  <width>720</width>
+  <height>480</height>
+  <fps>24.71</fps>
+  <upsidedown>1</upsidedown>
+ </sensor>
+ <sensor>
+  <name>pl1399</name>
+  <width>720</width>
+  <height>480</height>
+  <fps>24.71</fps>
+  <upsidedown>0</upsidedown>
+ </sensor>
+</sensors>
+

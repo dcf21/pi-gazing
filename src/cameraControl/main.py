@@ -5,11 +5,17 @@
 
 import os,time,datetime
 
-import module_astro
-import module_relay
+import mod_astro
+import mod_relay
 
-from module_log import logTxt,getUTC,getUTCoffset
-from module_settings import *
+from mod_log import logTxt,getUTC,getUTCoffset
+from mod_settings import *
+
+import meteorpi_fdb
+fdb_handle = meteorpi_fdb.MeteorDatabase( DBPATH , FDBFILESTORE )
+
+import mod_hardwareProps
+hw_handle = mod_hardwareProps.hardwareProps( os.path.join( PYTHON_PATH, "..", "sensorProperties") )
 
 logTxt("Camera controller launched")
 
@@ -24,8 +30,8 @@ flagGPS     = 0
 if I_AM_A_RPI:
   logTxt("Waiting for GPS link")
   os.system("killall gpsd ; gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock")
-  import module_gps
-  gpsFix = module_gps.fetchTimeOffset()
+  import mod_gps
+  gpsFix = mod_gps.fetchTimeOffset()
   if gpsFix:
     [toffset,latitude,longitude] = gpsFix
     flagGPS = 1
@@ -40,9 +46,10 @@ logTxt("Longitude = %.2f ; Latitude = %.2f ; Clock offset is %.1f"%(longitude,la
 while True:
   logTxt("Camera controller considering what to do next.")
   timeNow            = getUTC()
-  sunTimes           = module_astro.sunTimes(timeNow,longitude,latitude)
+  sunTimes           = mod_astro.sunTimes(timeNow,longitude,latitude)
   secondsTillSunrise = sunTimes[0] - timeNow
   secondsTillSunset  = sunTimes[2] - timeNow
+  sensorData         = fetchSensorData(fdb_handle,hw_handle,CAMERA_ID,timeNow)
 
   if ( (secondsTillSunset < -sunMargin) or (secondsTillSunrise > sunMargin) ):
     if (secondsTillSunrise <   0): secondsTillSunrise += 3600*24 - 300
@@ -51,14 +58,14 @@ while True:
       if (REAL_TIME):
         tstop = timeNow+secondsTillSunrise
         logTxt("Starting observing run until %s (running for %d seconds)."%(datetime.datetime.fromtimestamp(tstop).strftime('%Y-%m-%d %H:%M:%S'),secondsTillSunrise))
-        module_relay.cameraOn()
+        mod_relay.cameraOn()
         time.sleep(10)
         logTxt("Camera has been turned on.")
         timekey = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
-        cmd = "%s/debug/realtimeObserve %.1f %.1f %.1f %s %s %d %d %s %s %s %d %d %s/rawvideo/%s_%s"%(BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,VIDEO_WIDTH,VIDEO_HEIGHT,VIDEO_FPS,latitude,longitude,flagGPS,VIDEO_UPSIDE_DOWN,DATA_PATH,timekey,CAMERA_ID)
+        cmd = "%s/debug/realtimeObserve %.1f %.1f %.1f %s %s %d %d %s %s %s %d %d %s/rawvideo/%s_%s"%(BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,sensorData.width,sensorData.height,sensorData.fps,latitude,longitude,flagGPS,sensorData.upsideDown,DATA_PATH,timekey,CAMERA_ID)
         logTxt("Running command: %s"%cmd)
         os.system(cmd)
-        module_relay.cameraOff()
+        mod_relay.cameraOff()
         logTxt("Camera has been turned off.")
         time.sleep(10)
         continue
@@ -66,14 +73,14 @@ while True:
         if (secondsTillSunrise>VIDEO_MAXRECTIME): secondsTillSunrise=VIDEO_MAXRECTIME # Do not record more than an hour of video in one file
         tstop = timeNow+secondsTillSunrise
         logTxt("Starting video recording until %s (running for %d seconds)."%(datetime.datetime.fromtimestamp(tstop).strftime('%Y-%m-%d %H:%M:%S'),secondsTillSunrise))
-        module_relay.cameraOn()
+        mod_relay.cameraOn()
         time.sleep(10)
         logTxt("Camera has been turned on.")
         timekey = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
-        cmd = "%s/debug/recordH264 %.1f %.1f %.1f %s %s %d %d %s %s %s %d %d %s/rawvideo/%s_%s"%(BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,VIDEO_WIDTH,VIDEO_HEIGHT,VIDEO_FPS,latitude,longitude,flagGPS,VIDEO_UPSIDE_DOWN,DATA_PATH,timekey,CAMERA_ID)
+        cmd = "%s/debug/recordH264 %.1f %.1f %.1f %s %s %d %d %s %s %s %d %d %s/rawvideo/%s_%s"%(BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,sensorData.width,sensorData.height,sensorData.fps,latitude,longitude,flagGPS,sensorData.upsideDown,DATA_PATH,timekey,CAMERA_ID)
         logTxt("Running command: %s"%cmd)
         os.system(cmd)
-        module_relay.cameraOff()
+        mod_relay.cameraOff()
         logTxt("Camera has been turned off.")
         time.sleep(10)
         continue
