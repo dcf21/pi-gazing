@@ -49,6 +49,7 @@ def UTC2datetime(utc):
   return datetime.datetime.fromtimestamp(float(utc))
 
 def datetime2UTC(dt):
+  if not dt: return 0
   return time.mktime( dt.timetuple() )
 
 def localFilenameToSemanticType(fname):
@@ -70,6 +71,7 @@ for dirname in dirs:
     metadict = mod_hwm.fileToDB("%s.txt"%fstub)
     assert "cameraId" in metadict, "Timelapse photograph <%s> does not have a cameraId set."%fname
     cameraId = metadict["cameraId"]
+    print cameraId
     if cameraId not in hwm_old: hwm_old[cameraId] = datetime2UTC( fdb_handle.get_high_water_mark(cameraId) )
     if utc < hwm_old[cameraId]: continue
     metadata = metadataToFDB(metadict)
