@@ -70,24 +70,62 @@ def add_dummy_status(db, camera, time,
     s.regions = [[{"x": 0, "y": 0}, {"x": region_size, "y": 0}, {"x": 0, "y": region_size}], [
         {"x": region_size, "y": region_size}, {"x": region_size, "y": 0}, {"x": 0, "y": region_size}]]
     db.update_camera_status(ns=s, time=make_time(time), camera_id=camera)
+    return s
+
+
+class DummyDataHelper():
+    """Helper to resolve IDs for files and events back to names defined when setting up dummy data,
+    used to allow for tests to verify that particular items are being returned even though object IDs
+    will be different"""
+
+    def __init__(self):
+        self.files = {}
+        self.events = {}
+
+    def add_event(self, e, name=None):
+        if name is None:
+            name = 'e{0}'.format(len(self.events))
+        self.events[e.event_id.hex] = name
+
+    def add_file(self, f, name=None):
+        if name is None:
+            name = 'f{0}'.format(len(self.files))
+        self.files[f.file_id.hex] = name
+
+    def seq_to_string(self, s):
+        if isinstance(s, basestring):
+            s = [s]
+
+        def _get_name(item):
+            if isinstance(item, model.Event) and item.event_id.hex in self.events:
+                return self.events[item.event_id.hex]
+            elif isinstance(item, model.FileRecord) and item.file_id.hex in self.files:
+                return self.files[item.file_id.hex]
+            else:
+                return 'UNKNOWN'
+
+        sorted_strings = sorted(list(_get_name(x) for x in s))
+        return ','.join(sorted_strings)
 
 
 def setup_dummy_data(db, clear=False):
+    h = DummyDataHelper()
     if clear:
         db.clear_database()
     # Set up camera 1, available from time=1 onwards, location more certain at time=10
     add_dummy_status(db=db, camera=CAMERA_1, time=1, longitude=10, latitude=10, location_certainty=0.8)
     add_dummy_status(db=db, camera=CAMERA_1, time=10, longitude=10, latitude=10, location_certainty=1.0)
     # Add some events, one detected at time=6 and another at time=30
-    add_dummy_event(db=db, camera=CAMERA_1, time=6, intensity=.5, file_count=2)
-    add_dummy_event(db=db, camera=CAMERA_1, time=30, intensity=.9, file_count=4)
+    h.add_event(add_dummy_event(db=db, camera=CAMERA_1, time=6, intensity=.5, file_count=2))
+    h.add_event(add_dummy_event(db=db, camera=CAMERA_1, time=30, intensity=.9, file_count=4))
     # Add some other files, not associated to events. One at time=8 and another at time=21
-    add_dummy_file(db=db, camera=CAMERA_1, time=8, meta=3)
-    add_dummy_file(db=db, camera=CAMERA_1, time=21, meta=1)
+    h.add_file(add_dummy_file(db=db, camera=CAMERA_1, time=8, meta=3))
+    h.add_file(add_dummy_file(db=db, camera=CAMERA_1, time=21, meta=1))
     # Set up camera 2, available from time=10 onwards, location more certain at time=15
     add_dummy_status(db=db, camera=CAMERA_2, time=10, longitude=20, latitude=11, location_certainty=0.9)
     add_dummy_status(db=db, camera=CAMERA_2, time=10, longitude=20, latitude=11, location_certainty=1.0)
     # Add another few events for camera 2 at times 12, 15 and 40
-    add_dummy_event(db=db, camera=CAMERA_2, time=12, intensity=.2, file_count=2)
-    add_dummy_event(db=db, camera=CAMERA_2, time=15, intensity=.3, file_count=3)
-    add_dummy_event(db=db, camera=CAMERA_2, time=40, intensity=.4, file_count=6)
+    h.add_event(add_dummy_event(db=db, camera=CAMERA_2, time=12, intensity=.2, file_count=2))
+    h.add_event(add_dummy_event(db=db, camera=CAMERA_2, time=15, intensity=.3, file_count=3))
+    h.add_event(add_dummy_event(db=db, camera=CAMERA_2, time=40, intensity=.4, file_count=6))
+    return h

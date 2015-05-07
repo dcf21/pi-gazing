@@ -14,7 +14,7 @@ class TestClient(TestCase):
 
     def setUp(self):
         """Clear the database and populate it with example contents"""
-        dummy.setup_dummy_data(self.server.db, clear=True)
+        self.dummy_helper = dummy.setup_dummy_data(self.server.db, clear=True)
         # Start the server, returns a function
         # which can be used to stop it afterwards
         self.stop = self.server.start_non_blocking()
@@ -48,14 +48,19 @@ class TestClient(TestCase):
     def test_search_events(self):
         # Run all the searches in the list below, checking that results from the db and the client match
         searches = [
-            model.EventSearch(),
-            model.EventSearch(camera_ids=dummy.CAMERA_1),
-            model.EventSearch(camera_ids=[dummy.CAMERA_1, dummy.CAMERA_2])
+            {'search': model.EventSearch(),
+             'expect': 'e0,e1,e2,e3,e4'},
+            {'search': model.EventSearch(camera_ids=dummy.CAMERA_1),
+             'expect': 'e0,e1'},
+            {'search': model.EventSearch(camera_ids=[dummy.CAMERA_1, dummy.CAMERA_2]),
+             'expect': 'e0,e1,e2,e3,e4'},
         ]
         for search in searches:
-            events_from_db = self.server.db.search_events(search)
-            events_from_client = self.client.search_events(search)
-            # Check results based on dictionary equality
+            events_from_db = self.server.db.search_events(search['search'])
+            events_from_client = self.client.search_events(search['search'])
+            # Check that the results are the same from the API client and the DB directly
             self.assertSequenceEqual(
                 list(x.as_dict() for x in events_from_db),
                 list(x.as_dict() for x in events_from_client))
+            # Check that the results are as expected
+            self.assertEquals(search['expect'], self.dummy_helper.seq_to_string(events_from_client))
