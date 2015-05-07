@@ -279,40 +279,57 @@ class FileMeta(ModelEqualityMixin):
 
 class Location(ModelEqualityMixin):
     """A location fix, consisting of latitude and longitude, and a boolean to
-    indicate whether the fix had a GPS lock or not."""
+    indicate whether the fix had a GPS lock or not.
 
-    def __init__(self, latitude=0.0, longitude=0.0, gps=False, certainty=0.0):
+    Instance properties:
+        latitude -- ??
+        longitude -- ??
+        gps -- True if the location was identified by GPS, False otherwise.
+        error -- estimate of error in longitude and latitude values, expressed in meters.
+    """
+
+    def __init__(self, latitude=0.0, longitude=0.0, gps=False, error=0.0):
         self.latitude = latitude
         self.longitude = longitude
         self.gps = gps
-        self.certainty = certainty
+        self.error = error
 
     def __str__(self):
-        return '(lat={0}, long={1}, gps={2}, p={3})'.format(
+        return '(lat={0}, long={1}, gps={2}, error={3})'.format(
             self.latitude,
             self.longitude,
             self.gps,
-            self.certainty)
+            self.error)
 
 
 class Orientation(ModelEqualityMixin):
-    """An orientation fix, consisting of altitude, azimuth and certainty.
+    """An orientation fix, consisting of altitude, azimuth, certainty.
 
-    Certainty ranges from 0.0 to 1.0, where 0.0 means we have no idea
-    where we're pointing and 1.0 is totally certain
+    The angles, including the error, are floating point quantities with degrees as the unit. These values are computed
+    from astrometry.net, so use documentation there as supporting material when interpreting instances of this class.
 
+    Instance properties:
+        altitude -- ??
+        azimuth -- ??
+        rotation -- ??
+        error -- estimate of likely error in altitude, azimuth and rotation values, expressed in degrees.
+        width_of_field -- ??
     """
 
-    def __init__(self, altitude=0.0, azimuth=0.0, certainty=0.0):
+    def __init__(self, altitude=0.0, azimuth=0.0, error=0.0, rotation=0.0, width_of_field=0.0):
         self.altitude = altitude
         self.azimuth = azimuth
-        self.certainty = certainty
+        self.error = error
+        self.rotation = rotation
+        self.width_of_field = width_of_field
 
     def __str__(self):
-        return '(alt={0}, az={1}, p={2})'.format(
+        return '(alt={0}, az={1}, rot={2}, error={3}, width={4})'.format(
             self.altitude,
             self.azimuth,
-            self.certainty)
+            self.rotation,
+            self.error,
+            self.width_of_field)
 
 
 class CameraStatus(ModelEqualityMixin):
@@ -321,6 +338,18 @@ class CameraStatus(ModelEqualityMixin):
     The status is valid from the given validFrom datetime (inclusively),
     and up until before the given validTo datetime; if this is None then
     the status is current.
+
+    Instance properties:
+        lens -- ??
+        sensor -- ??
+        inst_name -- ??
+        inst_url -- ??
+        orientation -- ??
+        location -- ??
+        software_version -- ??
+        regions -- ??
+        valid_from -- ??
+        valid_to -- ??
 
     """
 
@@ -365,10 +394,12 @@ class CameraStatus(ModelEqualityMixin):
         d['location'] = {'lat': self.location.latitude,
                          'long': self.location.longitude,
                          'gps': self.location.gps,
-                         'certainty': self.location.certainty}
+                         'error': self.location.error}
         d['orientation'] = {'alt': self.orientation.altitude,
                             'az': self.orientation.azimuth,
-                            'certainty': self.orientation.certainty}
+                            'error': self.orientation.error,
+                            'rot': self.orientation.rotation,
+                            'width': self.orientation.width_of_field}
         d['regions'] = self.regions
         return d
 
@@ -382,10 +413,13 @@ class CameraStatus(ModelEqualityMixin):
                           inst_name=_string_from_dict(d, 'inst_name'),
                           orientation=Orientation(altitude=_value_from_dict(od, 'alt'),
                                                   azimuth=_value_from_dict(od, 'az'),
-                                                  certainty=_value_from_dict(od, 'certainty')),
+                                                  error=_value_from_dict(od, 'error'),
+                                                  rotation=_value_from_dict(od, 'rot'),
+                                                  width_of_field=_value_from_dict(od, 'width')),
                           location=Location(latitude=_value_from_dict(ld, 'lat'),
-                                            longitude=_value_from_dict(ld, 'long'), gps=_value_from_dict(ld, 'gps'),
-                                            certainty=_value_from_dict(ld, 'certainty')))
+                                            longitude=_value_from_dict(ld, 'long'),
+                                            gps=_value_from_dict(ld, 'gps'),
+                                            error=_value_from_dict(ld, 'error')))
         cs.valid_from = _datetime_from_dict(d, 'valid_from')
         cs.valid_to = _datetime_from_dict(d, 'valid_to')
         cs.software_version = _value_from_dict(d, 'software_version')

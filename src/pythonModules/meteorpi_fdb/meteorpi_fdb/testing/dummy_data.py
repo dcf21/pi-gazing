@@ -53,20 +53,24 @@ def add_dummy_status(db, camera, time,
                      longitude=20,
                      latitude=30,
                      gps=True,
-                     location_certainty=1.0,
+                     location_error=1.0,
                      altitude=0.5,
                      azimuth=0.6,
-                     orientation_certainty=0.7):
+                     orientation_error=0.7,
+                     orientation_rotation=1.0,
+                     width_of_field=80.0):
     s = model.CameraStatus(lens='a_lens',
                            sensor='a_sensor',
                            inst_url='http://foo.bar.com',
                            inst_name='test installation',
                            orientation=model.Orientation(altitude=altitude, azimuth=azimuth,
-                                                         certainty=orientation_certainty),
+                                                         error=orientation_error,
+                                                         rotation=orientation_rotation,
+                                                         width_of_field=width_of_field),
                            location=model.Location(latitude=latitude,
                                                    longitude=longitude,
                                                    gps=gps,
-                                                   certainty=location_certainty))
+                                                   error=location_error))
     s.regions = [[{"x": 0, "y": 0}, {"x": region_size, "y": 0}, {"x": 0, "y": region_size}], [
         {"x": region_size, "y": region_size}, {"x": region_size, "y": 0}, {"x": 0, "y": region_size}]]
     db.update_camera_status(ns=s, time=make_time(time), camera_id=camera)
@@ -113,8 +117,8 @@ def setup_dummy_data(db, clear=False):
     if clear:
         db.clear_database()
     # Set up camera 1, available from time=1 onwards, location more certain at time=10
-    add_dummy_status(db=db, camera=CAMERA_1, time=1, longitude=10, latitude=10, location_certainty=0.8)
-    add_dummy_status(db=db, camera=CAMERA_1, time=10, longitude=10, latitude=10, location_certainty=1.0)
+    add_dummy_status(db=db, camera=CAMERA_1, time=1, longitude=10, latitude=10, location_error=12.8)
+    add_dummy_status(db=db, camera=CAMERA_1, time=10, longitude=10, latitude=10, location_error=1.0)
     # Add some events, one detected at time=6 and another at time=30
     h.add_event(add_dummy_event(db=db, camera=CAMERA_1, time=6, intensity=.5, file_count=2))
     h.add_event(add_dummy_event(db=db, camera=CAMERA_1, time=30, intensity=.9, file_count=4))
@@ -122,8 +126,8 @@ def setup_dummy_data(db, clear=False):
     h.add_file(add_dummy_file(db=db, camera=CAMERA_1, time=8, meta=3))
     h.add_file(add_dummy_file(db=db, camera=CAMERA_1, time=21, meta=1))
     # Set up camera 2, available from time=10 onwards, location more certain at time=15
-    add_dummy_status(db=db, camera=CAMERA_2, time=10, longitude=20, latitude=11, location_certainty=0.9)
-    add_dummy_status(db=db, camera=CAMERA_2, time=10, longitude=20, latitude=11, location_certainty=1.0)
+    add_dummy_status(db=db, camera=CAMERA_2, time=10, longitude=20, latitude=11, location_error=3.9)
+    add_dummy_status(db=db, camera=CAMERA_2, time=10, longitude=20, latitude=11, location_error=1.0)
     # Add another few events for camera 2 at times 12, 15 and 40
     h.add_event(add_dummy_event(db=db, camera=CAMERA_2, time=12, intensity=.2, file_count=2))
     h.add_event(add_dummy_event(db=db, camera=CAMERA_2, time=15, intensity=.3, file_count=3))

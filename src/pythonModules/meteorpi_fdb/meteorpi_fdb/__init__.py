@@ -9,6 +9,14 @@ import fdb
 import meteorpi_model as mp
 
 
+
+
+
+
+
+
+
+
 # http://www.firebirdsql.org/file/documentation/drivers_documentation/python/fdb/getting-started.html
 # is helpful!
 
@@ -361,9 +369,9 @@ class MeteorDatabase:
         cur.execute(
             'INSERT INTO t_cameraStatus (cameraID, validFrom, validTo, '
             'softwareVersion, orientationAltitude, orientationAzimuth, '
-            'orientationCertainty, locationLatitude, locationLongitude, '
-            'locationGPS, lens, sensor, instURL, instName, locationCertainty) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
+            'orientationRotation, orientationError, widthOfField, locationLatitude, locationLongitude, '
+            'locationGPS, lens, sensor, instURL, instName, locationError) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
             'RETURNING internalID',
             (camera_id,
              time,
@@ -371,7 +379,9 @@ class MeteorDatabase:
              SOFTWARE_VERSION,
              ns.orientation.altitude,
              ns.orientation.azimuth,
-             ns.orientation.certainty,
+             ns.orientation.rotation,
+             ns.orientation.error,
+             ns.orientation.width_of_field,
              ns.location.latitude,
              ns.location.longitude,
              ns.location.gps,
@@ -379,7 +389,7 @@ class MeteorDatabase:
              ns.sensor,
              ns.inst_url,
              ns.inst_name,
-             ns.location.certainty))
+             ns.location.error))
         # Retrieve the newly created internal ID for the status block, use this to
         # insert visible regions
         status_id = cur.fetchone()[0]
@@ -429,8 +439,8 @@ class MeteorDatabase:
         cur = self.con.cursor()
         cur.execute(
             'SELECT lens, sensor, instURL, instName, locationLatitude, '
-            'locationLongitude, locationGPS, locationCertainty, orientationAltitude, '
-            'orientationAzimuth, orientationCertainty, validFrom, validTo, '
+            'locationLongitude, locationGPS, locationError, orientationAltitude, '
+            'orientationAzimuth, orientationError, orientationRotation, widthOfField, validFrom, validTo, '
             'softwareVersion, internalID '
             'FROM t_cameraStatus t '
             'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
@@ -441,11 +451,21 @@ class MeteorDatabase:
         row = cur.fetchonemap()
         if row is None:
             return None
-        cs = mp.CameraStatus(
-            row['lens'], row['sensor'], row['instURL'], row['instName'], mp.Orientation(
-                row['orientationAltitude'], row['orientationAzimuth'], row['orientationCertainty']), mp.Location(
-                row['locationLatitude'], row['locationLongitude'], row['locationGPS'] == True,
-                row['locationCertainty']))
+        cs = mp.CameraStatus(lens=row['lens'],
+                             sensor=row['sensor'],
+                             inst_url=row['instURL'],
+                             inst_name=row['instName'],
+                             orientation=mp.Orientation(
+                                 altitude=row['orientationAltitude'],
+                                 azimuth=row['orientationAzimuth'],
+                                 rotation=row['orientationRotation'],
+                                 error=row['orientationError'],
+                                 width_of_field=['widthOfField']),
+                             location=mp.Location(
+                                 latitude=row['locationLatitude'],
+                                 longitude=row['locationLongitude'],
+                                 gps=row['locationGPS'] == True,
+                                 error=row['locationError']))
         cs.valid_from = row['validFrom']
         cs.valid_to = row['validTo']
         cs.software_version = row['softwareVersion']

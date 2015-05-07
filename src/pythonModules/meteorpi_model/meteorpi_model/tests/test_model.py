@@ -17,12 +17,14 @@ class TestModel(TestCase):
             orientation=model.Orientation(
                 altitude=0.5,
                 azimuth=0.6,
-                certainty=0.7),
+                error=0.7,
+                rotation=0.2,
+                width_of_field=70.0),
             location=model.Location(
                 latitude=20.0,
                 longitude=30.0,
                 gps=True,
-                certainty=1.0))
+                error=1.0))
         self._status1.add_region([0, 0, 100, 0, 0, 100])
         self._status1.add_region([100, 100, 100, 0, 0, 100])
         # File 1
