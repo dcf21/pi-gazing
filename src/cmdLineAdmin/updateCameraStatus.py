@@ -29,7 +29,7 @@ if not cameraId: cameraId = defaultCameraId
 cameraStatus = fdb_handle.get_camera_status(camera_id=cameraId)
 
 if not cameraStatus:
-  cameraStatus = mp.CameraStatus( "watec_default" , "watec_902h" , "" , "default" , mp.Orientation( 0 , 0 , 360 ), mp.Location( LATITUDE_DEFAULT , LONGITUDE_DEFAULT , False ) )
+  cameraStatus = mp.CameraStatus( "watec_default" , "watec_902h" , "" , "default" , mp.Orientation( 0,0,360,0,0 ), mp.Location( LATITUDE_DEFAULT , LONGITUDE_DEFAULT , False ) )
 
 # Offer user option to update sensor
 sensor = raw_input('Set new sensor <default %s>: '%cameraStatus.sensor)

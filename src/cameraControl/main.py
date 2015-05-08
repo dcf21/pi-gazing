@@ -9,8 +9,10 @@ import mod_astro
 import mod_relay
 
 from mod_log import logTxt,getUTC,getUTCoffset
+from mod_time import *
 from mod_settings import *
 
+import meteorpi_model as mp
 import meteorpi_fdb
 fdb_handle = meteorpi_fdb.MeteorDatabase( DBPATH , FDBFILESTORE )
 
@@ -43,6 +45,17 @@ else:
 
 logTxt("Longitude = %.2f ; Latitude = %.2f ; Clock offset is %.1f"%(longitude,latitude,toffset))
 
+# Update camera status with GPS position
+timenow = UTC2datetime(getUTC())
+cameraStatus = fdb_handle.get_camera_status(time=timenow,camera_id=CAMERA_ID)
+cameraStatus.location = mp.Location(latitude,longitude,flagGPS)
+fdb_handle.update_camera_status(cameraStatus, time=timenow, camera_id=CAMERA_ID)
+
+# Create clipping region mask file
+maskFile = "/tmp/triggermask_%d.txt"%os.getpid()
+open(maskFile,"w").write( "\n\n".join(["\n".join(["%(x)d %(y)d"%p for p in pointList]) for pointList in cameraStatus.regions]) )
+
+# Start main observing loop
 while True:
   logTxt("Camera controller considering what to do next.")
   timeNow            = getUTC()
@@ -62,7 +75,7 @@ while True:
         time.sleep(10)
         logTxt("Camera has been turned on.")
         timekey = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
-        cmd = "%s/debug/realtimeObserve %.1f %.1f %.1f %s %s %d %d %s %s %s %d %d %s/rawvideo/%s_%s"%(BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,sensorData.width,sensorData.height,sensorData.fps,latitude,longitude,flagGPS,sensorData.upsideDown,DATA_PATH,timekey,CAMERA_ID)
+        cmd = "%s/debug/realtimeObserve %.1f %.1f %.1f %s %s %d %d %s %s %s %s %d %d %s/rawvideo/%s_%s"%(BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,sensorData.width,sensorData.height,sensorData.fps,maskFile,latitude,longitude,flagGPS,sensorData.upsideDown,DATA_PATH,timekey,CAMERA_ID)
         logTxt("Running command: %s"%cmd)
         os.system(cmd)
         mod_relay.cameraOff()

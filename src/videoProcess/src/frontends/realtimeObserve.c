@@ -56,11 +56,12 @@ int main(int argc, char *argv[])
   vmd.width               = (int)GetFloat(argv[6],NULL);
   vmd.height              = (int)GetFloat(argv[7],NULL);
   vmd.fps                 = GetFloat(argv[8],NULL);
-  vmd.lat                 = GetFloat(argv[9],NULL);
-  vmd.lng                 = GetFloat(argv[10],NULL);
-  vmd.flagGPS             = GetFloat(argv[11],NULL) ? 1 : 0;
-  vmd.flagUpsideDown      = GetFloat(argv[12],NULL) ? 1 : 0;
-  vmd.filename            = argv[13];
+  vmd.maskFile            = argv[9];
+  vmd.lat                 = GetFloat(argv[10],NULL);
+  vmd.lng                 = GetFloat(argv[11],NULL);
+  vmd.flagGPS             = GetFloat(argv[12],NULL) ? 1 : 0;
+  vmd.flagUpsideDown      = GetFloat(argv[13],NULL) ? 1 : 0;
+  vmd.filename            = argv[14];
 
   analysisCameraId = vmd.cameraId;
 

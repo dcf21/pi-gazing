@@ -36,7 +36,7 @@ typedef struct context
     AVCodecContext *c;
     int frame, got_picture, len2, len, streamNum;
     double tstart, tstop, utcoffset, FPS;
-    const char *filename;
+    const char *filename, *maskFile;
     FILE *f;
     AVFrame *picture;
     int pts, dts;
@@ -127,7 +127,8 @@ int main(int argc, char **argv)
   ctx.tstop    = time(NULL)+3600*24;
   ctx.utcoffset= 0;
   ctx.FPS      = GetFloat(argv[3],NULL);
-  analysisCameraId = argv[4];
+  ctx.maskFile = argv[4];
+  analysisCameraId = argv[5];
   initLut();
 
   // Register all the codecs

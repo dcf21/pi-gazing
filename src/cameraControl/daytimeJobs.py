@@ -87,6 +87,12 @@ try:
             utc = mod_hwm.filenameToUTC(f)
             if (utc < 0): continue
             if (utc > highWaterMarks[HWMout]):
+
+              # Create clipping region mask file
+              maskFile = "/tmp/triggermask_%d.txt"%os.getpid()
+              open(maskFile,"w").write( "\n\n".join(["\n".join(["%(x)d %(y)d"%p for p in pointList]) for pointList in cameraStatus.regions]) )
+
+              # Make dictionary of information about this job
               params = {'binary_path':BINARY_PATH ,
                         'input':os.path.join(dirName,f) ,
                         'outdir':outDirs[0] ,
@@ -97,6 +103,7 @@ try:
                         'tstamp':utc ,
                         'cameraId':CAMERA_ID ,
                         'pid':pid ,
+                        'triggermask': maskFile ,
                         'opm': ('_openmax' if I_AM_A_RPI else '') ,
                        }
               params['filename_out'] = "%(outdir)s/%(date)s/%(filename)s"%params
@@ -144,7 +151,7 @@ mod_hwm.writeHWM(highWaterMarks)
 os.chdir(cwd)
 if (not quitTime) or (quitTime - getUTC() > 300):
   logTxt("Importing events into firebird db")
-  # import firebirdImport
+  import firebirdImport
 
 # Twiddle our thumbs
 if quitTime:
