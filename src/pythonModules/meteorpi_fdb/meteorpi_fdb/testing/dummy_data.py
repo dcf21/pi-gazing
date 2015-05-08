@@ -16,7 +16,7 @@ def make_time(t):
     return datetime(year=2015, month=4, day=1, hour=t / 60, minute=t % 60)
 
 
-def add_dummy_file(db, camera, time, meta):
+def add_dummy_file(db, camera, time, meta, semantic_type=model.NSString('test_file')):
     """Add a dummy file to the specified DB"""
     tf = tempfile.mkstemp(suffix='.tmp', prefix='meteor_pi_test_')
     tf_path = tf[1]
@@ -24,12 +24,10 @@ def add_dummy_file(db, camera, time, meta):
     return db.register_file(camera_id=camera,
                             file_path=tf_path,
                             mime_type='text/plain',
-                            namespace='meteor_pi',
-                            semantic_type='test_file',
+                            semantic_type=semantic_type,
                             file_time=make_time(time),
                             file_metas=list(
-                                model.FileMeta(namespace='meteor_pi_meta_{0}'.format(x),
-                                               key='meta_key_{0}'.format(x),
+                                model.FileMeta(key=model.NSString('meta_key_{0}'.format(x)),
                                                string_value='meta_value_{0}'.format(x)) for x
                                 in range(meta)))
 
@@ -39,7 +37,9 @@ def add_dummy_event(db, camera, time, intensity, file_records=None, file_count=N
     if file_records is None:
         file_records = []
         if file_count is not None:
-            file_records = list(add_dummy_file(db=db, camera=camera, time=time, meta=x + 1) for x in range(file_count))
+            file_records = list(add_dummy_file(db=db, camera=camera, time=time, meta=x + 1,
+                                               semantic_type=model.NSString('event_test_file')) for x in
+                                range(file_count))
     db.set_high_water_mark(camera_id=camera, time=make_time(time), allow_rollback=False)
     return db.register_event(camera_id=camera,
                              event_time=make_time(time),
@@ -90,6 +90,8 @@ class DummyDataHelper():
         if name is None:
             name = 'e{0}'.format(len(self.events))
         self.events[e.event_id.hex] = name
+        for index, file_record in enumerate(e.file_records):
+            self.add_file(file_record, name=name + ':f{0}'.format(index))
 
     def add_file(self, f, name=None):
         if name is None:

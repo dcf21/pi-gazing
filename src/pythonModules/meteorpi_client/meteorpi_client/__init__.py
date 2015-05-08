@@ -1,7 +1,6 @@
 import requests
 import time
 import json
-
 import urllib
 
 from yaml import safe_load
@@ -47,6 +46,13 @@ class MeteorClient():
         event_dicts = safe_load(response.text)['events']
         return list(model.Event.from_dict(d) for d in event_dicts)
 
+    def search_files(self, search=None):
+        if search is None:
+            search = model.FileRecordSearch()
+        search_string = urllib.quote_plus(json.dumps(obj=search.as_dict(), separators=(',', ':')))
+        response = requests.get(self.base_url + '/files/{0}'.format(search_string))
+        file_dicts = safe_load(response.text)['files']
+        return list(model.FileRecord.from_dict(d) for d in file_dicts)
 
 def _datetime_string(t):
     """Builds a string representation of a timestamp, used for URL components"""

@@ -66,14 +66,11 @@ class TestFdb(TestCase):
         tf_path = tf[1]
         record = m.register_file(file_path=tf_path,
                                  mime_type='text/plain',
-                                 namespace='meteorpi',
-                                 semantic_type='test_file',
+                                 semantic_type=model.NSString('test_file'),
                                  file_time=datetime.now(),
-                                 file_metas=[model.FileMeta('meteorpi',
-                                                            'meta1',
+                                 file_metas=[model.FileMeta(model.NSString('meta1'),
                                                             'value1'),
-                                             model.FileMeta('meteorpi',
-                                                            'meta2',
+                                             model.FileMeta(model.NSString('meta2'),
                                                             'value2')])
         record2 = m.get_file(file_id=record.file_id)
         self.assertEqual(len(record.meta), 2)
@@ -91,35 +88,25 @@ class TestFdb(TestCase):
                 suffix='.tmp',
                 prefix='meteorpi_test_')[1],
             'text/plain',
-            'meteorpi',
-            'test_file',
+            model.NSString('test_file'),
             datetime.now(),
             [
-                model.FileMeta(
-                    'meteorpi',
-                    'meta1',
-                    'value1'),
-                model.FileMeta(
-                    'meteorpi',
-                    'meta2',
-                    'value2')])
+                model.FileMeta(model.NSString('meta1'),
+                               'value1'),
+                model.FileMeta(model.NSString('meta2'),
+                               'value2')])
         file2 = m.register_file(
             tempfile.mkstemp(
                 suffix='.tmp',
                 prefix='meteorpi_test_')[1],
             'text/plain',
-            'meteorpi',
-            'test_file',
+            model.NSString('test_file'),
             datetime.now(),
             [
-                model.FileMeta(
-                    'meteorpi',
-                    'meta3',
-                    'value3'),
-                model.FileMeta(
-                    'meteorpi',
-                    'meta4',
-                    'value4')])
+                model.FileMeta(key=model.NSString('meta3'),
+                               string_value='value3'),
+                model.FileMeta(key=model.NSString('meta4'),
+                               string_value='value4')])
         event = m.register_event(
             camera_id=db.get_installation_id(),
             event_time=datetime.now(),

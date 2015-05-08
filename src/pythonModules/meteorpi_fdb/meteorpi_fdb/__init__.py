@@ -17,6 +17,11 @@ import meteorpi_model as mp
 
 
 
+
+
+
+
+
 # http://www.firebirdsql.org/file/documentation/drivers_documentation/python/fdb/getting-started.html
 # is helpful!
 
@@ -77,31 +82,24 @@ class MeteorDatabase:
 
     def search_events(self, search):
         """Search for events based on an EventSearch"""
-        # ",".join(str(bit) for bit in l)
+
         def _search_events(camera_id=None):
             sql_args = []
             where_clauses = []
-            if camera_id is not None:
-                where_clauses.append('e.cameraID = (?)')
-                sql_args.append(camera_id)
-            if search.lat_min is not None:
-                where_clauses.append('s.locationLatitude >= (?)')
-                sql_args.append(search.lat_min)
-            if search.lat_max is not None:
-                where_clauses.append('s.locationLatitude <= (?)')
-                sql_args.append(search.lat_max)
-            if search.long_min is not None:
-                where_clauses.append('s.locationLongitude >= (?)')
-                sql_args.append(search.long_min)
-            if search.long_max is not None:
-                where_clauses.append('s.locationLongitude <= (?)')
-                sql_args.append(search.long_max)
-            if search.before is not None:
-                where_clauses.append('e.eventTime <= (?)')
-                sql_args.append(search.before)
-            if search.after is not None:
-                where_clauses.append('e.eventTime >= (?)')
-                sql_args.append(search.after)
+
+            def _add_sql(value, clause):
+                if value is not None:
+                    where_clauses.append(clause)
+                    sql_args.append(value)
+
+            _add_sql(camera_id, 'e.cameraID= (?)')
+            _add_sql(search.lat_min, 's.locationLatitude >= (?)')
+            _add_sql(search.lat_max, 's.locationLatitude <= (?)')
+            _add_sql(search.long_min, 's.locationLongitude >= (?)')
+            _add_sql(search.long_max, 's.locationLongitude <= (?)')
+            _add_sql(search.before, 'e.eventTime <= (?)')
+            _add_sql(search.after, 'e.eventTime >= (?)')
+
             # Build the SQL statement
             sql = 'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, e.intensity, ' \
                   'e.x1, e.y1, e.x2, e.y2, e.x3, e.y3, e.x4, e.y4 ' \
@@ -121,6 +119,52 @@ class MeteorDatabase:
             for event in _search_events(camera_id):
                 result.append(event)
         return result
+
+    def search_files(self, search):
+        """Search for files based on a FileRecordSearch"""
+
+        def _search_files(camera_id=None):
+            sql_args = []
+            where_clauses = []
+
+            def _add_sql(value, clause):
+                if value is not None:
+                    where_clauses.append(clause)
+                    sql_args.append(value)
+
+            _add_sql(camera_id, 'f.cameraID = (?)')
+            _add_sql(search.lat_min, 's.locationLatitude >= (?)')
+            _add_sql(search.lat_max, 's.locationLatitude <= (?)')
+            _add_sql(search.long_min, 's.locationLongitude >= (?)')
+            _add_sql(search.long_max, 's.locationLongitude <= (?)')
+            _add_sql(search.before, 'f.fileTime <= (?)')
+            _add_sql(search.after, 'f.fileTime >= (?)')
+            _add_sql(search.mime_type, 'f.mimeType = (?)')
+            if search.semantic_type is not None:
+                _add_sql(str(search.semantic_type), 'f.semanticType = (?)')
+            # Check for avoiding event files
+            if search.exclude_events:
+                where_clauses.append('f.internalID NOT IN (SELECT fileID from t_event_to_file)')
+
+            # Build the SQL statement
+            sql = 'SELECT f.internalID ' \
+                  'FROM t_file f, t_cameraStatus s WHERE f.statusID = s.internalID'
+
+            if len(where_clauses) > 0:
+                sql += ' AND '
+            sql += ' AND '.join(where_clauses)
+            cur = self.con.cursor()
+            cur.execute(sql, sql_args)
+            return (self.get_file(internal_id=x['internalID']) for x in cur.fetchallmap())
+
+        camera_ids = search.camera_ids
+        if camera_ids is None:
+            camera_ids = [None]
+        files = []
+        for camera_id in camera_ids:
+            for f in _search_files(camera_id):
+                files.append(f)
+        return files
 
 
     def get_events(self, event_id=None, internal_ids=None, cursor=None):
@@ -228,7 +272,6 @@ class MeteorDatabase:
             self,
             file_path,
             mime_type,
-            namespace,
             semantic_type,
             file_time,
             file_metas,
@@ -250,14 +293,13 @@ class MeteorDatabase:
             raise ValueError('No status defined for camera id <%s> at time <%s>!' % (camera_id, file_time))
         cur = self.con.cursor()
         cur.execute(
-            'INSERT INTO t_file (cameraID, mimeType, namespace, '
+            'INSERT INTO t_file (cameraID, mimeType, '
             'semanticType, fileTime, fileSize, statusID) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?) '
+            'VALUES (?, ?, ?, ?, ?, ?) '
             'RETURNING internalID, fileID, fileTime',
             (camera_id,
              mime_type,
-             namespace,
-             semantic_type,
+             str(semantic_type),
              file_time,
              file_size_bytes,
              status_id))
@@ -269,7 +311,7 @@ class MeteorDatabase:
         file_id = uuid.UUID(bytes=row['fileID'])
         # Retrieve the file time as stored in the DB
         stored_file_time = row['fileTime']
-        result_file = mp.FileRecord(camera_id, mime_type, namespace, semantic_type)
+        result_file = mp.FileRecord(camera_id=camera_id, mime_type=mime_type, semantic_type=semantic_type)
         result_file.file_time = stored_file_time
         result_file.file_id = file_id
         result_file.file_size = file_size_bytes
@@ -277,18 +319,14 @@ class MeteorDatabase:
         for file_meta_index, file_meta in enumerate(file_metas):
             cur.execute(
                 'INSERT INTO t_fileMeta '
-                '(fileID, namespace, key, stringValue, metaIndex) '
-                'VALUES (?, ?, ?, ?, ?)',
+                '(fileID, metaKey, stringValue, metaIndex) '
+                'VALUES (?, ?, ?, ?)',
                 (file_internal_id,
-                 file_meta.namespace,
-                 file_meta.key,
+                 str(file_meta.key),
                  file_meta.string_value,
                  file_meta_index))
             result_file.meta.append(
-                mp.FileMeta(
-                    file_meta.namespace,
-                    file_meta.key,
-                    file_meta.string_value))
+                mp.FileMeta(key=file_meta.key, string_value=file_meta.string_value))
         self.con.commit()
         # Move the original file from its path
         target_file_path = path.join(self.file_store_path, result_file.file_id.hex)
@@ -303,12 +341,12 @@ class MeteorDatabase:
         cur = self.con.cursor()
         if internal_id is not None:
             cur.execute(
-                'SELECT internalID, cameraID, mimeType, namespace, '
+                'SELECT internalID, cameraID, mimeType, '
                 'semanticType, fileTime, fileSize, fileID '
                 'FROM t_file t WHERE t.internalID=(?)', (internal_id,))
         elif file_id is not None:
             cur.execute(
-                'SELECT internalID, cameraID, mimeType, namespace, '
+                'SELECT internalID, cameraID, mimeType, '
                 'semanticType, fileTime, fileSize, fileID '
                 'FROM t_file t WHERE t.fileID=(?)', (file_id.bytes,))
         row = cur.fetchonemap()
@@ -317,19 +355,23 @@ class MeteorDatabase:
                 'File with ID {0} or internal ID {1} not found!'.format(
                     file_id.hex,
                     internal_id))
-        file_record = mp.FileRecord(row['cameraID'], row['mimeType'], row['namespace'], row['semanticType'])
+        file_record = mp.FileRecord(camera_id=row['cameraID'],
+                                    mime_type=row['mimeType'],
+                                    semantic_type=mp.NSString.from_string(row['semanticType']))
         file_record.file_id = uuid.UUID(bytes=row['fileID'])
         file_record.file_size = row['fileSize']
         file_record.file_time = row['fileTime']
         internal_file_id = row['internalID']
         cur.execute(
-            'SELECT namespace, key, stringValue '
+            'SELECT metaKey, stringValue '
             'FROM t_fileMeta t '
             'WHERE t.fileID = (?) '
             'ORDER BY metaIndex ASC',
             (internal_file_id,))
         for meta in cur.fetchallmap():
-            file_record.meta.append(mp.FileMeta(meta['namespace'], meta['key'], meta['stringValue']))
+            file_record.meta.append(
+                mp.FileMeta(key=mp.NSString.from_string(meta['metaKey']),
+                            string_value=meta['stringValue']))
         return file_record
 
 

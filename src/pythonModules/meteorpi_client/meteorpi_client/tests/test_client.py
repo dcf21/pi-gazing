@@ -64,3 +64,24 @@ class TestClient(TestCase):
                 list(x.as_dict() for x in events_from_client))
             # Check that the results are as expected
             self.assertEquals(search['expect'], self.dummy_helper.seq_to_string(events_from_client))
+
+    def test_search_files(self):
+        # As for the event search
+        searches = [
+            {'search': model.FileRecordSearch(),
+             'expect': 'e0:f0,e0:f1,e1:f0,e1:f1,e1:f2,e1:f3,e2:f0,e2:f1,'
+                       'e3:f0,e3:f1,e3:f2,e4:f0,e4:f1,e4:f2,e4:f3,e4:f4,e4:f5,f6,f7'},
+            {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1),
+             'expect': 'e0:f0,e0:f1,e1:f0,e1:f1,e1:f2,e1:f3,f6,f7'},
+            {'search': model.FileRecordSearch(exclude_events=True),
+             'expect': 'f6,f7'}
+        ]
+        for search in searches:
+            files_from_db = self.server.db.search_files(search['search'])
+            files_from_client = self.client.search_files(search['search'])
+            # Check that the results are the same from the API client and the DB directly
+            self.assertSequenceEqual(
+                list(x.as_dict() for x in files_from_db),
+                list(x.as_dict() for x in files_from_client))
+            # Check that the results are as expected
+            self.assertEquals(search['expect'], self.dummy_helper.seq_to_string(files_from_client))

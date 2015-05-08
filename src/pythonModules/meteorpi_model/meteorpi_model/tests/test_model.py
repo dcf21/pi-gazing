@@ -31,26 +31,24 @@ class TestModel(TestCase):
         self._file1 = model.FileRecord(
             camera_id='aabbccddeeff',
             mime_type='foo/bar',
-            namespace='meteorpi',
-            semantic_type='test_file_1'
+            semantic_type=model.NSString('test_file_1')
         )
         self._file1.file_size = 12345
         self._file1.file_time = datetime.now()
         self._file1.file_id = uuid.uuid4()
-        self._file1.meta.append(model.FileMeta('meta_ns1', 'meta_key1', 'meta_value1'))
-        self._file1.meta.append(model.FileMeta('meta_ns2', 'meta_key2', 'meta_value2'))
+        self._file1.meta.append(model.FileMeta(model.NSString('meta_key1'), 'meta_value1'))
+        self._file1.meta.append(model.FileMeta(model.NSString('meta_key2'), 'meta_value2'))
         # File 2
         self._file2 = model.FileRecord(
             camera_id='aabbccddeeff',
             mime_type='foo/bar',
-            namespace='meteorpi',
-            semantic_type='test_file_2'
+            semantic_type=model.NSString('test_file_2')
         )
         self._file2.file_size = 67890
         self._file2.file_time = datetime.now()
         self._file2.file_id = uuid.uuid4()
-        self._file2.meta.append(model.FileMeta('meta2_ns1', 'meta2_key1', 'meta2_value1'))
-        self._file2.meta.append(model.FileMeta('meta2_ns2', 'meta2_key2', 'meta2_value2'))
+        self._file2.meta.append(model.FileMeta(model.NSString('meta2_key1'), 'meta2_value1'))
+        self._file2.meta.append(model.FileMeta(model.NSString('meta2_key2'), 'meta2_value2'))
 
 
     def test_search_serialisation(self):

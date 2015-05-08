@@ -75,6 +75,92 @@ class ModelEqualityMixin():
         return hash(tuple(sorted(self.__dict__.items())))
 
 
+class NSString(ModelEqualityMixin):
+    """Namespace prefixed string, with the namespace defaulting to 'meteorpi'"""
+
+    def __init__(self, s, ns='meteorpi'):
+        if ':' in ns:
+            raise ValueError('Namespace part must not contain the : character.')
+        if len(s) == 0:
+            raise ValueError('String part cannot be empty.')
+        if len(ns) == 0:
+            raise ValueError('Namespace part cannot be empty.')
+        self.s = s
+        self.ns = ns
+
+    def __str__(self):
+        """Returns the stringified form of the NSString for storage etc"""
+        return '{0}:{1}'.format(self.ns, self.s)
+
+    @staticmethod
+    def from_string(s):
+        """Strings are stored as ns:s in the database, this method parses them back to NSString instances"""
+        if s is None:
+            return None
+        split = s.split(':', 1)
+        return NSString(s=split[1], ns=split[0])
+
+
+class FileRecordSearch(ModelEqualityMixin):
+    """Encapsulates the possible parameters which can be used to search for FileRecord instances"""
+
+    def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
+                 before=None, mime_type=None, semantic_type=None, exclude_events=False):
+        if camera_ids is None == False and len(camera_ids) == 0:
+            raise ValueError('If camera_ids is specified it must contain at least one ID')
+        if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
+            raise ValueError('Latitude max cannot be less than latitude minimum')
+        if long_min is None == False and long_max is None == False and long_max < long_min:
+            raise ValueError('Longitude max cannot be less than longitude minimum')
+        if after is None == False and before is None == False and before < after:
+            raise ValueError('From time cannot be after before time')
+        if isinstance(camera_ids, basestring):
+            camera_ids = [camera_ids]
+        self.camera_ids = camera_ids
+        self.lat_min = lat_min
+        self.lat_max = lat_max
+        self.long_min = long_min
+        self.long_max = long_max
+        self.after = after
+        self.before = before
+        self.mime_type = mime_type
+        # NSString here
+        self.semantic_type = semantic_type
+        # Boolean, set to true to prevent files associated with events from appearing in the results
+        self.exclude_events = exclude_events
+
+    def as_dict(self):
+        d = {}
+        _add_value(d, 'camera_ids', self.camera_ids)
+        _add_value(d, 'lat_min', self.lat_min)
+        _add_value(d, 'lat_max', self.lat_max)
+        _add_value(d, 'long_min', self.long_min)
+        _add_value(d, 'long_max', self.long_max)
+        _add_datetime(d, 'after', self.after)
+        _add_datetime(d, 'before', self.before)
+        _add_string(d, 'mime_type', self.mime_type)
+        if self.semantic_type is not None:
+            _add_string(d, 'semantic_type', str(self.semantic_type))
+        if self.exclude_events:
+            d['exclude_events'] = 1
+        return d
+
+    @staticmethod
+    def from_dict(d):
+        camera_ids = _value_from_dict(d, 'camera_ids')
+        lat_min = _value_from_dict(d, 'lat_min')
+        lat_max = _value_from_dict(d, 'lat_max')
+        long_min = _value_from_dict(d, 'long_min')
+        long_max = _value_from_dict(d, 'long_max')
+        after = _datetime_from_dict(d, 'after')
+        before = _datetime_from_dict(d, 'before')
+        mime_type = _string_from_dict(d, 'mime_type')
+        semantic_type = NSString.from_string(_string_from_dict(d, 'semantic_type'))
+        return FileRecordSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
+                                long_max=long_max, after=after, before=before, mime_type=mime_type,
+                                semantic_type=semantic_type, exclude_events='exclude_events' in d)
+
+
 class EventSearch(ModelEqualityMixin):
     """Encapsulates the possible parameters which can be used to search for
     Event instances in the database.
@@ -205,17 +291,17 @@ class Event(ModelEqualityMixin):
                      event_time=_datetime_from_dict(d, 'event_time'),
                      intensity=_value_from_dict(d, 'intensity'),
                      bezier=Bezier.from_dict(d['bezier']),
-                     file_records=(FileRecord.from_dict(frd) for frd in d['files']))
+                     file_records=list(FileRecord.from_dict(frd) for frd in d['files']))
 
 
 class FileRecord(ModelEqualityMixin):
     """A piece of binary data with associated metadata, typically used to store
     an image or video from the camera."""
 
-    def __init__(self, camera_id, mime_type, namespace, semantic_type):
+    def __init__(self, camera_id, mime_type, semantic_type):
         self.camera_id = camera_id
         self.mime_type = mime_type
-        self.namespace = namespace
+        # NSString value
         self.semantic_type = semantic_type
         self.meta = []
         self.file_id = None
@@ -225,11 +311,10 @@ class FileRecord(ModelEqualityMixin):
     def __str__(self):
         return (
             'FileRecord(file_id={0} camera_id={1} mime={2} '
-            'ns={3} stype={4} time={5} size={6} meta={7}'.format(
+            'stype={3} time={4} size={5} meta={6}'.format(
                 self.file_id.hex,
                 self.camera_id,
                 self.mime_type,
-                self.namespace,
                 self.semantic_type,
                 self.file_time,
                 self.file_size,
@@ -240,11 +325,11 @@ class FileRecord(ModelEqualityMixin):
         _add_uuid(d, 'file_id', self.file_id)
         _add_string(d, 'camera_id', self.camera_id)
         _add_string(d, 'mime_type', self.mime_type)
-        _add_string(d, 'namespace', self.namespace)
+        _add_string(d, 'semantic_type', str(self.semantic_type))
         _add_datetime(d, 'file_time', self.file_time)
         _add_value(d, 'file_size', self.file_size)
         d['meta'] = list(
-            {'namespace': fm.namespace, 'key': fm.key, 'string_value': fm.string_value} for fm in self.meta)
+            {'key': str(fm.key), 'string_value': fm.string_value} for fm in self.meta)
         return d
 
     @staticmethod
@@ -252,27 +337,24 @@ class FileRecord(ModelEqualityMixin):
         fr = FileRecord(
             camera_id=_string_from_dict(d, 'camera_id'),
             mime_type=_string_from_dict(d, 'mime_type'),
-            namespace=_string_from_dict(d, 'namespace'),
-            semantic_type=_string_from_dict(d, 'semantic_type')
+            semantic_type=NSString.from_string(_string_from_dict(d, 'semantic_type'))
         )
         fr.file_size = int(_value_from_dict(d, 'file_size'))
         fr.file_time = _datetime_from_dict(d, 'file_time')
         fr.file_id = _uuid_from_dict(d, 'file_id')
-        fr.meta = (FileMeta(m['namespace'], m['key'], m['string_value']) for m in d['meta'])
+        fr.meta = (FileMeta(key=NSString.from_string(m['key']), string_value=m['string_value']) for m in d['meta'])
         return fr
 
 
 class FileMeta(ModelEqualityMixin):
     """A single piece of metadata pertaining to a File."""
 
-    def __init__(self, namespace, key, string_value):
-        self.namespace = namespace
+    def __init__(self, key, string_value):
         self.key = key
         self.string_value = string_value
 
     def __str__(self):
-        return '(ns={0}, key={1}, val={2})'.format(
-            self.namespace,
+        return '(key={0}, val={1})'.format(
             self.key,
             self.string_value)
 

@@ -78,6 +78,11 @@ class MeteorServer():
             search = model.EventSearch.from_dict(safe_load(search_string))
             return flask.jsonify({'events': list(x.as_dict() for x in self.db.search_events(search))})
 
+        @app.route('/files/<search_string>', methods=['GET'])
+        def search_files(search_string):
+            search = model.FileRecordSearch.from_dict(safe_load(search_string))
+            return flask.jsonify({'files': list(x.as_dict() for x in self.db.search_files(search))})
+
     def __str__(self):
         return 'MeteorServer(port={0}, db_path={1}, file_path={2})'.format(self.port, self.db.db_path,
                                                                            self.db.file_store_path)

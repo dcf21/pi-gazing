@@ -88,8 +88,7 @@ CREATE TABLE t_file (
 	internalID integer NOT NULL,
 	cameraID char(12) NOT NULL,
 	fileID char(16) CHARACTER SET OCTETS NOT NULL, /* Always use literal byte values */
-	mimeType varchar(40) default 'text/plain' NOT NULL,
-	namespace varchar(255) default 'meteorPi' NOT NULL,
+	mimeType varchar(100) default 'text/plain' NOT NULL,
 	semanticType varchar(255) NOT NULL,
 	fileTime timestamp NOT NULL,
 	fileSize integer NOT NULL,
@@ -101,8 +100,7 @@ CREATE TABLE t_file (
 /* Rows of metadata pertaining to a single file per row */
 CREATE TABLE t_fileMeta (
 	internalID integer NOT NULL,
-	namespace varchar(255) DEFAULT 'meteorPi' NOT NULL,
-	key varchar(255) NOT NULL,
+	metaKey varchar(255) NOT NULL,
 	stringValue varchar(255) NOT NULL,
 	fileID integer NOT NULL,
 	metaIndex integer DEFAULT 0 NOT NULL,
