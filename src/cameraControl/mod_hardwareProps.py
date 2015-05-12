@@ -46,7 +46,7 @@ class hardwareProps:
 
     self.sensorData = {}
     for d in sensorXml:
-      self.sensorData[ d['name'] ] = sensor( d['name'] , d['width'] , d['height'] , d['fps'] , d['upsidedown'] )
+      self.sensorData[ d['name'] ] = sensor( d['name'] , int(d['width']) , int(d['height']) , float(d['fps']) , int(d['upsidedown']) )
 
     tree = ElementTree.parse(lensDataPath)
     root = tree.getroot()
@@ -54,7 +54,7 @@ class hardwareProps:
 
     self.lensData = {}
     for d in lensXml:
-      self.lensData[ d['name'] ] = lens( d['name'] , d['fov'] , d['barrel_a'] , d['barrel_b'] , d['barrel_c'] )
+      self.lensData[ d['name'] ] = lens( d['name'] , float(d['fov']) , float(d['barrel_a']) , float(d['barrel_b']) , float(d['barrel_c']) )
 
 
 def fetchSensorData(fdb_handle,hw_handle,cameraId,utc):

@@ -48,7 +48,7 @@ logTxt("Longitude = %.2f ; Latitude = %.2f ; Clock offset is %.1f"%(longitude,la
 # Update camera status with GPS position
 timenow = UTC2datetime(getUTC())
 cameraStatus = fdb_handle.get_camera_status(time=timenow,camera_id=CAMERA_ID)
-cameraStatus.location = mp.Location(latitude,longitude,flagGPS)
+cameraStatus.location = mp.Location(latitude,longitude,(flagGPS!=0))
 fdb_handle.update_camera_status(cameraStatus, time=timenow, camera_id=CAMERA_ID)
 
 # Create clipping region mask file
@@ -62,7 +62,7 @@ while True:
   sunTimes           = mod_astro.sunTimes(timeNow,longitude,latitude)
   secondsTillSunrise = sunTimes[0] - timeNow
   secondsTillSunset  = sunTimes[2] - timeNow
-  sensorData         = fetchSensorData(fdb_handle,hw_handle,CAMERA_ID,timeNow)
+  sensorData         = mod_hardwareProps.fetchSensorData(fdb_handle,hw_handle,CAMERA_ID,timeNow)
 
   if ( (secondsTillSunset < -sunMargin) or (secondsTillSunrise > sunMargin) ):
     if (secondsTillSunrise <   0): secondsTillSunrise += 3600*24 - 300

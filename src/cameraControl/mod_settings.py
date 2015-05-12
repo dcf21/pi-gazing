@@ -27,7 +27,7 @@ FDBFILESTORE = os.path.join(DATA_PATH , "firebird_files")
 DBPATH = "localhost:/var/lib/firebird/2.5/data/meteorpi.fdb"
 
 # Flag telling us whether to hunt for meteors in real time, or record H264 video for subsequent analysis
-REAL_TIME   = False
+REAL_TIME   = True
 
 # How many second before/after sun is above horizon do we wait before bothering observing
 sunMargin   = 1200 # 20 minutes

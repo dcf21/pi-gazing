@@ -502,7 +502,7 @@ class MeteorDatabase:
                                  azimuth=row['orientationAzimuth'],
                                  rotation=row['orientationRotation'],
                                  error=row['orientationError'],
-                                 width_of_field=['widthOfField']),
+                                 width_of_field=row['widthOfField']),
                              location=mp.Location(
                                  latitude=row['locationLatitude'],
                                  longitude=row['locationLongitude'],
