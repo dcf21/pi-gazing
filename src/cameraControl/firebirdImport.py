@@ -60,14 +60,16 @@ for dirname in dirs:
   for fname in glob.glob(os.path.join(dirname,"*/*.png")):
     fstub    = fname[:-4]
     utc      = mod_hwm.filenameToUTC(fname)
-    metadict = mod_hwm.fileToDB("%s.txt"%fstub)
+    metafile = "%s.txt"%fstub # File containing metadata
+    metadict = mod_hwm.fileToDB(metafile) # Dictionary of image metadata
     assert "cameraId" in metadict, "Timelapse photograph <%s> does not have a cameraId set."%fname
     cameraId = metadict["cameraId"]
     if cameraId not in hwm_old: hwm_old[cameraId] = datetime2UTC( fdb_handle.get_high_water_mark(cameraId) )
     if utc < hwm_old[cameraId]: continue
-    metadata = metadataToFDB(metadict)
+    metadata = metadataToFDB(metadict) # List of metadata objects
     semanticType = localFilenameToSemanticType(fname)
     fileObj = fdb_handle.register_file(fname, "image/png", mp.NSString(semanticType,"meteorpi"), UTC2datetime(utc), metadata, cameraId)
+    if (os.path.exists(metafile)): os.remove(metafile) # Clean up metadata files that we've finished with
     dictTreeAppend(imgs, [dirname,utc], fileObj)
     hwm_new[cameraId] = max(hwm_old[cameraId] , utc)
 
@@ -75,17 +77,19 @@ for dirname in dirs:
 for fname in glob.glob("trigger_vid_processed/*/*.png"):
     fstub    = fname[:-4]
     utc      = mod_hwm.filenameToUTC(fname)
-    metadict = mod_hwm.fileToDB("%s.txt"%fstub)
+    metafile = "%s.txt"%fstub # File containing metadata
+    metadict = mod_hwm.fileToDB(metafile) # Dictionary of image metadata
     assert "cameraId" in metadict, "Trigger video <%s> does not have a cameraId set."%fname
     cameraId = metadict["cameraId"]
     if cameraId not in hwm_old: hwm_old[cameraId] = datetime2UTC( fdb_handle.get_high_water_mark(cameraId) )
     if utc < hwm_old[cameraId]: continue
-    metadata = metadataToFDB(metadict)
+    metadata = metadataToFDB(metadict) # List of metadata objects
     semanticType = localFilenameToSemanticType(fname)
     fileObjs = [ fdb_handle.register_file(fname, "video/mp4", mp.NSString(semanticType,"meteorpi"), UTC2datetime(utc), metadata, cameraId) ]
     fileObjs.extend( imgs["trigger_img_processed",utc] )
     intensity = 0 # null for now
     eventObj = fdb_handle.register_event(cameraId, utc, intensity, bezierNull, fileObjs)
+    if (os.path.exists(metafile)): os.remove(metafile) # Clean up metadata files that we've finished with
     hwm_new[cameraId] = max(hwm_new[cameraId] , utc)
 
 # Update firebird hwm

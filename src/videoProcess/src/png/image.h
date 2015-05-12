@@ -32,7 +32,7 @@ void image_deweight(image_ptr *out);
 image_ptr image_get(char *filename);
 
 /* Functions defined in image_out.c */
-int image_put(char *filename, image_ptr image);
+int image_put(char *filename, image_ptr image, int grayscale);
 
 #endif
 

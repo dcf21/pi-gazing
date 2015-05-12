@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     l+=frameSize * 3/2;
     char fname[FNAME_BUFFER]; sprintf(fname,"%s%06d.png",frOut,i);
     image_deweight(&OutputImage);
-    image_put(fname, OutputImage);
+    image_put(fname, OutputImage, ALLDATAMONO);
    }
   image_dealloc(&OutputImage);
   free(vidRaw); free(tmprgb);

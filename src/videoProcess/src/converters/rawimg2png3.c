@@ -75,12 +75,12 @@ int main(int argc, char *argv[])
       if (lc)
        {
         image_ptr CorrectedImage = lensCorrect(&out, barrelA, barrelB, barrelC);
-        code = image_put(frOut, CorrectedImage);
+        code = image_put(frOut, CorrectedImage, 1);
         image_dealloc(&CorrectedImage);
        }
       else
        {
-        code = image_put(frOut, out);
+        code = image_put(frOut, out, 1);
        }
      }
    }

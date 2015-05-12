@@ -165,8 +165,8 @@ void Pyuv420torgb(unsigned char *Ydata, unsigned char *Udata, unsigned char *Vda
      unsigned char U = Udata [ (i/2) * stride1 + (j/2) ];
      unsigned char V = Vdata [ (i/2) * stride2 + (j/2) ];
      *( outR+i*width+j ) = R_FROMYV(Y,V);
-     *( outG+i*width+j ) = G_FROMYUV(Y,U,V);
-     *( outB+i*width+j ) = B_FROMYU(Y,U);
+     *( outG+i*width+j ) = ALLDATAMONO ? 128 : G_FROMYUV(Y,U,V); // ALLDATAMONO is a compile-time flag which saves on CPU as this loop processes a lot of data
+     *( outB+i*width+j ) = ALLDATAMONO ? 128 : B_FROMYU(Y,U);
     }
  }
 

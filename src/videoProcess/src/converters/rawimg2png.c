@@ -62,15 +62,15 @@ int main(int argc, char *argv[])
     if (lc)
      {
       image_ptr CorrectedImage = lensCorrect(&OutputImage, barrelA, barrelB, barrelC);
-      image_put(frOut, CorrectedImage);
+      image_put(frOut, CorrectedImage, ALLDATAMONO);
       image_dealloc(&CorrectedImage);
      }
     else
      {
-      image_put(frOut, OutputImage);
+      image_put(frOut, OutputImage, ALLDATAMONO);
      }
 
-    sprintf(frOut,"%s.txt",fname);
+    sprintf(frOut,"%s_LC%d.txt",fname,lc);
     FILE *f = fopen(frOut,"w");
     if (f)
      {

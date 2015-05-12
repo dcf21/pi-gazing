@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
   for (i=0; i<frameSize; i++) OutputImage.data_grn[i] = medianMap[i + frameSize  ];
   for (i=0; i<frameSize; i++) OutputImage.data_blu[i] = medianMap[i + frameSize*2];
   image_deweight(&OutputImage);
-  image_put(frOut, OutputImage);
+  image_put(frOut, OutputImage, ALLDATAMONO);
 
   // Clean up
   free(medianWorkspace); free(medianMap);

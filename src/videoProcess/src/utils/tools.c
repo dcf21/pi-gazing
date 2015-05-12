@@ -101,7 +101,7 @@ void snapshot(struct vdIn *videoIn, int nfr, int zero, double expComp, char *fna
    }
 
   image_deweight(&img);
-  image_put(fname, img);
+  image_put(fname, img, ALLDATAMONO);
   image_dealloc(&img);
 
   free(tmpi);

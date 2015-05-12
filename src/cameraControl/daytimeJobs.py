@@ -14,6 +14,7 @@ import os,time,sys,glob,datetime,operator
 import mod_log
 from mod_log import logTxt,getUTC
 from mod_settings import *
+from mod_time import *
 from mod_daytimejobs import *
 import mod_hwm
 
@@ -61,13 +62,17 @@ def runJobGrp(jobGrp):
   # Cascade metadata from input files to output files
   for job in jobGrp:
     m = job['params'] # Dictionary of metadata
-    if os.path.exists( "%(filename_out)s.%(outExt)s"%m ):
+    products = glob.glob("%(filename_out)s*%(outExt)s"%m)
+    for product in products:
+      stub = product[:-len(m['outExt'])]
       metadata = m['metadata'] # Metadata that was associated with input file
-      metadata.update( mod_hwm.fileToDB( "%(filename_out)s.txt"%job['params'] ) )
-      mod_hwm.DBtoFile( "%(filename_out)s.txt"%job['params'] , metadata )
+      metadata.update( mod_hwm.fileToDB( "%stxt"%stub ) )
+      mod_hwm.DBtoFile( "%stxt"%stub , metadata )
 
 # We raise this exception if we pass the time when we've been told we need to hand execution back
 class TimeOut(Exception): pass
+
+jobCounter=0
 
 try:
   for taskGroup in dayTimeTasks:
@@ -88,9 +93,8 @@ try:
             if (utc < 0): continue
             if (utc > highWaterMarks[HWMout]):
 
-              # Create clipping region mask file
-              maskFile = "/tmp/triggermask_%d.txt"%os.getpid()
-              open(maskFile,"w").write( "\n\n".join(["\n".join(["%(x)d %(y)d"%p for p in pointList]) for pointList in cameraStatus.regions]) )
+              jobCounter+=1;
+              maskFile = "/tmp/triggermask_%d_%d.txt"%(os.getpid(),jobCounter)
 
               # Make dictionary of information about this job
               params = {'binary_path':BINARY_PATH ,
@@ -110,6 +114,17 @@ try:
               params['metadata']     = mod_hwm.fileToDB("%s.txt"%os.path.join(dirName,params['filename']))
               params.update( params['metadata'] )
               if 'fps' not in params: params['fps'] = mod_hardwareProps.fetchSensorData(fdb_handle,hw_handle,params['cameraId'],utc).fps
+
+              # Read barrel-correction parameters
+              lensData = mod_hardwareProps.fetchLensData(fdb_handle,hw_handle,params['cameraId'],utc)
+              params['barrel_a'] = lensData.barrel_a
+              params['barrel_b'] = lensData.barrel_b
+              params['barrel_c'] = lensData.barrel_c
+
+              # Create clipping region mask file
+              cameraStatus = fdb_handle.get_camera_status(camera_id=params['cameraId'],time=UTC2datetime(utc))
+              open(maskFile,"w").write( "\n\n".join(["\n".join(["%(x)d %(y)d"%p for p in pointList]) for pointList in cameraStatus.regions]) )
+
               for outDir in outDirs: os.system("mkdir -p %s"%(os.path.join(outDir,params['date'])))
               jobList.append( {'utc':utc, 'cmd':cmd, 'params':params} )
 
@@ -140,6 +155,7 @@ try:
       runJobGrp(jobGrp)
       highWaterMarks[HWMout] = jobList[jobListLen-1]['utc']+HWMmargin
       logTxt("Completed %d jobs"%len(jobList))
+      os.system("rm -f /tmp/triggermask_%d_*"%(os.getpid())) # Delete trigger masks that we've finished with
 
 except TimeOut:
       logTxt("Interrupting processing as we've run out of time")

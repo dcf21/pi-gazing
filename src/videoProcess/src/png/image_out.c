@@ -9,7 +9,7 @@
 
 /* IMAGE_PUT(): Turns bitmap data into a image file */
 
-int image_put(char *frOut, image_ptr image)
+int image_put(char *frOut, image_ptr image, int grayscale)
  {
   int code=0;
 
@@ -55,9 +55,10 @@ int image_put(char *frOut, image_ptr image)
   png_init_io(png_ptr, fp);
 
   // Write header (8 bit colour depth)
+  png_set_compression_level(png_ptr, Z_BEST_COMPRESSION);
   png_set_IHDR(png_ptr, info_ptr, width, height,
-        8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
-        PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+        8, grayscale?PNG_COLOR_TYPE_GRAY:PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+        PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
   // Set title
   png_text title_text;
@@ -74,15 +75,16 @@ int image_put(char *frOut, image_ptr image)
   // Write image data
   int x, y;
   int p=0;
-  for (y=0 ; y<height ; y++) {
-     for (x=0 ; x<width ; x++) {
-        row[x*3+0] = image.data_red[p];
-        row[x*3+1] = image.data_grn[p];
-        row[x*3+2] = image.data_blu[p];
-        p++;
+  for (y=0 ; y<height ; y++)
+   {
+    for (x=0 ; x<width ; x++)
+     {
+      if (grayscale) { row[x] = image.data_red[p]; }
+      else           { row[x*3+0] = image.data_red[p];  row[x*3+1] = image.data_grn[p];  row[x*3+2] = image.data_blu[p]; }
+      p++;
      }
-     png_write_row(png_ptr, row);
-  }
+    png_write_row(png_ptr, row);
+   }
 
   // End write
   png_write_end(png_ptr, NULL);

@@ -320,34 +320,6 @@ int save_controls(int vd)
  return 0;
 }
 
-
-int load_controls(int vd) //struct vdIn *vd)
-{
-  struct v4l2_control   control;
-  FILE *configfile;
-  memset (&control, 0, sizeof (control));
-  configfile = fopen("luvcview.cfg", "r");
-  if ( configfile == NULL) {
-    perror("configfile luvcview.cfg open failed");
-  }
-  else {
-    printf("loading controls from luvcview.cfg\n");
-    char buffer[512]; 
-    fgets(buffer, sizeof(buffer), configfile);
-    while (NULL !=fgets(buffer, sizeof(buffer), configfile) )
-      {
-        sscanf(buffer, "%i%i", &control.id, &control.value);
-        if (v4l2_ioctl(vd, VIDIOC_S_CTRL, &control))
-          printf("ERROR id:%d val:%d\n", control.id, control.value);
-        else
-          printf("OK    id:%d val:%d\n", control.id, control.value);
-        sleep_ms(20);
-      }   
-    fclose(configfile);
-  }
- return 0;
-}
-
 static int init_v4l2(struct vdIn *vd)
 {
    int i;

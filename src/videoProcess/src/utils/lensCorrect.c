@@ -34,8 +34,8 @@ image_ptr lensCorrect (image_ptr *imgIn, double barrelA, double barrelB, double 
     double r2   = (((barrelA*r+barrelB)*r+barrelC)*r+barrelD)*r * (width/2);
 
     // Calculate offset of pixel in the original (uncorrected) pixel array
-    int    x3   = r2*sin(t);
-    int    y3   = r2*cos(t);
+    int    x3   = r2*sin(t) + width/2;
+    int    y3   = r2*cos(t) + height/2;
     int    oOld = x3 + y3*width;
 
     if ((x3>=0)&&(x3<width)&&(y3>=0)&&(y3<height))
