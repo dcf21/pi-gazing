@@ -24,9 +24,9 @@ void image_alloc(image_ptr *out, int x, int y)
   out->xsize    = x;
   out->ysize    = y;
   out->data_w   = 0;
-  out->data_red = (double *)malloc(x * y * sizeof(double));
-  out->data_grn = (double *)malloc(x * y * sizeof(double));
-  out->data_blu = (double *)malloc(x * y * sizeof(double));
+  out->data_red = (double *)calloc(x * y , sizeof(double));
+  out->data_grn = (double *)calloc(x * y , sizeof(double));
+  out->data_blu = (double *)calloc(x * y , sizeof(double));
   for (i=0;i<j;i++) out->data_red[i]=0.0;
   for (i=0;i<j;i++) out->data_grn[i]=0.0;
   for (i=0;i<j;i++) out->data_blu[i]=0.0;

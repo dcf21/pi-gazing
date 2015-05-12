@@ -80,7 +80,7 @@ inline void triggerBlocksMerge(int *triggerBlock, int *triggerMap, int len, int 
  }
 
 // Test stacked images B and A, to see if pixels have brightened in B versus A. Image arrays contain the sum of <coAddedFrames> frames.
-int testTrigger(const double utc, const int width, const int height, const int *imageB, const int *imageA, const int coAddedFrames, const char *label)
+int testTrigger(const double utc, const int width, const int height, const int *imageB, const int *imageA, const unsigned char *mask, const int coAddedFrames, const char *label)
  {
   int x,y,d;
   int output=0;
@@ -108,7 +108,7 @@ int testTrigger(const double utc, const int width, const int height, const int *
      const int o=x+y*width;
      triggerR[o] = CLIP256( 128+(imageB[o]-imageA[o])*256/threshold ); // RED channel - difference between images B and A
      triggerG[o] = CLIP256( imageB[o] / coAddedFrames ); // GRN channel - a copy of image B
-     if (imageB[o]-imageA[o]>threshold) // Search for pixels which have brightened by more than threshold since past image
+     if (mask[o] && (imageB[o]-imageA[o]>threshold)) // Search for pixels which have brightened by more than threshold since past image
       {
        int i,j,c=0; // Make a 3x3 grid of pixels of pixels at a spacing of radius pixels. This pixel must be brighter than 6/9 of these pixels were
        for (i=-1;i<=1;i++) for (j=-1;j<=1;j++) if (imageB[o]-imageA[o+(j+i*width)*radius]>threshold) c++;
@@ -228,7 +228,7 @@ int readShortBuffer(void *videoHandle, int nfr, int width, int height, unsigned 
   return 0;
  }
 
-int observe(void *videoHandle, const int utcoffset, const int tstart, const int tstop, const int width, const int height, const char *label, int (*fetchFrame)(void *,unsigned char *,double *), int (*rewindVideo)(void *, double *))
+int observe(void *videoHandle, const int utcoffset, const int tstart, const int tstop, const int width, const int height, const char *label, const unsigned char *mask, int (*fetchFrame)(void *,unsigned char *,double *), int (*rewindVideo)(void *, double *))
  {
   char line[FNAME_BUFFER],line2[FNAME_BUFFER],line3[FNAME_BUFFER];
   double utc;
@@ -370,7 +370,7 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
     // If we're not recording, and have not stopped recording within past 2 seconds, test whether motion sensor has triggered
     if ( (recording<0) && (framesSinceLastTrigger>=framesSinceLastTrigger_ALLOWTRIGGER) && (triggerThrottleCounter<TRIGGER_THROTTLE_MAXEVT) )
      {
-      if (testTrigger(  utc , width , height , bufferNum?stackB:stackA , bufferNum?stackA:stackB , nfrt , label ))
+      if (testTrigger(  utc , width , height , bufferNum?stackB:stackA , bufferNum?stackA:stackB , mask , nfrt , label ))
        {
         // Camera has triggered
         char fname[FNAME_BUFFER];

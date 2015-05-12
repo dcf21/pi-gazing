@@ -7,7 +7,9 @@
 #include <unistd.h>
 #include "utils/tools.h"
 #include "png/image.h"
+#include "utils/asciidouble.h"
 #include "utils/error.h"
+#include "utils/lensCorrect.h"
 #include "png.h"
 #include "settings.h"
 
@@ -15,13 +17,16 @@ int main(int argc, char *argv[])
  {
   int i;
 
-  if (argc!=3)
+  if (argc!=6)
    {
-    sprintf(temp_err_string, "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'rawimg2png3 foo.raw frame.png'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'rawimg2png3 foo.raw frame.png barrelA barrelB barrelC'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
   char *rawFname = argv[1];
   char *fname = argv[2];
+  double barrelA = GetFloat(argv[3],NULL);
+  double barrelB = GetFloat(argv[4],NULL);
+  double barrelC = GetFloat(argv[5],NULL);
 
   FILE *infile;
   if ((infile = fopen(rawFname,"rb")) == NULL)
@@ -46,25 +51,38 @@ int main(int argc, char *argv[])
   image_ptr out;
   image_alloc(&out,width,height);
 
-  int code = 0;
+  int lc, code = 0;
 
-  for (i=0; i<3; i++)
+  for (lc=0; lc<2; lc++)
    {
-    int j;
-    if (code) break;
+    for (i=0; i<3; i++)
+     {
+      int j;
+      if (code) break;
 
-    unsigned char *imgRaw = NULL;
-    if      (i==0) imgRaw=imgRawR;
-    else if (i==1) imgRaw=imgRawG;
-    else           imgRaw=imgRawB;
+      unsigned char *imgRaw = NULL;
+      if      (i==0) imgRaw=imgRawR;
+      else if (i==1) imgRaw=imgRawG;
+      else           imgRaw=imgRawB;
 
-    for (j=0; j<frameSize; j++) out.data_red[j]=imgRaw[j];
-    for (j=0; j<frameSize; j++) out.data_grn[j]=imgRaw[j];
-    for (j=0; j<frameSize; j++) out.data_blu[j]=imgRaw[j];
+      for (j=0; j<frameSize; j++) out.data_red[j]=imgRaw[j];
+      for (j=0; j<frameSize; j++) out.data_grn[j]=imgRaw[j];
+      for (j=0; j<frameSize; j++) out.data_blu[j]=imgRaw[j];
 
-    char frOut[FNAME_BUFFER];
-    sprintf(frOut,"%s.%d.png",fname,i);
-    code = image_put(frOut,out);
+      char frOut[FNAME_BUFFER];
+      sprintf(frOut,"%s_LC%d_%d.png",fname,lc,i);
+
+      if (lc)
+       {
+        image_ptr CorrectedImage = lensCorrect(&out, barrelA, barrelB, barrelC);
+        code = image_put(frOut, CorrectedImage);
+        image_dealloc(&CorrectedImage);
+       }
+      else
+       {
+        code = image_put(frOut, out);
+       }
+     }
    }
 
   free(imgRawR); free(imgRawG); free(imgRawB);

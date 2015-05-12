@@ -7,7 +7,9 @@
 #include <unistd.h>
 #include "utils/tools.h"
 #include "png/image.h"
+#include "utils/asciidouble.h"
 #include "utils/error.h"
+#include "utils/lensCorrect.h"
 #include "utils/tools.h"
 
 #include "settings.h"
@@ -16,16 +18,16 @@ int main(int argc, char *argv[])
  {
   int i;
 
-  if (argc!=3)
+  if (argc!=6)
    {
-    sprintf(temp_err_string, "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'rawimg2png foo.raw frame.png'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'rawimg2png foo.raw frame.png barrelA barrelB barrelC'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
   char *rawFname = argv[1];
   char *fname = argv[2];
-
-  char frOut[FNAME_BUFFER];
-  sprintf(frOut,"%s.png",fname);
+  double barrelA = GetFloat(argv[3],NULL);
+  double barrelB = GetFloat(argv[4],NULL);
+  double barrelC = GetFloat(argv[5],NULL);
 
   FILE *infile;
   if ((infile = fopen(rawFname,"rb")) == NULL)
@@ -50,14 +52,31 @@ int main(int argc, char *argv[])
   for (i=0; i<frameSize; i++) OutputImage.data_grn[i] = imgRaw[i + frameSize  ];
   for (i=0; i<frameSize; i++) OutputImage.data_blu[i] = imgRaw[i + frameSize*2];
   image_deweight(&OutputImage);
-  image_put(frOut, OutputImage);
 
-  sprintf(frOut,"%s.txt",fname);
-  FILE *f = fopen(frOut,"w");
-  if (f)
+  int lc;
+  for (lc=0; lc<2; lc++)
    {
-    fprintf(f,"skyClarity %.2f\n", calculateSkyClarity(&OutputImage));
-    fclose(f);
+    char frOut[FNAME_BUFFER];
+    sprintf(frOut,"%s_LC%d.png",fname,lc);
+
+    if (lc)
+     {
+      image_ptr CorrectedImage = lensCorrect(&OutputImage, barrelA, barrelB, barrelC);
+      image_put(frOut, CorrectedImage);
+      image_dealloc(&CorrectedImage);
+     }
+    else
+     {
+      image_put(frOut, OutputImage);
+     }
+
+    sprintf(frOut,"%s.txt",fname);
+    FILE *f = fopen(frOut,"w");
+    if (f)
+     {
+      fprintf(f,"skyClarity %.2f\n", calculateSkyClarity(&OutputImage));
+      fclose(f);
+     }
    }
 
   image_dealloc(&OutputImage);

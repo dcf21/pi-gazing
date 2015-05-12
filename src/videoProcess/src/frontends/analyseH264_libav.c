@@ -21,6 +21,7 @@
 #include "utils/asciidouble.h"
 #include "utils/tools.h"
 #include "utils/error.h"
+#include "utils/filledPoly.h"
 #include "vidtools/color.h"
 #include "settings.h"
 
@@ -37,6 +38,7 @@ typedef struct context
     int frame, got_picture, len2, len, streamNum;
     double tstart, tstop, utcoffset, FPS;
     const char *filename, *maskFile;
+    unsigned char *mask;
     FILE *f;
     AVFrame *picture;
     int pts, dts;
@@ -93,6 +95,11 @@ int decoder_init(context *ctx)
   signal(SIGINT, sigint_handler);
   ctx->frame = 0;
   fetchFrame((void *)ctx, NULL, NULL); // Get libav to pick up video size
+  ctx->mask = malloc( ctx->c->width * ctx->c->height );
+  FILE *maskfile = fopen(ctx->maskFile,"r");
+  if (!maskfile) { gnom_fatal(__FILE__,__LINE__,"mask file could not be opened"); }
+  fillPolygonsFromFile(maskfile, ctx->mask, ctx->c->width, ctx->c->height);
+  fclose(maskfile);
   return 0;
  }
 
@@ -135,7 +142,7 @@ int main(int argc, char **argv)
   av_register_all();
   avcodec_register_all();
   decoder_init(&ctx);
-  observe((void *)&ctx, ctx.utcoffset, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, "nonlive", &fetchFrame, &rewindVideo);
+  observe((void *)&ctx, ctx.utcoffset, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, "nonlive", ctx.mask, &fetchFrame, &rewindVideo);
   decoder_shutdown(&ctx);
   printf("\n");
   return 0;

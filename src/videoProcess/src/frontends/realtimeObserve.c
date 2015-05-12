@@ -13,6 +13,7 @@
 #include "utils/tools.h"
 #include "vidtools/color.h"
 #include "utils/error.h"
+#include "utils/filledPoly.h"
 #include "utils/JulianDate.h"
 #include "analyse/observe.h"
 
@@ -94,7 +95,13 @@ int main(int argc, char *argv[])
   writeMetadata(vmd);
   videoIn->upsideDown = vmd.flagUpsideDown;
 
-  observe((void *)videoIn, utcoffset, vmd.tstart, vmd.tstop, width, height, "live", &fetchFrame, &rewindVideo);
+  unsigned char *mask = malloc(width*height);
+  FILE *maskfile = fopen(vmd.maskFile,"r");
+  if (!maskfile) { gnom_fatal(__FILE__,__LINE__,"mask file could not be opened"); }
+  fillPolygonsFromFile(maskfile, mask, width, height);
+  fclose(maskfile);
+
+  observe((void *)videoIn, utcoffset, vmd.tstart, vmd.tstop, width, height, "live", mask, &fetchFrame, &rewindVideo);
 
   return 0;
  }
