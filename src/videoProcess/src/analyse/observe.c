@@ -92,7 +92,7 @@ int testTrigger(const double utc, const int width, const int height, const int *
 
   const int Npixels=30; // To trigger this number of pixels connected together must have brightened
   const int radius=8; // Pixel must be brighter than test pixels this distance away
-  const int threshold=13*coAddedFrames; // Pixel must have brightened by at least this amount.
+  const int threshold=12*coAddedFrames; // Pixel must have brightened by at least this amount.
   const int frameSize=width*height;
   int *triggerMap   = calloc(1,frameSize*sizeof(int)); // triggerMap is a 2D array of ints used to mark out pixels which have brightened suspiciously.
   int *triggerBlock = calloc(1,frameSize*sizeof(int)); // triggerBlock is a count of how many pixels are in each numbered connected block
@@ -106,7 +106,7 @@ int testTrigger(const double utc, const int width, const int height, const int *
    for (x=marginL;x<width-marginR; x++)
     {
      const int o=x+y*width;
-     triggerR[o] = CLIP256( 128+(imageB[o]-imageA[o])*256/threshold ); // RED channel - difference between images B and A
+     triggerR[o] = CLIP256( 128+(imageB[o]-imageA[o])*128/threshold ); // RED channel - difference between images B and A
      triggerG[o] = CLIP256( imageB[o] / coAddedFrames ); // GRN channel - a copy of image B
      if (mask[o] && (imageB[o]-imageA[o]>threshold)) // Search for pixels which have brightened by more than threshold since past image
       {
