@@ -44,7 +44,7 @@ for taskGroup in dayTimeTasks:
   for i in jobCensus.itervalues():
     if HWMout not in i: i[HWMout]=0
   for task in taskList:
-    [inDir,outDirs,inExt,cmd] = task
+    [inDir,outDirs,inExt,outExt,cmd] = task
 
     # Cycle through all input files for each job, and look to see whether we have output files with a matching timestamp
     for dirName, subdirList, fileList in os.walk(inDir):
