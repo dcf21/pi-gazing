@@ -60,10 +60,10 @@ int fillPolygon(int polyCorners, int *polyX, int *polyY, unsigned char *mask, in
     nodes=0; j=polyCorners-1;
     for (i=0; i<polyCorners; i++)
      {
-      if (((polyY[i]<(double) pixelY) && (polyY[j]>=(double) pixelY))
-      ||  ((polyY[j]<(double) pixelY) && (polyY[i]>=(double) pixelY))) {
-        nodeX[nodes++]=(int) (polyX[i]+(pixelY-polyY[i])/(polyY[j]-polyY[i])
-        *(polyX[j]-polyX[i])); }
+      if ( ((polyY[i]<(double) pixelY) && (polyY[j]>=(double) pixelY)) || ((polyY[j]<(double) pixelY) && (polyY[i]>=(double) pixelY)) )
+       {
+        nodeX[nodes++]=(int) (polyX[i]  +  (pixelY-polyY[i])/((double)(polyY[j]-polyY[i]))*(polyX[j]-polyX[i]));
+       }
       j=i;
      }
 
