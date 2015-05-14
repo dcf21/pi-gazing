@@ -1,11 +1,10 @@
 from datetime import datetime, timedelta
-import os.path as path
-import os
 import shutil
 import uuid
 
+import os.path as path
+import os
 import fdb
-
 import meteorpi_model as mp
 
 
@@ -356,6 +355,11 @@ class MeteorDatabase:
             file_record.meta.append(
                 mp.FileMeta(key=mp.NSString.from_string(meta['metaKey']),
                             string_value=meta['stringValue']))
+
+        def get_path():
+            return path.join(self.file_store_path, file_record.file_id.hex)
+
+        file_record.get_path = get_path
         return file_record
 
 
