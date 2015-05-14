@@ -18,16 +18,17 @@ int main(int argc, char *argv[])
  {
   int i;
 
-  if (argc!=6)
+  if (argc!=7)
    {
-    sprintf(temp_err_string, "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'rawimg2png foo.raw frame.png barrelA barrelB barrelC'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'rawimg2png foo.raw frame.png produceFilesWithoutLensCorrection barrelA barrelB barrelC'."); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
-  char *rawFname = argv[1];
-  char *fname = argv[2];
-  double barrelA = GetFloat(argv[3],NULL);
-  double barrelB = GetFloat(argv[4],NULL);
-  double barrelC = GetFloat(argv[5],NULL);
+  char  *rawFname = argv[1];
+  char  *fname    = argv[2];
+  int    lcmin    = GetFloat(argv[3],NULL) ? 0 : 1;
+  double barrelA  = GetFloat(argv[4],NULL);
+  double barrelB  = GetFloat(argv[5],NULL);
+  double barrelC  = GetFloat(argv[6],NULL);
 
   FILE *infile;
   if ((infile = fopen(rawFname,"rb")) == NULL)
@@ -54,7 +55,7 @@ int main(int argc, char *argv[])
   image_deweight(&OutputImage);
 
   int lc;
-  for (lc=0; lc<2; lc++)
+  for (lc=lcmin; lc<2; lc++)
    {
     char frOut[FNAME_BUFFER];
     sprintf(frOut,"%s_LC%d.png",fname,lc);

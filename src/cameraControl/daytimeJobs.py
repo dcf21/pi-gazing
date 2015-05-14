@@ -108,6 +108,7 @@ try:
                         'cameraId':CAMERA_ID ,
                         'pid':pid ,
                         'triggermask': maskFile ,
+                        'produceFilesWithoutLC': int(produceFilesWithoutLC) ,
                         'opm': ('_openmax' if I_AM_A_RPI else '') ,
                        }
               params['filename_out'] = "%(outdir)s/%(date)s/%(filename)s"%params

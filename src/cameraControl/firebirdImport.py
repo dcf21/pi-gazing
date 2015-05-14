@@ -46,7 +46,7 @@ def localFilenameToSemanticType(fname):
   #  -->       timelapse/BS0
 
   path = [ fname.split("_")[0] ] # e.g. "timelapse"
-  for ext in os.path.split(fname)[1].split("_")[2:]: # e.g. ["BS0"]
+  for ext in os.path.split(fname)[1][:-4].split("_")[2:]: # e.g. ["BS0"]
     if   (ext[-1]=="0"): continue
     elif (ext=="BS1")  : path.append("bgrdSub")
     elif (ext=="LC1")  : path.append("lensCorr")

@@ -27,8 +27,9 @@ for cameraId in cameraList:
   title = "Camera <%s>"%cameraId
   print "\n\n%s\n%s"%(title,"-"*len(title))
   print "%s\n  * %s\n  * High water mark: %s"%(cameraId,fdb_handle.get_camera_status(camera_id=cameraId),fdb_handle.get_high_water_mark(camera_id=cameraId))
-  search = mp.FileRecordSearch(camera_ids=[cameraId],exclude_events=True,before=tmin,after=tmax)
+  search = mp.FileRecordSearch(camera_ids=[cameraId],exclude_events=True,before=tmax,after=tmin)
   files  = fdb_handle.search_files(search)
+  files.sort(key=lambda x: x.file_time)
   print "  * %d matching files in time range %s --> %s"%(len(files),tmin,tmax)
   for fileObj in files:
     print "  * %s"%fileObj

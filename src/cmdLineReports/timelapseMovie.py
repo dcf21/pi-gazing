@@ -9,8 +9,9 @@ import os,time,sys,glob,datetime,operator
 from math import *
 
 from mod_settings import *
-import mod_hwm
+from mod_time import *
 
+import meteorpi_model as mp
 import meteorpi_fdb
 
 pid = os.getpid()
@@ -28,8 +29,11 @@ if len(sys.argv)>4: label    =       sys.argv[4]
 
 if (utcMax==0): utcMax = time.time()
 
-fileList = glob.glob("timelapse_img_processed/*/*_%s_frame_BS0.png"%cameraId)
-fileList.sort()
+fdb_handle = meteorpi_fdb.MeteorDatabase( DBPATH , FDBFILESTORE )
+
+search = mp.FileRecordSearch(camera_ids=[cameraId],semantic_type=mp.NSString("timelapse/frame/lensCorr"),exclude_events=True,before=UTC2datetime(utcMax),after=UTC2datetime(utcMin))
+files  = fdb_handle.search_files(search)
+files.sort(key=lambda x: x.file_time)
 
 filestub="/tmp/frame_%d_%%08d.jpg"%pid
 
@@ -37,14 +41,11 @@ useEveryNthImage=2
 
 imgNo=1
 count=1
-for f in fileList:
+for f in files:
   count+=1
   if not (count%useEveryNthImage==0): continue
-  utc = mod_hwm.filenameToUTC(os.path.split(f)[1])
-  if (not utc): continue
-  if (utc < utcMin): continue
-  if (utc > utcMax): continue
-  os.system("""convert %s -gravity SouthEast -fill ForestGreen -pointsize 20 -font Ubuntu-Bold -annotate +16+10 '%s %s' %s"""%(f, label, time.strftime("%d %b %Y %H:%M", time.gmtime(utc)), filestub%imgNo))
+  utc = datetime2UTC(f.file_time)
+  os.system("""convert %s -gravity SouthEast -fill ForestGreen -pointsize 20 -font Ubuntu-Bold -annotate +16+10 '%s %s' %s"""%(os.path.join(fdb_handle.file_store_path,f.file_id.hex), label, time.strftime("%d %b %Y %H:%M", time.gmtime(utc)), filestub%imgNo))
   imgNo+=1
 
 os.system("""avconv -r 40 -i %s -codec:v libx264 /tmp/timelapse.mp4"""%filestub)

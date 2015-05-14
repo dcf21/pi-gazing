@@ -29,6 +29,9 @@ DBPATH = "localhost:/var/lib/firebird/2.5/data/meteorpi.fdb"
 # Flag telling us whether to hunt for meteors in real time, or record H264 video for subsequent analysis
 REAL_TIME   = True
 
+# Flag telling us whether to produce images which are not lens-corrected. Almost always not worth doing, but switch on when callibrating the lens corrections...
+produceFilesWithoutLC = False
+
 # How many second before/after sun is above horizon do we wait before bothering observing
 sunMargin   = 1200 # 20 minutes
 
