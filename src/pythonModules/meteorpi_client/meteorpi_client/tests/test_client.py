@@ -87,7 +87,9 @@ class TestClient(TestCase):
             {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1),
              'expect': 'e0:f0,e0:f1,e1:f0,e1:f1,e1:f2,e1:f3,f6,f7'},
             {'search': model.FileRecordSearch(exclude_events=True),
-             'expect': 'f6,f7'}
+             'expect': 'f6,f7'},
+            {'search': model.FileRecordSearch(exclude_events=True, latest=True, camera_ids=dummy.CAMERA_1),
+             'expect': 'f7'},
         ]
         for search in searches:
             files_from_db = self.server.db.search_files(search['search'])

@@ -108,7 +108,7 @@ class MeteorDatabase:
 
         def _search_files(camera_id=None):
             sql_args = []
-            where_clauses = []
+            where_clauses = ['f.statusID = s.internalID']
 
             def _add_sql(value, clause):
                 if value is not None:
@@ -131,11 +131,13 @@ class MeteorDatabase:
 
             # Build the SQL statement
             sql = 'SELECT f.internalID ' \
-                  'FROM t_file f, t_cameraStatus s WHERE f.statusID = s.internalID'
-
-            if len(where_clauses) > 0:
-                sql += ' AND '
-            sql += ' AND '.join(where_clauses)
+                  'FROM t_file f, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
+            # If the latest flag is set then add an additional inner clause
+            if search.latest:
+                sql += ' AND f.fileTime = (SELECT MAX(f.fileTime) ' \
+                       'FROM t_file f, t_cameraStatus s WHERE ' + \
+                       (' AND '.join(where_clauses)) + ')'
+                sql_args.extend(sql_args)
             cur = self.con.cursor()
             cur.execute(sql, sql_args)
             return (self.get_file(internal_id=x['internalID']) for x in cur.fetchallmap())

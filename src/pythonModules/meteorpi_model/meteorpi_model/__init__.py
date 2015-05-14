@@ -105,7 +105,7 @@ class FileRecordSearch(ModelEqualityMixin):
     """Encapsulates the possible parameters which can be used to search for FileRecord instances"""
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
-                 before=None, mime_type=None, semantic_type=None, exclude_events=False):
+                 before=None, mime_type=None, semantic_type=None, exclude_events=False, latest=False):
         if camera_ids is None == False and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
         if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
@@ -128,6 +128,8 @@ class FileRecordSearch(ModelEqualityMixin):
         self.semantic_type = semantic_type
         # Boolean, set to true to prevent files associated with events from appearing in the results
         self.exclude_events = exclude_events
+        # Boolean, set to true to only return the latest file or files matched by the other criteria
+        self.latest = latest
 
     def __str__(self):
         fields = []
@@ -151,6 +153,8 @@ class FileRecordSearch(ModelEqualityMixin):
             _add_string(d, 'semantic_type', str(self.semantic_type))
         if self.exclude_events:
             d['exclude_events'] = 1
+        if self.latest:
+            d['latest'] = 1
         return d
 
     @staticmethod
@@ -166,7 +170,7 @@ class FileRecordSearch(ModelEqualityMixin):
         semantic_type = NSString.from_string(_string_from_dict(d, 'semantic_type'))
         return FileRecordSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
                                 long_max=long_max, after=after, before=before, mime_type=mime_type,
-                                semantic_type=semantic_type, exclude_events='exclude_events' in d)
+                                semantic_type=semantic_type, exclude_events='exclude_events' in d, latest='latest' in d)
 
 
 class EventSearch(ModelEqualityMixin):
