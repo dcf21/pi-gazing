@@ -40,8 +40,21 @@
     <div class="starter-template">
         <h1>Placeholder title...</h1>
 
-        <p class="lead">Camera control and search front-end will go here!</p>
+        <p class="lead">The table below shows all the available active cameras</p>
     </div>
+
+    <table class="table table-striped">
+        <tr>
+            <th>Camera ID</th>
+            </td></tr>
+        <!-- ko foreach: cameras -->
+        <tr>
+            <td>
+                <span data-bind="text: $data"/>
+            </td>
+        </tr>
+        <!-- /ko -->
+    </table>
 
 </div>
 <!-- /.container -->
@@ -51,5 +64,6 @@
 <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
 <script src="ie10-viewport-bug-workaround.js"></script>
 <script src="knockout-3.3.0.js"></script>
+<script src="camera-control.js"></script>
 </body>
 </html>
