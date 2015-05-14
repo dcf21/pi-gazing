@@ -9,22 +9,6 @@ import fdb
 import meteorpi_model as mp
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-# http://www.firebirdsql.org/file/documentation/drivers_documentation/python/fdb/getting-started.html
-# is helpful!
-
 def get_installation_id():
     """Get the installation ID of the current system, using the MAC address
     rendered as a 12 character hex string."""
@@ -97,8 +81,8 @@ class MeteorDatabase:
             _add_sql(search.lat_max, 's.locationLatitude <= (?)')
             _add_sql(search.long_min, 's.locationLongitude >= (?)')
             _add_sql(search.long_max, 's.locationLongitude <= (?)')
-            _add_sql(search.before, 'e.eventTime <= (?)')
-            _add_sql(search.after, 'e.eventTime >= (?)')
+            _add_sql(search.before, 'e.eventTime < (?)')
+            _add_sql(search.after, 'e.eventTime > (?)')
 
             # Build the SQL statement
             sql = 'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, e.intensity, ' \
@@ -137,8 +121,8 @@ class MeteorDatabase:
             _add_sql(search.lat_max, 's.locationLatitude <= (?)')
             _add_sql(search.long_min, 's.locationLongitude >= (?)')
             _add_sql(search.long_max, 's.locationLongitude <= (?)')
-            _add_sql(search.before, 'f.fileTime <= (?)')
-            _add_sql(search.after, 'f.fileTime >= (?)')
+            _add_sql(search.before, 'f.fileTime < (?)')
+            _add_sql(search.after, 'f.fileTime > (?)')
             _add_sql(search.mime_type, 'f.mimeType = (?)')
             if search.semantic_type is not None:
                 _add_sql(str(search.semantic_type), 'f.semanticType = (?)')

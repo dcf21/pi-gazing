@@ -13,8 +13,7 @@ setup(
     install_requires=[
         'meteorpi_model',
         'pyyaml',
-        'requests',
-        'json'],
+        'requests'],
     include_package_data=True,
     test_suite='nose.collector',
     tests_require=['nose',

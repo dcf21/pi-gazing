@@ -11,6 +11,7 @@ class TestClient(TestCase):
         super(TestClient, self).__init__(*args, **kwargs)
         self.server = meteorpi_server.MeteorServer()
         self.client = client.MeteorClient(base_url=self.server.base_url())
+        self.longMessage = True
 
     def setUp(self):
         """Clear the database and populate it with example contents"""
@@ -54,6 +55,17 @@ class TestClient(TestCase):
              'expect': 'e0,e1'},
             {'search': model.EventSearch(camera_ids=[dummy.CAMERA_1, dummy.CAMERA_2]),
              'expect': 'e0,e1,e2,e3,e4'},
+            # Test that the edge case where the time equals an event doesn't include it (e1 in this case)
+            {'search': model.EventSearch(after=dummy.make_time(30)),
+             'expect': 'e4'},
+            {'search': model.EventSearch(before=dummy.make_time(30)),
+             'expect': 'e0,e2,e3'},
+            # Should now include e1 as e1 has time set to dummy.make_time(30)
+            {'search': model.EventSearch(before=dummy.make_time(31)),
+             'expect': 'e0,e1,e2,e3'},
+            # Test whether we can use both after and before
+            {'search': model.EventSearch(before=dummy.make_time(31), after=dummy.make_time(29)),
+             'expect': 'e1'},
         ]
         for search in searches:
             events_from_db = self.server.db.search_events(search['search'])
@@ -63,7 +75,8 @@ class TestClient(TestCase):
                 list(x.as_dict() for x in events_from_db),
                 list(x.as_dict() for x in events_from_client))
             # Check that the results are as expected
-            self.assertEquals(search['expect'], self.dummy_helper.seq_to_string(events_from_client))
+            self.assertEquals(search['expect'], self.dummy_helper.seq_to_string(events_from_client),
+                              'from {0}'.format(search['search']))
 
     def test_search_files(self):
         # As for the event search
@@ -84,4 +97,5 @@ class TestClient(TestCase):
                 list(x.as_dict() for x in files_from_db),
                 list(x.as_dict() for x in files_from_client))
             # Check that the results are as expected
-            self.assertEquals(search['expect'], self.dummy_helper.seq_to_string(files_from_client))
+            self.assertEquals(search['expect'], self.dummy_helper.seq_to_string(files_from_client),
+                              'from {0}'.format(search['search']))

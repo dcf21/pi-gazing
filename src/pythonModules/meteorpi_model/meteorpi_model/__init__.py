@@ -129,6 +129,14 @@ class FileRecordSearch(ModelEqualityMixin):
         # Boolean, set to true to prevent files associated with events from appearing in the results
         self.exclude_events = exclude_events
 
+    def __str__(self):
+        fields = []
+        for field in self.__dict__:
+            if self.__dict__[field] is not None:
+                fields.append({'name': field, 'value': self.__dict__[field]})
+        return '{0}[{1}]'.format(self.__class__.__name__,
+                                 ','.join(('{0}=\'{1}\''.format(x['name'], str(x['value'])) for x in fields)))
+
     def as_dict(self):
         d = {}
         _add_value(d, 'camera_ids', self.camera_ids)
@@ -188,6 +196,14 @@ class EventSearch(ModelEqualityMixin):
         self.long_max = long_max
         self.after = after
         self.before = before
+
+    def __str__(self):
+        fields = []
+        for field in self.__dict__:
+            if self.__dict__[field] is not None:
+                fields.append({'name': field, 'value': self.__dict__[field]})
+        return '{0}[{1}]'.format(self.__class__.__name__,
+                                 ','.join(('{0}=\'{1}\''.format(x['name'], str(x['value'])) for x in fields)))
 
     def as_dict(self):
         d = {}

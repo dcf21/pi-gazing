@@ -122,16 +122,16 @@ def setup_dummy_data(db, clear=False):
     add_dummy_status(db=db, camera=CAMERA_1, time=1, longitude=10, latitude=10, location_error=12.8)
     add_dummy_status(db=db, camera=CAMERA_1, time=10, longitude=10, latitude=10, location_error=1.0)
     # Add some events, one detected at time=6 and another at time=30
-    h.add_event(add_dummy_event(db=db, camera=CAMERA_1, time=6, intensity=.5, file_count=2))
-    h.add_event(add_dummy_event(db=db, camera=CAMERA_1, time=30, intensity=.9, file_count=4))
+    h.add_event(add_dummy_event(db=db, camera=CAMERA_1, time=6, intensity=.5, file_count=2))  # e0
+    h.add_event(add_dummy_event(db=db, camera=CAMERA_1, time=30, intensity=.9, file_count=4))  #e1
     # Add some other files, not associated to events. One at time=8 and another at time=21
-    h.add_file(add_dummy_file(db=db, camera=CAMERA_1, time=8, meta=3))
-    h.add_file(add_dummy_file(db=db, camera=CAMERA_1, time=21, meta=1))
+    h.add_file(add_dummy_file(db=db, camera=CAMERA_1, time=8, meta=3))  # f6
+    h.add_file(add_dummy_file(db=db, camera=CAMERA_1, time=21, meta=1))  #f7
     # Set up camera 2, available from time=10 onwards, location more certain at time=15
     add_dummy_status(db=db, camera=CAMERA_2, time=10, longitude=20, latitude=11, location_error=3.9)
     add_dummy_status(db=db, camera=CAMERA_2, time=10, longitude=20, latitude=11, location_error=1.0)
     # Add another few events for camera 2 at times 12, 15 and 40
-    h.add_event(add_dummy_event(db=db, camera=CAMERA_2, time=12, intensity=.2, file_count=2))
-    h.add_event(add_dummy_event(db=db, camera=CAMERA_2, time=15, intensity=.3, file_count=3))
-    h.add_event(add_dummy_event(db=db, camera=CAMERA_2, time=40, intensity=.4, file_count=6))
+    h.add_event(add_dummy_event(db=db, camera=CAMERA_2, time=12, intensity=.2, file_count=2))  # e2
+    h.add_event(add_dummy_event(db=db, camera=CAMERA_2, time=15, intensity=.3, file_count=3))  # e3
+    h.add_event(add_dummy_event(db=db, camera=CAMERA_2, time=40, intensity=.4, file_count=6))  #e4
     return h
