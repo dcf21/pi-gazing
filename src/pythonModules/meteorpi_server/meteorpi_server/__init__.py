@@ -54,7 +54,9 @@ def build_app(db):
 
     @app.route('/files/<search_string>', methods=['GET'])
     def search_files(search_string):
+        # print search_string
         search = model.FileRecordSearch.from_dict(safe_load(search_string))
+        #print search.__dict__
         return jsonify({'files': list(x.as_dict() for x in db.search_files(search))})
 
     return app

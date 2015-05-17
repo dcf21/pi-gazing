@@ -8,6 +8,29 @@ define(["jquery"], function (jquery) {
         urlPrefix: "http://localhost:12345/"
     });
 
+    function FileSearch() {
+        var self = this;
+
+        self.setAfter = function (after) {
+            self.after = after;
+            return self;
+        };
+
+        self.setBefore = function (before) {
+            self.before = before;
+            return self;
+        };
+
+        self.setLatest = function () {
+            self.latest = 1;
+            return self;
+        };
+
+        self.searchString = function () {
+            return JSON.stringify(self);
+        }
+    }
+
     /**
      * Client to the MeteorPi REST API
      * @param config initialise with configuration parameters, currently only urlPrefix which is applied to all URLs
@@ -75,7 +98,16 @@ define(["jquery"], function (jquery) {
          */
         self.listCameras = function (callback) {
             applyCallback(ajax("cameras", "GET"), "cameras", callback)
-        }
+        };
+
+        self.searchEvents = function (search, callback) {
+            var searchString = encodeURIComponent(JSON.stringify(search));
+            applyCallback(ajax("events/" + searchString, "GET"), "events", callback);
+        };
+
+        self.searchFiles = function (search, callback) {
+            applyCallback(ajax("files/" + search.getSearchString(), "GET"), "files", callback);
+        };
 
     }
 
