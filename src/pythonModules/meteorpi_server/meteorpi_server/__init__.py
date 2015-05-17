@@ -10,7 +10,7 @@ import tornado.httpserver
 from yaml import safe_load
 import meteorpi_fdb
 import meteorpi_model as model
-
+from flask.ext.jsonpify import jsonify
 
 DEFAULT_DB_PATH = 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb'
 DEFAULT_FILE_PATH = path.expanduser("~/meteorpi_files")
@@ -29,7 +29,7 @@ def build_app(db):
     @app.route('/cameras', methods=['GET'])
     def get_active_cameras():
         cameras = db.get_cameras()
-        return flask.jsonify({'cameras': cameras})
+        return jsonify({'cameras': cameras})
 
     @app.route('/cameras/<camera_id>/status', methods=['GET'])
     def get_current_camera_status(camera_id):
@@ -37,7 +37,7 @@ def build_app(db):
         if status is None:
             return 'No active camera with ID {0}'.format(camera_id), 404
         else:
-            return flask.jsonify({'status': status.as_dict()})
+            return jsonify({'status': status.as_dict()})
 
     @app.route('/cameras/<camera_id>/status/<time_string>', methods=['GET'])
     def get_camera_status(camera_id, time_string):
@@ -45,17 +45,17 @@ def build_app(db):
         if status is None:
             return 'No active camera with ID {0}'.format(camera_id), 404
         else:
-            return flask.jsonify({'status': status.as_dict()})
+            return jsonify({'status': status.as_dict()})
 
     @app.route('/events/<search_string>', methods=['GET'])
     def search_events(search_string):
         search = model.EventSearch.from_dict(safe_load(search_string))
-        return flask.jsonify({'events': list(x.as_dict() for x in db.search_events(search))})
+        return jsonify({'events': list(x.as_dict() for x in db.search_events(search))})
 
     @app.route('/files/<search_string>', methods=['GET'])
     def search_files(search_string):
         search = model.FileRecordSearch.from_dict(safe_load(search_string))
-        return flask.jsonify({'files': list(x.as_dict() for x in db.search_files(search))})
+        return jsonify({'files': list(x.as_dict() for x in db.search_files(search))})
 
     return app
 
@@ -76,7 +76,6 @@ class MeteorServer():
         def stop(self):
             self.loop.stop()
 
-
     def __init__(self, db_path=DEFAULT_DB_PATH, file_store_path=DEFAULT_FILE_PATH, port=DEFAULT_PORT):
         self.db = meteorpi_fdb.MeteorDatabase(db_path=db_path, file_store_path=file_store_path)
         app = build_app(self.db)
@@ -87,7 +86,6 @@ class MeteorServer():
         def _build_datetime(datetime_string):
             """Build a datetime from a string used as a URL component"""
             return datetime.datetime.fromtimestamp(timestamp=datetime_string)
-
 
     def __str__(self):
         return 'MeteorServer(port={0}, db_path={1}, file_path={2})'.format(self.port, self.db.db_path,

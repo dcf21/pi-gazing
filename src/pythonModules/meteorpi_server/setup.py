@@ -13,7 +13,8 @@ setup(
     install_requires=[
         'meteorpi_fdb',
         'flask',
-        'tornado'],
+        'tornado',
+        'flask-jsonpify'],
     include_package_data=True,
     test_suite='nose.collector',
     tests_require=['nose',
