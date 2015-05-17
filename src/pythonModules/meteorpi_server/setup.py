@@ -19,5 +19,6 @@ setup(
     test_suite='nose.collector',
     tests_require=['nose',
                    'pyyaml',
-                   'requests'],
+                   'requests',
+                   'flask-jsonpify'],
     zip_safe=False)

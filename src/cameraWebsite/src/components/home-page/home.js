@@ -8,26 +8,25 @@ define(["knockout", "text!./home.html", "client", "model"], function (ko, homeTe
     HomeViewModel.prototype.listCameras = function () {
         var self = this;
         client.listCameras(function (err, cameras) {
-            self.message('Cameras are ' + cameras);
+            self.message(cameras);
         });
-        self.message('Fetching cameras...');
     };
 
     HomeViewModel.prototype.searchEvents = function () {
         var self = this;
-        client.searchEvents({}, function (err, results) {
-            self.message('Results are ' + results.map(function (item) {
-                    return JSON.stringify(item)
-                }));
+        client.searchEvents(new model.EventSearch(), function (err, results) {
+            self.message(results.map(function (item) {
+                return JSON.stringify(item)
+            }));
         });
     };
 
     HomeViewModel.prototype.searchFiles = function () {
         var self = this;
-        client.searchFiles(new model.FileRecordSearch().setExcludeEvents(), function (err, results) {
-            self.message('Results are ' + results.map(function (item) {
-                    return JSON.stringify(item)
-                }));
+        client.searchFiles(new model.FileRecordSearch().setExcludeEvents().setBefore(new Date(Date.now())), function (err, results) {
+            self.message(results.map(function (item) {
+                return JSON.stringify(item)
+            }));
         });
     };
 

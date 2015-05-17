@@ -1,8 +1,24 @@
 /**
  * Created by tom on 17/05/15.
  */
-define(function () {
+define(["jquery"], function (jquery) {
     "use strict";
+
+    /**
+     * Used to map JS objects into JSON suitable for the meteorPi API
+     * @param key
+     * @param value
+     * @returns {*}
+     */
+    var dateReplacer = function (key, value) {
+        if (value == null) {
+            return undefined;
+        }
+        if (jquery.type(this[key]) == "date") {
+            return this[key].getTime() / 1000.0;
+        }
+        return value;
+    };
 
     function FileRecordSearch() {
         if (!(this instanceof FileRecordSearch)) {
@@ -13,6 +29,16 @@ define(function () {
     FileRecordSearch.prototype = {
 
         constructor: FileRecordSearch,
+
+        setAfter: function (date) {
+            this.after = date;
+            return this;
+        },
+
+        setBefore: function (theDate) {
+            this.before = theDate;
+            return this;
+        },
 
         /**
          * Call to exclude FileRecord instances which are associated with an Event.
@@ -38,15 +64,43 @@ define(function () {
          * @returns {string}
          */
         getSearchString: function () {
-            var string = encodeURIComponent(JSON.stringify(this));
-            console.log(string);
+            var string = encodeURIComponent(JSON.stringify(this, dateReplacer));
             return string;
         }
 
     };
 
+    function EventSearch() {
+        if (!(this instanceof EventSearch)) {
+            throw new TypeError("EventSearch constructor cannot be called as a function.");
+        }
+    }
+
+    EventSearch.prototype = {
+
+        constructor: EventSearch,
+
+        setAfter: function (date) {
+            this.after = date;
+            return this;
+        },
+
+        setBefore: function (theDate) {
+            this.before = theDate;
+            return this;
+        },
+
+        getSearchString: function () {
+            var string = encodeURIComponent(JSON.stringify(this, dateReplacer));
+            return string;
+        }
+
+    };
+
+
     return {
-        FileRecordSearch: FileRecordSearch
+        FileRecordSearch: FileRecordSearch,
+        EventSearch: EventSearch
     };
 
 });

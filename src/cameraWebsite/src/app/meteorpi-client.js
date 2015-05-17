@@ -8,29 +8,6 @@ define(["jquery"], function (jquery) {
         urlPrefix: "http://localhost:12345/"
     });
 
-    function FileSearch() {
-        var self = this;
-
-        self.setAfter = function (after) {
-            self.after = after;
-            return self;
-        };
-
-        self.setBefore = function (before) {
-            self.before = before;
-            return self;
-        };
-
-        self.setLatest = function () {
-            self.latest = 1;
-            return self;
-        };
-
-        self.searchString = function () {
-            return JSON.stringify(self);
-        }
-    }
-
     /**
      * Client to the MeteorPi REST API
      * @param config initialise with configuration parameters, currently only urlPrefix which is applied to all URLs
@@ -94,19 +71,40 @@ define(["jquery"], function (jquery) {
 
         /**
          * Get all currently active cameras for this installation
-         * @param callback called with (err, [cameraID:string])
+         * @param callback called with (err:string, [cameraID:string])
          */
         self.listCameras = function (callback) {
             applyCallback(ajax("cameras", "GET"), "cameras", callback)
         };
 
+        /**
+         * Search for Event objects from the API
+         * @param search an EventSearch used to define the search
+         * @param callback callback called with (err:string, [event:{}])
+         */
         self.searchEvents = function (search, callback) {
             var searchString = encodeURIComponent(JSON.stringify(search));
-            applyCallback(ajax("events/" + searchString, "GET"), "events", callback);
+            applyCallback(ajax("events/" + search.getSearchString(), "GET"), "events", callback);
         };
 
+        /**
+         * Search for FileRecord objects from the API
+         * @param search a FileRecordSearch used to define the search
+         * @param callback callback called with (err:string, [filerecord:{}])
+         */
         self.searchFiles = function (search, callback) {
             applyCallback(ajax("files/" + search.getSearchString(), "GET"), "files", callback);
+        };
+
+        /**
+         * Get the camera status for a given camera and time. If the time is not specified (is null) this
+         * is interpreted to mean 'now'.
+         * @param cameraID camera ID for which status should be retrieved
+         * @param date the time at which the status applies
+         * @param callback callback called with (err:string, status:{})
+         */
+        self.getStatus = function (cameraID, date, callback) {
+            applyCallback(ajax("cameras/" + cameraID + "/status" + (time == null ? "" : date.getTime())), "status", callback)
         };
 
     }
