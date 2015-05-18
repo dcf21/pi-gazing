@@ -9,24 +9,24 @@ define(["knockout", "crossroads", "hasher"], function (ko, crossroads, hasher) {
     // Knockout that requires or even knows about this technique. It's just one of
     // many possible ways of setting up client-side routes.
 
-    return new Router({
-        routes: [
-            {url: '', params: {page: 'home-page'}},
-            {url: 'about', params: {page: 'about-page'}}
-        ]
-    });
 
     function Router(config) {
+        var self = this;
         var currentRoute = this.currentRoute = ko.observable({});
-
+        this.routes = {};
         ko.utils.arrayForEach(config.routes, function (route) {
-            crossroads.addRoute(route.url, function (requestParams) {
+            self.routes[route.name] = crossroads.addRoute(route.url, function (requestParams) {
                 currentRoute(ko.utils.extend(requestParams, route.params));
             });
         });
-
         activateCrossroads();
     }
+
+    Router.prototype.goTo = function (name, params) {
+        var newHash = this.routes[name].interpolate(params);
+        console.log(newHash);
+        hasher.setHash(newHash);
+    };
 
     function activateCrossroads() {
         function parseHash(newHash, oldHash) {
@@ -38,4 +38,13 @@ define(["knockout", "crossroads", "hasher"], function (ko, crossroads, hasher) {
         hasher.changed.add(parseHash);
         hasher.init();
     }
+
+    return new Router({
+        routes: [
+            {name: 'home', url: '', params: {page: 'home-page'}},
+            {name: 'file-results', url: 'files/{search}', params: {page: 'file-results-page'}},
+            {name: 'about', url: 'about', params: {page: 'about-page'}}
+        ]
+    });
+
 });

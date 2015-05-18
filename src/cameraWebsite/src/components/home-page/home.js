@@ -1,4 +1,4 @@
-define(["knockout", "text!./home.html", "client", "model"], function (ko, homeTemplate, client, model) {
+define(["knockout", "text!./home.html", "client", "model", "router"], function (ko, homeTemplate, client, model, router) {
 
 
     function HomeViewModel(route) {
@@ -22,13 +22,12 @@ define(["knockout", "text!./home.html", "client", "model"], function (ko, homeTe
     };
 
     HomeViewModel.prototype.searchFiles = function () {
-        var self = this;
-        client.searchFiles(new model.FileRecordSearch().setExcludeEvents().setBefore(new Date(Date.now())), function (err, results) {
-            self.message(results.map(function (item) {
-                return JSON.stringify(item)
-            }));
-        });
+        var search = new model.FileRecordSearch();
+        search.setExcludeEvents();
+        search.setBefore(new Date(Date.now()));
+        router.goTo("file-results", {search: search.getSearchString()});
     };
+
 
     return {viewModel: HomeViewModel, template: homeTemplate};
 

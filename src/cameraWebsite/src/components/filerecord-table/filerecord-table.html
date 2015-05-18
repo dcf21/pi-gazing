@@ -1,0 +1,18 @@
+<table class="file-record-table table table-condensed">
+    <thead>
+    <tr>
+        <th>Camera ID</th>
+        <th>File Time</th>
+        <th>MIME Type</th>
+        <th>Semantic Type</th>
+    </tr>
+    </thead>
+    <tbody data-bind="foreach: fileRecords">
+    <tr>
+        <td data-bind="text: camera_id"></td>
+        <td data-bind="text: new Date(file_time*1000)"></td>
+        <td data-bind="text: mime_type"></td>
+        <td data-bind="text: semantic_type"></td>
+    </tr>
+    </tbody>
+</table>

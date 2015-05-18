@@ -11,7 +11,8 @@ var require = {
         "signals": "bower_modules/js-signals/dist/signals.min",
         "text": "bower_modules/requirejs-text/text",
         "client": "app/meteorpi-client",
-        "model": "app/meteorpi-model"
+        "model": "app/meteorpi-model",
+        "router": "app/router"
     },
     shim: {
         "bootstrap": {deps: ["jquery"]}

@@ -93,7 +93,8 @@ define(["jquery"], function (jquery) {
          * @param callback callback called with (err:string, [filerecord:{}])
          */
         self.searchFiles = function (search, callback) {
-            applyCallback(ajax("files/" + search.getSearchString(), "GET"), "files", callback);
+            var searchString = (typeof(search) === 'string' || search instanceof String) ? search : search.getSearchString();
+            applyCallback(ajax("files/" + searchString, "GET"), "files", callback);
         };
 
         /**
@@ -104,7 +105,7 @@ define(["jquery"], function (jquery) {
          * @param callback callback called with (err:string, status:{})
          */
         self.getStatus = function (cameraID, date, callback) {
-            applyCallback(ajax("cameras/" + cameraID + "/status" + (time == null ? "" : date.getTime())), "status", callback)
+            applyCallback(ajax("cameras/" + cameraID + "/status" + (date == null ? "" : date.getTime())), "status", callback)
         };
 
     }
