@@ -12,9 +12,13 @@ var require = {
         "text": "bower_modules/requirejs-text/text",
         "client": "app/meteorpi-client",
         "model": "app/meteorpi-model",
-        "router": "app/router"
+        "router": "app/router",
+        "kendo": "bower_modules/kendo-ui-core/js/kendo.ui.core.min",
+        "kendobindings": "bower_modules/knockout-kendo/build/knockout-kendo.min"
     },
     shim: {
-        "bootstrap": {deps: ["jquery"]}
+        "bootstrap": {deps: ["jquery"]},
+        "kendo": {deps: ["jquery"]},
+        "kendobindings": {deps: ["jquery", "kendo", "knockout"]}
     }
 };

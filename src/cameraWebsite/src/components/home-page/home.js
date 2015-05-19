@@ -3,6 +3,7 @@ define(["knockout", "text!./home.html", "client", "model", "router"], function (
 
     function HomeViewModel(route) {
         this.message = ko.observable('Welcome to MeteorPi Camera Control!');
+        this.startDate = ko.observable(new Date(Date.now()));
     }
 
     HomeViewModel.prototype.listCameras = function () {
@@ -24,7 +25,7 @@ define(["knockout", "text!./home.html", "client", "model", "router"], function (
     HomeViewModel.prototype.searchFiles = function () {
         var search = new model.FileRecordSearch();
         search.setExcludeEvents();
-        search.setBefore(new Date(Date.now()));
+        search.setBefore(this.startDate());
         router.goTo("file-results", {search: search.getSearchString()});
     };
 

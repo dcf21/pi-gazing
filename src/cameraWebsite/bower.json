@@ -8,10 +8,9 @@
     "hasher": "~1.2.0",
     "requirejs": "~2.1.11",
     "requirejs-text": "~2.0.10",
-    "knockout": "~3.3.0-alpha",
-    "knockout-projections": "~1.1.0"
-  },
-  "resolutions": {
-    "knockout": "~3.3.0-alpha"
+    "knockout": "~3.3.0",
+    "knockout-projections": "~1.1.0",
+    "kendo-ui-core": "~2015.1.515",
+    "knockout-kendo": "~0.9.4"
   }
 }
