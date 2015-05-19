@@ -14,7 +14,8 @@ var require = {
         "model": "app/meteorpi-model",
         "router": "app/router",
         "kendo": "bower_modules/kendo-ui-core/js/kendo.ui.core.min",
-        "kendobindings": "bower_modules/knockout-kendo/build/knockout-kendo.min"
+        "kendobindings": "bower_modules/knockout-kendo/build/knockout-kendo.min",
+        "chart": "bower_modules/chartjs/Chart.min"
     },
     shim: {
         "bootstrap": {deps: ["jquery"]},
