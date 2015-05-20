@@ -15,7 +15,8 @@ var require = {
         "router": "app/router",
         "kendo": "bower_modules/kendo-ui-core/js/kendo.ui.core.min",
         "kendobindings": "bower_modules/knockout-kendo/build/knockout-kendo.min",
-        "chart": "bower_modules/chartjs/Chart.min"
+        "chart": "bower_modules/chartjs/Chart.min",
+        "knockout-postbox": "bower_modules/knockout-postbox/build/knockout-postbox.min"
     },
     shim: {
         "bootstrap": {deps: ["jquery"]},

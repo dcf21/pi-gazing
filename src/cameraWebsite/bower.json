@@ -12,6 +12,7 @@
     "knockout-projections": "~1.1.0",
     "kendo-ui-core": "~2015.1.515",
     "knockout-kendo": "~0.9.4",
-    "chartjs": "~1.0.2"
+    "chartjs": "~1.0.2",
+    "knockout-postbox": "~0.5.1"
   }
 }
