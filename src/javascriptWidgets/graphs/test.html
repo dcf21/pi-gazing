@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>
+A graph of sin(x) and cos(x)
+</title>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js" type="text/javascript"></script>
+<script src="graphjs.js" type="text/javascript"></script>
+</head>
+
+<body>
+<h1>A graph of sin(x)</h1>
+<div id="plotholder" style="border:1px solid #888;margin:20px;">
+<canvas id="plotcanvas" width="1" height="1"></canvas>
+</div>
+<script type="text/javascript">
+$(function()
+ {
+  var xlist    = graphjs.frange(-10,10,0.1);
+
+  var ylistSin = [];
+  for (var i=0; i<xlist.length; i++) ylistSin.push(Math.sin(xlist[i]));
+  var sinData = {'xdata':xlist,'ydata':ylistSin, 'settings':{}}
+
+  var ylistCos = [];
+  for (var i=0; i<xlist.length; i++) ylistCos.push(Math.cos(xlist[i]));
+  var cosData = {'xdata':xlist,'ydata':ylistCos, 'settings':{'color':'#0000ff','linewidth':3}}
+
+  window.plotobj = new graphjs.graph("plotholder","plotcanvas",[ sinData , cosData ], {}, {}, {});
+ });
+</script>
+</body>
+</html>
+
