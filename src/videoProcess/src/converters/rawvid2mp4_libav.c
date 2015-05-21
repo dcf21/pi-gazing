@@ -81,7 +81,7 @@ int main(int argc, char **argv)
   ctxEncode = video_avstream->codec;
 
   /* put sample parameters */
-  ctxEncode->bit_rate = 10000*1000;
+  ctxEncode->bit_rate = 4000*1000;
   ctxEncode->bit_rate_tolerance = 0;
   ctxEncode->rc_max_rate = 0;
   ctxEncode->rc_buffer_size = 0;
