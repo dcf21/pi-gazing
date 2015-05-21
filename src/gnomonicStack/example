@@ -1,10 +1,10 @@
 ./align_gnomonic.py cameras/eos1000d test*.png > tmp
 ./align_regularise.py tmp > tmpb
-./bin/stack tmpb ; mv /tmp/output.jpg tmpb.jpg
+./bin/stack tmpb ; mv /tmp/output.png tmpb.png
 
 ./bin/camfit tmpb
 
-./bin/barrel test.png cameras/eos1000d /tmp/output.jpg
+./bin/barrel test.png cameras/eos1000d /tmp/output.png
 
 
 # Cloudy example

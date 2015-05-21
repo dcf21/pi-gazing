@@ -17,9 +17,8 @@
 
 #include "settings.h"
 
-#define medianMapUseEveryNthStack             16
-#define medianMapUseNImages                   16
-#define medianMapResolution                   16
+#define medianMapUseEveryNthStack              2
+#define medianMapUseNImages                  900
 #define framesSinceLastTrigger_INITIAL        -8 - medianMapUseEveryNthStack*medianMapUseNImages
 #define framesSinceLastTrigger_REWIND         -2
 #define framesSinceLastTrigger_ALLOWTRIGGER    3
@@ -106,7 +105,7 @@ int testTrigger(const double utc, const int width, const int height, const int *
    for (x=marginL;x<width-marginR; x++)
     {
      const int o=x+y*width;
-     triggerR[o] = CLIP256( 128+(imageB[o]-imageA[o])*128/threshold ); // RED channel - difference between images B and A
+     triggerR[o] = CLIP256( (imageB[o]-imageA[o])*64/threshold ); // RED channel - difference between images B and A
      triggerG[o] = CLIP256( imageB[o] / coAddedFrames ); // GRN channel - a copy of image B
      if (mask[o] && (imageB[o]-imageA[o]>threshold)) // Search for pixels which have brightened by more than threshold since past image
       {
@@ -188,40 +187,14 @@ int readShortBuffer(void *videoHandle, int nfr, int width, int height, unsigned 
    }
 
   // Add the pixel values in this stack into the histogram in medianWorkspace
-  // Look-up tables used for the grid cell numbers associated with each pixel, because a lot of CPU is used here
   if (medianWorkspace)
    {
-    const int mapSize = medianMapResolution*medianMapResolution;
-    static int *xm=NULL, *ym=NULL;
-    if (xm==NULL)
-     {
-      int x;
-      xm=malloc(width *sizeof(int)); if (!xm) { sprintf(temp_err_string, "ERROR: malloc fail in readShortBuffer."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
-#pragma omp parallel for private(x)
-      for (x=0;x<width ;x++) xm[x] = x*medianMapResolution/width * 256;
-     }
-    if (ym==NULL)
-     {
-      int y;
-      ym=malloc(height*sizeof(int)); if (!ym) { sprintf(temp_err_string, "ERROR: malloc fail in readShortBuffer."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
-#pragma omp parallel for private(y)
-      for (y=0;y<height;y++) ym[y] = (y*medianMapResolution/height) * medianMapResolution * 256;
-     }
 #pragma omp parallel for private(j)
-    for (j=0; j<3; j++)
+    for (j=0; j<frameSize*3; j++)
      {
-      int *mw = medianWorkspace + j*mapSize*256;
-      int x,y,i=j*frameSize;
-      for (y=0;y<height;y++)
-       {
-        int *mwrow = mw + ym[y];
-        for (x=0;x<width;x++,i++)
-         {
-          int d;
-          int pixelVal = CLIP256(stack1[i]/nfr);
-          mwrow[xm[x] + pixelVal]++;
-         }
-       }
+      int d;
+      int pixelVal = CLIP256(stack1[j]/nfr);
+      medianWorkspace[j*256 + pixelVal]++;
      }
    }
   free(tmprgb);
@@ -266,7 +239,7 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
 
   // Median maps are used for background subtraction. Maps A and B are used alternately and contain the median value of each pixel.
   unsigned char *medianMap       = calloc(1,frameSize*3); // The median value of each pixel, sampled over 255 stacked images
-  int           *medianWorkspace = calloc(1,medianMapResolution*medianMapResolution*3*256*sizeof(int)); // Workspace which counts the number of times any given pixel has a particular value over 255 images
+  int           *medianWorkspace = calloc(1,frameSize*3*256*sizeof(int)); // Workspace which counts the number of times any given pixel has a particular value
 
   if ((!bufferA)||(!bufferB)||(!bufferL) || (!stackA)||(!stackB)||(!stackT)||(!stackL) || (!maxA)||(!maxB)||(!maxL) ||  (!medianMap)||(!medianWorkspace)) { sprintf(temp_err_string, "ERROR: malloc fail in observe."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
 
@@ -308,7 +281,7 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
     medianCount++;
     if (medianCount==medianMapUseNImages*medianMapUseEveryNthStack)
      {
-      medianCalculate(width, height, medianMapResolution, medianWorkspace, medianMap);
+      medianCalculate(width, height, medianWorkspace, medianMap);
       medianCount=0;
      }
 

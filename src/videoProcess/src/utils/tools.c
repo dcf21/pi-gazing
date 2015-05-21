@@ -136,67 +136,22 @@ double calculateSkyClarity(image_ptr *img)
   return (100. * score) / pow(gridsize-1,2);
  }
 
-void medianCalculate(const int width, const int height, const int medianMapResolution, int *medianWorkspace, unsigned char *medianMap)
+void medianCalculate(const int width, const int height, int *medianWorkspace, unsigned char *medianMap)
  {
   const int frameSize = width*height;
-  int c;
+  int i;
 
-  const int mapSize = medianMapResolution*medianMapResolution;
-  unsigned char *tmpMap = calloc(1,3*mapSize);
-
-  // Find the median value of each cell in the median grid
-  for (c=0; c<3; c++)
-   {
-    int i;
+  // Find the modal value of each cell in the median grid
 #pragma omp parallel for private(i)
-    for (i=0; i<mapSize; i++)
-     {
-      int f,d;
-      const int offset = (c*mapSize+i)*256;
-      int NcoaddedPixels = 0;
-      for (f=0; f<256; f++) NcoaddedPixels += medianWorkspace[offset+f];
-      int total = 0;
-      for (f=0; f<256; f++)
-       {
-        total += medianWorkspace[offset+f];
-        if (total>=NcoaddedPixels/2) break;
-       }
-      tmpMap[c*mapSize+i] = CLIP256(f-2);
-     }
-   }
-  memset(medianWorkspace, 0, mapSize*3*256*sizeof(int));
-
-  // Linearly interpolate coarse median map across the whole image
-  for (c=0; c<3; c++)
+  for (i=0; i<frameSize*3; i++)
    {
-    int y;
-#pragma omp parallel for private(y)
-    for (y=0; y<height; y++)
-     {
-      int d,x;
-      double ym = medianMapResolution * ((double)y) / height - 0.5;
-      if (ym<0) ym=0; if (ym>medianMapResolution-1) ym=medianMapResolution-1;
-      int    y0 = floor(ym);
-      int    y1w= CLIP256( 255*(ym-y0) );
-      int    y0w= 255-y1w;
-      int    y1 = (y0==medianMapResolution-1) ? y0 : y0+1;
-      for (x=0; x<width; x++)
-       {
-        double xm = medianMapResolution * ((double)x) / width - 0.5;
-        if (xm<0) xm=0; if (xm>medianMapResolution-1) xm=medianMapResolution-1;
-        int    x0 = floor(xm);
-        int    x1w= CLIP256( 255*(xm-x0) );
-        int    x0w= 255-x1w;
-        int    x1 = (x0==medianMapResolution-1) ? x0 : x0+1;
-        int    pixVal = ( x0w*y0w*tmpMap[c*mapSize + y0*medianMapResolution + x0] +
-                          x1w*y0w*tmpMap[c*mapSize + y0*medianMapResolution + x1] +
-                          x0w*y1w*tmpMap[c*mapSize + y1*medianMapResolution + x0] +
-                          x1w*y1w*tmpMap[c*mapSize + y1*medianMapResolution + x1]   ) >> 16;
-        medianMap[c*frameSize + y*width+x] = CLIP256(pixVal);
-       }
-     }
+    int f,d;
+    const int offset = i*256;
+    int mode=0, modeSamples=0;
+    for (f=0; f<256; f++) if (medianWorkspace[offset+f]>modeSamples) { mode=f; modeSamples=medianWorkspace[offset+f]; }
+    medianMap[i] = CLIP256(mode-2);
    }
-  free(tmpMap);
+  memset(medianWorkspace, 0, frameSize*3*256*sizeof(int));
   return;
  }
 

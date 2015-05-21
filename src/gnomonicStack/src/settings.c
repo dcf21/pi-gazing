@@ -24,7 +24,7 @@ void DefaultSettings(settings *s, settingsIn *si)
   s->cloudMask = 0;
 
   si->barrel_a= si->barrel_b = si->barrel_c = 0;
-  si->backSub=1;
+  si->backSub=0;
   return;
  }
 

@@ -24,6 +24,7 @@ LOCAL_BINDIR = bin
 STACK_FILES = asciidouble.c backgroundSub.c error.c gnomonic.c imageProcess.c image_in.c image_out.c readConfig.c settings.c stack.c
 CAMFT_FILES = asciidouble.c backgroundSub.c error.c gnomonic.c imageProcess.c image_in.c image_out.c readConfig.c settings.c cameraFit.c
 BARRL_FILES = asciidouble.c backgroundSub.c error.c gnomonic.c imageProcess.c image_in.c image_out.c readConfig.c settings.c barrel.c
+SUBTR_FILES = asciidouble.c backgroundSub.c error.c gnomonic.c imageProcess.c image_in.c image_out.c readConfig.c settings.c subtract.c
 
 HEADERS = asciidouble.h backgroundSub.h error.h gnomonic.h imageProcess.h image.h readConfig.h settings.h str_constants.h
 
@@ -39,12 +40,16 @@ BARRL_SOURCES         = $(BARRL_FILES:%.c=$(LOCAL_SRCDIR)/%.c)
 BARRL_OBJECTS         = $(BARRL_FILES:%.c=$(LOCAL_OBJDIR)/%.o)
 BARRL_OBJECTS_DEBUG   = $(BARRL_OBJECTS:%.o=%.debug.o)
 
+SUBTR_SOURCES         = $(SUBTR_FILES:%.c=$(LOCAL_SRCDIR)/%.c)
+SUBTR_OBJECTS         = $(SUBTR_FILES:%.c=$(LOCAL_OBJDIR)/%.o)
+SUBTR_OBJECTS_DEBUG   = $(SUBTR_OBJECTS:%.o=%.debug.o)
+
 ALL_HFILES             = $(HEADERS:%.h=$(LOCAL_SRCDIR)/%.h) Makefile
 
 
 COMMON_SWITCHES = -D VERSION=\"$(VERSION)\"  -D DATE=\"$(DATE)\"  -D SRCDIR=\"$(CWD)/$(LOCAL_SRCDIR)/\"
 
-all: $(LOCAL_BINDIR)/stack $(LOCAL_BINDIR)/debug/stack $(LOCAL_BINDIR)/camfit $(LOCAL_BINDIR)/debug/camfit $(LOCAL_BINDIR)/barrel $(LOCAL_BINDIR)/debug/barrel
+all: $(LOCAL_BINDIR)/stack $(LOCAL_BINDIR)/debug/stack $(LOCAL_BINDIR)/camfit $(LOCAL_BINDIR)/debug/camfit $(LOCAL_BINDIR)/barrel $(LOCAL_BINDIR)/debug/barrel $(LOCAL_BINDIR)/subtract $(LOCAL_BINDIR)/debug/subtract
 
 #
 # General macros for the compile steps
@@ -85,6 +90,14 @@ $(LOCAL_BINDIR)/barrel:        $(BARRL_OBJECTS)
 $(LOCAL_BINDIR)/debug/barrel:  $(BARRL_OBJECTS_DEBUG)
 	mkdir -p $(LOCAL_BINDIR)/debug
 	$(LINK) $(OPTIMISATION) $(BARRL_OBJECTS_DEBUG) $(LIBS) -o $(LOCAL_BINDIR)/debug/barrel
+
+$(LOCAL_BINDIR)/subtract:        $(SUBTR_OBJECTS)
+	mkdir -p $(LOCAL_BINDIR)
+	$(LINK) $(OPTIMISATION) $(SUBTR_OBJECTS) $(LIBS)       -o $(LOCAL_BINDIR)/subtract
+
+$(LOCAL_BINDIR)/debug/subtract:  $(SUBTR_OBJECTS_DEBUG)
+	mkdir -p $(LOCAL_BINDIR)/debug
+	$(LINK) $(OPTIMISATION) $(SUBTR_OBJECTS_DEBUG) $(LIBS) -o $(LOCAL_BINDIR)/debug/subtract
 
 #
 # Clean macros

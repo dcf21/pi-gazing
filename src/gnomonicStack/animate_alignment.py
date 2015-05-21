@@ -45,8 +45,8 @@ for i in range(nGrp):
 
   # Draw an arrow to label a point
   xarr = 768 ; yarr = 544
-  os.system("""arrow_head="path 'M 0,0  l -15,-5  +5,+5  -5,+5  +15,-5 z'" ; convert /tmp/output.jpg -stroke red -fill red -strokewidth 3 -draw "line %s,%s %s,%s" -draw "translate %s,%s rotate -90 scale 1.4,1.4 $arrow_head" /tmp/output2.jpg ; mv /tmp/output2.jpg /tmp/output.jpg"""%(xarr,yarr+80,xarr,yarr,xarr,yarr))
+  os.system("""arrow_head="path 'M 0,0  l -15,-5  +5,+5  -5,+5  +15,-5 z'" ; convert /tmp/output.png -stroke red -fill red -strokewidth 3 -draw "line %s,%s %s,%s" -draw "translate %s,%s rotate -90 scale 1.4,1.4 $arrow_head" /tmp/output2.png ; mv /tmp/output2.png /tmp/output.png"""%(xarr,yarr+80,xarr,yarr,xarr,yarr))
 
-  os.system("mv /tmp/output.jpg /tmp/animate_align_fr%06d.jpg"%frNum)
+  os.system("mv /tmp/output.png /tmp/animate_align_fr%06d.png"%frNum)
   frNum+=1
 

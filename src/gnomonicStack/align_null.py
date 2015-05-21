@@ -16,7 +16,7 @@ for f in fnames:
 
 i = int(floor(len(fits)/2))
 
-print "SET output /tmp/output.jpg"
+print "SET output /tmp/output.png"
 print "SET camera cameras/null"
 
 print "%-91s %4.1f %4d %4d %4d %4d %5.2f"%("FLAT",1,fits[i][1][0],fits[i][1][1],0,0,0) # Exposure compensation, x size, y size, x shift, y shift, rotation

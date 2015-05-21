@@ -90,8 +90,8 @@ while True:
         time.sleep(10)
         logTxt("Camera has been turned on.")
         timekey = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
-        cmd = "%s/debug/recordH264 %.1f %.1f %.1f %s %s %d %d %s %s %s %d %d %s/rawvideo/%s_%s"%(BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,sensorData.width,sensorData.height,sensorData.fps,latitude,longitude,flagGPS,sensorData.upsideDown,DATA_PATH,timekey,CAMERA_ID)
-        logTxt("Running command: %s"%cmd)
+        cmd = "timeout %d %s/debug/recordH264 %.1f %.1f %.1f %s %s %d %d %s %s %s %d %d %s/rawvideo/%s_%s"%(secondsTillSunrise+30,BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,sensorData.width,sensorData.height,sensorData.fps,latitude,longitude,flagGPS,sensorData.upsideDown,DATA_PATH,timekey,CAMERA_ID)
+        logTxt("Running command: %s"%cmd) # Use timeout here, because sometime the RPi's openmax encoder hangs...
         os.system(cmd)
         mod_relay.cameraOff()
         logTxt("Camera has been turned off.")

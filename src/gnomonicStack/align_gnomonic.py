@@ -28,6 +28,7 @@ os.system("mkdir %s"%tmp)
 os.chdir(tmp)
 
 barrelCorrect = os.path.join(cwd,"bin","barrel");
+subtractBinary= os.path.join(cwd,"bin","subtract");
 camera        = os.path.join(cwd,camera);
 
 fits = []
@@ -38,8 +39,10 @@ for f in fnames:
   count+=1
   f = os.path.join(cwd,f)
   os.system("rm -f *")
-  os.system("%s %s %s tmp.jpg"%(barrelCorrect,f,camera)) # Barrel-correct image
-  os.system("timeout 5m solve-field --no-plots --crpix-center --overwrite tmp.jpg > txt") # Insert --no-plots to speed things up
+  os.system("%s %s %s tmp2.png"%(barrelCorrect,f,camera)) # Barrel-correct image
+  os.system("%s tmp2.png /tmp/average.png tmp3.png"%(subtractBinary))
+  os.system("convert tmp3.png -crop 360x240+180+120 +repage tmp.png")
+  os.system("timeout 5m solve-field --no-plots --crpix-center --overwrite tmp.png > txt") # Insert --no-plots to speed things up
   # os.system("mv tmp-ngc.png /tmp/frame%04d.png"%count)
   fittxt = open("txt").read()
   test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",fittxt)
@@ -70,7 +73,7 @@ for f in fnames:
 
 i = int(floor(len(fits)/2))
 
-print "SET output /tmp/output.jpg"
+print "SET output /tmp/output.png"
 print "SET camera %s"%camera
 print "SET latitude 0"
 print "SET longitude 0"

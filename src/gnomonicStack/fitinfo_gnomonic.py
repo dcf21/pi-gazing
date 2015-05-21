@@ -15,7 +15,7 @@ DEG = pi/180
 indata = sys.stdin.read()
 lines  = indata.split("\n")
 
-output    = "/tmp/output.jpg"
+output    = "/tmp/output.png"
 metadata  = {}
 out_xsize = 1
 out_ysize = 1

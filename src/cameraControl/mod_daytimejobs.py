@@ -10,7 +10,7 @@ rawImgToPng       = '%(binary_path)s/rawimg2png               %(input)s %(filena
 rawImgToPng3      = '%(binary_path)s/rawimg2png3              %(input)s %(filename_out)s %(produceFilesWithoutLC)s %(barrel_a)s %(barrel_b)s %(barrel_c)s'
 
 if I_AM_A_RPI:
-  rawVidToMp4     = '%(binary_path)s/rawvid2mp4_openmax       %(input)s /tmp/pivid_%(pid)s.h264 ; avconv -i "/tmp/pivid_%(pid)s.h264" -c:v copy -f mp4 %(filename_out)s.mp4 ; rm /tmp/pivid_%(pid)s.h264'
+  rawVidToMp4     = 'timeout 2m %(binary_path)s/rawvid2mp4_openmax       %(input)s /tmp/pivid_%(pid)s.h264 ; avconv -i "/tmp/pivid_%(pid)s.h264" -c:v copy -f mp4 %(filename_out)s.mp4 ; rm /tmp/pivid_%(pid)s.h264'
 else:
   rawVidToMp4     = '%(binary_path)s/rawvid2mp4_libav         %(input)s %(filename_out)s.mp4'
 

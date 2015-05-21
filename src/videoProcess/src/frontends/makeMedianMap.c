@@ -16,8 +16,7 @@
 #include "settings.h"
 
 #define medianMapUseEveryNthStack     1
-#define medianMapUseNImages           8
-#define medianMapResolution          16
+#define medianMapUseNImages         100
 
 int main(int argc, char *argv[])
  {
@@ -65,7 +64,7 @@ int main(int argc, char *argv[])
   int *tmpi = malloc(frameSize*3*sizeof(int));
   if (!tmpi) { sprintf(temp_err_string, "ERROR: malloc fail in makeMedianMap."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
 
-  int           *medianWorkspace = calloc(1,medianMapResolution*medianMapResolution*3*256*sizeof(int));
+  int           *medianWorkspace = calloc(1,frameSize*3*256*sizeof(int));
   unsigned char *medianMap       = calloc(1,3*frameSize);
   if ((!medianWorkspace)||(!medianMap)) { sprintf(temp_err_string, "ERROR: malloc fail in makeMedianMap."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
 
@@ -89,23 +88,16 @@ int main(int argc, char *argv[])
 
     // Add stacked image into median map
 #pragma omp parallel for private(j)
-    for (j=0; j<3; j++)
+    for (j=0; j<3*frameSize; j++)
      {
-      int x,y,i=0;
-      for (y=0;y<height;y++) for (x=0;x<width;x++,i++)
-       {
-        int d;
-        int pixelVal = CLIP256( tmpi[i+j*frameSize]/nfr );
-        int xm = x*medianMapResolution/width;
-        int ym = y*medianMapResolution/height;
-        const int mapSize = medianMapResolution*medianMapResolution;
-        medianWorkspace[ ( j*mapSize + ym*medianMapResolution + xm)*256 + pixelVal]++;
-       }
+      int d;
+      int pixelVal = CLIP256( tmpi[j]/nfr );
+      medianWorkspace[j*256 + pixelVal]++;
      }
    }
 
   // Calculate median map
-  medianCalculate(width, height, medianMapResolution, medianWorkspace, medianMap);
+  medianCalculate(width, height, medianWorkspace, medianMap);
   dumpFrameRGB(width, height, medianMap, rawfname);
 
   // Make a PNG version for diagnostic use

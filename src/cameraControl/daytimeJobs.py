@@ -88,7 +88,8 @@ try:
       for dirName, subdirList, fileList in os.walk(inDir):
         for f in fileList:
           if quitTime and (getUTC()>quitTime): raise TimeOut
-          if f.endswith(".%s"%inExt):
+          inputFile = os.path.join(dirName,f)
+          if ( f.endswith(".%s"%inExt) and (os.path.getsize(inputFile)>0) ): # File must have correct extension and non-zero size
             utc = mod_hwm.filenameToUTC(f)
             if (utc < 0): continue
             if (utc > highWaterMarks[HWMout]):
@@ -98,7 +99,7 @@ try:
 
               # Make dictionary of information about this job
               params = {'binary_path':BINARY_PATH ,
-                        'input':os.path.join(dirName,f) ,
+                        'input':inputFile ,
                         'outdir':outDirs[0] ,
                         'filename':f[:-(len(inExt)+1)] ,
                         'inExt':inExt ,
@@ -168,7 +169,7 @@ mod_hwm.writeHWM(highWaterMarks)
 os.chdir(cwd)
 if (not quitTime) or (quitTime - getUTC() > 300):
   logTxt("Importing events into firebird db")
-  import firebirdImport
+  # import firebirdImport
 
 # Twiddle our thumbs
 if quitTime:
