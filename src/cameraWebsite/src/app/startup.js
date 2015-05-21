@@ -9,11 +9,11 @@ define(['jquery', 'knockout', 'router', 'bootstrap', 'knockout-projections', 'ke
         template: {require: 'text!components/about-page/about.html'}
     });
 
-    ko.components.register('filerecord-table', {require: 'components/filerecord-table/filerecord-table'});
-
-    ko.components.register('file-results-page', {require: 'components/file-results-page/file-results-page'});
-
     ko.components.register('chart-test', {require: 'components/chart-test/chart-test'});
+
+    ko.components.register('status-page', {require: 'components/status-page/status-page'});
+
+    ko.components.register('files-page', {require: 'components/files-page/files-page'});
 
     // [Scaffolded component registrations will be inserted here. To retain this feature, don't remove this comment.]
 

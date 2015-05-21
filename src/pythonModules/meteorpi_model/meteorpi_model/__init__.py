@@ -170,7 +170,9 @@ class FileRecordSearch(ModelEqualityMixin):
         semantic_type = NSString.from_string(_string_from_dict(d, 'semantic_type'))
         return FileRecordSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
                                 long_max=long_max, after=after, before=before, mime_type=mime_type,
-                                semantic_type=semantic_type, exclude_events='exclude_events' in d, latest='latest' in d)
+                                semantic_type=semantic_type,
+                                exclude_events='exclude_events' in d and d['exclude_events'],
+                                latest='latest' in d and d['latest'])
 
 
 class EventSearch(ModelEqualityMixin):

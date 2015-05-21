@@ -24,7 +24,6 @@ define(["knockout", "crossroads", "hasher"], function (ko, crossroads, hasher) {
 
     Router.prototype.goTo = function (name, params) {
         var newHash = this.routes[name].interpolate(params);
-        console.log(newHash);
         hasher.setHash(newHash);
     };
 
@@ -42,8 +41,9 @@ define(["knockout", "crossroads", "hasher"], function (ko, crossroads, hasher) {
     return new Router({
         routes: [
             {name: 'home', url: '', params: {page: 'home-page'}},
-            {name: 'file-results', url: 'files/{search}', params: {page: 'file-results-page'}},
-            {name: 'about', url: 'about', params: {page: 'about-page'}}
+            {name: 'about', url: 'about', params: {page: 'about-page'}},
+            {name: 'status', url: 'status', params: {page: 'status-page'}},
+            {name: 'files', url: 'files/:search:', params: {page: 'files-page'}}
         ]
     });
 

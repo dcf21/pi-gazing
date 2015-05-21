@@ -1,3 +1,31 @@
 #page {
     margin-top: 80px;
 }
+
+table.table table.table > tbody > tr > * {
+    border: none;
+    margin-top: 0px;
+    padding-top: 0px;
+    padding-right: 20px;
+}
+
+table.table table.table > tbody > tr > *:first-child {
+    border: none;
+    margin-top: 0px;
+    padding-top: 0px;
+    padding-right: 20px;
+    padding-left: 0px;
+}
+
+table.table table.table > tbody > tr:last-child > * {
+    border: none;
+    margin-top: 0px;
+    padding-top: 0px;
+    padding-right: 20px;
+    padding-bottom: 0px;
+}
+
+table.table table.table {
+    margin-bottom: 0px;
+    width: 0px;
+}
