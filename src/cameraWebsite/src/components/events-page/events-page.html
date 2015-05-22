@@ -18,15 +18,7 @@
 
     <div class="form-group">
         <div class="col-xs-offset-2 col-xs-10">
-            <div class="checkbox">
-                <label><input type="checkbox" data-bind="checked: search.exclude_events">Exclude events?</label>
-            </div>
-        </div>
-    </div>
-
-    <div class="form-group">
-        <div class="col-xs-offset-2 col-xs-10">
-            <button type="submit" class="btn btn-default btn-info" data-bind="click: searchFiles">Search</button>
+            <button type="submit" class="btn btn-default btn-info" data-bind="click: searchEvents">Search</button>
         </div>
     </div>
 
@@ -36,17 +28,26 @@
     <thead>
     <tr>
         <th>Camera ID</th>
-        <th>File Time</th>
-        <th>MIME Type</th>
-        <th>Semantic Type</th>
+        <th>Event Time</th>
+        <th>Intensity</th>
+        <th>Files</th>
     </tr>
     </thead>
     <tbody data-bind="foreach: results">
     <tr>
         <td data-bind="text: camera_id"></td>
-        <td data-bind="text: new Date(file_time*1000)"></td>
-        <td data-bind="text: mime_type"></td>
-        <td data-bind="text: semantic_type"></td>
+        <td data-bind="text: new Date(event_time*1000)"></td>
+        <td data-bind="text: intensity"></td>
+        <td>
+            <table class="table table-condensed">
+                <tbody data-bind="foreach: files">
+                <tr>
+                    <td data-bind="text: mime_type"></td>
+                    <td data-bind="text: semantic_type"></td>
+                </tr>
+                </tbody>
+            </table>
+        </td>
     </tr>
     </tbody>
 </table>

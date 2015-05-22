@@ -15,6 +15,8 @@ define(['jquery', 'knockout', 'router', 'bootstrap', 'knockout-projections', 'ke
 
     ko.components.register('files-page', {require: 'components/files-page/files-page'});
 
+    ko.components.register('events-page', {require: 'components/events-page/events-page'});
+
     // [Scaffolded component registrations will be inserted here. To retain this feature, don't remove this comment.]
 
     // Start the application

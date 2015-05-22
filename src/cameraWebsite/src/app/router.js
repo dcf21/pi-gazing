@@ -43,7 +43,8 @@ define(["knockout", "crossroads", "hasher"], function (ko, crossroads, hasher) {
             {name: 'home', url: '', params: {page: 'home-page'}},
             {name: 'about', url: 'about', params: {page: 'about-page'}},
             {name: 'status', url: 'status', params: {page: 'status-page'}},
-            {name: 'files', url: 'files/:search:', params: {page: 'files-page'}}
+            {name: 'files', url: 'files/:search:', params: {page: 'files-page'}},
+            {name: 'events', url: 'events/:search:', params: {page: 'events-page'}}
         ]
     });
 

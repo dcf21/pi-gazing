@@ -386,8 +386,10 @@ class Location(ModelEqualityMixin):
     indicate whether the fix had a GPS lock or not.
 
     Instance properties:
-        latitude -- Latitude of the camera installation, measured in degrees. Positive angles are north of equator; negative angles are south.
-        longitude -- Longitude of the camera installation, measured in degrees. Positive angles are east of Greenwich; negative angles are west.
+        latitude -- Latitude of the camera installation, measured in degrees. Positive angles are north of equator,
+            negative angles are south.
+        longitude -- Longitude of the camera installation, measured in degrees. Positive angles are east of Greenwich,
+            negative angles are west.
         gps -- True if the location was identified by GPS, False otherwise.
         error -- estimate of error in longitude and latitude values, expressed in meters.
     """
@@ -413,11 +415,15 @@ class Orientation(ModelEqualityMixin):
     from astrometry.net, so use documentation there as supporting material when interpreting instances of this class.
 
     Instance properties:
-        altitude -- Angle above the horizon of the centre of the camera's field of view. 0 means camera is pointing horizontally; 90 means camera is pointing vertically upwards.
-        azimuth -- Bearing of the centre of the camera's field of view, measured eastwards from north. 0 means camera pointing north; 90 east; 180 south; 270 west.
-        rotation -- Position angle of camera's field of view (measured at centre of frame). 0 = celestial north up; 90 = celestial east up ; 270 = celestial west up.
+        altitude -- Angle above the horizon of the centre of the camera's field of view. 0 means camera is pointing
+            horizontally, 90 means camera is pointing vertically upwards.
+        azimuth -- Bearing of the centre of the camera's field of view, measured eastwards from north. 0 means camera
+            pointing north, 90 east, 180 south, 270 west.
+        rotation -- Position angle of camera's field of view (measured at centre of frame). 0 = celestial north up,
+            90 = celestial east up, 270 = celestial west up.
         error -- estimate of likely error in altitude, azimuth and rotation values, expressed in degrees.
-        width_of_field -- For a frame of dimensions (w,h), the angular distance between the pixels (0,h/2) and (w/2,h/2). That is, half the angular *width* of the frame.
+        width_of_field -- For a frame of dimensions (w,h), the angular distance between the pixels (0,h/2) and
+            (w/2,h/2). That is, half the angular *width* of the frame.
     """
 
     def __init__(self, altitude=0.0, azimuth=0.0, error=0.0, rotation=0.0, width_of_field=0.0):
@@ -444,15 +450,19 @@ class CameraStatus(ModelEqualityMixin):
     the status is current.
 
     Instance properties:
-        lens -- Name of the camera lens in use. This must match the name field of an entry in <sensorProperties/lenses.xml>
-        sensor -- Name of the camera in use. This must match the name field of an entry in <sensorProperties/sensors.xml>
+        lens -- Name of the camera lens in use. This must match the name field of an entry in
+            <sensorProperties/lenses.xml>
+        sensor -- Name of the camera in use. This must match the name field of an entry in
+            <sensorProperties/sensors.xml>
         inst_name -- Installation name, e.g. "Cambridge Secondary School, South Camera"
         inst_url -- Web address associated with installation, e.g. the school's website
         orientation -- An instance of class Orientation
         location -- An instance of class Location
         software_version -- ??
-        regions -- List of list of dictionaries of the form {'x':x,'y':y}. The points in each list describe a polygons within which camera can see the sky.
-        valid_from -- datetime object representing the earliest date of observation from which this camera status is valid
+        regions -- List of list of dictionaries of the form {'x':x,'y':y}. The points in each list describe a polygon
+            within which camera can see the sky.
+        valid_from -- datetime object representing the earliest date of observation from which this camera status
+            is valid
         valid_to -- datetime object representing the latest date of observation for which this camera status is valid
 
     """

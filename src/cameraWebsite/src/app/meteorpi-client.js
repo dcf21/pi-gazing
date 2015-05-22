@@ -133,8 +133,8 @@ define(["jquery", "knockout"], function (jquery, ko) {
          * @param callback callback called with (err:string, [event:{}])
          */
         self.searchEvents = function (search, callback) {
-            var searchString = encodeURIComponent(JSON.stringify(search));
-            applyCallback(ajax("events/" + search.getSearchString(), "GET"), "events", callback);
+            var searchString = (typeof(search) === 'string' || search instanceof String) ? search : self.stringFromObservables(search);
+            applyCallback(ajax("events/" + searchString, "GET"), "events", callback);
         };
 
         /**
