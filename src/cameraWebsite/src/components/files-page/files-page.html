@@ -39,6 +39,7 @@
         <th>File Time</th>
         <th>MIME Type</th>
         <th>Semantic Type</th>
+        <th>ID (click to download)</th>
     </tr>
     </thead>
     <tbody data-bind="foreach: results">
@@ -47,6 +48,7 @@
         <td data-bind="text: new Date(file_time*1000)"></td>
         <td data-bind="text: mime_type"></td>
         <td data-bind="text: semantic_type"></td>
+        <td><a data-bind="text: file_id, attr : {href : $parent.urlForFileId(file_id)}"></a></td>
     </tr>
     </tbody>
 </table>

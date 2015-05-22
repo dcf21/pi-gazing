@@ -147,6 +147,10 @@ define(["jquery", "knockout"], function (jquery, ko) {
             applyCallback(ajax("files/" + searchString, "GET"), "files", callback);
         };
 
+        self.urlForFileId = function (fileId) {
+            return config.urlPrefix + "files/content/" + fileId;
+        };
+
         /**
          * Get the camera status for a given camera and time. If the time is not specified (is null) this
          * is interpreted to mean 'now'.

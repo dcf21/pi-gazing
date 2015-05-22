@@ -1,5 +1,6 @@
 import threading
 from datetime import datetime
+import uuid
 
 import os.path as path
 import flask
@@ -58,6 +59,14 @@ def build_app(db):
         search = model.FileRecordSearch.from_dict(safe_load(search_string))
         #print search.__dict__
         return jsonify({'files': list(x.as_dict() for x in db.search_files(search))})
+
+    @app.route('/files/content/<file_id>', methods=['GET'])
+    def get_file_content(file_id):
+        fr = db.get_file(file_id=uuid.UUID(hex=file_id))
+        if fr is not None:
+            return flask.send_file(filename_or_fp=fr.get_path(), mimetype=fr.mime_type)
+        else:
+            return flask.abort(404)
 
     return app
 

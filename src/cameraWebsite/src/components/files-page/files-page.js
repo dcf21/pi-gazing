@@ -11,6 +11,8 @@ define(['knockout', 'text!./files-page.html', 'client', 'router'], function (ko,
 
         self.results = ko.observableArray();
 
+        self.urlForFileId = client.urlForFileId;
+
         if (params.search) {
             // Configure the observable from the search
             client.populateObservables(self.search, params.search, {
