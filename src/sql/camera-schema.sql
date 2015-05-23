@@ -91,6 +91,7 @@ CREATE TABLE t_file (
 	cameraID char(12) NOT NULL,
 	fileID char(16) CHARACTER SET OCTETS NOT NULL, /* Always use literal byte values */
 	mimeType varchar(100) default 'text/plain' NOT NULL,
+  fileName VARCHAR(255),
 	semanticType varchar(255) NOT NULL,
 	fileTime timestamp NOT NULL,
   fileDay    TIMESTAMP NOT NULL,

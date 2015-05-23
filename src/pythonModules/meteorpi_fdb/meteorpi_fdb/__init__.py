@@ -273,7 +273,8 @@ class MeteorDatabase:
             semantic_type,
             file_time,
             file_metas,
-            camera_id=get_installation_id()):
+            camera_id=get_installation_id(),
+            file_name=None):
         """
         Register a new row in t_file representing a file on disk.
 
@@ -293,8 +294,8 @@ class MeteorDatabase:
         day_and_offset = get_day_and_offset(file_time)
         cur.execute(
             'INSERT INTO t_file (cameraID, mimeType, '
-            'semanticType, fileTime, fileDay, fileOffset, fileSize, statusID) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?) '
+            'semanticType, fileTime, fileDay, fileOffset, fileSize, statusID, fileName) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) '
             'RETURNING internalID, fileID, fileTime',
             (camera_id,
              mime_type,
@@ -303,7 +304,8 @@ class MeteorDatabase:
              day_and_offset['day'],
              day_and_offset['seconds'],
              file_size_bytes,
-             status_id))
+             status_id,
+             file_name))
         row = cur.fetchonemap()
         # Retrieve the internal ID of the file row to link fileMeta if required
         file_internal_id = row['internalID']
@@ -344,12 +346,12 @@ class MeteorDatabase:
         if internal_id is not None:
             cur.execute(
                 'SELECT internalID, cameraID, mimeType, '
-                'semanticType, fileTime, fileSize, fileID '
+                'semanticType, fileTime, fileSize, fileID, fileName '
                 'FROM t_file t WHERE t.internalID=(?)', (internal_id,))
         elif file_id is not None:
             cur.execute(
                 'SELECT internalID, cameraID, mimeType, '
-                'semanticType, fileTime, fileSize, fileID '
+                'semanticType, fileTime, fileSize, fileID, fileName '
                 'FROM t_file t WHERE t.fileID=(?)', (file_id.bytes,))
         row = cur.fetchonemap()
         if row is None:
@@ -363,6 +365,7 @@ class MeteorDatabase:
         file_record.file_id = uuid.UUID(bytes=row['fileID'])
         file_record.file_size = row['fileSize']
         file_record.file_time = row['fileTime']
+        file_record.file_name = row['fileName']
         internal_file_id = row['internalID']
         cur.execute(
             'SELECT metaKey, stringValue, floatValue, dateValue '

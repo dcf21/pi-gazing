@@ -346,7 +346,7 @@ class FileRecord(ModelEqualityMixin):
     """A piece of binary data with associated metadata, typically used to store
     an image or video from the camera."""
 
-    def __init__(self, camera_id, mime_type, semantic_type):
+    def __init__(self, camera_id, mime_type, semantic_type, file_name=None):
         self.camera_id = camera_id
         self.mime_type = mime_type
         # NSString value
@@ -355,24 +355,27 @@ class FileRecord(ModelEqualityMixin):
         self.file_id = None
         self.file_time = None
         self.file_size = 0
+        self.file_name = file_name
 
     def __str__(self):
         return (
             'FileRecord(file_id={0} camera_id={1} mime={2} '
-            'stype={3} time={4} size={5} meta={6}'.format(
+            'stype={3} time={4} size={5} meta={6}, name={7}'.format(
                 self.file_id.hex,
                 self.camera_id,
                 self.mime_type,
                 self.semantic_type,
                 self.file_time,
                 self.file_size,
-                str([str(obj) for obj in self.meta])))
+                str([str(obj) for obj in self.meta]),
+                self.file_name))
 
     def as_dict(self):
         d = {}
         _add_uuid(d, 'file_id', self.file_id)
         _add_string(d, 'camera_id', self.camera_id)
         _add_string(d, 'mime_type', self.mime_type)
+        _add_string(d, 'file_name', self.file_name)
         _add_string(d, 'semantic_type', str(self.semantic_type))
         _add_datetime(d, 'file_time', self.file_time)
         _add_value(d, 'file_size', self.file_size)
@@ -389,6 +392,7 @@ class FileRecord(ModelEqualityMixin):
         fr.file_size = int(_value_from_dict(d, 'file_size'))
         fr.file_time = _datetime_from_dict(d, 'file_time')
         fr.file_id = _uuid_from_dict(d, 'file_id')
+        fr.file_name = _string_from_dict(d, 'file_name')
         fr.meta = (FileMeta.from_dict(m) for m in d['meta'])
         return fr
 
