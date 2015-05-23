@@ -1,7 +1,7 @@
 <form class="form-horizontal">
 
     <div class="form-group">
-        <label for="after" class="control-label col-xs-2">After</label>
+        <label for="after" class="control-label col-xs-2">After (date and time)</label>
 
         <div class="col-xs-10">
             <input class="form-control" data-bind="kendoDateTimePicker: { value: search.after }" id="after"/>
@@ -9,10 +9,30 @@
     </div>
 
     <div class="form-group">
-        <label for="before" class="control-label col-xs-2">Before</label>
+        <label for="before" class="control-label col-xs-2">Before (date and time)</label>
 
         <div class="col-xs-10">
             <input class="form-control" data-bind="kendoDateTimePicker: { value: search.before }" id="before"/>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="after_offset" class="control-label col-xs-2">After (time)</label>
+
+        <div class="col-xs-10">
+            <input class="form-control"
+                   data-bind="kendoTimePicker: { value: afterOffsetDate, min: minTime, max: maxTime, interval: 15}"
+                   id="after_offset"/>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="before_offset" class="control-label col-xs-2">Before (time)</label>
+
+        <div class="col-xs-10">
+            <input class="form-control"
+                   data-bind="kendoTimePicker: { value: beforeOffsetDate, min: minTime, max: maxTime, interval: 15}"
+                   id="before_offset"/>
         </div>
     </div>
 

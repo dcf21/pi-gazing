@@ -75,6 +75,7 @@ define(["jquery", "knockout"], function (jquery, ko) {
                     if (typeof value === "boolean") {
                         return value ? 1 : undefined;
                     }
+                    //console.log("Encoding " + key + " = " + value);
                     return value;
                 }
             ));
@@ -100,7 +101,7 @@ define(["jquery", "knockout"], function (jquery, ko) {
             for (var key in ob) {
                 if (key in o) {
                     if (ko.isObservable(ob[key])) {
-                        console.log("Pushing " + ko.unwrap(o[key]) + " into " + key);
+                        //console.log("Pushing " + ko.unwrap(o[key]) + " into " + key);
                         ob[key](ko.unwrap(o[key]));
                     } else {
                         ob[key] = o[key];
@@ -161,6 +162,55 @@ define(["jquery", "knockout"], function (jquery, ko) {
         self.getStatus = function (cameraID, date, callback) {
             applyCallback(ajax("cameras/" + cameraID + "/status" + (date == null ? "" : date.getTime())), "status", callback)
         };
+
+        /**
+         * Build and return a pure computed knockout observable which wraps up a supplied observable containing a time
+         * offset and exposes a date. The date can be written or read and will update the underlying observable data
+         * accordingly.
+         * @param ob the observable to wrap to create the computed value.
+         */
+        self.wrapTimeOffsetObservable = function (ob) {
+            /**
+             * Take a number of seconds since mid-day and produce a date object representing that number of
+             * seconds after 2000-1-1 12:00 PM. This can be used in e.g. a TimePicker to show the times.
+             * @param offset
+             * @returns {Date}
+             */
+            var secondsOffsetToDate = function (offset) {
+                var midday = new Date(2000, 0, 1, 12, 0, 0);
+                var theDate = new Date(2000, 0, 1, 12, 0, 0);
+                theDate.setSeconds(midday.getSeconds() + offset);
+                return theDate;
+
+            };
+
+            /**
+             * Take a date, and return the number of seconds between that date and the most recent mid-day
+             * @param date
+             * @returns {*}
+             */
+            var dateToSecondsOffset = function (date) {
+                if (date == null) {
+                    return null;
+                }
+                if (date.getHours() < 12) {
+                    var theDate = new Date(2000, 0, 2, date.getHours(), date.getMinutes(), 0);
+                } else {
+                    var theDate = new Date(2000, 0, 1, date.getHours(), date.getMinutes(), 0);
+                }
+                var midday = new Date(2000, 0, 1, 12, 0, 0);
+                return (theDate.getTime() - midday.getTime()) / 1000;
+            };
+
+            return ko.pureComputed({
+                read: function () {
+                    return secondsOffsetToDate(ob());
+                },
+                write: function (value) {
+                    ob(dateToSecondsOffset(value));
+                }
+            });
+        }
 
     }
 

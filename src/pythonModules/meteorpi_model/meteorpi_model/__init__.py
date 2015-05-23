@@ -106,8 +106,8 @@ class FileRecordSearch(ModelEqualityMixin):
     """Encapsulates the possible parameters which can be used to search for FileRecord instances"""
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
-                 before=None, mime_type=None, semantic_type=None, exclude_events=False, latest=False, after_day=None,
-                 before_day=None, after_offset=None, before_offset=None):
+                 before=None, mime_type=None, semantic_type=None, exclude_events=False, latest=False, after_offset=None,
+                 before_offset=None):
         if camera_ids is None == False and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
         if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
@@ -116,8 +116,6 @@ class FileRecordSearch(ModelEqualityMixin):
             raise ValueError('Longitude max cannot be less than longitude minimum')
         if after is None == False and before is None == False and before < after:
             raise ValueError('From time cannot be after before time')
-        if after_day is None == False and before_day is None == False and before_day < after_day:
-            raise ValueError('From day cannot be after before day')
         if after_offset is None == False and before_offset is None == False and before_offset < after_offset:
             raise ValueError('From offset cannot be after before offset')
         if isinstance(camera_ids, basestring):
@@ -129,8 +127,6 @@ class FileRecordSearch(ModelEqualityMixin):
         self.long_max = long_max
         self.after = after
         self.before = before
-        self.after_day = after_day
-        self.before_day = before_day
         self.after_offset = after_offset
         self.before_offset = before_offset
         self.mime_type = mime_type
@@ -158,8 +154,6 @@ class FileRecordSearch(ModelEqualityMixin):
         _add_value(d, 'long_max', self.long_max)
         _add_datetime(d, 'after', self.after)
         _add_datetime(d, 'before', self.before)
-        _add_datetime(d, 'after_day', self.after_day)
-        _add_datetime(d, 'before_day', self.before_day)
         _add_value(d, 'after_offset', self.after_offset)
         _add_value(d, 'before_offset', self.before_offset)
         _add_string(d, 'mime_type', self.mime_type)
@@ -180,10 +174,13 @@ class FileRecordSearch(ModelEqualityMixin):
         long_max = _value_from_dict(d, 'long_max')
         after = _datetime_from_dict(d, 'after')
         before = _datetime_from_dict(d, 'before')
+        after_offset = _value_from_dict(d, 'after_offset')
+        before_offset = _value_from_dict(d, 'before_offset')
         mime_type = _string_from_dict(d, 'mime_type')
         semantic_type = NSString.from_string(_string_from_dict(d, 'semantic_type'))
         return FileRecordSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
-                                long_max=long_max, after=after, before=before, mime_type=mime_type,
+                                long_max=long_max, after=after, before=before, after_offset=after_offset,
+                                before_offset=before_offset, mime_type=mime_type,
                                 semantic_type=semantic_type,
                                 exclude_events='exclude_events' in d and d['exclude_events'],
                                 latest='latest' in d and d['latest'])
@@ -198,7 +195,7 @@ class EventSearch(ModelEqualityMixin):
     """
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
-                 before=None, after_day=None, before_day=None, after_offset=None, before_offset=None):
+                 before=None, after_offset=None, before_offset=None):
         if camera_ids is None == False and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
         if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
@@ -207,8 +204,6 @@ class EventSearch(ModelEqualityMixin):
             raise ValueError('Longitude max cannot be less than longitude minimum')
         if after is None == False and before is None == False and before < after:
             raise ValueError('From time cannot be after before time')
-        if after_day is None == False and before_day is None == False and before_day < after_day:
-            raise ValueError('From day cannot be after before day')
         if after_offset is None == False and before_offset is None == False and before_offset < after_offset:
             raise ValueError('From offset cannot be after before offset')
         if isinstance(camera_ids, basestring):
@@ -220,8 +215,6 @@ class EventSearch(ModelEqualityMixin):
         self.long_max = long_max
         self.after = after
         self.before = before
-        self.after_day = after_day
-        self.before_day = before_day
         self.after_offset = after_offset
         self.before_offset = before_offset
 
@@ -242,8 +235,6 @@ class EventSearch(ModelEqualityMixin):
         _add_value(d, 'long_max', self.long_max)
         _add_datetime(d, 'after', self.after)
         _add_datetime(d, 'before', self.before)
-        _add_datetime(d, 'after_day', self.after_day)
-        _add_datetime(d, 'before_day', self.before_day)
         _add_value(d, 'after_offset', self.after_offset)
         _add_value(d, 'before_offset', self.before_offset)
         return d
@@ -257,7 +248,11 @@ class EventSearch(ModelEqualityMixin):
         long_max = _value_from_dict(d, 'long_max')
         after = _datetime_from_dict(d, 'after')
         before = _datetime_from_dict(d, 'before')
-        return EventSearch(camera_ids, lat_min, lat_max, long_min, long_max, after, before)
+        after_offset = _value_from_dict(d, 'after_offset')
+        before_offset = _value_from_dict(d, 'before_offset')
+        return EventSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
+                           long_max=long_max, after=after, before=before, after_offset=after_offset,
+                           before_offset=before_offset)
 
 
 class Bezier(ModelEqualityMixin):

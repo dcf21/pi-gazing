@@ -17,6 +17,26 @@
     </div>
 
     <div class="form-group">
+        <label for="after_offset" class="control-label col-xs-2">After (time)</label>
+
+        <div class="col-xs-10">
+            <input class="form-control"
+                   data-bind="kendoTimePicker: { value: afterOffsetDate, min: minTime, max: maxTime, interval: 15}"
+                   id="after_offset"/>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="before_offset" class="control-label col-xs-2">Before (time)</label>
+
+        <div class="col-xs-10">
+            <input class="form-control"
+                   data-bind="kendoTimePicker: { value: beforeOffsetDate, min: minTime, max: maxTime, interval: 15}"
+                   id="before_offset"/>
+        </div>
+    </div>
+
+    <div class="form-group">
         <div class="col-xs-offset-2 col-xs-10">
             <button type="submit" class="btn btn-default btn-info" data-bind="click: searchEvents">Search</button>
         </div>

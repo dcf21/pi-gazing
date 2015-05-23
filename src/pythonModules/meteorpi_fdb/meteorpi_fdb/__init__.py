@@ -32,8 +32,10 @@ def get_day_and_offset(date):
     :return: {day:date, seconds:int}
     """
     if date.hour <= 12:
-        date = date - timedelta(days=1)
-    noon = datetime(year=date.year, month=date.month, day=date.day, hour=12)
+        cdate = date - timedelta(days=1)
+    else:
+        cdate = date
+    noon = datetime(year=cdate.year, month=cdate.month, day=cdate.day, hour=12)
     return {"day": noon, "seconds": (date - noon).total_seconds()}
 
 
@@ -95,6 +97,8 @@ class MeteorDatabase:
             _add_sql(search.long_max, 's.locationLongitude <= (?)')
             _add_sql(search.before, 'e.eventTime < (?)')
             _add_sql(search.after, 'e.eventTime > (?)')
+            _add_sql(search.before_offset, 'e.eventOffset < (?)')
+            _add_sql(search.after_offset, 'e.eventOffset > (?)')
 
             # Build the SQL statement
             sql = 'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, e.intensity, ' \
@@ -135,6 +139,8 @@ class MeteorDatabase:
             _add_sql(search.long_max, 's.locationLongitude <= (?)')
             _add_sql(search.before, 'f.fileTime < (?)')
             _add_sql(search.after, 'f.fileTime > (?)')
+            _add_sql(search.before_offset, 'f.fileOffset < (?)')
+            _add_sql(search.after_offset, 'f.fileOffset > (?)')
             _add_sql(search.mime_type, 'f.mimeType = (?)')
             if search.semantic_type is not None:
                 _add_sql(str(search.semantic_type), 'f.semanticType = (?)')
