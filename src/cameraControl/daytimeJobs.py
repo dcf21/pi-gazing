@@ -24,6 +24,8 @@ fdb_handle = meteorpi_fdb.MeteorDatabase( DBPATH , FDBFILESTORE )
 import mod_hardwareProps
 hw_handle = mod_hardwareProps.hardwareProps( os.path.join( PYTHON_PATH, "..", "sensorProperties") )
 
+import firebirdImport
+
 pid = os.getpid()
 
 # User should supply unix time on commandline at which we are to stop work
@@ -169,7 +171,7 @@ mod_hwm.writeHWM(highWaterMarks)
 os.chdir(cwd)
 if (not quitTime) or (quitTime - getUTC() > 300):
   logTxt("Importing events into firebird db")
-  # import firebirdImport
+  # firebirdImport.firebirdImport()
 
 # Twiddle our thumbs
 if quitTime:

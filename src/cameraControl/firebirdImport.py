@@ -15,16 +15,6 @@ import meteorpi_model as mp
 import meteorpi_fdb
 fdb_handle = meteorpi_fdb.MeteorDatabase( DBPATH , FDBFILESTORE )
 
-pid = os.getpid()
-cwd = os.getcwd()
-
-os.chdir(DATA_PATH)
-
-hwm_old = {}
-hwm_new = {}
-
-bezierNull = mp.Bezier(0,0,0,0,0,0,0,0)
-
 def dictTreeAppend(dictRoot, dictPath, value):
   d = dictRoot
   for subDictName in dictPath[:-1]:
@@ -53,57 +43,76 @@ def localFilenameToSemanticType(fname):
     else               : path.append(ext)
   return "/".join(path)
 
-# Create list of files and events we are importing
-dirs = ["timelapse_img_processed" , "triggers_img_processed"]
-files= {}
-imgs = {}
-for dirname in dirs:
-  files[dirname] = glob.glob(os.path.join(dirname,"*/*.png"))
+def firebirdImport():
+  global fdb_handle;
 
-triggerList = glob.glob("triggers_vid_processed/*/*.mp4")
+  pid = os.getpid()
+  cwd = os.getcwd()
 
-# Import still images
-for dirname in dirs:
-  for fname in files[dirname]:
-    fstub    = fname[:-4]
-    utc      = mod_hwm.filenameToUTC(fname)
-    metafile = "%s.txt"%fstub # File containing metadata
-    metadict = mod_hwm.fileToDB(metafile) # Dictionary of image metadata
-    assert "cameraId" in metadict, "Timelapse photograph <%s> does not have a cameraId set."%fname
-    cameraId = metadict["cameraId"]
-    if cameraId not in hwm_old: hwm_old[cameraId] = datetime2UTC( fdb_handle.get_high_water_mark(cameraId) )
-    if utc < hwm_old[cameraId]: continue
-    metadata = metadataToFDB(metadict) # List of metadata objects
-    semanticType = localFilenameToSemanticType(fname)
-    logTxt("Registering file <%s>, with cameraId <%s>"%(fname,cameraId))
-    fileObj = fdb_handle.register_file(fname, "image/png", mp.NSString(semanticType,"meteorpi"), UTC2datetime(utc), metadata, cameraId)
-    if (os.path.exists(metafile)): os.remove(metafile) # Clean up metadata files that we've finished with
-    dictTreeAppend(imgs, [dirname,utc], fileObj)
-    hwm_new[cameraId] = max(hwm_old[cameraId] , utc)
+  os.chdir(DATA_PATH)
 
-# Import trigger events
-for fname in triggerList:
-    fstub    = fname[:-4]
-    utc      = mod_hwm.filenameToUTC(fname)
-    metafile = "%s.txt"%fstub # File containing metadata
-    metadict = mod_hwm.fileToDB(metafile) # Dictionary of image metadata
-    assert "cameraId" in metadict, "Trigger video <%s> does not have a cameraId set."%fname
-    cameraId = metadict["cameraId"]
-    if cameraId not in hwm_old: hwm_old[cameraId] = datetime2UTC( fdb_handle.get_high_water_mark(cameraId) )
-    if utc < hwm_old[cameraId]: continue
-    metadata = metadataToFDB(metadict) # List of metadata objects
-    semanticType = localFilenameToSemanticType(fname)
-    fileObjs = [ fdb_handle.register_file(fname, "video/mp4", mp.NSString(semanticType,"meteorpi"), UTC2datetime(utc), metadata, cameraId) ]
-    fileObjs.extend( imgs["triggers_img_processed"][utc] )
-    intensity = 0 # null for now
-    logTxt("Registering event <%s>, with cameraId <%s> and %d files"%(fname,cameraId,len(fileObjs)))
-    eventObj = fdb_handle.register_event(cameraId, UTC2datetime(utc), intensity, bezierNull, fileObjs)
-    if (os.path.exists(metafile)): os.remove(metafile) # Clean up metadata files that we've finished with
-    hwm_new[cameraId] = max(hwm_new[cameraId] , utc)
+  hwm_old = {}
+  hwm_new = {}
 
-# Update firebird hwm
-for cameraId,utc in hwm_new.iteritems():
-  fdb_handle.set_high_water_mark( UTC2datetime(utc) , cameraId )
+  bezierNull = mp.Bezier(0,0,0,0,0,0,0,0)
 
-os.chdir(cwd)
+  # Create list of files and events we are importing
+  dirs = ["timelapse_img_processed" , "triggers_img_processed"]
+  files= {}
+  imgs = {}
+  for dirname in dirs:
+    files[dirname] = glob.glob(os.path.join(dirname,"*/*.png"))
+
+  triggerList = glob.glob("triggers_vid_processed/*/*.mp4")
+
+  # Import still images
+  for dirname in dirs:
+    for fname in files[dirname]:
+      fstub    = fname[:-4]
+      utc      = mod_hwm.filenameToUTC(fname)
+      metafile = "%s.txt"%fstub # File containing metadata
+      metadict = mod_hwm.fileToDB(metafile) # Dictionary of image metadata
+      assert "cameraId" in metadict, "Timelapse photograph <%s> does not have a cameraId set."%fname
+      cameraId = metadict["cameraId"]
+      if cameraId not in hwm_old: hwm_old[cameraId] = datetime2UTC( fdb_handle.get_high_water_mark(cameraId) )
+      if utc < hwm_old[cameraId]: continue
+      metadata = metadataToFDB(metadict) # List of metadata objects
+      semanticType = localFilenameToSemanticType(fname)
+      logTxt("Registering file <%s>, with cameraId <%s>"%(fname,cameraId))
+      fileObj = fdb_handle.register_file(file_path=fname, mime_type="image/png", semantic_type=mp.NSString(semanticType,"meteorpi"), file_time=UTC2datetime(utc), file_metas=metadata, camera_id=cameraId, file_name=os.path.split(fname)[1])
+      if (os.path.exists(metafile)): os.remove(metafile) # Clean up metadata files that we've finished with
+      dictTreeAppend(imgs, [dirname,utc], fileObj)
+      hwm_new[cameraId] = max(hwm_old[cameraId] , utc)
+
+  # Import trigger events
+  for fname in triggerList:
+      fstub    = fname[:-4]
+      utc      = mod_hwm.filenameToUTC(fname)
+      metafile = "%s.txt"%fstub # File containing metadata
+      metadict = mod_hwm.fileToDB(metafile) # Dictionary of image metadata
+      assert "cameraId" in metadict, "Trigger video <%s> does not have a cameraId set."%fname
+      cameraId = metadict["cameraId"]
+      if cameraId not in hwm_old: hwm_old[cameraId] = datetime2UTC( fdb_handle.get_high_water_mark(cameraId) )
+      if utc < hwm_old[cameraId]: continue
+      metadata = metadataToFDB(metadict) # List of metadata objects
+      semanticType = localFilenameToSemanticType(fname)
+      fileObjs = [ fdb_handle.register_file(file_path=fname, mime_type="video/mp4", semantic_type=mp.NSString(semanticType,"meteorpi"), file_time=UTC2datetime(utc), file_metas=metadata, camera_id=cameraId, file_name=os.path.split(fname)[1]) ]
+
+      fileObjs = [ fdb_handle.register_file(fname, "video/mp4", mp.NSString(semanticType,"meteorpi"), UTC2datetime(utc), metadata, cameraId) ]
+      fileObjs.extend( imgs["triggers_img_processed"][utc] )
+      intensity = 0 # null for now
+      logTxt("Registering event <%s>, with cameraId <%s> and %d files"%(fname,cameraId,len(fileObjs)))
+      eventObj = fdb_handle.register_event(cameraId, UTC2datetime(utc), intensity, bezierNull, fileObjs)
+      if (os.path.exists(metafile)): os.remove(metafile) # Clean up metadata files that we've finished with
+      hwm_new[cameraId] = max(hwm_new[cameraId] , utc)
+
+  # Update firebird hwm
+  for cameraId,utc in hwm_new.iteritems():
+    fdb_handle.set_high_water_mark( UTC2datetime(utc) , cameraId )
+
+  os.chdir(cwd)
+
+# Do import into firebird right away if we're run as a script
+if __name__ == "__main__":
+  firebirdImport()
 
