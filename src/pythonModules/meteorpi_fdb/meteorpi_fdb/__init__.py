@@ -24,6 +24,19 @@ def get_installation_id():
     return _to_array(uuid.getnode())
 
 
+def get_day_and_offset(date):
+    """
+    Get the day, as a date, in which the preceding midday occurred, as well as the number of seconds since that
+    midday for the specified date.
+    :param date: a datetime
+    :return: {day:date, seconds:int}
+    """
+    if date.hour <= 12:
+        date = date - timedelta(days=1)
+    noon = datetime(year=date.year, month=date.month, day=date.day, hour=12)
+    return {"day": noon, "seconds": (date - noon).total_seconds()}
+
+
 def round_time(time=None):
     """
     Rounds a datetime, discarding the millisecond part.
@@ -151,7 +164,6 @@ class MeteorDatabase:
                 files.append(f)
         return files
 
-
     def get_events(self, event_id=None, internal_ids=None, cursor=None):
         """Retrieve Events by an eventID, set of internalIDs or by a cursor
         which should contain a result set of rows from t_event."""
@@ -189,14 +201,13 @@ class MeteorDatabase:
         result = []
         for internal_id, event in events.iteritems():
             _cur.execute(
-                'SELECT fileID from t_event_to_file '
+                'SELECT fileID FROM t_event_to_file '
                 'WHERE eventID = (?) '
                 'ORDER BY sequenceNumber ASC', (internal_id,))
             for row in _cur.fetchallmap():
                 event.file_records.append(self.get_file(internal_id=row['fileID']))
             result.append(event)
         return result
-
 
     def register_event(
             self,
@@ -214,13 +225,16 @@ class MeteorDatabase:
         if status_id is None:
             raise ValueError('No status defined for camera id <%s> at time <%s>!' % (camera_id, event_time))
         cur = self.con.cursor()
+        day_and_offset = get_day_and_offset(event_time)
         cur.execute(
-            'INSERT INTO t_event (cameraID, eventTime, intensity, '
+            'INSERT INTO t_event (cameraID, eventTime, eventDay, eventOffset, intensity, '
             'x1, y1, x2, y2, x3, y3, x4, y4, statusID) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
             'RETURNING internalID, eventID, eventTime',
             (camera_id,
              event_time,
+             day_and_offset['day'],
+             day_and_offset['seconds'],
              intensity * 1000,
              bezier[0]["x"],
              bezier[0]["y"],
@@ -252,7 +266,6 @@ class MeteorDatabase:
         self.con.commit()
         return event
 
-
     def register_file(
             self,
             file_path,
@@ -277,15 +290,18 @@ class MeteorDatabase:
         if status_id is None:
             raise ValueError('No status defined for camera id <%s> at time <%s>!' % (camera_id, file_time))
         cur = self.con.cursor()
+        day_and_offset = get_day_and_offset(file_time)
         cur.execute(
             'INSERT INTO t_file (cameraID, mimeType, '
-            'semanticType, fileTime, fileSize, statusID) '
-            'VALUES (?, ?, ?, ?, ?, ?) '
+            'semanticType, fileTime, fileDay, fileOffset, fileSize, statusID) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?) '
             'RETURNING internalID, fileID, fileTime',
             (camera_id,
              mime_type,
              str(semantic_type),
              file_time,
+             day_and_offset['day'],
+             day_and_offset['seconds'],
              file_size_bytes,
              status_id))
         row = cur.fetchonemap()
@@ -304,21 +320,22 @@ class MeteorDatabase:
         for file_meta_index, file_meta in enumerate(file_metas):
             cur.execute(
                 'INSERT INTO t_fileMeta '
-                '(fileID, metaKey, stringValue, metaIndex) '
-                'VALUES (?, ?, ?, ?)',
+                '(fileID, metaKey, stringValue, floatValue, dateValue, metaIndex) '
+                'VALUES (?, ?, ?, ?, ?, ?)',
                 (file_internal_id,
                  str(file_meta.key),
-                 file_meta.string_value,
+                 file_meta.string_value(),
+                 file_meta.float_value(),
+                 file_meta.date_value(),
                  file_meta_index))
             result_file.meta.append(
-                mp.FileMeta(key=file_meta.key, string_value=file_meta.string_value))
+                mp.FileMeta(key=file_meta.key, value=file_meta.value))
         self.con.commit()
         # Move the original file from its path
         target_file_path = path.join(self.file_store_path, result_file.file_id.hex)
         shutil.move(file_path, target_file_path)
         # Return the resultant file object
         return result_file
-
 
     def get_file(self, file_id=None, internal_id=None):
         if file_id is None and internal_id is None:
@@ -348,15 +365,23 @@ class MeteorDatabase:
         file_record.file_time = row['fileTime']
         internal_file_id = row['internalID']
         cur.execute(
-            'SELECT metaKey, stringValue '
+            'SELECT metaKey, stringValue, floatValue, dateValue '
             'FROM t_fileMeta t '
             'WHERE t.fileID = (?) '
             'ORDER BY metaIndex ASC',
             (internal_file_id,))
         for meta in cur.fetchallmap():
+            if meta['stringValue'] is not None:
+                value = meta['stringValue']
+            elif meta['floatValue'] is not None:
+                value = meta['floatValue']
+            elif meta['dateValue'] is not None:
+                value = meta['dateValue']
+            else:
+                raise ValueError('Unhandled metadata value type')
             file_record.meta.append(
                 mp.FileMeta(key=mp.NSString.from_string(meta['metaKey']),
-                            string_value=meta['stringValue']))
+                            value=value))
 
         def get_path():
             return path.join(self.file_store_path, file_record.file_id.hex)
@@ -364,16 +389,14 @@ class MeteorDatabase:
         file_record.get_path = get_path
         return file_record
 
-
     def get_cameras(self):
         """Get all Camera IDs for cameras in this database with current (i.e.
         validTo == None) status blocks."""
         cur = self.con.cursor()
         cur.execute(
-            'SELECT DISTINCT cameraID from t_cameraStatus '
+            'SELECT DISTINCT cameraID FROM t_cameraStatus '
             'WHERE validTo IS NULL')
         return map(lambda row: row[0], cur.fetchall())
-
 
     def update_camera_status(self, ns, time=None, camera_id=get_installation_id()):
         """
@@ -437,7 +460,6 @@ class MeteorDatabase:
                      point['y']))
         self.con.commit()
 
-
     def _get_camera_status_id(
             self,
             time=None,
@@ -449,7 +471,7 @@ class MeteorDatabase:
         time = round_time(time)
         cur = self.con.cursor()
         cur.execute(
-            'SELECT internalID from t_cameraStatus t '
+            'SELECT internalID FROM t_cameraStatus t '
             'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
             'AND (t.validTo IS NULL OR t.validTo > (?))',
             (camera_id, time, time))
@@ -457,7 +479,6 @@ class MeteorDatabase:
         if row is None:
             return None
         return row[0]
-
 
     def get_camera_status(
             self,
@@ -512,7 +533,6 @@ class MeteorDatabase:
                 {'x': point['x'], 'y': point['y']})
         return cs
 
-
     def get_high_water_mark(self, camera_id=get_installation_id()):
         """Retrieves the current high water mark for a camera installation, or
         None if none has been set."""
@@ -524,7 +544,6 @@ class MeteorDatabase:
         if row is None:
             return None
         return row[0]
-
 
     def set_high_water_mark(self, time, camera_id=get_installation_id(), allow_rollback=True, allow_advance=True):
         """
@@ -586,7 +605,6 @@ class MeteorDatabase:
 
         self.con.commit()
 
-
     def clear_database(self):
         """
         Delete ALL THE THINGS!
@@ -604,7 +622,6 @@ class MeteorDatabase:
         self.con.commit()
         shutil.rmtree(self.file_store_path)
         os.makedirs(self.file_store_path)
-
 
     def get_next_internal_id(self):
         """Retrieves and increments the internal ID from gidSequence, returning

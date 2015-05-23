@@ -3,6 +3,7 @@ import uuid
 import datetime
 import time
 from itertools import izip
+import numbers
 
 
 def _string_from_dict(d, key):
@@ -105,7 +106,8 @@ class FileRecordSearch(ModelEqualityMixin):
     """Encapsulates the possible parameters which can be used to search for FileRecord instances"""
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
-                 before=None, mime_type=None, semantic_type=None, exclude_events=False, latest=False):
+                 before=None, mime_type=None, semantic_type=None, exclude_events=False, latest=False, after_day=None,
+                 before_day=None, after_offset=None, before_offset=None):
         if camera_ids is None == False and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
         if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
@@ -114,6 +116,10 @@ class FileRecordSearch(ModelEqualityMixin):
             raise ValueError('Longitude max cannot be less than longitude minimum')
         if after is None == False and before is None == False and before < after:
             raise ValueError('From time cannot be after before time')
+        if after_day is None == False and before_day is None == False and before_day < after_day:
+            raise ValueError('From day cannot be after before day')
+        if after_offset is None == False and before_offset is None == False and before_offset < after_offset:
+            raise ValueError('From offset cannot be after before offset')
         if isinstance(camera_ids, basestring):
             camera_ids = [camera_ids]
         self.camera_ids = camera_ids
@@ -123,6 +129,10 @@ class FileRecordSearch(ModelEqualityMixin):
         self.long_max = long_max
         self.after = after
         self.before = before
+        self.after_day = after_day
+        self.before_day = before_day
+        self.after_offset = after_offset
+        self.before_offset = before_offset
         self.mime_type = mime_type
         # NSString here
         self.semantic_type = semantic_type
@@ -148,6 +158,10 @@ class FileRecordSearch(ModelEqualityMixin):
         _add_value(d, 'long_max', self.long_max)
         _add_datetime(d, 'after', self.after)
         _add_datetime(d, 'before', self.before)
+        _add_datetime(d, 'after_day', self.after_day)
+        _add_datetime(d, 'before_day', self.before_day)
+        _add_value(d, 'after_offset', self.after_offset)
+        _add_value(d, 'before_offset', self.before_offset)
         _add_string(d, 'mime_type', self.mime_type)
         if self.semantic_type is not None:
             _add_string(d, 'semantic_type', str(self.semantic_type))
@@ -184,7 +198,7 @@ class EventSearch(ModelEqualityMixin):
     """
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
-                 before=None):
+                 before=None, after_day=None, before_day=None, after_offset=None, before_offset=None):
         if camera_ids is None == False and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
         if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
@@ -193,6 +207,10 @@ class EventSearch(ModelEqualityMixin):
             raise ValueError('Longitude max cannot be less than longitude minimum')
         if after is None == False and before is None == False and before < after:
             raise ValueError('From time cannot be after before time')
+        if after_day is None == False and before_day is None == False and before_day < after_day:
+            raise ValueError('From day cannot be after before day')
+        if after_offset is None == False and before_offset is None == False and before_offset < after_offset:
+            raise ValueError('From offset cannot be after before offset')
         if isinstance(camera_ids, basestring):
             camera_ids = [camera_ids]
         self.camera_ids = camera_ids
@@ -202,6 +220,10 @@ class EventSearch(ModelEqualityMixin):
         self.long_max = long_max
         self.after = after
         self.before = before
+        self.after_day = after_day
+        self.before_day = before_day
+        self.after_offset = after_offset
+        self.before_offset = before_offset
 
     def __str__(self):
         fields = []
@@ -220,6 +242,10 @@ class EventSearch(ModelEqualityMixin):
         _add_value(d, 'long_max', self.long_max)
         _add_datetime(d, 'after', self.after)
         _add_datetime(d, 'before', self.before)
+        _add_datetime(d, 'after_day', self.after_day)
+        _add_datetime(d, 'before_day', self.before_day)
+        _add_value(d, 'after_offset', self.after_offset)
+        _add_value(d, 'before_offset', self.before_offset)
         return d
 
     @staticmethod
@@ -350,8 +376,7 @@ class FileRecord(ModelEqualityMixin):
         _add_string(d, 'semantic_type', str(self.semantic_type))
         _add_datetime(d, 'file_time', self.file_time)
         _add_value(d, 'file_size', self.file_size)
-        d['meta'] = list(
-            {'key': str(fm.key), 'string_value': fm.string_value} for fm in self.meta)
+        d['meta'] = list(fm.as_dict() for fm in self.meta)
         return d
 
     @staticmethod
@@ -364,21 +389,71 @@ class FileRecord(ModelEqualityMixin):
         fr.file_size = int(_value_from_dict(d, 'file_size'))
         fr.file_time = _datetime_from_dict(d, 'file_time')
         fr.file_id = _uuid_from_dict(d, 'file_id')
-        fr.meta = (FileMeta(key=NSString.from_string(m['key']), string_value=m['string_value']) for m in d['meta'])
+        fr.meta = (FileMeta.from_dict(m) for m in d['meta'])
         return fr
 
 
 class FileMeta(ModelEqualityMixin):
     """A single piece of metadata pertaining to a File."""
 
-    def __init__(self, key, string_value):
+    def __init__(self, key, value):
         self.key = key
-        self.string_value = string_value
+        self.value = value
 
     def __str__(self):
         return '(key={0}, val={1})'.format(
             self.key,
-            self.string_value)
+            self.value)
+
+    def type(self):
+        """Returns 'number', 'string', 'date' or 'unknown' based on the type of the value"""
+        if isinstance(self.value, numbers.Number):
+            return "number"
+        if isinstance(self.value, basestring):
+            return "string"
+        if isinstance(self.value, datetime.date):
+            return "date"
+        return "unknown"
+
+    def string_value(self):
+        if isinstance(self.value, basestring):
+            return self.value;
+        return None
+
+    def date_value(self):
+        if isinstance(self.value, datetime.date):
+            return self.value;
+        return None
+
+    def float_value(self):
+        if isinstance(self.value, numbers.Number):
+            return self.value;
+        return None
+
+    def as_dict(self):
+        d = {}
+        type = self.type()
+        _add_string(d, "type", type)
+        _add_string(d, "key", self.key)
+        if type == "date":
+            _add_datetime(d, "value", self.value)
+        elif type == "number":
+            _add_value(d, "value", self.value)
+        elif type == "string":
+            _add_string(d, "value", self.value)
+        return d;
+
+    @staticmethod
+    def from_dict(d):
+        key = d['key']
+        if d['type'] == "date":
+            return FileMeta(key=key, value=_datetime_from_dict(d, "value"))
+        elif d['type'] == "string":
+            return FileMeta(key=key, value=_string_from_dict(d, "value"))
+        elif d['type'] == "number":
+            return FileMeta(key=key, value=_value_from_dict(d, "value"))
+        else:
+            raise ValueError("Unknown filemeta value type")
 
 
 class Location(ModelEqualityMixin):

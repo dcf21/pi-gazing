@@ -3,7 +3,6 @@ import tempfile
 
 import meteorpi_model as model
 
-
 CAMERA_1 = 'aabbccddeeff'
 CAMERA_2 = '001122334455'
 CAMERA_3 = '667788990011'
@@ -28,7 +27,7 @@ def add_dummy_file(db, camera, time, meta, semantic_type=model.NSString('test_fi
                             file_time=make_time(time),
                             file_metas=list(
                                 model.FileMeta(key=model.NSString('meta_key_{0}'.format(x)),
-                                               string_value='meta_value_{0}'.format(x)) for x
+                                               value='meta_value_{0}'.format(x)) for x
                                 in range(meta)))
 
 

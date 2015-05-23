@@ -69,6 +69,8 @@ CREATE TABLE t_event (
 	eventID char(16) CHARACTER SET OCTETS NOT NULL, /* Always use literal byte values */
 	cameraID char(12) NOT NULL,
 	eventTime timestamp NOT NULL,
+  eventDay    TIMESTAMP NOT NULL,
+  eventOffset INTEGER   NOT NULL,
 	intensity integer DEFAULT 0 NOT NULL,
 	x1 integer DEFAULT 0 NOT NULL,
 	y1 integer DEFAULT 0 NOT NULL,
@@ -91,6 +93,8 @@ CREATE TABLE t_file (
 	mimeType varchar(100) default 'text/plain' NOT NULL,
 	semanticType varchar(255) NOT NULL,
 	fileTime timestamp NOT NULL,
+  fileDay    TIMESTAMP NOT NULL,
+  fileOffset INTEGER   NOT NULL,
 	fileSize integer NOT NULL,
     statusID integer NOT NULL,
     FOREIGN KEY (statusID) REFERENCES t_cameraStatus (internalID) ON DELETE CASCADE,
@@ -101,7 +105,9 @@ CREATE TABLE t_file (
 CREATE TABLE t_fileMeta (
 	internalID integer NOT NULL,
 	metaKey varchar(255) NOT NULL,
-	stringValue varchar(255) NOT NULL,
+  stringValue VARCHAR(255),
+  dateValue   TIMESTAMP,
+  floatValue  FLOAT,
 	fileID integer NOT NULL,
 	metaIndex integer DEFAULT 0 NOT NULL,
 	PRIMARY KEY (internalID),

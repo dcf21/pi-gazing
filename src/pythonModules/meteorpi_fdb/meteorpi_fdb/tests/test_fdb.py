@@ -1,7 +1,6 @@
 from unittest import TestCase
 import tempfile
 from datetime import datetime
-import json
 
 import meteorpi_fdb as db
 import meteorpi_fdb.testing.dummy_data as dummy
@@ -104,9 +103,9 @@ class TestFdb(TestCase):
             datetime.now(),
             [
                 model.FileMeta(key=model.NSString('meta3'),
-                               string_value='value3'),
+                               value='value3'),
                 model.FileMeta(key=model.NSString('meta4'),
-                               string_value='value4')])
+                               value=0.4)])
         event = m.register_event(
             camera_id=db.get_installation_id(),
             event_time=datetime.now(),
@@ -120,11 +119,11 @@ class TestFdb(TestCase):
         m = db.MeteorDatabase()
         dummy.setup_dummy_data(m, clear=True)
         events = m.search_events(model.EventSearch())
-        print json.dumps(list(e.as_dict() for e in events), indent=1, sort_keys=True)
+        # print json.dumps(list(e.as_dict() for e in events), indent=1, sort_keys=True)
         # TODO - verify that this has done the right thing. It doesn't crash at least...
 
     def test_rollback(self):
         m = db.MeteorDatabase()
         dummy.setup_dummy_data(m, clear=True)
-        print m.get_high_water_mark(camera_id=dummy.CAMERA_1)
+        # print m.get_high_water_mark(camera_id=dummy.CAMERA_1)
         m.set_high_water_mark(camera_id=dummy.CAMERA_1, time=dummy.make_time(6))
