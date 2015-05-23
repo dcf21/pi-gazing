@@ -64,7 +64,9 @@
                 <tr>
                     <td data-bind="text: mime_type"></td>
                     <td data-bind="text: semantic_type"></td>
-                    <td><a data-bind="text: file_id, attr : {href : $parents[1].urlForFileId(file_id)}"></a></td>
+                    <td>
+                        <a data-bind="text: $parents[1].filenameForFile($data), attr : {href : $parents[1].urlForFile($data)}"></a>
+                    </td>
                 </tr>
                 </tbody>
             </table>

@@ -2,13 +2,14 @@ import threading
 from datetime import datetime
 import uuid
 
+from yaml import safe_load
+
 import os.path as path
 import flask
 from tornado.ioloop import IOLoop
 from tornado.wsgi import WSGIContainer
 from tornado.web import FallbackHandler, Application
 import tornado.httpserver
-from yaml import safe_load
 import meteorpi_fdb
 import meteorpi_model as model
 from flask.ext.jsonpify import jsonify
@@ -57,11 +58,12 @@ def build_app(db):
     def search_files(search_string):
         # print search_string
         search = model.FileRecordSearch.from_dict(safe_load(search_string))
-        #print search.__dict__
+        # print search.__dict__
         return jsonify({'files': list(x.as_dict() for x in db.search_files(search))})
 
+    @app.route('/files/content/<file_id>/<file_name>', methods=['GET'])
     @app.route('/files/content/<file_id>', methods=['GET'])
-    def get_file_content(file_id):
+    def get_file_content(file_id, file_name=None):
         fr = db.get_file(file_id=uuid.UUID(hex=file_id))
         if fr is not None:
             return flask.send_file(filename_or_fp=fr.get_path(), mimetype=fr.mime_type)

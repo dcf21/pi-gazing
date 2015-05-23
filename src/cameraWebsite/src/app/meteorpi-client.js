@@ -148,8 +148,20 @@ define(["jquery", "knockout"], function (jquery, ko) {
             applyCallback(ajax("files/" + searchString, "GET"), "files", callback);
         };
 
-        self.urlForFileId = function (fileId) {
-            return config.urlPrefix + "files/content/" + fileId;
+        self.urlForFile = function (file) {
+            return config.urlPrefix + "files/content/" + file['file_id'] + "/" + self.filenameForFile(file);
+        };
+
+        self.filenameForFile = function (file) {
+            if (file['file_name'] == null || file['file_name'].length() == 0) {
+                /**
+                 * TODO - implement some kind of sensible default naming logic here based on the file properties.
+                 */
+                return file['file_id'];
+            }
+            else {
+                return file['file_name'];
+            }
         };
 
         /**
