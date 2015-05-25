@@ -17,8 +17,8 @@
 
 #include "settings.h"
 
-#define medianMapUseEveryNthStack              2
-#define medianMapUseNImages                  900
+#define medianMapUseEveryNthStack              1
+#define medianMapUseNImages                 2400
 #define framesSinceLastTrigger_INITIAL        -8 - medianMapUseEveryNthStack*medianMapUseNImages
 #define framesSinceLastTrigger_REWIND         -2
 #define framesSinceLastTrigger_ALLOWTRIGGER    3
@@ -79,16 +79,12 @@ inline void triggerBlocksMerge(int *triggerBlock, int *triggerMap, int len, int 
  }
 
 // Test stacked images B and A, to see if pixels have brightened in B versus A. Image arrays contain the sum of <coAddedFrames> frames.
-int testTrigger(const double utc, const int width, const int height, const int *imageB, const int *imageA, const unsigned char *mask, const int coAddedFrames, const char *label)
+int testTrigger(const double utc, const int width, const int height, const int *imageB, const int *imageA, const unsigned char *mask, int *pastTriggerMap, const int coAddedFrames, const char *label)
  {
   int x,y,d;
   int output=0;
 
-  const int marginL=12; // Ignore pixels within this distance of the edge
-  const int marginR=19;
-  const int marginT= 8;
-  const int marginB=19;
-
+  const int margin=10; // Ignore pixels within this distance of the edge
   const int Npixels=30; // To trigger this number of pixels connected together must have brightened
   const int radius=8; // Pixel must be brighter than test pixels this distance away
   const int threshold=12*coAddedFrames; // Pixel must have brightened by at least this amount.
@@ -101,14 +97,19 @@ int testTrigger(const double utc, const int width, const int height, const int *
   unsigned char *triggerB = triggerRGB + frameSize*2;
   int  blockNum     = 1;
 
-  for (y=marginT; y<height-marginB; y++)
-   for (x=marginL;x<width-marginR; x++)
+  static unsigned long long pastTriggerMapAverage = 0;
+  unsigned long long pastTriggerMapAverageNew = 2*frameSize;
+
+  for (y=margin; y<height-margin; y++)
+   for (x=margin;x<width-margin; x++)
     {
      const int o=x+y*width;
+     pastTriggerMapAverageNew+=pastTriggerMap[o];
      triggerR[o] = CLIP256( (imageB[o]-imageA[o])*64/threshold ); // RED channel - difference between images B and A
-     triggerG[o] = CLIP256( imageB[o] / coAddedFrames ); // GRN channel - a copy of image B
+     triggerG[o] = CLIP256( pastTriggerMap[o] * 256 / (2*pastTriggerMapAverage) ); // GRN channel - map of pixels which are excluded for triggering too often
      if (mask[o] && (imageB[o]-imageA[o]>threshold)) // Search for pixels which have brightened by more than threshold since past image
       {
+       pastTriggerMap[o]++;
        int i,j,c=0; // Make a 3x3 grid of pixels of pixels at a spacing of radius pixels. This pixel must be brighter than 6/9 of these pixels were
        for (i=-1;i<=1;i++) for (j=-1;j<=1;j++) if (imageB[o]-imageA[o+(j+i*width)*radius]>threshold) c++;
        if (c>7)
@@ -126,7 +127,7 @@ int testTrigger(const double utc, const int width, const int height, const int *
            if (triggerMap[o-1-width]) { if (!blockId) { blockId=triggerMap[o-1-width]; } else { triggerBlocksMerge(triggerBlock, triggerMap+(y-1)*width, width*2, triggerMap[o-1-width], blockId); } }
            if (blockId==0           ) blockId=blockNum++;
 
-           triggerBlock[blockId]++;
+           if (pastTriggerMap[o]<2*pastTriggerMapAverage) triggerBlock[blockId]++;
            triggerMap[o] = blockId;
            if (triggerBlock[blockId]>Npixels)
             {
@@ -156,6 +157,7 @@ int testTrigger(const double utc, const int width, const int height, const int *
    }
 
   free(triggerMap); free(triggerBlock); free(triggerRGB);
+  pastTriggerMapAverage = pastTriggerMapAverageNew / frameSize;
   return output;
  }
 
@@ -241,7 +243,10 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
   unsigned char *medianMap       = calloc(1,frameSize*3); // The median value of each pixel, sampled over 255 stacked images
   int           *medianWorkspace = calloc(1,frameSize*3*256*sizeof(int)); // Workspace which counts the number of times any given pixel has a particular value
 
-  if ((!bufferA)||(!bufferB)||(!bufferL) || (!stackA)||(!stackB)||(!stackT)||(!stackL) || (!maxA)||(!maxB)||(!maxL) ||  (!medianMap)||(!medianWorkspace)) { sprintf(temp_err_string, "ERROR: malloc fail in observe."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
+  // Map of past triggers, used to weight against pixels that trigger too often (they're probably trees...)
+  int           *pastTriggerMap  = calloc(1,frameSize*sizeof(int));
+
+  if ((!bufferA)||(!bufferB)||(!bufferL) || (!stackA)||(!stackB)||(!stackT)||(!stackL) || (!maxA)||(!maxB)||(!maxL) ||  (!medianMap)||(!medianWorkspace) || (!pastTriggerMap) ) { sprintf(temp_err_string, "ERROR: malloc fail in observe."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
 
   int bufferNum      = 0; // Flag for whether we're using trigger buffer A or B
   int medianCount    = 0; // Count frames stacked until we're ready to make a new median map
@@ -341,9 +346,9 @@ int observe(void *videoHandle, const int utcoffset, const int tstart, const int 
     if (triggerThrottleTimer >= triggerThrottleCycles) { triggerThrottleTimer=0; triggerThrottleCounter=0; }
 
     // If we're not recording, and have not stopped recording within past 2 seconds, test whether motion sensor has triggered
-    if ( (recording<0) && (framesSinceLastTrigger>=framesSinceLastTrigger_ALLOWTRIGGER) && (triggerThrottleCounter<TRIGGER_THROTTLE_MAXEVT) )
+    if (recording<0)
      {
-      if (testTrigger(  utc , width , height , bufferNum?stackB:stackA , bufferNum?stackA:stackB , mask , nfrt , label ))
+      if (testTrigger(  utc , width , height , bufferNum?stackB:stackA , bufferNum?stackA:stackB , mask , pastTriggerMap , nfrt , label ) && (framesSinceLastTrigger>=framesSinceLastTrigger_ALLOWTRIGGER) && (triggerThrottleCounter<TRIGGER_THROTTLE_MAXEVT) )
        {
         // Camera has triggered
         char fname[FNAME_BUFFER];

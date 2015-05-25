@@ -9,42 +9,73 @@ import os,time,sys,glob,datetime,operator
 from math import *
 
 from mod_settings import *
-import mod_hwm
+from mod_time import *
+
+import meteorpi_model as mp
+import meteorpi_fdb
+
+# Convert file metadata into a dictionary for easy searching
+def getMetaItem(fileRec,key):
+  NSkey = mp.NSString(key)
+  output = None
+  for item in fileRec.meta:
+    if item.key==NSkey: output=item.value
+  return output
 
 pid = os.getpid()
 os.chdir(DATA_PATH)
 
-fileList                = {}
-fileList['rawVideos']   = glob.glob("rawvideo/*.h264")
-fileList['triggerVids'] = glob.glob("triggers_raw_nonlive/*/*.rawvid")
-histogram               = {}
+utcMin   = 0
+utcMax   = time.time()
+cameraId = meteorpi_fdb.get_installation_id()
+label    = ""
 
-utcMin = time.time()
-utcMax = 0
+if len(sys.argv)>1: utcMin   = float(sys.argv[1])
+if len(sys.argv)>2: utcMax   = float(sys.argv[2])
+if len(sys.argv)>3: cameraId =       sys.argv[3]
 
-for histogramTitle in fileList:
-  histogram[histogramTitle] = {}
-  for f in fileList[histogramTitle]:
-    utc = mod_hwm.filenameToUTC(f)
-    if (utc<0): continue
-    hour= floor(utc/3600)*3600
-    if (hour<utcMin): utcMin=hour
-    if (hour>utcMax): utcMax=hour
-    if hour not in histogram[histogramTitle]: histogram[histogramTitle][hour] =1
-    else                                    : histogram[histogramTitle][hour]+=1
+if (utcMax==0): utcMax = time.time()
+
+fdb_handle = meteorpi_fdb.MeteorDatabase( DBPATH , FDBFILESTORE )
+
+search = mp.FileRecordSearch(camera_ids=[cameraId],semantic_type=mp.NSString("timelapse/frame/lensCorr"),exclude_events=True,before=UTC2datetime(utcMax),after=UTC2datetime(utcMin))
+files  = fdb_handle.search_files(search)
+
+search = mp.EventSearch(camera_ids=[cameraId],before=UTC2datetime(utcMax),after=UTC2datetime(utcMin))
+events = fdb_handle.search_events(search)
+
+histogram = {}
+
+for f in files:
+  utc = datetime2UTC(f.file_time)
+  hour= floor(utc/3600)*3600
+  if hour not in histogram: histogram[hour] = { 'events':[] , 'images':[] }
+  histogram[hour]['images'].append(f)
+
+for e in events:
+  utc = datetime2UTC(e.event_time)
+  hour= floor(utc/3600)*3600
+  if hour not in histogram: histogram[hour] = { 'events':[] , 'images':[] }
+  histogram[hour]['events'].append(f)  
+
+# Find time bounds of data
+keys = histogram.keys()
+keys.sort()
+if len(keys)==0:
+  print "No results found for camera <%s>"%cameraId
+  sys.exit(0)
+utcMin = keys[0]
+utcMax = keys[-1]
 
 # Render quick and dirty table
 out  = sys.stdout
 hour = utcMin
-out.write("# UTC   ")
-for histogramTitle in histogram: out.write("N_%s   "%histogramTitle)
-out.write("\n")
+out.write("# %12s %12s %12s %12s %12s\n"%("UTC","N_images","N_events","SkyClarity","SunAltitude"))
 while (hour<=utcMax):
-  out.write("%10d   "%hour)
-  for histogramTitle in histogram:
-    if hour in histogram[histogramTitle]: count=histogram[histogramTitle][hour]
-    else                                : count=0
-    out.write("%6d   "%count)
-  out.write("\n")
+  out.write("  %12d "%hour)
+  if (hour not in histogram):out.write("%12s %12s %12s %12s\n"%(0,0,0,0))
+  else:
+    d = histogram[hour]
+    out.write("%12s %12s %12s %12s\n"%(len(d['images']) , len(d['events']) , sum( getMetaItem(i,'skyClarity') for i in d['images'])/len(d['images']) , sum( getMetaItem(i,'sunAlt') for i in d['images'])/len(d['images']) ))
   hour+=3600
 

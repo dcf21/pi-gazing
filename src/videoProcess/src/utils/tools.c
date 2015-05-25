@@ -111,27 +111,27 @@ void snapshot(struct vdIn *videoIn, int nfr, int zero, double expComp, char *fna
 double calculateSkyClarity(image_ptr *img)
  {
   int       i,j,score=0;
-  const int gridsize = 8;
+  const int gridsize = 9;
   const int stride   = img->xsize;
-  for (i=1;i<gridsize-1;i++) for (j=1;j<gridsize-1;j++)
+  for (i=1;i<gridsize;i++) for (j=1;j<gridsize;j++)
    {
-    const int xmin = img->xsize* j   /gridsize;
-    const int ymin = img->ysize* i   /gridsize;
-    const int xmax = img->xsize*(j+1)/gridsize;
-    const int ymax = img->ysize*(i+1)/gridsize;
+    const int xmin = img->xsize* j   /(gridsize+1);
+    const int ymin = img->ysize* i   /(gridsize+1);
+    const int xmax = img->xsize*(j+1)/(gridsize+1);
+    const int ymax = img->ysize*(i+1)/(gridsize+1);
     int x,y,count=0;
     for (y=ymin;y<ymax;y++) for (x=xmin;x<xmax;x++)
      {
-      if ( (img->data_grn[y*stride+x] > img->data_grn[(y  )*stride+(x+6)]+16) &&
-           (img->data_grn[y*stride+x] > img->data_grn[(y+6)*stride+(x+6)]+16) &&
-           (img->data_grn[y*stride+x] > img->data_grn[(y+6)*stride+(x  )]+16) &&
-           (img->data_grn[y*stride+x] > img->data_grn[(y+6)*stride+(x-6)]+16) &&
-           (img->data_grn[y*stride+x] > img->data_grn[(y  )*stride+(x-6)]+16) &&
-           (img->data_grn[y*stride+x] > img->data_grn[(y-6)*stride+(x-6)]+16) &&
-           (img->data_grn[y*stride+x] > img->data_grn[(y-6)*stride+(x  )]+16) &&
-           (img->data_grn[y*stride+x] > img->data_grn[(y-6)*stride+(x+6)]+16) ) count++;
+      if ( (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x+4)]+8) &&
+           (img->data_red[y*stride+x] > img->data_red[(y+4)*stride+(x+4)]+8) &&
+           (img->data_red[y*stride+x] > img->data_red[(y+4)*stride+(x  )]+8) &&
+           (img->data_red[y*stride+x] > img->data_red[(y+4)*stride+(x-4)]+8) &&
+           (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x-4)]+8) &&
+           (img->data_red[y*stride+x] > img->data_red[(y-4)*stride+(x-4)]+8) &&
+           (img->data_red[y*stride+x] > img->data_red[(y-4)*stride+(x  )]+8) &&
+           (img->data_red[y*stride+x] > img->data_red[(y-4)*stride+(x+4)]+8) ) count++;
      }
-    if (count>2) score++;
+    if (count>=2) score++;
    }
   return (100. * score) / pow(gridsize-1,2);
  }

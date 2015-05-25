@@ -16,6 +16,7 @@ from mod_log import logTxt,getUTC
 from mod_settings import *
 from mod_time import *
 from mod_daytimejobs import *
+import mod_astro
 import mod_hwm
 
 import meteorpi_fdb
@@ -125,9 +126,19 @@ try:
               params['barrel_b'] = lensData.barrel_b
               params['barrel_c'] = lensData.barrel_c
 
-              # Create clipping region mask file
+              # Fetch the status of the camera which made this observation
               cameraStatus = fdb_handle.get_camera_status(camera_id=params['cameraId'],time=UTC2datetime(utc))
+
+              # Create clipping region mask file
               open(maskFile,"w").write( "\n\n".join(["\n".join(["%(x)d %(y)d"%p for p in pointList]) for pointList in cameraStatus.regions]) )
+
+              # Insert metadata about position of Sun
+              sunPos   = mod_astro.sunPos(utc)
+              sunAltAz = mod_astro.altAz(sunPos[0],sunPos[1],utc,cameraStatus.location.latitude,cameraStatus.location.longitude)
+              params['metadata']['sunRA']   = sunPos[0];
+              params['metadata']['sunDecl'] = sunPos[1];
+              params['metadata']['sunAlt']  = sunAltAz[0];
+              params['metadata']['sunAz']   = sunAltAz[1];
 
               for outDir in outDirs: os.system("mkdir -p %s"%(os.path.join(outDir,params['date'])))
               jobList.append( {'utc':utc, 'cmd':cmd, 'params':params} )

@@ -24,7 +24,10 @@ def fileToDB(fname,mustBeFloat=False):
 
 def DBtoFile(fname, db):
   f = open(fname,"w")
-  for keyword,value in db.iteritems():
+  keywords = db.keys()
+  keywords.sort()
+  for keyword in keywords:
+    value = db[keyword]
     f.write("%16s %s\n"%(keyword,value))
   f.close()
 

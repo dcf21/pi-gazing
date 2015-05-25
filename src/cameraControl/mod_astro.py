@@ -105,6 +105,30 @@ def sunTimes(unixtime=0,longitude=0.12,latitude=52.2):
 
   return r
 
+# Converts an RA and Dec into an altitude and an azimuth
+def altAz(ra,dec,utc,latitude,longitude):
+  ra *= pi/12;
+  dec*= pi/180;
+  st  = siderealTime(utc)*pi/12 + longitude*pi/180;
+  xyz = [ sin(ra)*cos(dec) , -sin(dec) , cos(ra)*cos(dec) ]; # y-axis = north/south pole; z-axis (into screen) = vernal equinox
+
+  # Rotate by hour angle around y-axis
+  xyz2=[0,0,0];
+  xyz2[0] = xyz[0]*cos(st) - xyz[2]*sin(st);
+  xyz2[1] = xyz[1];
+  xyz2[2] = xyz[0]*sin(st) + xyz[2]*cos(st);
+
+  # Rotate by latitude around x-axis
+  xyz3=[0,0,0];
+  t = pi/2 - latitude*pi/180;
+  xyz3[0] = xyz2[0];
+  xyz3[1] = xyz2[1]*cos(t) - xyz2[2]*sin(t);
+  xyz3[2] = xyz2[1]*sin(t) + xyz2[2]*cos(t);
+
+  alt= -asin(xyz3[1]);
+  az = atan2(xyz3[0],-xyz3[2]);
+  return [alt*180/pi,az*180/pi]; # [altitude, azimuth] of object in degrees
+
 # Returns the Julian Day number of a calendar date (British calendar)
 def JulianDay(year, month, day, hour, min, sec):
   LastJulian     = 17520902.0

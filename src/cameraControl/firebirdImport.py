@@ -98,7 +98,6 @@ def firebirdImport():
       semanticType = localFilenameToSemanticType(fname)
       fileObjs = [ fdb_handle.register_file(file_path=fname, mime_type="video/mp4", semantic_type=mp.NSString(semanticType,"meteorpi"), file_time=UTC2datetime(utc), file_metas=metadata, camera_id=cameraId, file_name=os.path.split(fname)[1]) ]
 
-      fileObjs = [ fdb_handle.register_file(fname, "video/mp4", mp.NSString(semanticType,"meteorpi"), UTC2datetime(utc), metadata, cameraId) ]
       fileObjs.extend( imgs["triggers_img_processed"][utc] )
       intensity = 0 # null for now
       logTxt("Registering event <%s>, with cameraId <%s> and %d files"%(fname,cameraId,len(fileObjs)))
