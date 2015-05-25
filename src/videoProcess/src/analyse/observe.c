@@ -97,14 +97,16 @@ int testTrigger(const double utc, const int width, const int height, const int *
   unsigned char *triggerB = triggerRGB + frameSize*2;
   int  blockNum     = 1;
 
-  static unsigned long long pastTriggerMapAverage = 0;
-  unsigned long long pastTriggerMapAverageNew = 2*frameSize;
+  static unsigned long long pastTriggerMapAverage = 1;
+  unsigned int              nPixelsWithinMask = 1;
+  unsigned long long        pastTriggerMapAverageNew = 0;
 
   for (y=margin; y<height-margin; y++)
    for (x=margin;x<width-margin; x++)
     {
      const int o=x+y*width;
      pastTriggerMapAverageNew+=pastTriggerMap[o];
+     if (mask[o]) nPixelsWithinMask++;
      triggerR[o] = CLIP256( (imageB[o]-imageA[o])*64/threshold ); // RED channel - difference between images B and A
      triggerG[o] = CLIP256( pastTriggerMap[o] * 256 / (2*pastTriggerMapAverage) ); // GRN channel - map of pixels which are excluded for triggering too often
      if (mask[o] && (imageB[o]-imageA[o]>threshold)) // Search for pixels which have brightened by more than threshold since past image
@@ -157,7 +159,7 @@ int testTrigger(const double utc, const int width, const int height, const int *
    }
 
   free(triggerMap); free(triggerBlock); free(triggerRGB);
-  pastTriggerMapAverage = pastTriggerMapAverageNew / frameSize;
+  pastTriggerMapAverage = pastTriggerMapAverageNew / nPixelsWithinMask + 2;
   return output;
  }
 
