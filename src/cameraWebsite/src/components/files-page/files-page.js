@@ -40,6 +40,7 @@ define(['knockout', 'text!./files-page.html', 'client', 'router'], function (ko,
                 "exclude_events": "bool"
             });
             client.searchFiles(self.search, function (error, results) {
+                console.log(results);
                 self.results(results);
             });
         }

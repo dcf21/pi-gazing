@@ -107,7 +107,7 @@ class FileRecordSearch(ModelEqualityMixin):
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
                  before=None, mime_type=None, semantic_type=None, exclude_events=False, latest=False, after_offset=None,
-                 before_offset=None):
+                 before_offset=None, meta_constraints=[]):
         if camera_ids is None == False and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
         if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
@@ -136,6 +136,8 @@ class FileRecordSearch(ModelEqualityMixin):
         self.exclude_events = exclude_events
         # Boolean, set to true to only return the latest file or files matched by the other criteria
         self.latest = latest
+        # FileMeta constraints
+        self.meta_constraints = meta_constraints
 
     def __str__(self):
         fields = []
@@ -163,6 +165,7 @@ class FileRecordSearch(ModelEqualityMixin):
             d['exclude_events'] = 1
         if self.latest:
             d['latest'] = 1
+        d['meta_constraints'] = list((x.as_dict() for x in self.meta_constraints))
         return d
 
     @staticmethod
@@ -178,12 +181,61 @@ class FileRecordSearch(ModelEqualityMixin):
         before_offset = _value_from_dict(d, 'before_offset')
         mime_type = _string_from_dict(d, 'mime_type')
         semantic_type = NSString.from_string(_string_from_dict(d, 'semantic_type'))
+        if 'meta_constraints' in d:
+            meta_constraints = list((FileMetaConstraint.from_dict(x) for x in d['meta_constraints']))
+        else:
+            meta_constraints = []
         return FileRecordSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
                                 long_max=long_max, after=after, before=before, after_offset=after_offset,
                                 before_offset=before_offset, mime_type=mime_type,
                                 semantic_type=semantic_type,
                                 exclude_events='exclude_events' in d and d['exclude_events'],
-                                latest='latest' in d and d['latest'])
+                                latest='latest' in d and d['latest'],
+                                meta_constraints=meta_constraints)
+
+
+class FileMetaConstraint(ModelEqualityMixin):
+    """Defines a constraint over FileMeta"""
+
+    def __init__(self, constraint_type, key, value):
+        """
+        Constructor
+        :param constraint_type: one of 'before', 'after', 'string_equals', 'number_equals', 'less', 'greater'
+        :param key: an NSString containing the namespace prefixed string to use as a key
+        :param value: the value, for string_equals this is a string, for 'before' and 'after' it's a DateTime and
+            for 'less', 'greater' and 'number_equals' a number.
+        :return: the instance of FileMetaConstraint
+        """
+        self.constraint_type = constraint_type
+        self.key = key
+        self.value = value
+
+    def as_dict(self):
+        c_type = self.constraint_type
+        d = {'key': str(self.key),
+             'type': c_type};
+        if c_type == 'after' or c_type == 'before':
+            _add_datetime(d, 'value', self.value)
+        elif c_type == 'less' or c_type == 'greater' or c_type == 'number_equals':
+            _add_value(d, 'value', self.value)
+        elif c_type == 'string_equals':
+            _add_string(d, 'value', self.value)
+        else:
+            raise ValueError("Unknown FileMetaConstraint constraint type!")
+        return d;
+
+    @staticmethod
+    def from_dict(d):
+        c_type = _string_from_dict(d, 'type')
+        key = NSString.from_string(_string_from_dict(d, 'key'))
+        if c_type == 'after' or c_type == 'before':
+            return FileMetaConstraint(constraint_type=c_type, key=key, value=_datetime_from_dict(d, 'value'))
+        elif c_type == 'less' or c_type == 'greater' or c_type == 'number_equals':
+            return FileMetaConstraint(constraint_type=c_type, key=key, value=_value_from_dict(d, 'value'))
+        elif c_type == 'string_equals':
+            return FileMetaConstraint(constraint_type=c_type, key=key, value=_string_from_dict(d, 'value'))
+        else:
+            raise ValueError("Unknown FileMetaConstraint constraint type!")
 
 
 class EventSearch(ModelEqualityMixin):
