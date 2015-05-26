@@ -80,6 +80,12 @@ class NSString(ModelEqualityMixin):
     """Namespace prefixed string, with the namespace defaulting to 'meteorpi'"""
 
     def __init__(self, s, ns='meteorpi'):
+        """
+        Create a new namespaced string
+        :param s: The value part of the string object.
+        :param ns: The namespace, optional, defaults to 'meteorpi' if not specified.
+        :return: the new NSString instance
+        """
         if ':' in ns:
             raise ValueError('Namespace part must not contain the : character.')
         if len(s) == 0:
@@ -90,7 +96,7 @@ class NSString(ModelEqualityMixin):
         self.ns = ns
 
     def __str__(self):
-        """Returns the stringified form of the NSString for storage etc"""
+        """Returns the stringified form of the NSString for storage etc, the format will be ns:value"""
         return '{0}:{1}'.format(self.ns, self.s)
 
     @staticmethod
@@ -107,7 +113,39 @@ class FileRecordSearch(ModelEqualityMixin):
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
                  before=None, mime_type=None, semantic_type=None, exclude_events=False, latest=False, after_offset=None,
-                 before_offset=None):
+                 before_offset=None, meta_constraints=[]):
+        """
+        :param camera_ids: Optional - if specified, restricts results to only those the the specified camera IDs. This
+            can be specified as an array or a single item (the latter being equivalent to a single item array). Note
+            that due to the internal database structure one database query is required per camera ID specified.
+        :param lat_min: Optional - if specified, only returns results where the camera status at the time of the file
+            had a latitude field of at least the specified value.
+        :param lat_max: Optional - if specified, only returns results where the camera status at the time of the file
+            had a latitude field of at most the specified value.
+        :param long_min: Optional - if specified, only returns results where the camera status at the time of the file
+            had a longitude field of at least the specified value.
+        :param long_max: Optional - if specified, only returns results where the camera status at the time of the file
+            had a longitude field of at most the specified value.
+        :param after: Optional - if specified, only returns results where the file time is after the specified value.
+        :param before: Optional - if specified, only returns results where the file time is before the specified value.
+        :param mime_type: Optional - if specified, only returns results where the MIME type exactly matches the
+            specified value.
+        :param semantic_type: Optional - if specified, only returns results where the semantic type exactly matches.
+            The type of this value should be an instance of NSString
+        :param exclude_events: Optional - if True then files associated with an Event will be excluded from the results,
+            otherwise files will be included whether they are associated with an Event or not.
+        :param latest: Optional - if True then only the latest file will be returned rather than all matching files.
+            This complicates the internal querying process, but might be useful when your result set would otherwise
+            be unreasonably large and you only actually want the latest (in terms of file time) result.
+        :param after_offset: Optional - if specified this defines a lower bound on the time of day of the file time,
+            irrespective of the date of the file. This can be used to e.g. only return files which were produced after
+            2am on any given day. Specified as seconds since the previous mid-day.
+        :param before_offset: Optional - interpreted in a similar manner to after_offset but specifies an upper bound.
+            Use both in the same query to filter for a particular range, i.e. 2am to 4am on any day.
+        :param meta_constraints: Optional - a list of FileMetaConstraint objects providing restrictions over the file
+            record metadata.
+        :return:
+        """
         if camera_ids is None == False and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
         if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
@@ -136,6 +174,8 @@ class FileRecordSearch(ModelEqualityMixin):
         self.exclude_events = exclude_events
         # Boolean, set to true to only return the latest file or files matched by the other criteria
         self.latest = latest
+        # FileMeta constraints
+        self.meta_constraints = meta_constraints
 
     def __str__(self):
         fields = []
@@ -163,6 +203,7 @@ class FileRecordSearch(ModelEqualityMixin):
             d['exclude_events'] = 1
         if self.latest:
             d['latest'] = 1
+        d['meta_constraints'] = list((x.as_dict() for x in self.meta_constraints))
         return d
 
     @staticmethod
@@ -178,12 +219,61 @@ class FileRecordSearch(ModelEqualityMixin):
         before_offset = _value_from_dict(d, 'before_offset')
         mime_type = _string_from_dict(d, 'mime_type')
         semantic_type = NSString.from_string(_string_from_dict(d, 'semantic_type'))
+        if 'meta_constraints' in d:
+            meta_constraints = list((FileMetaConstraint.from_dict(x) for x in d['meta_constraints']))
+        else:
+            meta_constraints = []
         return FileRecordSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
                                 long_max=long_max, after=after, before=before, after_offset=after_offset,
                                 before_offset=before_offset, mime_type=mime_type,
                                 semantic_type=semantic_type,
                                 exclude_events='exclude_events' in d and d['exclude_events'],
-                                latest='latest' in d and d['latest'])
+                                latest='latest' in d and d['latest'],
+                                meta_constraints=meta_constraints)
+
+
+class FileMetaConstraint(ModelEqualityMixin):
+    """Defines a constraint over FileMeta"""
+
+    def __init__(self, constraint_type, key, value):
+        """
+        Constructor
+        :param constraint_type: one of 'before', 'after', 'string_equals', 'number_equals', 'less', 'greater'
+        :param key: an NSString containing the namespace prefixed string to use as a key
+        :param value: the value, for string_equals this is a string, for 'before' and 'after' it's a DateTime and
+            for 'less', 'greater' and 'number_equals' a number.
+        :return: the instance of FileMetaConstraint
+        """
+        self.constraint_type = constraint_type
+        self.key = key
+        self.value = value
+
+    def as_dict(self):
+        c_type = self.constraint_type
+        d = {'key': str(self.key),
+             'type': c_type};
+        if c_type == 'after' or c_type == 'before':
+            _add_datetime(d, 'value', self.value)
+        elif c_type == 'less' or c_type == 'greater' or c_type == 'number_equals':
+            _add_value(d, 'value', self.value)
+        elif c_type == 'string_equals':
+            _add_string(d, 'value', self.value)
+        else:
+            raise ValueError("Unknown FileMetaConstraint constraint type!")
+        return d;
+
+    @staticmethod
+    def from_dict(d):
+        c_type = _string_from_dict(d, 'type')
+        key = NSString.from_string(_string_from_dict(d, 'key'))
+        if c_type == 'after' or c_type == 'before':
+            return FileMetaConstraint(constraint_type=c_type, key=key, value=_datetime_from_dict(d, 'value'))
+        elif c_type == 'less' or c_type == 'greater' or c_type == 'number_equals':
+            return FileMetaConstraint(constraint_type=c_type, key=key, value=_value_from_dict(d, 'value'))
+        elif c_type == 'string_equals':
+            return FileMetaConstraint(constraint_type=c_type, key=key, value=_string_from_dict(d, 'value'))
+        else:
+            raise ValueError("Unknown FileMetaConstraint constraint type!")
 
 
 class EventSearch(ModelEqualityMixin):

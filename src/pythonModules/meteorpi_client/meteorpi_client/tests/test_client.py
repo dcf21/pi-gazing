@@ -83,13 +83,52 @@ class TestClient(TestCase):
         searches = [
             {'search': model.FileRecordSearch(),
              'expect': 'e0:f0,e0:f1,e1:f0,e1:f1,e1:f2,e1:f3,e2:f0,e2:f1,'
-                       'e3:f0,e3:f1,e3:f2,e4:f0,e4:f1,e4:f2,e4:f3,e4:f4,e4:f5,f6,f7'},
+                       'e3:f0,e3:f1,e3:f2,e4:f0,e4:f1,e4:f2,e4:f3,e4:f4,e4:f5,f10,f11,f6,f7,f8,f9'},
             {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1),
-             'expect': 'e0:f0,e0:f1,e1:f0,e1:f1,e1:f2,e1:f3,f6,f7'},
+             'expect': 'e0:f0,e0:f1,e1:f0,e1:f1,e1:f2,e1:f3,f10,f11,f6,f7,f8,f9'},
             {'search': model.FileRecordSearch(exclude_events=True),
-             'expect': 'f6,f7'},
+             'expect': 'f10,f11,f6,f7,f8,f9'},
             {'search': model.FileRecordSearch(exclude_events=True, latest=True, camera_ids=dummy.CAMERA_1),
              'expect': 'f7'},
+            {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1,
+                                              meta_constraints=[model.FileMetaConstraint(constraint_type='less',
+                                                                                         key=model.NSString(
+                                                                                             'number_key'), value=4)]),
+             'expect': 'f6'},
+            {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1,
+                                              meta_constraints=[model.FileMetaConstraint(constraint_type='greater',
+                                                                                         key=model.NSString(
+                                                                                             'number_key'), value=4)]),
+             'expect': 'f8,f9'},
+            {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1,
+                                              meta_constraints=[
+                                                  model.FileMetaConstraint(constraint_type='number_equals',
+                                                                           key=model.NSString(
+                                                                               'number_key'), value=10.002)]),
+             'expect': 'f9'},
+            {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1,
+                                              meta_constraints=[
+                                                  model.FileMetaConstraint(constraint_type='less',
+                                                                           key=model.NSString(
+                                                                               'number_key'), value=6),
+                                                  model.FileMetaConstraint(constraint_type='greater',
+                                                                           key=model.NSString(
+                                                                               'number_key'), value=4)]),
+             'expect': 'f8'},
+            {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1,
+                                              meta_constraints=[
+                                                  model.FileMetaConstraint(constraint_type='before',
+                                                                           key=model.NSString(
+                                                                               'date_key'),
+                                                                           value=dummy.make_time(14))]),
+             'expect': 'f10,f6'},
+            {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1,
+                                              meta_constraints=[
+                                                  model.FileMetaConstraint(constraint_type='after',
+                                                                           key=model.NSString(
+                                                                               'date_key'),
+                                                                           value=dummy.make_time(14))]),
+             'expect': 'f8'},
         ]
         for search in searches:
             files_from_db = self.server.db.search_files(search['search'])

@@ -142,12 +142,34 @@ class MeteorDatabase:
             _add_sql(search.before_offset, 'f.fileOffset < (?)')
             _add_sql(search.after_offset, 'f.fileOffset > (?)')
             _add_sql(search.mime_type, 'f.mimeType = (?)')
+            # Handle semantic type differently as it's based on an NSString
             if search.semantic_type is not None:
                 _add_sql(str(search.semantic_type), 'f.semanticType = (?)')
+            # Check for file-meta based constraints
+            for fmc in search.meta_constraints:
+                meta_key = str(fmc.key)
+                ct = fmc.constraint_type
+                sql_template = 'f.internalID IN (' \
+                               'SELECT fm.fileID FROM t_fileMeta fm WHERE fm.{0} {1} (?) AND fm.metaKey = (?))'
+                sql_args.append(fmc.value)
+                sql_args.append(str(fmc.key))
+                if ct == 'after':
+                    where_clauses.append(sql_template.format('dateValue', '>', meta_key))
+                elif ct == 'before':
+                    where_clauses.append(sql_template.format('dateValue', '<', meta_key))
+                elif ct == 'less':
+                    where_clauses.append(sql_template.format('floatValue', '<', meta_key))
+                elif ct == 'greater':
+                    where_clauses.append(sql_template.format('floatValue', '>', meta_key))
+                elif ct == 'number_equals':
+                    where_clauses.append(sql_template.format('floatValue', '=', meta_key))
+                elif ct == 'string_equals':
+                    where_clauses.append(sql_template.format('stringValue', '=', meta_key))
+                else:
+                    raise ValueError("Unknown meta constraint type!")
             # Check for avoiding event files
             if search.exclude_events:
                 where_clauses.append('f.internalID NOT IN (SELECT fileID from t_event_to_file)')
-
             # Build the SQL statement
             sql = 'SELECT f.internalID ' \
                   'FROM t_file f, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)

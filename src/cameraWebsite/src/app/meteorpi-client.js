@@ -64,7 +64,7 @@ define(["jquery", "knockout"], function (jquery, ko) {
          * @returns {string}
          */
         self.stringFromObservables = function (ob) {
-            return encodeURIComponent(JSON.stringify(ob, function (key, ob_value) {
+            var jsonString = JSON.stringify(ob, function (key, ob_value) {
                     var value = ko.unwrap(ob_value);
                     if (value == null || value == false) {
                         return undefined;
@@ -75,10 +75,10 @@ define(["jquery", "knockout"], function (jquery, ko) {
                     if (typeof value === "boolean") {
                         return value ? 1 : undefined;
                     }
-                    //console.log("Encoding " + key + " = " + value);
                     return value;
                 }
-            ));
+            );
+            return encodeURIComponent(jsonString);
         };
 
         /**
