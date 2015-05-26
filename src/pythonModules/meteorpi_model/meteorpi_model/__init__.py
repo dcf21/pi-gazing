@@ -80,6 +80,12 @@ class NSString(ModelEqualityMixin):
     """Namespace prefixed string, with the namespace defaulting to 'meteorpi'"""
 
     def __init__(self, s, ns='meteorpi'):
+        """
+        Create a new namespaced string
+        :param s: The value part of the string object.
+        :param ns: The namespace, optional, defaults to 'meteorpi' if not specified.
+        :return: the new NSString instance
+        """
         if ':' in ns:
             raise ValueError('Namespace part must not contain the : character.')
         if len(s) == 0:
@@ -90,7 +96,7 @@ class NSString(ModelEqualityMixin):
         self.ns = ns
 
     def __str__(self):
-        """Returns the stringified form of the NSString for storage etc"""
+        """Returns the stringified form of the NSString for storage etc, the format will be ns:value"""
         return '{0}:{1}'.format(self.ns, self.s)
 
     @staticmethod
@@ -108,6 +114,38 @@ class FileRecordSearch(ModelEqualityMixin):
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
                  before=None, mime_type=None, semantic_type=None, exclude_events=False, latest=False, after_offset=None,
                  before_offset=None, meta_constraints=[]):
+        """
+        :param camera_ids: Optional - if specified, restricts results to only those the the specified camera IDs. This
+            can be specified as an array or a single item (the latter being equivalent to a single item array). Note
+            that due to the internal database structure one database query is required per camera ID specified.
+        :param lat_min: Optional - if specified, only returns results where the camera status at the time of the file
+            had a latitude field of at least the specified value.
+        :param lat_max: Optional - if specified, only returns results where the camera status at the time of the file
+            had a latitude field of at most the specified value.
+        :param long_min: Optional - if specified, only returns results where the camera status at the time of the file
+            had a longitude field of at least the specified value.
+        :param long_max: Optional - if specified, only returns results where the camera status at the time of the file
+            had a longitude field of at most the specified value.
+        :param after: Optional - if specified, only returns results where the file time is after the specified value.
+        :param before: Optional - if specified, only returns results where the file time is before the specified value.
+        :param mime_type: Optional - if specified, only returns results where the MIME type exactly matches the
+            specified value.
+        :param semantic_type: Optional - if specified, only returns results where the semantic type exactly matches.
+            The type of this value should be an instance of NSString
+        :param exclude_events: Optional - if True then files associated with an Event will be excluded from the results,
+            otherwise files will be included whether they are associated with an Event or not.
+        :param latest: Optional - if True then only the latest file will be returned rather than all matching files.
+            This complicates the internal querying process, but might be useful when your result set would otherwise
+            be unreasonably large and you only actually want the latest (in terms of file time) result.
+        :param after_offset: Optional - if specified this defines a lower bound on the time of day of the file time,
+            irrespective of the date of the file. This can be used to e.g. only return files which were produced after
+            2am on any given day. Specified as seconds since the previous mid-day.
+        :param before_offset: Optional - interpreted in a similar manner to after_offset but specifies an upper bound.
+            Use both in the same query to filter for a particular range, i.e. 2am to 4am on any day.
+        :param meta_constraints: Optional - a list of FileMetaConstraint objects providing restrictions over the file
+            record metadata.
+        :return:
+        """
         if camera_ids is None == False and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
         if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
