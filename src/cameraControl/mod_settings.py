@@ -12,6 +12,9 @@ PYTHON_PATH = os.path.split( os.path.abspath(__file__) )[0]
 
 # The path to compiled binary executables in the videoProcess directory
 BINARY_PATH = os.path.join(PYTHON_PATH , "../videoProcess/bin")
+STACKER_PATH= os.path.join(PYTHON_PATH , "../gnomonicStack/bin")
+assert os.path.exists(BINARY_PATH), "You need to compile the videoProcess C code before using this script"
+assert os.path.exists(STACKER_PATH), "You need to compile the gnomonicStack C code before using this script"
 
 # Flag telling us whether we're a raspberry pi or a desktop PC
 I_AM_A_RPI  = os.uname()[4].startswith("arm")

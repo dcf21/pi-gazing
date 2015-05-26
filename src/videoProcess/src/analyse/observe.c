@@ -111,7 +111,6 @@ int testTrigger(const double utc, const int width, const int height, const int *
      triggerG[o] = CLIP256( pastTriggerMap[o] * 256 / (2*pastTriggerMapAverage) ); // GRN channel - map of pixels which are excluded for triggering too often
      if (mask[o] && (imageB[o]-imageA[o]>threshold)) // Search for pixels which have brightened by more than threshold since past image
       {
-       pastTriggerMap[o]++;
        int i,j,c=0; // Make a 3x3 grid of pixels of pixels at a spacing of radius pixels. This pixel must be brighter than 6/9 of these pixels were
        for (i=-1;i<=1;i++) for (j=-1;j<=1;j++) if (imageB[o]-imageA[o+(j+i*width)*radius]>threshold) c++;
        if (c>7)
@@ -121,6 +120,7 @@ int testTrigger(const double utc, const int width, const int height, const int *
          if (c>6)
           {
            // Put triggering pixel on map. Wait till be have <Npixels> connected pixels.
+           pastTriggerMap[o]++;
            triggerB[o] = 128;
            int blockId=0;
            if (triggerMap[o-1      ]) { if (!blockId) { blockId=triggerMap[o-1      ]; } else { triggerBlocksMerge(triggerBlock, triggerMap+(y-1)*width, width*2, triggerMap[o-1      ], blockId); } }
@@ -159,7 +159,7 @@ int testTrigger(const double utc, const int width, const int height, const int *
    }
 
   free(triggerMap); free(triggerBlock); free(triggerRGB);
-  pastTriggerMapAverage = pastTriggerMapAverageNew / nPixelsWithinMask + 2;
+  pastTriggerMapAverage = pastTriggerMapAverageNew / nPixelsWithinMask + 1;
   return output;
  }
 

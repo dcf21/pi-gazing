@@ -45,7 +45,7 @@ for f in files:
   count+=1
   if not (count%useEveryNthImage==0): continue
   utc = datetime2UTC(f.file_time)
-  os.system("""convert %s -gravity SouthEast -fill ForestGreen -pointsize 20 -font Ubuntu-Bold -annotate +16+10 '%s %s' %s"""%(os.path.join(fdb_handle.file_store_path,f.file_id.hex), label, time.strftime("%d %b %Y %H:%M", time.gmtime(utc)), filestub%imgNo))
+  os.system("""convert %s -gravity SouthEast -fill ForestGreen -pointsize 20 -font Ubuntu-Bold -annotate +16+10 '%s %s' %s"""%(f.get_path(), label, time.strftime("%d %b %Y %H:%M", time.gmtime(utc)), filestub%imgNo))
   imgNo+=1
 
 os.system("""avconv -r 40 -i %s -codec:v libx264 /tmp/timelapse.mp4"""%filestub)
