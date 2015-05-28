@@ -91,43 +91,43 @@ class TestClient(TestCase):
             {'search': model.FileRecordSearch(exclude_events=True, latest=True, camera_ids=dummy.CAMERA_1),
              'expect': 'f7'},
             {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1,
-                                              meta_constraints=[model.FileMetaConstraint(constraint_type='less',
-                                                                                         key=model.NSString(
-                                                                                             'number_key'), value=4)]),
+                                              meta_constraints=[model.MetaConstraint(constraint_type='less',
+                                                                                     key=model.NSString(
+                                                                                         'number_key'), value=4)]),
              'expect': 'f6'},
             {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1,
-                                              meta_constraints=[model.FileMetaConstraint(constraint_type='greater',
-                                                                                         key=model.NSString(
-                                                                                             'number_key'), value=4)]),
+                                              meta_constraints=[model.MetaConstraint(constraint_type='greater',
+                                                                                     key=model.NSString(
+                                                                                         'number_key'), value=4)]),
              'expect': 'f8,f9'},
             {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1,
                                               meta_constraints=[
-                                                  model.FileMetaConstraint(constraint_type='number_equals',
-                                                                           key=model.NSString(
-                                                                               'number_key'), value=10.002)]),
+                                                  model.MetaConstraint(constraint_type='number_equals',
+                                                                       key=model.NSString(
+                                                                           'number_key'), value=10.002)]),
              'expect': 'f9'},
             {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1,
                                               meta_constraints=[
-                                                  model.FileMetaConstraint(constraint_type='less',
-                                                                           key=model.NSString(
-                                                                               'number_key'), value=6),
-                                                  model.FileMetaConstraint(constraint_type='greater',
-                                                                           key=model.NSString(
-                                                                               'number_key'), value=4)]),
+                                                  model.MetaConstraint(constraint_type='less',
+                                                                       key=model.NSString(
+                                                                           'number_key'), value=6),
+                                                  model.MetaConstraint(constraint_type='greater',
+                                                                       key=model.NSString(
+                                                                           'number_key'), value=4)]),
              'expect': 'f8'},
             {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1,
                                               meta_constraints=[
-                                                  model.FileMetaConstraint(constraint_type='before',
-                                                                           key=model.NSString(
-                                                                               'date_key'),
-                                                                           value=dummy.make_time(14))]),
+                                                  model.MetaConstraint(constraint_type='before',
+                                                                       key=model.NSString(
+                                                                           'date_key'),
+                                                                       value=dummy.make_time(14))]),
              'expect': 'f10,f6'},
             {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1,
                                               meta_constraints=[
-                                                  model.FileMetaConstraint(constraint_type='after',
-                                                                           key=model.NSString(
-                                                                               'date_key'),
-                                                                           value=dummy.make_time(14))]),
+                                                  model.MetaConstraint(constraint_type='after',
+                                                                       key=model.NSString(
+                                                                           'date_key'),
+                                                                       value=dummy.make_time(14))]),
              'expect': 'f8'},
         ]
         for search in searches:

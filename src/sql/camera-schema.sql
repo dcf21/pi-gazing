@@ -175,6 +175,14 @@ BEGIN
 new.internalID = gen_id(gidSequence, 1);
 END
 END ^
+CREATE OR ALTER TRIGGER assignEventMetaID FOR t_event Meta
+BEFORE INSERT POSITION 0
+AS BEGIN
+IF ((new.internalID IS NULL) OR (new.internalID = 0)) THEN
+BEGIN
+new.internalID = gen_id(gidSequence, 1);
+END
+END ^
 /* Change the terminator back to the semi-colon again */
 SET TERM ;^
 

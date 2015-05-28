@@ -67,10 +67,10 @@ class TestFdb(TestCase):
                                  mime_type='text/plain',
                                  semantic_type=model.NSString('test_file'),
                                  file_time=datetime.now(),
-                                 file_metas=[model.FileMeta(model.NSString('meta1'),
-                                                            'value1'),
-                                             model.FileMeta(model.NSString('meta2'),
-                                                            'value2')])
+                                 file_metas=[model.Meta(model.NSString('meta1'),
+                                                        'value1'),
+                                             model.Meta(model.NSString('meta2'),
+                                                        'value2')])
         record2 = m.get_file(file_id=record.file_id)
         self.assertEqual(len(record.meta), 2)
         self.assertEqual(str(record), str(record2))
@@ -90,10 +90,10 @@ class TestFdb(TestCase):
             model.NSString('test_file'),
             datetime.now(),
             [
-                model.FileMeta(model.NSString('meta1'),
-                               'value1'),
-                model.FileMeta(model.NSString('meta2'),
-                               'value2')])
+                model.Meta(model.NSString('meta1'),
+                           'value1'),
+                model.Meta(model.NSString('meta2'),
+                           'value2')])
         file2 = m.register_file(
             tempfile.mkstemp(
                 suffix='.tmp',
@@ -102,10 +102,10 @@ class TestFdb(TestCase):
             model.NSString('test_file'),
             datetime.now(),
             [
-                model.FileMeta(key=model.NSString('meta3'),
-                               value='value3'),
-                model.FileMeta(key=model.NSString('meta4'),
-                               value=0.4)])
+                model.Meta(key=model.NSString('meta3'),
+                           value='value3'),
+                model.Meta(key=model.NSString('meta4'),
+                           value=0.4)])
         event = m.register_event(
             camera_id=db.get_installation_id(),
             event_time=datetime.now(),
@@ -119,8 +119,6 @@ class TestFdb(TestCase):
         m = db.MeteorDatabase()
         dummy.setup_dummy_data(m, clear=True)
         events = m.search_events(model.EventSearch())
-        # print json.dumps(list(e.as_dict() for e in events), indent=1, sort_keys=True)
-        # TODO - verify that this has done the right thing. It doesn't crash at least...
 
     def test_rollback(self):
         m = db.MeteorDatabase()

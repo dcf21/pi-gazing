@@ -21,13 +21,13 @@ def add_dummy_file(db, camera, time, meta, number_meta=None, date_meta=None, sem
     tf_path = tf[1]
     db.set_high_water_mark(camera_id=camera, time=make_time(time), allow_rollback=False)
     file_metas = list(
-        model.FileMeta(key=model.NSString('meta_key_{0}'.format(x)),
-                       value='meta_value_{0}'.format(x)) for x
+        model.Meta(key=model.NSString('meta_key_{0}'.format(x)),
+                   value='meta_value_{0}'.format(x)) for x
         in range(meta))
     if number_meta is not None:
-        file_metas.append(model.FileMeta(key=model.NSString('number_key'), value=number_meta))
+        file_metas.append(model.Meta(key=model.NSString('number_key'), value=number_meta))
     if date_meta is not None:
-        file_metas.append(model.FileMeta(key=model.NSString('date_key'), value=date_meta))
+        file_metas.append(model.Meta(key=model.NSString('date_key'), value=date_meta))
     return db.register_file(camera_id=camera,
                             file_path=tf_path,
                             mime_type='text/plain',
@@ -45,11 +45,13 @@ def add_dummy_event(db, camera, time, intensity, file_records=None, file_count=N
                                                semantic_type=model.NSString('event_test_file')) for x in
                                 range(file_count))
     db.set_high_water_mark(camera_id=camera, time=make_time(time), allow_rollback=False)
+    meta = [model.Meta(key=model.NSString('file_count'), value=file_count),
+            model.Meta(key=model.NSString('camera_id'), value=camera)]
     return db.register_event(camera_id=camera,
                              event_time=make_time(time),
                              intensity=intensity,
                              bezier=model.Bezier(0, 1, 2, 3, 4, 5, 6, 7),
-                             file_records=file_records)
+                             file_records=file_records, event_meta=meta)
 
 
 def add_dummy_status(db, camera, time,

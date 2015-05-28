@@ -55,7 +55,23 @@
     </thead>
     <tbody data-bind="foreach: results">
     <tr>
-        <td data-bind="text: camera_id"></td>
+        <td>
+            <span data-bind="text: camera_id"></span>
+            <table class="table table-condensed">
+                <thead>
+                <tr>
+                    <th>Meta Key</th>
+                    <th>Meta Value</th>
+                </tr>
+                </thead>
+                <tbody data-bind="foreach: meta">
+                <tr>
+                    <td data-bind="text: key"></td>
+                    <td data-bind="text: type==='date'?new Date(value*1000):value"></td>
+                </tr>
+                </tbody>
+            </table>
+        </td>
         <td data-bind="text: new Date(event_time*1000)"></td>
         <td data-bind="text: intensity"></td>
         <td>

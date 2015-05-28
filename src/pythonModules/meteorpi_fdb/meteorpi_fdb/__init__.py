@@ -100,6 +100,29 @@ class MeteorDatabase:
             _add_sql(search.before_offset, 'e.eventOffset < (?)')
             _add_sql(search.after_offset, 'e.eventOffset > (?)')
 
+            # Check for meta based constraints
+            for fmc in search.meta_constraints:
+                meta_key = str(fmc.key)
+                ct = fmc.constraint_type
+                sql_template = 'e.internalID IN (' \
+                               'SELECT em.eventID FROM t_eventMeta em WHERE em.{0} {1} (?) AND em.metaKey = (?))'
+                sql_args.append(fmc.value)
+                sql_args.append(str(fmc.key))
+                if ct == 'after':
+                    where_clauses.append(sql_template.format('dateValue', '>', meta_key))
+                elif ct == 'before':
+                    where_clauses.append(sql_template.format('dateValue', '<', meta_key))
+                elif ct == 'less':
+                    where_clauses.append(sql_template.format('floatValue', '<', meta_key))
+                elif ct == 'greater':
+                    where_clauses.append(sql_template.format('floatValue', '>', meta_key))
+                elif ct == 'number_equals':
+                    where_clauses.append(sql_template.format('floatValue', '=', meta_key))
+                elif ct == 'string_equals':
+                    where_clauses.append(sql_template.format('stringValue', '=', meta_key))
+                else:
+                    raise ValueError("Unknown meta constraint type!")
+
             # Build the SQL statement
             sql = 'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, e.intensity, ' \
                   'e.x1, e.y1, e.x2, e.y2, e.x3, e.y3, e.x4, e.y4 ' \
@@ -228,12 +251,32 @@ class MeteorDatabase:
                 [])
         result = []
         for internal_id, event in events.iteritems():
+            # Get all the files
             _cur.execute(
                 'SELECT fileID FROM t_event_to_file '
                 'WHERE eventID = (?) '
                 'ORDER BY sequenceNumber ASC', (internal_id,))
             for row in _cur.fetchallmap():
                 event.file_records.append(self.get_file(internal_id=row['fileID']))
+            # Get all the event meta
+            _cur.execute(
+                'SELECT metaKey, stringValue, floatValue, dateValue '
+                'FROM t_eventMeta t '
+                'WHERE t.eventID = (?) '
+                'ORDER BY metaIndex ASC',
+                (internal_id,))
+            for meta in _cur.fetchallmap():
+                if meta['stringValue'] is not None:
+                    value = meta['stringValue']
+                elif meta['floatValue'] is not None:
+                    value = meta['floatValue']
+                elif meta['dateValue'] is not None:
+                    value = meta['dateValue']
+                else:
+                    raise ValueError('Unhandled metadata value type')
+                event.meta.append(
+                    mp.Meta(key=mp.NSString.from_string(meta['metaKey']),
+                            value=value))
             result.append(event)
         return result
 
@@ -243,7 +286,8 @@ class MeteorDatabase:
             event_time,
             intensity,
             bezier,
-            file_records=[]):
+            file_records=[],
+            event_meta=[]):
         """Register a new row in t_event, returning the Event object."""
         if intensity > 1.0:
             raise ValueError('Intensity must be at most 1.0')
@@ -291,6 +335,20 @@ class MeteorDatabase:
                 (file_internal_id,
                  event_internal_id,
                  file_record_index))
+        # Store the event metadata
+        for meta_index, meta in enumerate(event_meta):
+            cur.execute(
+                'INSERT INTO t_eventMeta '
+                '(eventID, metaKey, stringValue, floatValue, dateValue, metaIndex) '
+                'VALUES (?, ?, ?, ?, ?, ?)',
+                (event_internal_id,
+                 str(meta.key),
+                 meta.string_value(),
+                 meta.float_value(),
+                 meta.date_value(),
+                 meta_index))
+            event.meta.append(
+                mp.Meta(key=meta.key, value=meta.value))
         self.con.commit()
         return event
 
@@ -359,7 +417,7 @@ class MeteorDatabase:
                  file_meta.date_value(),
                  file_meta_index))
             result_file.meta.append(
-                mp.FileMeta(key=file_meta.key, value=file_meta.value))
+                mp.Meta(key=file_meta.key, value=file_meta.value))
         self.con.commit()
         # Move the original file from its path
         target_file_path = path.join(self.file_store_path, result_file.file_id.hex)
@@ -411,8 +469,8 @@ class MeteorDatabase:
             else:
                 raise ValueError('Unhandled metadata value type')
             file_record.meta.append(
-                mp.FileMeta(key=mp.NSString.from_string(meta['metaKey']),
-                            value=value))
+                mp.Meta(key=mp.NSString.from_string(meta['metaKey']),
+                        value=value))
 
         def get_path():
             return path.join(self.file_store_path, file_record.file_id.hex)
@@ -456,8 +514,8 @@ class MeteorDatabase:
             'INSERT INTO t_cameraStatus (cameraID, validFrom, validTo, '
             'softwareVersion, orientationAltitude, orientationAzimuth, '
             'orientationRotation, orientationError, widthOfField, locationLatitude, locationLongitude, '
-            'locationGPS, lens, sensor, instURL, instName, locationError) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
+            'locationGPS, lens, sensor, instURL, instName, locationError, statusID) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
             'RETURNING internalID',
             (camera_id,
              time,
@@ -475,16 +533,17 @@ class MeteorDatabase:
              ns.sensor,
              ns.inst_url,
              ns.inst_name,
-             ns.location.error))
+             ns.location.error,
+             ns.status_id))
         # Retrieve the newly created internal ID for the status block, use this to
         # insert visible regions
-        status_id = cur.fetchone()[0]
+        status_internal_id = cur.fetchone()[0]
         for region_index, region in enumerate(ns.regions):
             for point_index, point in enumerate(region):
                 cur.execute(
                     'INSERT INTO t_visibleRegions (cameraStatusID, '
                     'region, pointOrder, x, y) VALUES (?,?,?,?,?)',
-                    (status_id,
+                    (status_internal_id,
                      region_index,
                      point_index,
                      point['x'],
@@ -525,7 +584,7 @@ class MeteorDatabase:
             'SELECT lens, sensor, instURL, instName, locationLatitude, '
             'locationLongitude, locationGPS, locationError, orientationAltitude, '
             'orientationAzimuth, orientationError, orientationRotation, widthOfField, validFrom, validTo, '
-            'softwareVersion, internalID '
+            'softwareVersion, internalID, statusID '
             'FROM t_cameraStatus t '
             'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
             'AND (t.validTo IS NULL OR t.validTo > (?))',
@@ -549,7 +608,8 @@ class MeteorDatabase:
                                  latitude=row['locationLatitude'],
                                  longitude=row['locationLongitude'],
                                  gps=row['locationGPS'] == True,
-                                 error=row['locationError']))
+                                 error=row['locationError']),
+                             status_id=uuid.UUID(bytes=row['statusID']))
         cs.valid_from = row['validFrom']
         cs.valid_to = row['validTo']
         cs.software_version = row['softwareVersion']

@@ -142,7 +142,7 @@ class FileRecordSearch(ModelEqualityMixin):
             2am on any given day. Specified as seconds since the previous mid-day.
         :param before_offset: Optional - interpreted in a similar manner to after_offset but specifies an upper bound.
             Use both in the same query to filter for a particular range, i.e. 2am to 4am on any day.
-        :param meta_constraints: Optional - a list of FileMetaConstraint objects providing restrictions over the file
+        :param meta_constraints: Optional - a list of MetaConstraint objects providing restrictions over the file
             record metadata.
         :return:
         """
@@ -220,7 +220,7 @@ class FileRecordSearch(ModelEqualityMixin):
         mime_type = _string_from_dict(d, 'mime_type')
         semantic_type = NSString.from_string(_string_from_dict(d, 'semantic_type'))
         if 'meta_constraints' in d:
-            meta_constraints = list((FileMetaConstraint.from_dict(x) for x in d['meta_constraints']))
+            meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta_constraints']))
         else:
             meta_constraints = []
         return FileRecordSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
@@ -232,8 +232,8 @@ class FileRecordSearch(ModelEqualityMixin):
                                 meta_constraints=meta_constraints)
 
 
-class FileMetaConstraint(ModelEqualityMixin):
-    """Defines a constraint over FileMeta"""
+class MetaConstraint(ModelEqualityMixin):
+    """Defines a constraint over Meta"""
 
     def __init__(self, constraint_type, key, value):
         """
@@ -242,7 +242,7 @@ class FileMetaConstraint(ModelEqualityMixin):
         :param key: an NSString containing the namespace prefixed string to use as a key
         :param value: the value, for string_equals this is a string, for 'before' and 'after' it's a DateTime and
             for 'less', 'greater' and 'number_equals' a number.
-        :return: the instance of FileMetaConstraint
+        :return: the instance of MetaConstraint
         """
         self.constraint_type = constraint_type
         self.key = key
@@ -259,7 +259,7 @@ class FileMetaConstraint(ModelEqualityMixin):
         elif c_type == 'string_equals':
             _add_string(d, 'value', self.value)
         else:
-            raise ValueError("Unknown FileMetaConstraint constraint type!")
+            raise ValueError("Unknown MetaConstraint constraint type!")
         return d;
 
     @staticmethod
@@ -267,13 +267,13 @@ class FileMetaConstraint(ModelEqualityMixin):
         c_type = _string_from_dict(d, 'type')
         key = NSString.from_string(_string_from_dict(d, 'key'))
         if c_type == 'after' or c_type == 'before':
-            return FileMetaConstraint(constraint_type=c_type, key=key, value=_datetime_from_dict(d, 'value'))
+            return MetaConstraint(constraint_type=c_type, key=key, value=_datetime_from_dict(d, 'value'))
         elif c_type == 'less' or c_type == 'greater' or c_type == 'number_equals':
-            return FileMetaConstraint(constraint_type=c_type, key=key, value=_value_from_dict(d, 'value'))
+            return MetaConstraint(constraint_type=c_type, key=key, value=_value_from_dict(d, 'value'))
         elif c_type == 'string_equals':
-            return FileMetaConstraint(constraint_type=c_type, key=key, value=_string_from_dict(d, 'value'))
+            return MetaConstraint(constraint_type=c_type, key=key, value=_string_from_dict(d, 'value'))
         else:
-            raise ValueError("Unknown FileMetaConstraint constraint type!")
+            raise ValueError("Unknown MetaConstraint constraint type!")
 
 
 class EventSearch(ModelEqualityMixin):
@@ -285,7 +285,7 @@ class EventSearch(ModelEqualityMixin):
     """
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
-                 before=None, after_offset=None, before_offset=None):
+                 before=None, after_offset=None, before_offset=None, meta_constraints=[]):
         if camera_ids is None == False and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
         if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
@@ -307,6 +307,7 @@ class EventSearch(ModelEqualityMixin):
         self.before = before
         self.after_offset = after_offset
         self.before_offset = before_offset
+        self.meta_constraints = meta_constraints
 
     def __str__(self):
         fields = []
@@ -327,6 +328,7 @@ class EventSearch(ModelEqualityMixin):
         _add_datetime(d, 'before', self.before)
         _add_value(d, 'after_offset', self.after_offset)
         _add_value(d, 'before_offset', self.before_offset)
+        d['meta_constraints'] = list((x.as_dict() for x in self.meta_constraints))
         return d
 
     @staticmethod
@@ -340,9 +342,13 @@ class EventSearch(ModelEqualityMixin):
         before = _datetime_from_dict(d, 'before')
         after_offset = _value_from_dict(d, 'after_offset')
         before_offset = _value_from_dict(d, 'before_offset')
+        if 'meta_constraints' in d:
+            meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta_constraints']))
+        else:
+            meta_constraints = []
         return EventSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
                            long_max=long_max, after=after, before=before, after_offset=after_offset,
-                           before_offset=before_offset)
+                           before_offset=before_offset, meta_constraints=meta_constraints)
 
 
 class Bezier(ModelEqualityMixin):
@@ -385,7 +391,8 @@ class Event(ModelEqualityMixin):
             event_id,
             intensity,
             bezier,
-            file_records=None):
+            file_records=None,
+            meta=[]):
         self.camera_id = camera_id
         # Will be a uuid.UUID when stored in the database
         self.event_id = event_id
@@ -397,6 +404,8 @@ class Event(ModelEqualityMixin):
             self.file_records = []
         else:
             self.file_records = file_records
+        # Event metadata
+        self.meta = meta
 
     def __str__(self):
         return (
@@ -415,6 +424,7 @@ class Event(ModelEqualityMixin):
         _add_value(d, 'intensity', self.intensity)
         d['bezier'] = self.bezier.as_dict()
         d['files'] = list(fr.as_dict() for fr in self.file_records)
+        d['meta'] = list(fm.as_dict() for fm in self.meta)
         return d
 
     @staticmethod
@@ -424,7 +434,8 @@ class Event(ModelEqualityMixin):
                      event_time=_datetime_from_dict(d, 'event_time'),
                      intensity=_value_from_dict(d, 'intensity'),
                      bezier=Bezier.from_dict(d['bezier']),
-                     file_records=list(FileRecord.from_dict(frd) for frd in d['files']))
+                     file_records=list(FileRecord.from_dict(frd) for frd in d['files']),
+                     meta=list((Meta.from_dict(m) for m in d['meta'])))
 
 
 class FileRecord(ModelEqualityMixin):
@@ -478,12 +489,12 @@ class FileRecord(ModelEqualityMixin):
         fr.file_time = _datetime_from_dict(d, 'file_time')
         fr.file_id = _uuid_from_dict(d, 'file_id')
         fr.file_name = _string_from_dict(d, 'file_name')
-        fr.meta = (FileMeta.from_dict(m) for m in d['meta'])
+        fr.meta = list((Meta.from_dict(m) for m in d['meta']))
         return fr
 
 
-class FileMeta(ModelEqualityMixin):
-    """A single piece of metadata pertaining to a File."""
+class Meta(ModelEqualityMixin):
+    """A single piece of metadata pertaining to a FileRecord or an Event."""
 
     def __init__(self, key, value):
         self.key = key
@@ -536,13 +547,13 @@ class FileMeta(ModelEqualityMixin):
     def from_dict(d):
         key = d['key']
         if d['type'] == "date":
-            return FileMeta(key=key, value=_datetime_from_dict(d, "value"))
+            return Meta(key=key, value=_datetime_from_dict(d, "value"))
         elif d['type'] == "string":
-            return FileMeta(key=key, value=_string_from_dict(d, "value"))
+            return Meta(key=key, value=_string_from_dict(d, "value"))
         elif d['type'] == "number":
-            return FileMeta(key=key, value=_value_from_dict(d, "value"))
+            return Meta(key=key, value=_value_from_dict(d, "value"))
         else:
-            raise ValueError("Unknown filemeta value type")
+            raise ValueError("Unknown meta value type")
 
 
 class Location(ModelEqualityMixin):
@@ -631,7 +642,7 @@ class CameraStatus(ModelEqualityMixin):
 
     """
 
-    def __init__(self, lens, sensor, inst_url, inst_name, orientation, location):
+    def __init__(self, lens, sensor, inst_url, inst_name, orientation, location, status_id=None):
         self.lens = lens
         self.sensor = sensor
         self.inst_url = inst_url
@@ -642,6 +653,7 @@ class CameraStatus(ModelEqualityMixin):
         self.valid_from = None
         self.valid_to = None
         self.regions = []
+        self.status_id = status_id
 
     def __str__(self):
         return (
@@ -679,6 +691,7 @@ class CameraStatus(ModelEqualityMixin):
                             'rot': self.orientation.rotation,
                             'width': self.orientation.width_of_field}
         d['regions'] = self.regions
+        _add_uuid(d, 'status_id', self.status_id)
         return d
 
     @staticmethod
@@ -697,7 +710,8 @@ class CameraStatus(ModelEqualityMixin):
                           location=Location(latitude=_value_from_dict(ld, 'lat'),
                                             longitude=_value_from_dict(ld, 'long'),
                                             gps=_value_from_dict(ld, 'gps'),
-                                            error=_value_from_dict(ld, 'error')))
+                                            error=_value_from_dict(ld, 'error')),
+                          status_id=_uuid_from_dict(d, 'status_id'))
         cs.valid_from = _datetime_from_dict(d, 'valid_from')
         cs.valid_to = _datetime_from_dict(d, 'valid_to')
         cs.software_version = _value_from_dict(d, 'software_version')
