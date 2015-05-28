@@ -38,6 +38,49 @@
 
     <div class="form-group">
         <div class="col-xs-offset-2 col-xs-10">
+            <button type="submit" class="btn btn-default" data-bind="click: addMeta">
+                <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>
+                <span data-bind="if: meta().length==0">Add a metadata constraint</span>
+                <span data-bind="if: meta().length>0">Add another metadata constraint</span>
+            </button>
+        </div>
+    </div>
+
+    <div data-bind="foreach: meta">
+        <div class="form-group">
+            <div class="form-inline col-xs-10 col-xs-offset-2">
+
+                <input class="form-control" id="meta-key-picker" data-bind="value: key" placeholder="ns:keyname"/>
+                <select data-bind="value: type" class="form-control" id="meta-type-select">
+                    <option value="string_equals">equals (string)</option>
+                    <option value="number_equals">equals (number)</option>
+                    <option value="less">is less than</option>
+                    <option value="greater">is greater than</option>
+                    <option value="before">is before</option>
+                    <option value="after">is after</option>
+                </select>
+                <span data-bind="if: (type()==='before' || type()==='after')">
+                    <input class="form-control"
+                           data-bind="kendoDateTimePicker: { value: date_value }"
+                           id="meta-date-picker"/>
+                </span>
+                <span data-bind="if: (type()==='number_equals' || type()==='less' || type()==='greater')">
+                    <input data-bind="kendoNumericTextBox: { value: number_value}"/>
+                    </span>
+                <span data-bind="if: (type()==='string_equals')">
+                    <input class="form-control" id="meta-text-picker" data-bind="value: string_value"
+                           placeholder="String value..."/>
+                </span>
+                <button type="submit" class="btn btn-default" data-bind="click: $parent.removeMeta"><span
+                        class="glyphicon glyphicon-trash" aria-hidden="true"></span></button>
+            </div>
+
+        </div>
+    </div>
+
+
+    <div class="form-group">
+        <div class="col-xs-offset-2 col-xs-10">
             <button type="submit" class="btn btn-default btn-info" data-bind="click: searchEvents">Search</button>
         </div>
     </div>

@@ -52,12 +52,12 @@
 
                 <input class="form-control" id="meta-key-picker" data-bind="value: key" placeholder="ns:keyname"/>
                 <select data-bind="value: type" class="form-control" id="meta-type-select">
-                    <option value="string_equals">Is (string)</option>
-                    <option value="number_equals">Is (number)</option>
-                    <option value="less">Is less than</option>
-                    <option value="greater">Is greater than</option>
-                    <option value="before">Is before</option>
-                    <option value="after">Is after</option>
+                    <option value="string_equals">equals (string)</option>
+                    <option value="number_equals">equals (number)</option>
+                    <option value="less">is less than</option>
+                    <option value="greater">is greater than</option>
+                    <option value="before">is before</option>
+                    <option value="after">is after</option>
                 </select>
                 <span data-bind="if: (type()==='before' || type()==='after')">
                     <input class="form-control"
