@@ -710,6 +710,7 @@ class MeteorDatabase:
         cur.execute('DELETE FROM t_highWaterMark')
         cur.execute('DELETE FROM t_file')
         cur.execute('DELETE FROM t_fileMeta')
+        cur.execute('DELETE FROM t_eventMeta')
         cur.execute('DELETE FROM t_event')
         self.con.commit()
         shutil.rmtree(self.file_store_path)
