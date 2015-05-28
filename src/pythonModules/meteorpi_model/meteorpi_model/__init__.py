@@ -113,7 +113,7 @@ class FileRecordSearch(ModelEqualityMixin):
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
                  before=None, mime_type=None, semantic_type=None, exclude_events=False, latest=False, after_offset=None,
-                 before_offset=None, meta_constraints=[]):
+                 before_offset=None, meta_constraints=None):
         """
         :param camera_ids: Optional - if specified, restricts results to only those the the specified camera IDs. This
             can be specified as an array or a single item (the latter being equivalent to a single item array). Note
@@ -175,7 +175,10 @@ class FileRecordSearch(ModelEqualityMixin):
         # Boolean, set to true to only return the latest file or files matched by the other criteria
         self.latest = latest
         # FileMeta constraints
-        self.meta_constraints = meta_constraints
+        if meta_constraints is None:
+            self.meta_constraints = []
+        else:
+            self.meta_constraints = meta_constraints
 
     def __str__(self):
         fields = []
@@ -251,7 +254,7 @@ class MetaConstraint(ModelEqualityMixin):
     def as_dict(self):
         c_type = self.constraint_type
         d = {'key': str(self.key),
-             'type': c_type};
+             'type': c_type}
         if c_type == 'after' or c_type == 'before':
             _add_datetime(d, 'value', self.value)
         elif c_type == 'less' or c_type == 'greater' or c_type == 'number_equals':
@@ -260,7 +263,7 @@ class MetaConstraint(ModelEqualityMixin):
             _add_string(d, 'value', self.value)
         else:
             raise ValueError("Unknown MetaConstraint constraint type!")
-        return d;
+        return d
 
     @staticmethod
     def from_dict(d):
@@ -285,7 +288,7 @@ class EventSearch(ModelEqualityMixin):
     """
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
-                 before=None, after_offset=None, before_offset=None, meta_constraints=[]):
+                 before=None, after_offset=None, before_offset=None, meta_constraints=None):
         if camera_ids is None == False and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
         if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
@@ -307,7 +310,10 @@ class EventSearch(ModelEqualityMixin):
         self.before = before
         self.after_offset = after_offset
         self.before_offset = before_offset
-        self.meta_constraints = meta_constraints
+        if meta_constraints is None:
+            self.meta_constraints = []
+        else:
+            self.meta_constraints = meta_constraints
 
     def __str__(self):
         fields = []
@@ -392,7 +398,7 @@ class Event(ModelEqualityMixin):
             intensity,
             bezier,
             file_records=None,
-            meta=[]):
+            meta=None):
         self.camera_id = camera_id
         # Will be a uuid.UUID when stored in the database
         self.event_id = event_id
@@ -405,7 +411,10 @@ class Event(ModelEqualityMixin):
         else:
             self.file_records = file_records
         # Event metadata
-        self.meta = meta
+        if meta is None:
+            self.meta = []
+        else:
+            self.meta = meta
 
     def __str__(self):
         return (
@@ -517,17 +526,17 @@ class Meta(ModelEqualityMixin):
 
     def string_value(self):
         if isinstance(self.value, basestring):
-            return self.value;
+            return self.value
         return None
 
     def date_value(self):
         if isinstance(self.value, datetime.date):
-            return self.value;
+            return self.value
         return None
 
     def float_value(self):
         if isinstance(self.value, numbers.Number):
-            return self.value;
+            return self.value
         return None
 
     def as_dict(self):

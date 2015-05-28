@@ -274,6 +274,7 @@ class MeteorDatabase:
                     value = meta['dateValue']
                 else:
                     raise ValueError('Unhandled metadata value type')
+                print event
                 event.meta.append(
                     mp.Meta(key=mp.NSString.from_string(meta['metaKey']),
                             value=value))
