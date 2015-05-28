@@ -176,7 +176,6 @@ new.internalID = gen_id(gidSequence, 1);
 END
 END ^
 /* Change the terminator back to the semi-colon again */
-SET TERM;
-^
+SET TERM ;^
 
 
