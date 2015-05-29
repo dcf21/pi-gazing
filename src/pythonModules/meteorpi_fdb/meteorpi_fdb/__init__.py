@@ -99,6 +99,9 @@ class MeteorDatabase:
             _add_sql(search.after, 'e.eventTime > (?)')
             _add_sql(search.before_offset, 'e.eventOffset < (?)')
             _add_sql(search.after_offset, 'e.eventOffset > (?)')
+            # Have to handle this a bit differently as we have an NS string
+            if search.event_type is not None:
+                _add_sql(str(search.event_type), 'e.eventType = (?)')
 
             # Check for meta based constraints
             for fmc in search.meta_constraints:
@@ -124,8 +127,7 @@ class MeteorDatabase:
                     raise ValueError("Unknown meta constraint type!")
 
             # Build the SQL statement
-            sql = 'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, e.intensity, ' \
-                  'e.x1, e.y1, e.x2, e.y2, e.x3, e.y3, e.x4, e.y4 ' \
+            sql = 'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, e.eventType ' \
                   'FROM t_event e, t_cameraStatus s WHERE e.statusID = s.internalID'
             if len(sql_args) > 0:
                 sql += ' AND '
@@ -228,13 +230,13 @@ class MeteorDatabase:
                 # Use event ID
                 _cur.execute(
                     'SELECT cameraID, eventID, internalID, eventTime, '
-                    'intensity, x1, y1, x2, y2, x3, y3, x4, y4 '
+                    'eventType '
                     'FROM t_event '
                     'WHERE eventID = (?)', (event_id.bytes,))
             else:
                 _cur.execute(
                     'SELECT cameraID, eventID, internalID, eventTime, '
-                    'intensity, x1, y1, x2, y2, x3, y3, x4, y4 '
+                    'eventType '
                     'FROM t_event '
                     'WHERE internalID IN (?)', (internal_ids,))
         else:
@@ -242,13 +244,10 @@ class MeteorDatabase:
         events = {}
         for row in _cur.fetchallmap():
             events[str(row['internalID'])] = mp.Event(
-                row['cameraID'],
-                row['eventTime'],
-                uuid.UUID(bytes=row['eventID']),
-                row['intensity'] / 1000.0,
-                mp.Bezier(row['x1'], row['y1'], row['x2'], row['y2'],
-                          row['x3'], row['y3'], row['x4'], row['y4']),
-                [])
+                camera_id=row['cameraID'],
+                event_time=row['eventTime'],
+                event_id=uuid.UUID(bytes=row['eventID']),
+                event_type=mp.NSString.from_string(row['eventType']))
         result = []
         for internal_id, event in events.iteritems():
             # Get all the files
@@ -274,7 +273,7 @@ class MeteorDatabase:
                     value = meta['dateValue']
                 else:
                     raise ValueError('Unhandled metadata value type')
-                print event
+                # print event
                 event.meta.append(
                     mp.Meta(key=mp.NSString.from_string(meta['metaKey']),
                             value=value))
@@ -285,43 +284,30 @@ class MeteorDatabase:
             self,
             camera_id,
             event_time,
-            intensity,
-            bezier,
+            event_type,
             file_records=[],
             event_meta=[]):
         """Register a new row in t_event, returning the Event object."""
-        if intensity > 1.0:
-            raise ValueError('Intensity must be at most 1.0')
-        if intensity < 0:
-            raise ValueError('Intensity must not be negative')
         status_id = self._get_camera_status_id(camera_id=camera_id, time=event_time)
         if status_id is None:
             raise ValueError('No status defined for camera id <%s> at time <%s>!' % (camera_id, event_time))
         cur = self.con.cursor()
         day_and_offset = get_day_and_offset(event_time)
         cur.execute(
-            'INSERT INTO t_event (cameraID, eventTime, eventDay, eventOffset, intensity, '
-            'x1, y1, x2, y2, x3, y3, x4, y4, statusID) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
+            'INSERT INTO t_event (cameraID, eventTime, eventDay, eventOffset, eventType, '
+            'statusID) '
+            'VALUES (?, ?, ?, ?, ?, ?) '
             'RETURNING internalID, eventID, eventTime',
             (camera_id,
              event_time,
              day_and_offset['day'],
              day_and_offset['seconds'],
-             intensity * 1000,
-             bezier[0]["x"],
-             bezier[0]["y"],
-             bezier[1]["x"],
-             bezier[1]["y"],
-             bezier[2]["x"],
-             bezier[2]["y"],
-             bezier[3]["x"],
-             bezier[3]["y"],
+             str(event_type),
              status_id))
         ids = cur.fetchone()
         event_internal_id = ids[0]
         event_id = uuid.UUID(bytes=ids[1])
-        event = mp.Event(camera_id, ids[2], event_id, intensity, bezier)
+        event = mp.Event(camera_id=camera_id, event_time=ids[2], event_id=event_id, event_type=event_type)
         for file_record_index, file_record in enumerate(file_records):
             event.file_records.append(file_record)
             cur.execute(

@@ -11,7 +11,8 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'jquery'], fun
             before: ko.observable(),
             exclude_events: ko.observable(false),
             after_offset: ko.observable(),
-            before_offset: ko.observable()
+            before_offset: ko.observable(),
+            semantic_type: ko.observable()
         };
 
         self.meta = ko.observableArray();

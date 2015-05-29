@@ -105,7 +105,9 @@ class NSString(ModelEqualityMixin):
         if s is None:
             return None
         split = s.split(':', 1)
-        return NSString(s=split[1], ns=split[0])
+        if len(split) == 2:
+            return NSString(s=split[1], ns=split[0])
+        return NSString(split[0])
 
 
 class FileRecordSearch(ModelEqualityMixin):
@@ -288,7 +290,7 @@ class EventSearch(ModelEqualityMixin):
     """
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
-                 before=None, after_offset=None, before_offset=None, meta_constraints=None):
+                 before=None, after_offset=None, before_offset=None, event_type=None, meta_constraints=None):
         if camera_ids is None == False and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
         if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
@@ -310,6 +312,7 @@ class EventSearch(ModelEqualityMixin):
         self.before = before
         self.after_offset = after_offset
         self.before_offset = before_offset
+        self.event_type = event_type
         if meta_constraints is None:
             self.meta_constraints = []
         else:
@@ -334,6 +337,7 @@ class EventSearch(ModelEqualityMixin):
         _add_datetime(d, 'before', self.before)
         _add_value(d, 'after_offset', self.after_offset)
         _add_value(d, 'before_offset', self.before_offset)
+        _add_string(d, 'event_type', self.event_type)
         d['meta_constraints'] = list((x.as_dict() for x in self.meta_constraints))
         return d
 
@@ -348,41 +352,14 @@ class EventSearch(ModelEqualityMixin):
         before = _datetime_from_dict(d, 'before')
         after_offset = _value_from_dict(d, 'after_offset')
         before_offset = _value_from_dict(d, 'before_offset')
+        event_type = NSString.from_string(_string_from_dict(d, 'event_type'))
         if 'meta_constraints' in d:
             meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta_constraints']))
         else:
             meta_constraints = []
         return EventSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
                            long_max=long_max, after=after, before=before, after_offset=after_offset,
-                           before_offset=before_offset, meta_constraints=meta_constraints)
-
-
-class Bezier(ModelEqualityMixin):
-    """A four-point two dimensional curve, consisting of four control
-    points."""
-
-    def __init__(self, x1, y1, x2, y2, x3, y3, x4, y4):
-        self.points = []
-        self.points.append({"x": x1, "y": y1})
-        self.points.append({"x": x2, "y": y2})
-        self.points.append({"x": x3, "y": y3})
-        self.points.append({"x": x4, "y": y4})
-
-    def __str__(self):
-        return str(self.points)
-
-    def __getitem__(self, index):
-        return self.points[index]
-
-    def as_dict(self):
-        return {'x1': self.points[0]['x'], 'y1': self.points[0]['y'],
-                'x2': self.points[1]['x'], 'y2': self.points[1]['y'],
-                'x3': self.points[2]['x'], 'y3': self.points[2]['y'],
-                'x4': self.points[3]['x'], 'y4': self.points[3]['y']}
-
-    @staticmethod
-    def from_dict(d):
-        return Bezier(d['x1'], d['y1'], d['x2'], d['y2'], d['x3'], d['y3'], d['x4'], d['y4'])
+                           before_offset=before_offset, meta_constraints=meta_constraints, event_type=event_type)
 
 
 class Event(ModelEqualityMixin):
@@ -395,16 +372,14 @@ class Event(ModelEqualityMixin):
             camera_id,
             event_time,
             event_id,
-            intensity,
-            bezier,
+            event_type,
             file_records=None,
             meta=None):
         self.camera_id = camera_id
         # Will be a uuid.UUID when stored in the database
         self.event_id = event_id
         self.event_time = event_time
-        self.intensity = intensity
-        self.bezier = bezier
+        self.event_type = event_type
         # Sequence of FileRecord
         if file_records is None:
             self.file_records = []
@@ -430,8 +405,7 @@ class Event(ModelEqualityMixin):
         _add_uuid(d, 'event_id', self.event_id)
         _add_value(d, 'camera_id', self.camera_id)
         _add_datetime(d, 'event_time', self.event_time)
-        _add_value(d, 'intensity', self.intensity)
-        d['bezier'] = self.bezier.as_dict()
+        _add_string(d, 'event_type', self.event_type)
         d['files'] = list(fr.as_dict() for fr in self.file_records)
         d['meta'] = list(fm.as_dict() for fm in self.meta)
         return d
@@ -441,8 +415,7 @@ class Event(ModelEqualityMixin):
         return Event(camera_id=_value_from_dict(d, 'camera_id'),
                      event_id=_uuid_from_dict(d, 'event_id'),
                      event_time=_datetime_from_dict(d, 'event_time'),
-                     intensity=_value_from_dict(d, 'intensity'),
-                     bezier=Bezier.from_dict(d['bezier']),
+                     event_type=NSString.from_string(_string_from_dict(d, 'event_type')),
                      file_records=list(FileRecord.from_dict(frd) for frd in d['files']),
                      meta=list((Meta.from_dict(m) for m in d['meta'])))
 

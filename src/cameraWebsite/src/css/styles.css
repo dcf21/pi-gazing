@@ -29,3 +29,8 @@ table.table table.table {
     margin-bottom: 0px;
     width: 0px;
 }
+
+.defaultsink {
+    position: absolute;
+    left: -100%;
+}

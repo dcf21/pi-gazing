@@ -7,7 +7,8 @@ define(['knockout', 'text!./events-page.html', 'client', 'router', 'jquery'], fu
             after: ko.observable(),
             before: ko.observable(),
             after_offset: ko.observable(),
-            before_offset: ko.observable()
+            before_offset: ko.observable(),
+            event_type: ko.observable()
         };
 
         self.meta = ko.observableArray();
