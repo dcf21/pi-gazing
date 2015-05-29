@@ -375,6 +375,20 @@ class Event(ModelEqualityMixin):
             event_type,
             file_records=None,
             meta=None):
+        """
+        Constructor function. Note that typically you'd use the methods on the database to
+            create a new Event, or on the client API to retrieve an existing one. This constructor is only really for
+            internal use within the database layer.
+        :param camera_id: Camera ID which is responsible for this event
+        :param event_time: Datetime for the event
+        :param event_id: UUID for this event
+        :param event_type: NSString defining the event type, we use this because the concept of an Event has
+            evolved beyond being restricted to meteor sightings.
+        :param file_records: A list of FileRecord, or None to specify no files, which support the event.
+        :param meta: A list of Meta, or None to specify an empty list, which provide additional information about the
+            event.
+        :return: the newly constructed Event object.
+        """
         self.camera_id = camera_id
         # Will be a uuid.UUID when stored in the database
         self.event_id = event_id

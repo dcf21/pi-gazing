@@ -28,6 +28,8 @@ define(['knockout', 'text!./events-page.html', 'client', 'router', 'jquery'], fu
 
         self.results = ko.observableArray();
 
+        self.hasQuery = ko.observable();
+
         self.urlForFile = client.urlForFile;
         self.filenameForFile = client.filenameForFile;
 
@@ -67,7 +69,10 @@ define(['knockout', 'text!./events-page.html', 'client', 'router', 'jquery'], fu
             var search = self.getSearchObject();
             client.searchEvents(search, function (error, results) {
                 self.results(results);
+                self.hasQuery(true);
             });
+        } else {
+            self.hasQuery(false);
         }
 
     }

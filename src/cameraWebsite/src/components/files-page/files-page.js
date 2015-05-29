@@ -32,6 +32,8 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'jquery'], fun
 
         self.results = ko.observableArray();
 
+        self.hasQuery = ko.observable();
+
         self.urlForFile = client.urlForFile;
         self.filenameForFile = client.filenameForFile;
 
@@ -44,6 +46,7 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'jquery'], fun
         };
 
         if (params.search) {
+
             // Configure the observable from the search
             client.populateObservables(self.search, params.search, {
                 "before": "date",
@@ -72,7 +75,10 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'jquery'], fun
             var search = self.getSearchObject();
             client.searchFiles(search, function (error, results) {
                 self.results(results);
+                self.hasQuery(true);
             });
+        } else {
+            self.hasQuery(false);
         }
     }
 
