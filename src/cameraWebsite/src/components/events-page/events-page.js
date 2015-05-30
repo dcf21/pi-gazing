@@ -7,7 +7,8 @@ define(['knockout', 'text!./events-page.html', 'client', 'router', 'jquery'], fu
             after: ko.observable(),
             before: ko.observable(),
             after_offset: ko.observable(),
-            before_offset: ko.observable()
+            before_offset: ko.observable(),
+            event_type: ko.observable()
         };
 
         self.meta = ko.observableArray();
@@ -26,6 +27,8 @@ define(['knockout', 'text!./events-page.html', 'client', 'router', 'jquery'], fu
         self.maxTime = new Date(2000, 0, 1, 10, 0, 0);
 
         self.results = ko.observableArray();
+
+        self.hasQuery = ko.observable();
 
         self.urlForFile = client.urlForFile;
         self.filenameForFile = client.filenameForFile;
@@ -66,7 +69,10 @@ define(['knockout', 'text!./events-page.html', 'client', 'router', 'jquery'], fu
             var search = self.getSearchObject();
             client.searchEvents(search, function (error, results) {
                 self.results(results);
+                self.hasQuery(true);
             });
+        } else {
+            self.hasQuery(false);
         }
 
     }

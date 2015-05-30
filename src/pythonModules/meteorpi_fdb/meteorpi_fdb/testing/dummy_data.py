@@ -49,8 +49,7 @@ def add_dummy_event(db, camera, time, intensity, file_records=None, file_count=N
             model.Meta(key=model.NSString('camera_id'), value=camera)]
     return db.register_event(camera_id=camera,
                              event_time=make_time(time),
-                             intensity=intensity,
-                             bezier=model.Bezier(0, 1, 2, 3, 4, 5, 6, 7),
+                             event_type=model.NSString('omgmeteors'),
                              file_records=file_records, event_meta=meta)
 
 

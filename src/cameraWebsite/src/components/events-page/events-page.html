@@ -1,35 +1,41 @@
 <form class="form-horizontal">
 
-    <div class="form-group">
-        <label for="after" class="control-label col-xs-2">After</label>
+    <button type="submit" class="defaultsink" data-bind="click: searchEvents">Search</button>
 
-        <div class="col-xs-10">
+    <div class="form-group">
+        <label for="after" class="control-label col-xs-2">After (date and time)</label>
+
+        <div class="col-xs-2">
             <input class="form-control" data-bind="kendoDateTimePicker: { value: search.after }" id="after"/>
         </div>
-    </div>
 
-    <div class="form-group">
-        <label for="before" class="control-label col-xs-2">Before</label>
-
-        <div class="col-xs-10">
-            <input class="form-control" data-bind="kendoDateTimePicker: { value: search.before }" id="before"/>
-        </div>
-    </div>
-
-    <div class="form-group">
         <label for="after_offset" class="control-label col-xs-2">After (time)</label>
 
-        <div class="col-xs-10">
+        <div class="col-xs-2">
             <input class="form-control"
                    data-bind="kendoTimePicker: { value: afterOffsetDate, min: minTime, max: maxTime, interval: 15}"
                    id="after_offset"/>
         </div>
+        <label for="event_type" class="control-label col-xs-2">Event type</label>
+
+        <div class="form-inline col-xs-2">
+            <input type="text" placeholder="ns:value" class="form-control" data-bind="value: search.event_type"
+                   id="event_type"/>
+        </div>
+
     </div>
 
     <div class="form-group">
+
+        <label for="before" class="control-label col-xs-2">Before (date and time)</label>
+
+        <div class="col-xs-2">
+            <input class="form-control" data-bind="kendoDateTimePicker: { value: search.before }" id="before"/>
+        </div>
+
         <label for="before_offset" class="control-label col-xs-2">Before (time)</label>
 
-        <div class="col-xs-10">
+        <div class="col-xs-2">
             <input class="form-control"
                    data-bind="kendoTimePicker: { value: beforeOffsetDate, min: minTime, max: maxTime, interval: 15}"
                    id="before_offset"/>
@@ -37,8 +43,10 @@
     </div>
 
     <div class="form-group">
-        <div class="col-xs-offset-2 col-xs-10">
-            <button type="submit" class="btn btn-default" data-bind="click: addMeta">
+        <label class="control-label col-xs-2">Metadata</label>
+
+        <div class="col-xs-10">
+            <button class="btn btn-default" data-bind="click: addMeta">
                 <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>
                 <span data-bind="if: meta().length==0">Add a metadata constraint</span>
                 <span data-bind="if: meta().length>0">Add another metadata constraint</span>
@@ -71,7 +79,7 @@
                     <input class="form-control" id="meta-text-picker" data-bind="value: string_value"
                            placeholder="String value..."/>
                 </span>
-                <button type="submit" class="btn btn-default" data-bind="click: $parent.removeMeta"><span
+                <button class="btn btn-default" data-bind="click: $parent.removeMeta"><span
                         class="glyphicon glyphicon-trash" aria-hidden="true"></span></button>
             </div>
 
@@ -87,12 +95,23 @@
 
 </form>
 
+
+<div data-bind="if: results().length==0 && hasQuery()==true">
+    <div class="alert alert-success">
+        <p><b>No results found</b></p>
+
+        <p>The query completed, but no results were found matching the constraints you specified. Try altering values in
+            the form above and re-running the query.</p>
+    </div>
+</div>
+
+
 <table data-bind="if: results().length>0" class="table table-condensed">
     <thead>
     <tr>
         <th>Camera ID</th>
+        <th>Event Type</th>
         <th>Event Time &amp; Metadata</th>
-        <th>Intensity</th>
         <th>Files</th>
     </tr>
     </thead>
@@ -101,6 +120,7 @@
         <td>
             <span data-bind="text: camera_id"></span>
         </td>
+        <td data-bind="text: event_type"></td>
         <td>
             <p data-bind="text: new Date(event_time*1000)"></p>
             <table class="table table-condensed">
@@ -113,7 +133,7 @@
                 </tbody>
             </table>
         </td>
-        <td data-bind="text: intensity"></td>
+
         <td>
             <table class="table table-condensed">
                 <tbody data-bind="foreach: files">
