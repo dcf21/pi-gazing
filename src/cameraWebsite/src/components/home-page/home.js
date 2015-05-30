@@ -8,12 +8,18 @@ define(["knockout", "text!./home.html", "client", "router"], function (ko, homeT
         self.selectedCamera = ko.observable();
         // The status for this current camera
         self.status = ko.observable();
+        self.imageURL = ko.observable("https://placekitten.com/g/600/500");
+        self.polygons = ko.observableArray();
+        self.polygons([[{x: 0, y: 0}, {x: 100, y: 100}, {x: 0, y: 100}],
+            [{x: 200, y: 200}, {x: 400, y: 400}, {x: 200, y: 300}],
+            [{x: 500, y: 200}, {x: 300, y: 300}, {x: 200, y: 200}, {x: 140, y: 100}]]);
         self.status.subscribe(function (newValue) {
             console.log(newValue);
         });
         client.listCameras(function (err, cameras) {
             self.cameras(cameras);
         });
+
     }
 
     /**

@@ -17,6 +17,8 @@ define(['jquery', 'knockout', 'router', 'bootstrap', 'knockout-projections', 'ke
 
     ko.components.register('events-page', {require: 'components/events-page/events-page'});
 
+    ko.components.register('region-editor', {require: 'components/region-editor/region-editor'});
+
     // [Scaffolded component registrations will be inserted here. To retain this feature, don't remove this comment.]
 
     // Start the application
