@@ -12,7 +12,8 @@ setup(
     packages=['meteorpi_fdb'],
     install_requires=[
         'meteorpi_model',
-        'fdb'],
+        'fdb',
+        'passlib'],
     include_package_data=True,
     test_suite='nose.collector',
     tests_require=['nose'],

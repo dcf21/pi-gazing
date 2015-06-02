@@ -110,6 +110,56 @@ class NSString(ModelEqualityMixin):
         return NSString(split[0])
 
 
+class User(ModelEqualityMixin):
+    """A single user in an instance of the MeteorPi server"""
+
+    def __init__(self, user_id, role_mask):
+        self.user_id = user_id
+        self.role_mask = role_mask
+
+    def has_role(self, role):
+        try:
+            return self.role_mask & (1 << User.roles.index(role)) > 0
+        except ValueError:
+            return False
+
+    def get_roles(self):
+        return User.roles_from_role_mask(self.role_mask)
+
+    def as_dict(self):
+        d = {}
+        _add_string(d, "user_id", self.user_id)
+        _add_value(d, "role_mask", self.role_mask)
+        d["roles"] = self.get_roles()
+        return d
+
+    @staticmethod
+    def from_dict(d):
+        user_id = _string_from_dict(d, "user_id")
+        role_mask = _value_from_dict(d, "role_mask")
+        return User(user_id=user_id, role_mask=role_mask)
+
+    @staticmethod
+    def role_mask_from_roles(r):
+        rm = 0
+        if r is None:
+            return rm
+        for role in r:
+            rm |= 1 << User.roles.index(role)
+        return rm
+
+    @staticmethod
+    def roles_from_role_mask(rm):
+        result = []
+        for index, role in enumerate(User.roles):
+            if rm & (1 << index) > 0:
+                result.append(role)
+        return result
+
+    """Available roles, do not change ordering, only append!"""
+    roles = ["user", "camera_admin"]
+
+
 class FileRecordSearch(ModelEqualityMixin):
     """Encapsulates the possible parameters which can be used to search for FileRecord instances"""
 

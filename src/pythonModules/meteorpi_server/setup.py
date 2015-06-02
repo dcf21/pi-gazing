@@ -13,6 +13,7 @@ setup(
     install_requires=[
         'meteorpi_fdb',
         'flask',
+        'flask-cors',
         'tornado',
         'flask-jsonpify'],
     include_package_data=True,

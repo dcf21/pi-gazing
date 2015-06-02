@@ -143,4 +143,5 @@ def setup_dummy_data(db, clear=False):
     h.add_event(add_dummy_event(db=db, camera=CAMERA_2, time=12, intensity=.2, file_count=2))  # e2
     h.add_event(add_dummy_event(db=db, camera=CAMERA_2, time=15, intensity=.3, file_count=3))  # e3
     h.add_event(add_dummy_event(db=db, camera=CAMERA_2, time=40, intensity=.4, file_count=6))  # e4
+    db.create_or_update_user(user_id="the_user", password="the_password", roles=["user"])
     return h

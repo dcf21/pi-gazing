@@ -13,6 +13,15 @@ CREATE DOMAIN BOOLEAN AS SMALLINT CHECK (value IS NULL OR value IN (0, 1));
 /* Sequence used to allocate internal IDs */
 CREATE SEQUENCE gidSequence;
 
+/* User table */
+
+CREATE TABLE t_user (
+  userID   VARCHAR(40)       NOT NULL,
+  pwHash   VARCHAR(87)       NOT NULL,
+  roleMask INTEGER DEFAULT 0 NOT NULL,
+  PRIMARY KEY (userID)
+);
+
 /* Camera status tables */
 
 CREATE TABLE t_highWaterMark (
@@ -55,14 +64,14 @@ CREATE TABLE t_visibleRegions (
 
 /* A single observed event from a particular camera */
 CREATE TABLE t_event (
-  internalID  INTEGER           NOT NULL,
+  internalID  INTEGER      NOT NULL,
   eventID     CHAR(16) CHARACTER SET OCTETS NOT NULL, /* Always use literal byte values */
-  cameraID    CHAR(12)          NOT NULL,
-  eventTime   TIMESTAMP         NOT NULL,
-  eventDay    TIMESTAMP         NOT NULL,
-  eventOffset INTEGER           NOT NULL,
-  eventType VARCHAR(255) NOT NULL,
-  statusID    INTEGER           NOT NULL,
+  cameraID    CHAR(12)     NOT NULL,
+  eventTime   TIMESTAMP    NOT NULL,
+  eventDay    TIMESTAMP    NOT NULL,
+  eventOffset INTEGER      NOT NULL,
+  eventType   VARCHAR(255) NOT NULL,
+  statusID    INTEGER      NOT NULL,
   FOREIGN KEY (statusID) REFERENCES t_cameraStatus (internalID) ON DELETE CASCADE,
   PRIMARY KEY (internalID)
 );

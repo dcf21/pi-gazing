@@ -17,19 +17,21 @@ define(["jquery", "knockout"], function (jquery, ko) {
 
         var self = this;
 
+        self.user = ko.observable();
+
         var ajaxAuth = function (uri, method, data) {
             var request = {
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("Authorization",
+                        "Basic " + btoa(self.username + ":" + self.password));
+                },
                 url: config.urlPrefix + uri,
                 type: method,
                 contentType: "application/json",
                 accepts: "application/json",
                 cache: false,
-                dataType: 'jsonp',
-                data: JSON.stringify(data),
-                beforeSend: function (xhr) {
-                    xhr.setRequestHeader("Authorization",
-                        "Basic " + btoa(self.username + ":" + self.password));
-                }
+                dataType: 'json',
+                data: JSON.stringify(data)
             };
             return jquery.ajax(request)
         };
@@ -41,7 +43,7 @@ define(["jquery", "knockout"], function (jquery, ko) {
                 contentType: "application/json",
                 accepts: "application/json",
                 cache: false,
-                dataType: 'jsonp'
+                dataType: 'json'
             };
             if (data != null) {
                 request.data = JSON.stringify(data)
@@ -110,14 +112,24 @@ define(["jquery", "knockout"], function (jquery, ko) {
             }
         };
 
-        /**
-         * Set the username and password to be used for authenticated requests
-         * @param username
-         * @param password
-         */
-        self.setCredentials = function (username, password) {
+        self.login = function (username, password) {
             self.username = username;
             self.password = password;
+            applyCallback(ajaxAuth("login", "GET"), "user", function (err, user) {
+                if (err) {
+                    console.log(err);
+                    self.username = null;
+                    self.password = null;
+                    self.user(null);
+                }
+                if (user) {
+                    self.user(user);
+                }
+            });
+        };
+
+        self.logout = function () {
+            self.user(null);
         };
 
         /**

@@ -1,4 +1,4 @@
-define(['knockout', 'text!./nav-bar.html'], function (ko, template) {
+define(['knockout', 'text!./nav-bar.html', 'client'], function (ko, template, client) {
 
     function NavBarViewModel(params) {
 
@@ -7,6 +7,13 @@ define(['knockout', 'text!./nav-bar.html'], function (ko, template) {
         // But in most apps, you'll want some viewmodel logic to determine what navigation options appear.
 
         this.route = params.route;
+
+        this.user = client.user;
+
+        this.logout = function () {
+            client.logout();
+        };
+
     }
 
     return {viewModel: NavBarViewModel, template: template};

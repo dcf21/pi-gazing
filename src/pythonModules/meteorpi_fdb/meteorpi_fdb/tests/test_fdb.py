@@ -109,9 +109,7 @@ class TestFdb(TestCase):
         event = m.register_event(
             camera_id=db.get_installation_id(),
             event_time=datetime.now(),
-            intensity=0.5,
-            bezier=model.Bezier(
-                0, 1, 2, 3, 4, 5, 6, 7),
+            event_type=model.NSString("omgmeteors"),
             file_records=[file1, file2])
         event2 = m.get_events(event_id=event.event_id)[0]
 
@@ -125,3 +123,16 @@ class TestFdb(TestCase):
         dummy.setup_dummy_data(m, clear=True)
         # print m.get_high_water_mark(camera_id=dummy.CAMERA_1)
         m.set_high_water_mark(camera_id=dummy.CAMERA_1, time=dummy.make_time(6))
+
+    def test_user_management(self):
+        m = db.MeteorDatabase()
+        m.clear_database()
+        self.assertEquals("create", m.create_or_update_user(user_id="tom", password="password1", roles=["user"]))
+        user = m.get_user(user_id="tom", password="password1")
+        self.assertTrue(user.has_role("user"))
+        self.assertFalse(user.has_role("camera_admin"))
+        self.assertEquals("update",
+                          m.create_or_update_user(user_id="tom", password=None, roles=["user", "camera_admin"]))
+        user = m.get_user(user_id="tom", password="password1")
+        self.assertTrue(user.has_role("user"))
+        self.assertTrue(user.has_role("camera_admin"))

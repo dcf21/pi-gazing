@@ -32,6 +32,16 @@
                 <li data-bind="css: { active: route().page === 'about-page' }">
                     <a href="#about">About</a>
                 </li>
+
+            </ul>
+            <ul class="nav navbar-nav navbar-right">
+                <li data-bind="if: user() != null">
+                    <form>
+                        <button data-bind="click: logout" class="btn btn-success navbar-btn"><span
+                                class="glyphicon glyphicon-user" aria-hidden="true"></span>Logout <span
+                                data-bind="text: user().user_id"></span></button>
+                    </form>
+                </li>
             </ul>
 
         </div>

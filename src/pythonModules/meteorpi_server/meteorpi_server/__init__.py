@@ -1,9 +1,9 @@
 import threading
 from datetime import datetime
 import uuid
+from functools import wraps
 
 from yaml import safe_load
-
 import os.path as path
 import flask
 from tornado.ioloop import IOLoop
@@ -13,6 +13,8 @@ import tornado.httpserver
 import meteorpi_fdb
 import meteorpi_model as model
 from flask.ext.jsonpify import jsonify
+from flask import request
+from flask.ext.cors import CORS
 
 DEFAULT_DB_PATH = 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb'
 DEFAULT_FILE_PATH = path.expanduser("~/meteorpi_files")
@@ -27,6 +29,46 @@ def _datetime_from_timestamp(time_string):
 def build_app(db):
     """Create and return a WSGI app to respond to API requests"""
     app = flask.Flask(__name__)
+
+    CORS(app=app, resources='/*', allow_headers=['authorization', 'content-type'])
+
+    def requires_auth(roles=None):
+
+        def authentication_failure():
+            return flask.abort(403)
+
+        def requires_auth_inner(f):
+            @wraps(f)
+            def decorated(*args, **kwargs):
+                auth = request.authorization
+                if not auth:
+                    return authentication_failure()
+                user_id = auth.username
+                password = auth.password
+                try:
+                    user = db.get_user(user_id=user_id, password=password)
+                    if user is None:
+                        return authentication_failure()
+                    if roles is not None:
+                        for role in roles:
+                            if not user.has_role(role):
+                                return authentication_failure()
+                    flask.g.user = user
+                except ValueError:
+                    return authentication_failure()
+                return f(*args, **kwargs)
+
+            return decorated
+
+        return requires_auth_inner
+
+    def get_user():
+        return getattr(flask.g, 'user', None)
+
+    @app.route('/login', methods=['GET'])
+    @requires_auth(roles=['user'])
+    def login():
+        return jsonify({'user': get_user().as_dict()})
 
     @app.route('/cameras', methods=['GET'])
     def get_active_cameras():

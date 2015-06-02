@@ -34,3 +34,11 @@ table.table table.table {
     position: absolute;
     left: -100%;
 }
+
+.btn .glyphicon {
+    margin-right: 8px;
+}
+
+.btn.btn-icon .glyphicon {
+    margin-right: 0;
+}

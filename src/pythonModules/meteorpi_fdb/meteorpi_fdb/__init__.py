@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import shutil
 import uuid
 
+from passlib.hash import pbkdf2_sha256
 import os.path as path
 import os
 import fdb
@@ -683,6 +684,56 @@ class MeteorDatabase:
 
         self.con.commit()
 
+    def get_user(self, user_id, password):
+        """
+        Retrieve a user record
+        :param user_id: the user ID
+        :param password: password
+        :return: null if the specified user isn't found, a User if everything is correct
+        :raises: ValueError if the user is found but password is incorrect
+        """
+        cur = self.con.cursor()
+        cur.execute('SELECT userID, pwHash, roleMask FROM t_user WHERE userID = (?)', (user_id,))
+        row = cur.fetchonemap()
+        if row is None:
+            return None
+        pw_hash = row['pwHash']
+        role_mask = row['roleMask']
+        # Check the password
+        if pbkdf2_sha256.verify(password, pw_hash):
+            return mp.User(user_id=user_id, role_mask=role_mask)
+        else:
+            raise ValueError("Incorrect password")
+
+    def create_or_update_user(self, user_id, password, roles):
+        """
+        Create a new user record, or update an existing one
+        :param user_id: user ID to update or create
+        :param password: new password, or None to leave unchanged
+        :param roles: new roles, or None to leave unchanged
+        :return: the action taken, one of "none", "update", "create"
+        :raises: ValueError if there is no existing user and either password or roles is None
+        """
+        if password is None and roles is None:
+            return "none"
+        cur = self.con.cursor()
+        if password is not None:
+            cur.execute('UPDATE t_user SET pwHash = (?) WHERE userID = (?)',
+                        (pbkdf2_sha256.encrypt(password), user_id))
+        if roles is not None:
+            cur.execute('UPDATE t_user SET roleMask = (?) WHERE userID = (?)',
+                        (mp.User.role_mask_from_roles(roles), user_id))
+        if cur.rowcount == 0:
+            if password is None or roles is None:
+                raise ValueError("Must specify both password and roles when creating a user!")
+            cur.execute('INSERT INTO t_user (userID, pwHash, roleMask) VALUES (?, ?, ?)',
+                        (user_id, pbkdf2_sha256.encrypt(password), mp.User.role_mask_from_roles(roles)))
+            self.con.commit()
+            return "create"
+        else:
+            self.con.commit()
+            return "update"
+
     def clear_database(self):
         """
         Delete ALL THE THINGS!
@@ -698,6 +749,7 @@ class MeteorDatabase:
         cur.execute('DELETE FROM t_fileMeta')
         cur.execute('DELETE FROM t_eventMeta')
         cur.execute('DELETE FROM t_event')
+        cur.execute('DELETE FROM t_user')
         self.con.commit()
         shutil.rmtree(self.file_store_path)
         os.makedirs(self.file_store_path)
