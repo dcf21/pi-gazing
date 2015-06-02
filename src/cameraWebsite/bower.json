@@ -14,7 +14,8 @@
     "knockout-kendo": "~0.9.4",
     "chartjs": "~1.0.2",
     "knockout-postbox": "~0.5.1",
-    "jquery": "~2.1.4"
+    "jquery": "~2.1.4",
+    "leaflet": "~0.7.3"
   },
   "resolutions": {
     "knockout": "~3.3.0",
