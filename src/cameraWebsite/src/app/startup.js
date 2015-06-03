@@ -19,6 +19,8 @@ define(['jquery', 'knockout', 'router', 'bootstrap', 'knockout-projections', 'ke
 
     ko.components.register('region-editor', {require: 'components/region-editor/region-editor'});
 
+    ko.components.register('login-modal', {require: 'components/login-modal/login-modal'});
+
     // [Scaffolded component registrations will be inserted here. To retain this feature, don't remove this comment.]
 
     // Start the application

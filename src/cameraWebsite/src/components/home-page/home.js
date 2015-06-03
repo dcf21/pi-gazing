@@ -22,10 +22,6 @@ define(["knockout", "text!./home.html", "client", "router"], function (ko, homeT
 
     }
 
-    HomeViewModel.prototype.testLogin = function () {
-        client.login("the_user", "the_password");
-    };
-
     /**
      * This is called whenever a value is set, including on first load, so
      * we can use it to initialise the status panel as well as to respond to
@@ -66,4 +62,5 @@ define(["knockout", "text!./home.html", "client", "router"], function (ko, homeT
 
     return {viewModel: HomeViewModel, template: homeTemplate};
 
-});
+})
+;

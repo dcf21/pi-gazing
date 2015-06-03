@@ -132,6 +132,7 @@ define(['knockout', 'text!./events-page.html', 'client', 'router', 'jquery'], fu
     // This runs when the component is torn down. Put here any logic necessary to clean up,
     // for example cancelling setTimeouts or disposing Knockout subscriptions/computeds.
     EventsPage.prototype.dispose = function () {
+        jquery("body > div").slice(1).remove();
     };
 
     return {viewModel: EventsPage, template: templateMarkup};

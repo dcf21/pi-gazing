@@ -112,7 +112,7 @@ define(["jquery", "knockout"], function (jquery, ko) {
             }
         };
 
-        self.login = function (username, password) {
+        self.login = function (username, password, callback) {
             self.username = username;
             self.password = password;
             applyCallback(ajaxAuth("login", "GET"), "user", function (err, user) {
@@ -121,9 +121,11 @@ define(["jquery", "knockout"], function (jquery, ko) {
                     self.username = null;
                     self.password = null;
                     self.user(null);
+                    callback(null);
                 }
                 if (user) {
                     self.user(user);
+                    callback(user)
                 }
             });
         };

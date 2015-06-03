@@ -42,3 +42,24 @@ table.table table.table {
 .btn.btn-icon .glyphicon {
     margin-right: 0;
 }
+
+.modal {
+    display: block;
+}
+
+.modal-body:before,
+.modal-body:after {
+    display: table;
+    content: " ";
+}
+
+.modal-header:before,
+.modal-header:after {
+    display: table;
+    content: " ";
+}
+
+.modal .alert {
+    margin-left: 16px;
+    margin-right: 16px;
+}
