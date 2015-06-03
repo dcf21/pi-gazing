@@ -12,7 +12,9 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'jquery'], fun
             exclude_events: ko.observable(false),
             after_offset: ko.observable(),
             before_offset: ko.observable(),
-            semantic_type: ko.observable()
+            semantic_type: ko.observable(),
+            limit: ko.observable(),
+            skip: ko.observable()
         };
 
         self.meta = ko.observableArray();
@@ -31,7 +33,8 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'jquery'], fun
         self.maxTime = new Date(2000, 0, 1, 10, 0, 0);
 
         self.results = ko.observableArray();
-
+        self.resultCount = ko.observable(0);
+        self.firstResultIndex = ko.observable(0);
         self.hasQuery = ko.observable();
 
         self.urlForFile = client.urlForFile;
@@ -73,8 +76,11 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'jquery'], fun
             }
             // Get the search object and use it to retrieve results
             var search = self.getSearchObject();
+            var skip = self.search.skip() == null ? 0 : self.search.skip();
             client.searchFiles(search, function (error, results) {
-                self.results(results);
+                self.results(results.files);
+                self.resultCount(results.count);
+                self.firstResultIndex(skip);
                 self.hasQuery(true);
             });
         } else {

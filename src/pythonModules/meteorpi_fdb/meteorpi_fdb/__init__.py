@@ -80,155 +80,166 @@ class MeteorDatabase:
             self.file_store_path)
 
     def search_events(self, search):
-        """Search for events based on an EventSearch"""
+        sql_args = []
+        where_clauses = []
 
-        def _search_events(camera_id=None):
-            sql_args = []
-            where_clauses = []
+        def _add_sql(value, clause):
+            if value is not None:
+                where_clauses.append(clause)
+                sql_args.append(value)
 
-            def _add_sql(value, clause):
-                if value is not None:
-                    where_clauses.append(clause)
-                    sql_args.append(value)
+        if search.camera_ids is not None and len(search.camera_ids) > 0:
+            unknowns = ', '.join(list("?" for id in search.camera_ids))
+            where_clauses.append('e.cameraID IN ({0})'.format(unknowns))
+            for camera_id in search.camera_ids:
+                sql_args.append(camera_id)
+        _add_sql(search.lat_min, 's.locationLatitude >= (?)')
+        _add_sql(search.lat_max, 's.locationLatitude <= (?)')
+        _add_sql(search.long_min, 's.locationLongitude >= (?)')
+        _add_sql(search.long_max, 's.locationLongitude <= (?)')
+        _add_sql(search.before, 'e.eventTime < (?)')
+        _add_sql(search.after, 'e.eventTime > (?)')
+        _add_sql(search.before_offset, 'e.eventOffset < (?)')
+        _add_sql(search.after_offset, 'e.eventOffset > (?)')
+        # Have to handle this a bit differently as we have an NS string
+        if search.event_type is not None:
+            _add_sql(str(search.event_type), 'e.eventType = (?)')
 
-            _add_sql(camera_id, 'e.cameraID= (?)')
-            _add_sql(search.lat_min, 's.locationLatitude >= (?)')
-            _add_sql(search.lat_max, 's.locationLatitude <= (?)')
-            _add_sql(search.long_min, 's.locationLongitude >= (?)')
-            _add_sql(search.long_max, 's.locationLongitude <= (?)')
-            _add_sql(search.before, 'e.eventTime < (?)')
-            _add_sql(search.after, 'e.eventTime > (?)')
-            _add_sql(search.before_offset, 'e.eventOffset < (?)')
-            _add_sql(search.after_offset, 'e.eventOffset > (?)')
-            # Have to handle this a bit differently as we have an NS string
-            if search.event_type is not None:
-                _add_sql(str(search.event_type), 'e.eventType = (?)')
+        # Check for meta based constraints
+        for fmc in search.meta_constraints:
+            meta_key = str(fmc.key)
+            ct = fmc.constraint_type
+            sql_template = 'e.internalID IN (' \
+                           'SELECT em.eventID FROM t_eventMeta em WHERE em.{0} {1} (?) AND em.metaKey = (?))'
+            sql_args.append(fmc.value)
+            sql_args.append(str(fmc.key))
+            if ct == 'after':
+                where_clauses.append(sql_template.format('dateValue', '>', meta_key))
+            elif ct == 'before':
+                where_clauses.append(sql_template.format('dateValue', '<', meta_key))
+            elif ct == 'less':
+                where_clauses.append(sql_template.format('floatValue', '<', meta_key))
+            elif ct == 'greater':
+                where_clauses.append(sql_template.format('floatValue', '>', meta_key))
+            elif ct == 'number_equals':
+                where_clauses.append(sql_template.format('floatValue', '=', meta_key))
+            elif ct == 'string_equals':
+                where_clauses.append(sql_template.format('stringValue', '=', meta_key))
+            else:
+                raise ValueError("Unknown meta constraint type!")
 
-            # Check for meta based constraints
-            for fmc in search.meta_constraints:
-                meta_key = str(fmc.key)
-                ct = fmc.constraint_type
-                sql_template = 'e.internalID IN (' \
-                               'SELECT em.eventID FROM t_eventMeta em WHERE em.{0} {1} (?) AND em.metaKey = (?))'
-                sql_args.append(fmc.value)
-                sql_args.append(str(fmc.key))
-                if ct == 'after':
-                    where_clauses.append(sql_template.format('dateValue', '>', meta_key))
-                elif ct == 'before':
-                    where_clauses.append(sql_template.format('dateValue', '<', meta_key))
-                elif ct == 'less':
-                    where_clauses.append(sql_template.format('floatValue', '<', meta_key))
-                elif ct == 'greater':
-                    where_clauses.append(sql_template.format('floatValue', '>', meta_key))
-                elif ct == 'number_equals':
-                    where_clauses.append(sql_template.format('floatValue', '=', meta_key))
-                elif ct == 'string_equals':
-                    where_clauses.append(sql_template.format('stringValue', '=', meta_key))
-                else:
-                    raise ValueError("Unknown meta constraint type!")
+        # Build the SQL statement
+        sql = 'SELECT '
+        if search.limit > 0:
+            sql += 'FIRST {0} '.format(search.limit)
+        if search.skip > 0:
+            sql += 'SKIP {0} '.format(search.skip)
+        sql += 'e.cameraID, e.eventID, e.internalID, e.eventTime, e.eventType ' \
+               'FROM t_event e, t_cameraStatus s WHERE e.statusID = s.internalID'
+        if len(sql_args) > 0:
+            sql += ' AND '
+        sql += ' AND '.join(where_clauses)
+        sql += ' ORDER BY e.eventTime DESC'
+        cur = self.con.cursor()
+        cur.execute(sql, sql_args)
+        events = self.get_events(cursor=cur)
 
-            # Build the SQL statement
-            sql = 'SELECT '
-            if search.limit > 0:
-                sql += 'FIRST {0} '.format(search.limit)
-            if search.skip > 0:
-                sql += 'SKIP {0} '.format(search.skip)
-            sql += 'e.cameraID, e.eventID, e.internalID, e.eventTime, e.eventType ' \
-                   'FROM t_event e, t_cameraStatus s WHERE e.statusID = s.internalID'
-            if len(sql_args) > 0:
-                sql += ' AND '
-            sql += ' AND '.join(where_clauses)
-            sql += ' ORDER BY e.eventTime DESC'
-            cur = self.con.cursor()
-            cur.execute(sql, sql_args)
-            return self.get_events(cursor=cur)
+        rows_returned = len(events)
+        total_rows = rows_returned + search.skip
+        if (search.limit > 0 and rows_returned == search.limit) or (rows_returned == 0 and search.skip > 0):
+            count_sql = 'SELECT count(*) FROM t_event e, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
+            count_cur = self.con.cursor()
+            count_cur.execute(count_sql, sql_args)
+            total_rows = count_cur.fetchone()[0]
 
-        camera_ids = search.camera_ids
-        if camera_ids is None:
-            camera_ids = [None]
-        result = []
-        for camera_id in camera_ids:
-            for event in _search_events(camera_id):
-                result.append(event)
-        return result
+        return {"count": total_rows,
+                "events": events}
+
 
     def search_files(self, search):
-        """Search for files based on a FileRecordSearch"""
+        sql_args = []
+        where_clauses = ['f.statusID = s.internalID']
 
-        def _search_files(camera_id=None):
-            sql_args = []
-            where_clauses = ['f.statusID = s.internalID']
+        def _add_sql(value, clause):
+            if value is not None:
+                where_clauses.append(clause)
+                sql_args.append(value)
 
-            def _add_sql(value, clause):
-                if value is not None:
-                    where_clauses.append(clause)
-                    sql_args.append(value)
+        if search.camera_ids is not None and len(search.camera_ids) > 0:
+            unknowns = ', '.join(list("?" for id in search.camera_ids))
+            where_clauses.append('f.cameraID IN ({0})'.format(unknowns))
+            for camera_id in search.camera_ids:
+                sql_args.append(camera_id)
+        _add_sql(search.lat_min, 's.locationLatitude >= (?)')
+        _add_sql(search.lat_max, 's.locationLatitude <= (?)')
+        _add_sql(search.long_min, 's.locationLongitude >= (?)')
+        _add_sql(search.long_max, 's.locationLongitude <= (?)')
+        _add_sql(search.before, 'f.fileTime < (?)')
+        _add_sql(search.after, 'f.fileTime > (?)')
+        _add_sql(search.before_offset, 'f.fileOffset < (?)')
+        _add_sql(search.after_offset, 'f.fileOffset > (?)')
+        _add_sql(search.mime_type, 'f.mimeType = (?)')
+        # Handle semantic type differently as it's based on an NSString
+        if search.semantic_type is not None:
+            _add_sql(str(search.semantic_type), 'f.semanticType = (?)')
+        # Check for file-meta based constraints
+        for fmc in search.meta_constraints:
+            meta_key = str(fmc.key)
+            ct = fmc.constraint_type
+            sql_template = 'f.internalID IN (' \
+                           'SELECT fm.fileID FROM t_fileMeta fm WHERE fm.{0} {1} (?) AND fm.metaKey = (?))'
+            sql_args.append(fmc.value)
+            sql_args.append(str(fmc.key))
+            if ct == 'after':
+                where_clauses.append(sql_template.format('dateValue', '>', meta_key))
+            elif ct == 'before':
+                where_clauses.append(sql_template.format('dateValue', '<', meta_key))
+            elif ct == 'less':
+                where_clauses.append(sql_template.format('floatValue', '<', meta_key))
+            elif ct == 'greater':
+                where_clauses.append(sql_template.format('floatValue', '>', meta_key))
+            elif ct == 'number_equals':
+                where_clauses.append(sql_template.format('floatValue', '=', meta_key))
+            elif ct == 'string_equals':
+                where_clauses.append(sql_template.format('stringValue', '=', meta_key))
+            else:
+                raise ValueError("Unknown meta constraint type!")
+        # Check for avoiding event files
+        if search.exclude_events:
+            where_clauses.append('f.internalID NOT IN (SELECT fileID from t_event_to_file)')
+        # Build the SQL statement
+        sql = 'SELECT '
+        if search.limit > 0:
+            sql += 'FIRST {0} '.format(search.limit)
+        if search.skip > 0:
+            sql += 'SKIP {0} '.format(search.skip)
+        sql += 'f.internalID ' \
+               'FROM t_file f, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
+        # If the latest flag is set then add an additional inner clause
+        if search.latest:
+            sql += ' AND f.fileTime = (SELECT MAX(f.fileTime) ' \
+                   'FROM t_file f, t_cameraStatus s WHERE ' + \
+                   (' AND '.join(where_clauses)) + ')'
+            sql_args.extend(sql_args)
+        sql += ' ORDER BY f.fileTime DESC'
 
-            _add_sql(camera_id, 'f.cameraID = (?)')
-            _add_sql(search.lat_min, 's.locationLatitude >= (?)')
-            _add_sql(search.lat_max, 's.locationLatitude <= (?)')
-            _add_sql(search.long_min, 's.locationLongitude >= (?)')
-            _add_sql(search.long_max, 's.locationLongitude <= (?)')
-            _add_sql(search.before, 'f.fileTime < (?)')
-            _add_sql(search.after, 'f.fileTime > (?)')
-            _add_sql(search.before_offset, 'f.fileOffset < (?)')
-            _add_sql(search.after_offset, 'f.fileOffset > (?)')
-            _add_sql(search.mime_type, 'f.mimeType = (?)')
-            # Handle semantic type differently as it's based on an NSString
-            if search.semantic_type is not None:
-                _add_sql(str(search.semantic_type), 'f.semanticType = (?)')
-            # Check for file-meta based constraints
-            for fmc in search.meta_constraints:
-                meta_key = str(fmc.key)
-                ct = fmc.constraint_type
-                sql_template = 'f.internalID IN (' \
-                               'SELECT fm.fileID FROM t_fileMeta fm WHERE fm.{0} {1} (?) AND fm.metaKey = (?))'
-                sql_args.append(fmc.value)
-                sql_args.append(str(fmc.key))
-                if ct == 'after':
-                    where_clauses.append(sql_template.format('dateValue', '>', meta_key))
-                elif ct == 'before':
-                    where_clauses.append(sql_template.format('dateValue', '<', meta_key))
-                elif ct == 'less':
-                    where_clauses.append(sql_template.format('floatValue', '<', meta_key))
-                elif ct == 'greater':
-                    where_clauses.append(sql_template.format('floatValue', '>', meta_key))
-                elif ct == 'number_equals':
-                    where_clauses.append(sql_template.format('floatValue', '=', meta_key))
-                elif ct == 'string_equals':
-                    where_clauses.append(sql_template.format('stringValue', '=', meta_key))
-                else:
-                    raise ValueError("Unknown meta constraint type!")
-            # Check for avoiding event files
-            if search.exclude_events:
-                where_clauses.append('f.internalID NOT IN (SELECT fileID from t_event_to_file)')
-            # Build the SQL statement
-            sql = 'SELECT '
-            if search.limit > 0:
-                sql += 'FIRST {0} '.format(search.limit)
-            if search.skip > 0:
-                sql += 'SKIP {0} '.format(search.skip)
-            sql = 'f.internalID ' \
-                  'FROM t_file f, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
-            # If the latest flag is set then add an additional inner clause
+        cur = self.con.cursor()
+        cur.execute(sql, sql_args)
+        file_map = cur.fetchallmap()
+        rows_returned = len(file_map)
+        total_rows = rows_returned + search.skip
+        if (search.limit > 0 and rows_returned == search.limit) or (rows_returned == 0 and search.skip > 0):
+            count_sql = 'SELECT count(*) FROM t_file f, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
             if search.latest:
-                sql += ' AND f.fileTime = (SELECT MAX(f.fileTime) ' \
-                       'FROM t_file f, t_cameraStatus s WHERE ' + \
-                       (' AND '.join(where_clauses)) + ')'
-                sql_args.extend(sql_args)
-            sql += ' ORDER BY f.fileTime DESC'
-            cur = self.con.cursor()
-            cur.execute(sql, sql_args)
-            return (self.get_file(internal_id=x['internalID']) for x in cur.fetchallmap())
+                count_sql += ' AND f.fileTime = (SELECT MAX(f.fileTime) ' \
+                             'FROM t_file f, t_cameraStatus s WHERE ' + \
+                             (' AND '.join(where_clauses)) + ')'
+            count_cur = self.con.cursor()
+            count_cur.execute(count_sql, sql_args)
+            total_rows = count_cur.fetchone()[0]
 
-        camera_ids = search.camera_ids
-        if camera_ids is None:
-            camera_ids = [None]
-        files = []
-        for camera_id in camera_ids:
-            for f in _search_files(camera_id):
-                files.append(f)
-        return files
+        return {"count": total_rows,
+                "files": (self.get_file(internal_id=x['internalID']) for x in file_map)}
 
     def get_events(self, event_id=None, internal_ids=None, cursor=None):
         """Retrieve Events by an eventID, set of internalIDs or by a cursor

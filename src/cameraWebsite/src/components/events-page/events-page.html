@@ -105,6 +105,11 @@
     </div>
 </div>
 
+<div data-bind="if: results().length>0">
+    <div class="alert alert-success">
+        <p data-bind="text: 'Showing events '+(firstResultIndex()+1)+' to '+(firstResultIndex()+results().length)+' of '+resultCount()+', most recent first.'"></p>
+    </div>
+</div>
 
 <table data-bind="if: results().length>0" class="table table-condensed">
     <thead>

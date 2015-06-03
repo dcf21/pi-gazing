@@ -53,7 +53,11 @@ define(["jquery", "knockout"], function (jquery, ko) {
 
         var applyCallback = function (request, name, callback) {
             request.done(function (data) {
-                callback(null, data[name]);
+                if (name == null) {
+                    callback(null, data);
+                } else {
+                    callback(null, data[name]);
+                }
             });
             request.fail(function (jqXHR, textStatus) {
                 callback(textStatus, null)
@@ -149,7 +153,7 @@ define(["jquery", "knockout"], function (jquery, ko) {
          */
         self.searchEvents = function (search, callback) {
             var searchString = (typeof(search) === 'string' || search instanceof String) ? search : self.stringFromObservables(search);
-            applyCallback(ajax("events/" + searchString, "GET"), "events", callback);
+            applyCallback(ajax("events/" + searchString, "GET"), null, callback);
         };
 
         /**
@@ -159,7 +163,7 @@ define(["jquery", "knockout"], function (jquery, ko) {
          */
         self.searchFiles = function (search, callback) {
             var searchString = (typeof(search) === 'string' || search instanceof String) ? search : self.stringFromObservables(search);
-            applyCallback(ajax("files/" + searchString, "GET"), "files", callback);
+            applyCallback(ajax("files/" + searchString, "GET"), null, callback);
         };
 
         self.urlForFile = function (file) {

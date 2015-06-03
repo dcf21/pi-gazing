@@ -1,10 +1,9 @@
-import requests
 import time
 import json
 import urllib
 
+import requests
 from yaml import safe_load
-
 import meteorpi_model as model
 
 
@@ -43,16 +42,21 @@ class MeteorClient():
             search = model.EventSearch()
         search_string = urllib.quote_plus(json.dumps(obj=search.as_dict(), separators=(',', ':')))
         response = requests.get(self.base_url + '/events/{0}'.format(search_string))
-        event_dicts = safe_load(response.text)['events']
-        return list(model.Event.from_dict(d) for d in event_dicts)
+        response_object = safe_load(response.text)
+        event_dicts = response_object['events']
+        event_count = response_object['count']
+        return {'count': event_count, 'events': list(model.Event.from_dict(d) for d in event_dicts)}
 
     def search_files(self, search=None):
         if search is None:
             search = model.FileRecordSearch()
         search_string = urllib.quote_plus(json.dumps(obj=search.as_dict(), separators=(',', ':')))
         response = requests.get(self.base_url + '/files/{0}'.format(search_string))
-        file_dicts = safe_load(response.text)['files']
-        return list(model.FileRecord.from_dict(d) for d in file_dicts)
+        response_object = safe_load(response.text)
+        file_dicts = response_object['files']
+        file_count = response_object['count']
+        return {'count': file_count, 'files': list(model.FileRecord.from_dict(d) for d in file_dicts)}
+
 
 def _datetime_string(t):
     """Builds a string representation of a timestamp, used for URL components"""

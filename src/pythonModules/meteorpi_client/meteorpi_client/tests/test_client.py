@@ -68,8 +68,8 @@ class TestClient(TestCase):
              'expect': 'e1'},
         ]
         for search in searches:
-            events_from_db = self.server.db.search_events(search['search'])
-            events_from_client = self.client.search_events(search['search'])
+            events_from_db = self.server.db.search_events(search['search'])['events']
+            events_from_client = self.client.search_events(search['search'])['events']
             # Check that the results are the same from the API client and the DB directly
             self.assertSequenceEqual(
                 list(x.as_dict() for x in events_from_db),
@@ -131,8 +131,8 @@ class TestClient(TestCase):
              'expect': 'f8'},
         ]
         for search in searches:
-            files_from_db = self.server.db.search_files(search['search'])
-            files_from_client = self.client.search_files(search['search'])
+            files_from_db = self.server.db.search_files(search['search'])['files']
+            files_from_client = self.client.search_files(search['search'])['files']
             # Check that the results are the same from the API client and the DB directly
             self.assertSequenceEqual(
                 list(x.as_dict() for x in files_from_db),

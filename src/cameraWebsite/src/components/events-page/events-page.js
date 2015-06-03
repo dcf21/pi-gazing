@@ -8,7 +8,9 @@ define(['knockout', 'text!./events-page.html', 'client', 'router', 'jquery'], fu
             before: ko.observable(),
             after_offset: ko.observable(),
             before_offset: ko.observable(),
-            event_type: ko.observable()
+            event_type: ko.observable(),
+            limit: ko.observable(),
+            skip: ko.observable()
         };
 
         self.meta = ko.observableArray();
@@ -27,6 +29,8 @@ define(['knockout', 'text!./events-page.html', 'client', 'router', 'jquery'], fu
         self.maxTime = new Date(2000, 0, 1, 10, 0, 0);
 
         self.results = ko.observableArray();
+        self.resultCount = ko.observable(0);
+        self.firstResultIndex = ko.observable(0);
 
         self.hasQuery = ko.observable();
 
@@ -67,8 +71,11 @@ define(['knockout', 'text!./events-page.html', 'client', 'router', 'jquery'], fu
             }
             // Get the search object and use it to retrieve results
             var search = self.getSearchObject();
+            var skip = self.search.skip() == null ? 0 : self.search.skip();
             client.searchEvents(search, function (error, results) {
-                self.results(results);
+                self.results(results.events);
+                self.resultCount(results.count);
+                self.firstResultIndex(skip);
                 self.hasQuery(true);
             });
         } else {

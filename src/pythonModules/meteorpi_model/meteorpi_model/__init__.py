@@ -167,9 +167,7 @@ class FileRecordSearch(ModelEqualityMixin):
                  before=None, mime_type=None, semantic_type=None, exclude_events=False, latest=False, after_offset=None,
                  before_offset=None, meta_constraints=None, limit=100, skip=0):
         """
-        :param camera_ids: Optional - if specified, restricts results to only those the the specified camera IDs. This
-            can be specified as an array or a single item (the latter being equivalent to a single item array). Note
-            that due to the internal database structure one database query is required per camera ID specified.
+        :param camera_ids: Optional - if specified, restricts results to only those the the specified camera IDs.
         :param lat_min: Optional - if specified, only returns results where the camera status at the time of the file
             had a latitude field of at least the specified value.
         :param lat_max: Optional - if specified, only returns results where the camera status at the time of the file
