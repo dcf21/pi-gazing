@@ -6,32 +6,32 @@ from itertools import izip
 import numbers
 
 
-def _string_from_dict(d, key):
+def _string_from_dict(d, key, default=None):
     if key in d:
         return str(d[key])
     else:
-        return None
+        return default
 
 
-def _uuid_from_dict(d, key):
+def _uuid_from_dict(d, key, default=None):
     if key in d:
         return uuid.UUID(hex=str(d[key]))
     else:
-        return None
+        return default
 
 
-def _datetime_from_dict(d, key):
+def _datetime_from_dict(d, key, default=None):
     if key in d:
         return datetime.datetime.fromtimestamp(timestamp=d[key])
     else:
-        return None
+        return default
 
 
-def _value_from_dict(d, key):
+def _value_from_dict(d, key, default=None):
     if key in d:
         return d[key]
     else:
-        return None
+        return default
 
 
 def _add_string(d, key, value):
@@ -165,7 +165,7 @@ class FileRecordSearch(ModelEqualityMixin):
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
                  before=None, mime_type=None, semantic_type=None, exclude_events=False, latest=False, after_offset=None,
-                 before_offset=None, meta_constraints=None):
+                 before_offset=None, meta_constraints=None, limit=100, skip=0):
         """
         :param camera_ids: Optional - if specified, restricts results to only those the the specified camera IDs. This
             can be specified as an array or a single item (the latter being equivalent to a single item array). Note
@@ -196,6 +196,12 @@ class FileRecordSearch(ModelEqualityMixin):
             Use both in the same query to filter for a particular range, i.e. 2am to 4am on any day.
         :param meta_constraints: Optional - a list of MetaConstraint objects providing restrictions over the file
             record metadata.
+        :param limit: Optional, defaults to 100 - controls the maximum number of results that will be returned by this
+            search. If set to 0 will return all results, but be aware that this may potentially have negative effects on
+            the server software. Only set this to 0 when you are sure that you won't return too many results!
+        :param skip: Optional, defaults to 0 - used with the limit parameter, this will skip the specified number
+            of results from the result set. Use when limiting the number returned by each query to paginate the results,
+            i.e. use skip 0 and limit 10 to get the first ten, then skip 10 limit 10 to get the next and so on.
         :return:
         """
         if camera_ids is None == False and len(camera_ids) == 0:
@@ -220,6 +226,8 @@ class FileRecordSearch(ModelEqualityMixin):
         self.after_offset = after_offset
         self.before_offset = before_offset
         self.mime_type = mime_type
+        self.skip = skip
+        self.limit = limit
         # NSString here
         self.semantic_type = semantic_type
         # Boolean, set to true to prevent files associated with events from appearing in the results
@@ -252,6 +260,8 @@ class FileRecordSearch(ModelEqualityMixin):
         _add_value(d, 'after_offset', self.after_offset)
         _add_value(d, 'before_offset', self.before_offset)
         _add_string(d, 'mime_type', self.mime_type)
+        _add_value(d, 'skip', self.skip)
+        _add_value(d, 'limit', self.limit)
         if self.semantic_type is not None:
             _add_string(d, 'semantic_type', str(self.semantic_type))
         if self.exclude_events:
@@ -273,6 +283,8 @@ class FileRecordSearch(ModelEqualityMixin):
         after_offset = _value_from_dict(d, 'after_offset')
         before_offset = _value_from_dict(d, 'before_offset')
         mime_type = _string_from_dict(d, 'mime_type')
+        skip = _value_from_dict(d, 'skip', 0)
+        limit = _value_from_dict(d, 'limit', 100)
         semantic_type = NSString.from_string(_string_from_dict(d, 'semantic_type'))
         if 'meta_constraints' in d:
             meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta_constraints']))
@@ -284,7 +296,7 @@ class FileRecordSearch(ModelEqualityMixin):
                                 semantic_type=semantic_type,
                                 exclude_events='exclude_events' in d and d['exclude_events'],
                                 latest='latest' in d and d['latest'],
-                                meta_constraints=meta_constraints)
+                                meta_constraints=meta_constraints, limit=limit, skip=skip)
 
 
 class MetaConstraint(ModelEqualityMixin):
@@ -340,7 +352,8 @@ class EventSearch(ModelEqualityMixin):
     """
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
-                 before=None, after_offset=None, before_offset=None, event_type=None, meta_constraints=None):
+                 before=None, after_offset=None, before_offset=None, event_type=None, meta_constraints=None, limit=100,
+                 skip=0):
         if camera_ids is None == False and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
         if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
@@ -363,6 +376,8 @@ class EventSearch(ModelEqualityMixin):
         self.after_offset = after_offset
         self.before_offset = before_offset
         self.event_type = event_type
+        self.limit = limit
+        self.skip = skip
         if meta_constraints is None:
             self.meta_constraints = []
         else:
@@ -388,6 +403,8 @@ class EventSearch(ModelEqualityMixin):
         _add_value(d, 'after_offset', self.after_offset)
         _add_value(d, 'before_offset', self.before_offset)
         _add_string(d, 'event_type', self.event_type)
+        _add_value(d, 'limit', self.limit)
+        _add_value(d, 'skip', self.skip)
         d['meta_constraints'] = list((x.as_dict() for x in self.meta_constraints))
         return d
 
@@ -402,6 +419,8 @@ class EventSearch(ModelEqualityMixin):
         before = _datetime_from_dict(d, 'before')
         after_offset = _value_from_dict(d, 'after_offset')
         before_offset = _value_from_dict(d, 'before_offset')
+        skip = _value_from_dict(d, 'skip', 0)
+        limit = _value_from_dict(d, 'limit', 100)
         event_type = NSString.from_string(_string_from_dict(d, 'event_type'))
         if 'meta_constraints' in d:
             meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta_constraints']))
@@ -409,7 +428,8 @@ class EventSearch(ModelEqualityMixin):
             meta_constraints = []
         return EventSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
                            long_max=long_max, after=after, before=before, after_offset=after_offset,
-                           before_offset=before_offset, meta_constraints=meta_constraints, event_type=event_type)
+                           before_offset=before_offset, meta_constraints=meta_constraints, event_type=event_type,
+                           limit=limit, skip=skip)
 
 
 class Event(ModelEqualityMixin):

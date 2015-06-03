@@ -128,11 +128,17 @@ class MeteorDatabase:
                     raise ValueError("Unknown meta constraint type!")
 
             # Build the SQL statement
-            sql = 'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, e.eventType ' \
-                  'FROM t_event e, t_cameraStatus s WHERE e.statusID = s.internalID'
+            sql = 'SELECT '
+            if search.limit > 0:
+                sql += 'FIRST {0} '.format(search.limit)
+            if search.skip > 0:
+                sql += 'SKIP {0} '.format(search.skip)
+            sql += 'e.cameraID, e.eventID, e.internalID, e.eventTime, e.eventType ' \
+                   'FROM t_event e, t_cameraStatus s WHERE e.statusID = s.internalID'
             if len(sql_args) > 0:
                 sql += ' AND '
             sql += ' AND '.join(where_clauses)
+            sql += ' ORDER BY e.eventTime DESC'
             cur = self.con.cursor()
             cur.execute(sql, sql_args)
             return self.get_events(cursor=cur)
@@ -197,7 +203,12 @@ class MeteorDatabase:
             if search.exclude_events:
                 where_clauses.append('f.internalID NOT IN (SELECT fileID from t_event_to_file)')
             # Build the SQL statement
-            sql = 'SELECT f.internalID ' \
+            sql = 'SELECT '
+            if search.limit > 0:
+                sql += 'FIRST {0} '.format(search.limit)
+            if search.skip > 0:
+                sql += 'SKIP {0} '.format(search.skip)
+            sql = 'f.internalID ' \
                   'FROM t_file f, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
             # If the latest flag is set then add an additional inner clause
             if search.latest:
@@ -205,6 +216,7 @@ class MeteorDatabase:
                        'FROM t_file f, t_cameraStatus s WHERE ' + \
                        (' AND '.join(where_clauses)) + ')'
                 sql_args.extend(sql_args)
+            sql += ' ORDER BY f.fileTime DESC'
             cur = self.con.cursor()
             cur.execute(sql, sql_args)
             return (self.get_file(internal_id=x['internalID']) for x in cur.fetchallmap())
@@ -243,13 +255,15 @@ class MeteorDatabase:
         else:
             _cur = cursor
         events = {}
+        result = []
         for row in _cur.fetchallmap():
-            events[str(row['internalID'])] = mp.Event(
+            event = mp.Event(
                 camera_id=row['cameraID'],
                 event_time=row['eventTime'],
                 event_id=uuid.UUID(bytes=row['eventID']),
                 event_type=mp.NSString.from_string(row['eventType']))
-        result = []
+            events[str(row['internalID'])] = event
+            result.append(event)
         for internal_id, event in events.iteritems():
             # Get all the files
             _cur.execute(
@@ -278,7 +292,6 @@ class MeteorDatabase:
                 event.meta.append(
                     mp.Meta(key=mp.NSString.from_string(meta['metaKey']),
                             value=value))
-            result.append(event)
         return result
 
     def register_event(
