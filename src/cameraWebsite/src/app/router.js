@@ -44,7 +44,9 @@ define(["knockout", "crossroads", "hasher"], function (ko, crossroads, hasher) {
             {name: 'about', url: 'about', params: {page: 'about-page'}},
             {name: 'status', url: 'status', params: {page: 'status-page'}},
             {name: 'files', url: 'files/:search:', params: {page: 'files-page'}},
-            {name: 'events', url: 'events/:search:', params: {page: 'events-page'}}
+            {name: 'events', url: 'events/:search:', params: {page: 'events-page'}},
+            {name: 'admin-camera', url: 'admin/camera', params: {page: 'admin-camera-page'}},
+            {name: 'admin-users', url: 'admin/users', params: {page: 'admin-users-page'}}
         ]
     });
 
