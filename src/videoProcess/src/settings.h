@@ -24,14 +24,14 @@
 
 // This is the gain that we apply to stacked images taken as a time-lapse sequence through the night
 
-#define STACK_GAIN 4
+#define STACK_GAIN 5
 
 // Throttle the number of triggers which are allowed
 #define TRIGGER_THROTTLE_PERIOD 10 /* number of minutes */
 #define TRIGGER_THROTTLE_MAXEVT  5 /* number of triggers allowed in that time */
 
-#define TRIGGER_RECORDLEN  9   /* second of video to record after trigger */
-#define TRIGGER_COMPARELEN 0.5 /* triggering is calculated on the basis of comparing buffers of this length */
+#define TRIGGER_MAXRECORDLEN  9  /* second of video to record after trigger */
+#define TRIGGER_FRAMEGROUP    5  /* triggering is calculated on the basis of stacked groups of frames of this length */
 
 // Timelapse
 #define TIMELAPSE_EXPOSURE 28 /* Exposure length for timelapse photography */

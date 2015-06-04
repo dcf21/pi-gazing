@@ -27,7 +27,7 @@ def dictTreeAppend(dictRoot, dictPath, value):
 def metadataToFDB(metadict):
   metadata = []
   for metafield in metadict:
-    metadata.append( mp.FileMeta( mp.NSString(metafield,"meteorpi"),metadict[metafield]) )
+    metadata.append( mp.Meta( mp.NSString(metafield,"meteorpi"),metadict[metafield]) )
   return metadata
 
 def localFilenameToSemanticType(fname):

@@ -41,6 +41,10 @@ os.chdir(DATA_PATH)
 def orientationCalc(cameraId,utcNow,utcMustStop=0):
   logTxt("Starting calculation of camera alignment")
 
+  deg = pi/180
+  rad = 180/pi
+  hr  = pi/12
+
   # Path the binaries in <gnomonicStack>
   barrelCorrect = os.path.join(STACKER_PATH,"barrel");
 
@@ -88,8 +92,14 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
   for f in acceptableFiles:
     fname = f.get_path()
     os.system("%s %s %s tmp.png"%(barrelCorrect,fname,os.path.join(STACKER_PATH,"../cameras",lensName))) # Barrel-correct image
-    os.system("convert tmp.png -crop 360x240+180+120 +repage tmp2.png")
+    d = ImageDimensions("tmp.png")
+    fractionX = 0.5 # Pass only central 50% of image to astrometry.net. It's not very reliable with wide-field images
+    fractionY = 0.5
+    os.system("convert tmp.png -crop %dx%d+%d+%d +repage tmp2.png"%( fractionX*d[0] , fractionY*d[1] , (1-fractionX)*d[0]/2 , (1-fractionY)*d[1]/2 ))
+    astrometryStartTime = time.time()
     os.system("timeout 5m solve-field --no-plots --crpix-center --overwrite tmp2.png > txt") # Insert --no-plots to speed things up
+    astrometryTimeTaken = time.time() - astrometryStartTime
+    logTxt("Astrometry.net took %d seconds to analyse image at time <%s>"%(astrometryTimeTaken,f.file_time))
     fittxt = open("txt").read()
     test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",fittxt)
     if not test:
@@ -112,13 +122,29 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
     if not test:
       logTxt("Cannot read field size from image at <%s>"%f.file_time)
       continue
-    scalex=float(test.group(1))
-    scaley=float(test.group(2))
+    scalex= 2 * atan( tan( float(test.group(1)) / 2 * deg ) * (1/fractionX) ) * rad # Expand size of image to whole image, not just the central tile we sent to astrometry.net
+    scaley= 2 * atan( tan( float(test.group(2)) / 2 * deg ) * (1/fractionY) ) * rad
     d = ImageDimensions(fname)
-    fits.append( [f,ra,dec,posang,scalex,scaley,d] )
+    fits.append( {'f':f,'ra':ra,'dec':dec,'pa':posang,'sx':scalex,'sy':scaley,'dims':d} )
+
+  # Average the resulting fits
+  if len(fits)<10:
+    logTxt("Giving up: astrometry.net only managed to fit %d images"%len(fits))
+    return
+
+  paList     = [ i['pa']*deg for i in fits ] ; paBest     = mod_astro.meanAngle(paList)[0]
+  scalexList = [ i['sx']*deg for i in fits ] ; scalexBest = mod_astro.meanAngle(scalex)[0]
+  scaleyList = [ i['sy']*deg for i in fits ] ; scaleyBest = mod_astro.meanAngle(scalex)[0]
+
+  altAzList  = [ mod_astro.altAz( i['ra']*hr , i['dec']*deg , datetime2UTC(i['f'].file_time) , cameraStatus.orientation.latitude , cameraStatus.orientation.longitude ) for i in fits ]
+  [ altAzBest , altAzError ] = mod_astro.meanAngle2D(altAzList)
 
   # Print fit information
-  logTxt(fits)
+  logTxt("Orientation fit. Alt: %.2f deg. Az: %.2f deg. PA: %.2f deg. ScaleX: %.2f deg. ScaleY: %.2f deg. Uncertainty: %.2f deg."%(altAzBest[1]*rad,altAzBest[0]*rad,paBest*rad,scalexBest*rad,scaleyBest*rad,altAzError*rad))
+
+  # Update camera status
+  cameraStatus.orientation = Orientation( altitude=altAzBest[1]*rad, azimuth=altAzBest[0]*rad, error=altAzError*rad, rotation=paBest*rad, width_of_field=scalexBest*rad )
+  fdb_handle.update_camera_status(cameraStatus, time=UTC2datetime(utcNow), camera_id=cameraId)
 
   # Clean up and exit
   os.chdir(cwd)

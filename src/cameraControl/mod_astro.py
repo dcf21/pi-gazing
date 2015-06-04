@@ -177,3 +177,27 @@ def UTCfromJD(jd):
 def JDfromUTC(utc):
   return (utc/86400.0) + 2440587.5
 
+# Average of multiple angles; well behaved at 0/360 degree wrap-around. Input in radians.
+def meanAngle(angleList):
+ xlist = [ sin(a) for a in angleList ] # Project angles onto a circle
+ ylist = [ cos(a) for a in angleList ]
+ xmean = sum(xlist) / len(angleList) # Find centroid
+ ymean = sum(ylist) / len(angleList)
+ amean = atan2(xmean,ymean) # Find angle of centroid from centre
+ sd    = sqrt( sum( [hypot(xlist[i]-xmean , ylist[i]-ymean)**2 for i in range(len(xlist)) ] ))
+ asd   = atan(sd) # Find angular spread of points as seen from centre
+ return [amean,asd] # [Mean,SD] in radians
+
+# Average of multiple polar coordinate positions
+def meanAngle2D(posList):
+ xlist = [ sin(a[0])*sin(a[1]) for a in posList ] # Project angles onto a circle
+ ylist = [ cos(a[0])*sin(a[1]) for a in posList ]
+ zlist = [ cos(a[1])           for a in posList ]
+ xmean = sum(xlist) / len(posList) # Find centroid
+ ymean = sum(ylist) / len(posList)
+ zmean = sum(ylist) / len(posList)
+ pmean = [ acos(zmean) , atan2(xmean,ymean) ]
+ sd    = sqrt( sum( [ (xlist[i]-xmean)**2 + (ylist[i]-ymean)**2 + (zlist[i]-ymean)**2 for i in range(len(xlist)) ] ))
+ asd   = atan(sd) # Find angular spread of points as seen from centre
+ return [pmean,asd] # [Mean,SD] in radians
+
