@@ -81,7 +81,7 @@ class MeteorDatabase:
 
     def search_events(self, search):
         sql_args = []
-        where_clauses = []
+        where_clauses = ['e.statusID = s.internalID']
 
         def _add_sql(value, clause):
             if value is not None:
@@ -135,9 +135,7 @@ class MeteorDatabase:
         if search.skip > 0:
             sql += 'SKIP {0} '.format(search.skip)
         sql += 'e.cameraID, e.eventID, e.internalID, e.eventTime, e.eventType ' \
-               'FROM t_event e, t_cameraStatus s WHERE e.statusID = s.internalID'
-        if len(sql_args) > 0:
-            sql += ' AND '
+               'FROM t_event e, t_cameraStatus s WHERE '
         sql += ' AND '.join(where_clauses)
         sql += ' ORDER BY e.eventTime DESC'
         cur = self.con.cursor()
@@ -149,6 +147,7 @@ class MeteorDatabase:
         if (search.limit > 0 and rows_returned == search.limit) or (rows_returned == 0 and search.skip > 0):
             count_sql = 'SELECT count(*) FROM t_event e, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
             count_cur = self.con.cursor()
+            print count_sql
             count_cur.execute(count_sql, sql_args)
             total_rows = count_cur.fetchone()[0]
 

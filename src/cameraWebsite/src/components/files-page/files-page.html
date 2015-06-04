@@ -103,7 +103,7 @@
 
     <div class="form-group">
         <div class="col-xs-offset-2 col-xs-10">
-            <button type="submit" class="btn btn-default btn-info" data-bind="click: searchFiles">Search</button>
+            <button type="submit" class="btn btn-primary" data-bind="click: searchFiles">Search</button>
         </div>
     </div>
 
@@ -113,17 +113,23 @@
     <div class="alert alert-success">
         <p><b>No results found</b></p>
 
-        <p>The query completed, but no results were found matching the constraints you specified. Try altering values in
+        <p>The query completed, but no files were found matching the constraints you specified. Try altering values in
             the form above and re-running the query.</p>
     </div>
 </div>
 
-<div data-bind="if: results().length>0">
+<div data-bind="if: results().length>0 && pages().length==0">
     <div class="alert alert-success">
-        <p data-bind="text: 'Showing files '+(firstResultIndex()+1)+' to '+(firstResultIndex()+results().length)+' of '+resultCount()+', most recent first.'"></p>
+        <p data-bind="text: 'Showing all '+results().length+' files.'"></p>
     </div>
 </div>
-
+<nav data-bind="if: pages().length>0">
+    <ul class="pagination" data-bind="foreach: pages">
+        <li data-bind="css:{active: current}"><a href="#"
+                                                 data-bind="click: $parent.changePage, text:from+'-'+(to-1), css:{ disabled: current }"></a>
+        </li>
+    </ul>
+</nav>
 <table data-bind="if: results().length>0" class="table table-condensed">
     <thead>
     <tr>

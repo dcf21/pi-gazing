@@ -5,7 +5,6 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'jquery'], fun
 
         var self = this;
 
-
         self.search = {
             after: ko.observable(),
             before: ko.observable(),
@@ -13,7 +12,7 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'jquery'], fun
             after_offset: ko.observable(),
             before_offset: ko.observable(),
             semantic_type: ko.observable(),
-            limit: ko.observable(),
+            limit: ko.observable(20),
             skip: ko.observable()
         };
 
@@ -35,6 +34,7 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'jquery'], fun
         self.results = ko.observableArray();
         self.resultCount = ko.observable(0);
         self.firstResultIndex = ko.observable(0);
+        self.pages = ko.observableArray();
         self.hasQuery = ko.observable();
 
         self.urlForFile = client.urlForFile;
@@ -74,13 +74,35 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'jquery'], fun
                     self.meta.push(d);
                 });
             }
+
+
             // Get the search object and use it to retrieve results
-            var search = self.getSearchObject();
-            var skip = self.search.skip() == null ? 0 : self.search.skip();
+            var search = client.toJSRemovingDefaults(self.getSearchObject());
+            var skip = search.hasOwnProperty("skip") ? search.skip : 0;
+            // Reset the skip parameter, if any
+            self.search.skip(0);
             client.searchFiles(search, function (error, results) {
                 self.results(results.files);
                 self.resultCount(results.count);
                 self.firstResultIndex(skip);
+                var pages = [];
+                // Only do pagination if we have a search limit
+                if (search.limit > 0 && (skip > 0 || results.files.length < results.count)) {
+                    var i = 0;
+                    while (i < results.count) {
+                        var newSearch = jquery.extend(true, {}, search);
+                        newSearch.skip = i;
+                        var page = {
+                            from: i + 1,
+                            to: Math.min(i + search.limit, results.count) + 1,
+                            search: newSearch,
+                            current: (skip == newSearch.skip)
+                        };
+                        pages.push(page);
+                        i += search.limit;
+                    }
+                }
+                self.pages(pages);
                 self.hasQuery(true);
             });
         } else {
@@ -130,8 +152,11 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'jquery'], fun
         }).filter(function (m) {
             return m != null;
         });
-        var search = jquery.extend({}, self.search, {meta_constraints: meta});
-        return search;
+        return jquery.extend({}, self.search, {meta_constraints: meta});
+    };
+
+    FilesPage.prototype.changePage = function () {
+        router.goTo("files", {"search": client.stringFromObservables(this.search)});
     };
 
     FilesPage.prototype.searchFiles = function () {

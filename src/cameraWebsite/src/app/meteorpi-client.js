@@ -64,6 +64,24 @@ define(["jquery", "knockout"], function (jquery, ko) {
             });
         };
 
+        self.toJSRemovingDefaults = function (obj, defaults) {
+            var copy = ko.toJS(obj);
+            var isEmptyArray = function (o) {
+                return (toString.call(o) === "[object Array]" && o.length == 0)
+            };
+            for (var key in copy) {
+                if (copy.hasOwnProperty(key)) {
+                    var val = copy[key];
+                    if (val === null || val === undefined || isEmptyArray(val)) {
+                        delete copy[key];
+                    } else if (defaults != null && defaults.hasOwnProperty(key) && defaults[key] === val) {
+                        delete copy[key];
+                    }
+                }
+            }
+            return copy;
+        };
+
         /**
          * Pull out values from an observable
          * @param ob
@@ -105,12 +123,14 @@ define(["jquery", "knockout"], function (jquery, ko) {
                 return value;
             });
             for (var key in ob) {
-                if (key in o) {
-                    if (ko.isObservable(ob[key])) {
-                        //console.log("Pushing " + ko.unwrap(o[key]) + " into " + key);
-                        ob[key](ko.unwrap(o[key]));
-                    } else {
-                        ob[key] = o[key];
+                if (ob.hasOwnProperty(key)) {
+                    if (key in o) {
+                        if (ko.isObservable(ob[key])) {
+                            //console.log("Pushing " + ko.unwrap(o[key]) + " into " + key);
+                            ob[key](ko.unwrap(o[key]));
+                        } else {
+                            ob[key] = o[key];
+                        }
                     }
                 }
             }
@@ -152,7 +172,8 @@ define(["jquery", "knockout"], function (jquery, ko) {
          * @param callback callback called with (err:string, [event:{}])
          */
         self.searchEvents = function (search, callback) {
-            var searchString = (typeof(search) === 'string' || search instanceof String) ? search : self.stringFromObservables(search);
+            var searchObject = self.toJSRemovingDefaults(search, {skip: 0});
+            var searchString = self.stringFromObservables(searchObject);
             applyCallback(ajax("events/" + searchString, "GET"), null, callback);
         };
 
@@ -162,7 +183,8 @@ define(["jquery", "knockout"], function (jquery, ko) {
          * @param callback callback called with (err:string, [filerecord:{}])
          */
         self.searchFiles = function (search, callback) {
-            var searchString = (typeof(search) === 'string' || search instanceof String) ? search : self.stringFromObservables(search);
+            var searchObject = self.toJSRemovingDefaults(search, {exclude_events: false, skip: 0});
+            var searchString = self.stringFromObservables(searchObject);
             applyCallback(ajax("files/" + searchString, "GET"), null, callback);
         };
 
@@ -223,10 +245,11 @@ define(["jquery", "knockout"], function (jquery, ko) {
                 if (date == null) {
                     return null;
                 }
+                var theDate;
                 if (date.getHours() < 12) {
-                    var theDate = new Date(2000, 0, 2, date.getHours(), date.getMinutes(), 0);
+                    theDate = new Date(2000, 0, 2, date.getHours(), date.getMinutes(), 0);
                 } else {
-                    var theDate = new Date(2000, 0, 1, date.getHours(), date.getMinutes(), 0);
+                    theDate = new Date(2000, 0, 1, date.getHours(), date.getMinutes(), 0);
                 }
                 var midday = new Date(2000, 0, 1, 12, 0, 0);
                 return (theDate.getTime() - midday.getTime()) / 1000;
