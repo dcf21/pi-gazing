@@ -5,23 +5,18 @@
     <div class="form-group">
         <label for="after" class="control-label col-xs-2">After (date and time)</label>
 
-        <div class="col-xs-2">
+        <div class="col-xs-4">
             <input class="form-control" data-bind="kendoDateTimePicker: { value: search.after }" id="after"/>
         </div>
 
         <label for="after_offset" class="control-label col-xs-2">After (time)</label>
 
-        <div class="col-xs-2">
+        <div class="col-xs-4">
             <input class="form-control"
                    data-bind="kendoTimePicker: { value: afterOffsetDate, min: minTime, max: maxTime, interval: 15}"
                    id="after_offset"/>
         </div>
-        <label for="event_type" class="control-label col-xs-2">Event type</label>
 
-        <div class="form-inline col-xs-2">
-            <input type="text" placeholder="ns:value" class="form-control" data-bind="value: search.event_type"
-                   id="event_type"/>
-        </div>
 
     </div>
 
@@ -29,16 +24,25 @@
 
         <label for="before" class="control-label col-xs-2">Before (date and time)</label>
 
-        <div class="col-xs-2">
+        <div class="col-xs-4">
             <input class="form-control" data-bind="kendoDateTimePicker: { value: search.before }" id="before"/>
         </div>
 
         <label for="before_offset" class="control-label col-xs-2">Before (time)</label>
 
-        <div class="col-xs-2">
+        <div class="col-xs-4">
             <input class="form-control"
                    data-bind="kendoTimePicker: { value: beforeOffsetDate, min: minTime, max: maxTime, interval: 15}"
                    id="before_offset"/>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="event_type" class="control-label col-xs-2">Event type</label>
+
+        <div class="form-inline col-xs-2">
+            <input type="text" placeholder="ns:value" class="form-control" data-bind="value: search.event_type"
+                   id="event_type"/>
         </div>
     </div>
 

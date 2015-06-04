@@ -18,7 +18,18 @@ requireJsOptimizerConfig = merge(requireJsRuntimeConfig, {
         'requireLib',
         'components/nav-bar/nav-bar',
         'components/home-page/home',
-        'text!components/about-page/about.html'
+        'text!components/about-page/about.html',
+        'components/admin-camera-page/admin-camera-page',
+        'components/admin-users-page/admin-users-page',
+        'components/chart-test/chart-test',
+        'components/files-page/files-page',
+        'components/events-page/events-page',
+        'components/login-modal/login-modal',
+        'components/region-editor/region-editor',
+        'components/status-page/status-page',
+        'modal',
+        'kendobindings',
+        'kendo'
     ],
     insertRequire: ['app/startup'],
     bundles: {
@@ -41,10 +52,16 @@ gulp.task('css', function () {
     var bowerCss = gulp.src('src/bower_modules/components-bootstrap/css/bootstrap.min.css')
             .pipe(replace(/url\((')?\.\.\/fonts\//g, 'url($1fonts/')),
         appCss = gulp.src('src/css/*.css'),
-        combinedCss = es.concat(bowerCss, appCss).pipe(concat('css.css')),
+        kendoCoreCss = gulp.src('src/bower_modules/kendo-ui-core/styles/kendo.common-bootstrap.core.min.css'),
+        kendoCss = gulp.src('src/bower_modules/kendo-ui-core/styles/kendo.bootstrap.min.css'),
+        combinedCss = es.concat(bowerCss, appCss, kendoCoreCss, kendoCss).pipe(concat('css.css')),
         fontFiles = gulp.src('./src/bower_modules/components-bootstrap/fonts/*', {base: './src/bower_modules/components-bootstrap/'});
     return es.concat(combinedCss, fontFiles)
         .pipe(gulp.dest('./dist/'));
+});
+
+gulp.task('images', function () {
+    return gulp.src('src/bower_modules/kendo-ui-core/styles/Bootstrap/sprite_2x.png').pipe(gulp.dest('./dist/Bootstrap/'));
 });
 
 // Copies index.html, replacing <script> and <link> tags to reference production URLs
@@ -63,7 +80,7 @@ gulp.task('clean', function () {
         .pipe(clean());
 });
 
-gulp.task('default', ['html', 'js', 'css'], function (callback) {
+gulp.task('default', ['html', 'js', 'css', 'images'], function (callback) {
     callback();
     console.log('\nPlaced optimized files in ' + chalk.magenta('dist/\n'));
 });
