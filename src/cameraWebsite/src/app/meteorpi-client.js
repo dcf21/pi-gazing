@@ -89,7 +89,7 @@ define(["jquery", "knockout"], function (jquery, ko) {
          */
         self.stringFromObservables = function (ob) {
             var jsonString = JSON.stringify(ob, function (key, ob_value) {
-                    var value = ko.unwrap(ob_value);
+                    var value = ko.unwrap(this.hasOwnProperty(key) ? this[key] : ob_value);
                     if (value == null || value == false) {
                         return undefined;
                     }
