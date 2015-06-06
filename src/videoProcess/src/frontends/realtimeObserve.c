@@ -64,8 +64,6 @@ int main(int argc, char *argv[])
   vmd.flagUpsideDown      = GetFloat(argv[13],NULL) ? 1 : 0;
   vmd.filename            = argv[14];
 
-  analysisCameraId = vmd.cameraId;
-
   struct vdIn *videoIn;
 
   const char *videodevice=vmd.videoDevice;
@@ -101,7 +99,7 @@ int main(int argc, char *argv[])
   fillPolygonsFromFile(maskfile, mask, width, height);
   fclose(maskfile);
 
-  observe((void *)videoIn, utcoffset, vmd.tstart, vmd.tstop, width, height, "live", mask, &fetchFrame, &rewindVideo);
+  observe((void *)videoIn, vmd.cameraId, utcoffset, vmd.tstart, vmd.tstop, width, height, "live", mask, &fetchFrame, &rewindVideo);
 
   return 0;
  }

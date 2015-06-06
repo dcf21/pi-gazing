@@ -136,14 +136,47 @@ double calculateSkyClarity(image_ptr *img)
   return (100. * score) / pow(gridsize-1,2);
  }
 
-void medianCalculate(const int width, const int height, int *medianWorkspace, unsigned char *medianMap)
+double estimateNoiseLevel (int width, int height, unsigned char *buffer, int Nframes)
+ {
+  const int frameSize   = width*height;
+  const int frameStride = 3*frameSize/2;
+  const int pixelStride = 499; // Only study every 499th pixel
+  const int NStudyPixels = frameSize / pixelStride;
+  int *sum_y = malloc(NStudyPixels * sizeof(int));
+  int *sum_y2= malloc(NStudyPixels * sizeof(int));
+  if ( (!sum_y) || (!sum_y2) ) return -1;
+
+  int frame,i;
+  for (frame=0; frame<Nframes; frame++)
+   {
+    for (i=0; i<NStudyPixels; i++)
+     {
+      const int pixelVal = buffer[frame*frameStride + i*pixelStride];
+      sum_y [i] += pixelVal;
+      sum_y2[i] += pixelVal*pixelVal;
+     }
+   }
+
+  double sd_sum;
+  for (i=0; i<NStudyPixels; i++)
+   {
+    double mean = sum_y[i] / ((double)NStudyPixels);
+    double sd   = sqrt( sum_y2[i]/((double)NStudyPixels) - mean*mean );
+    sd_sum     += sd;
+   }
+
+  free(sum_y); free(sum_y2);
+  return sd_sum / NStudyPixels; // Average standard deviation of the studied pixels
+ }
+
+void medianCalculate(const int width, const int height, const int channels, int *medianWorkspace, unsigned char *medianMap)
  {
   const int frameSize = width*height;
   int i;
 
   // Find the modal value of each cell in the median grid
 #pragma omp parallel for private(i)
-  for (i=0; i<frameSize*3; i++)
+  for (i=0; i<frameSize*channels; i++)
    {
     int f,d;
     const int offset = i*256;
@@ -151,11 +184,11 @@ void medianCalculate(const int width, const int height, int *medianWorkspace, un
     for (f=0; f<256; f++) if (medianWorkspace[offset+f]>modeSamples) { mode=f; modeSamples=medianWorkspace[offset+f]; }
     medianMap[i] = CLIP256(mode-2);
    }
-  memset(medianWorkspace, 0, frameSize*3*256*sizeof(int));
+  memset(medianWorkspace, 0, frameSize*channels*256*sizeof(int));
   return;
  }
 
-int dumpFrame(int width, int height, unsigned char *buffer, char *fName)
+int dumpFrame(int width, int height, int channels, unsigned char *buffer, char *fName)
  {
   FILE *outfile;
   const int frameSize = width*height;
@@ -165,35 +198,45 @@ int dumpFrame(int width, int height, unsigned char *buffer, char *fName)
     return 1;
    }
 
-  fwrite(&width ,1,sizeof(int),outfile);
-  fwrite(&height,1,sizeof(int),outfile);
-  fwrite(buffer ,1,frameSize  ,outfile);
+  fwrite(&width   ,1,sizeof(int),outfile);
+  fwrite(&height  ,1,sizeof(int),outfile);
+  fwrite(&channels,1,sizeof(int),outfile);
+  fwrite(buffer   ,1,frameSize*channels,outfile);
   fclose(outfile);
   return 0;
  }
 
-int dumpFrameRGB(int width, int height, unsigned char *bufferRGB, char *fName)
+int dumpFrameFromInts(int width, int height, int channels, int *buffer, int nfr, int gain, char *fName)
  {
   FILE *outfile;
   int frameSize = width*height;
+  unsigned char *tmpc = malloc(frameSize*channels);
+  if (!tmpc) { sprintf(temp_err_string, "ERROR: malloc fail in dumpFrameFromInts."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
+
   if ((outfile = fopen(fName,"wb")) == NULL)
    {
-    sprintf(temp_err_string, "ERROR: Cannot open output RAW RGB image frame %s.\n", fName); gnom_error(ERR_GENERAL,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Cannot open output RAW image frame %s.\n", fName); gnom_error(ERR_GENERAL,temp_err_string);
     return 1;
    }
+
+  int i,d;
+#pragma omp parallel for private(i,d)
+  for (i=0; i<frameSize*channels; i++) tmpc[i]=CLIP256( buffer[i] * gain / nfr );
 
   fwrite(&width   ,1,sizeof(int),outfile);
   fwrite(&height  ,1,sizeof(int),outfile);
-  fwrite(bufferRGB,1,frameSize*3,outfile);
+  fwrite(&channels,1,sizeof(int),outfile);
+  fwrite(tmpc     ,1,frameSize*channels,outfile);
   fclose(outfile);
+  free(tmpc);
   return 0;
  }
 
-int dumpFrameRGBFromInts(int width, int height, int *bufferRGB, int nfr, int gain, char *fName)
+int dumpFrameFromISub(int width, int height, int channels, int *buffer, int nfr, int gain, unsigned char *buffer2, char *fName)
  {
   FILE *outfile;
   int frameSize = width*height;
-  unsigned char *tmpc = malloc(frameSize*3);
+  unsigned char *tmpc = malloc(frameSize*channels);
   if (!tmpc) { sprintf(temp_err_string, "ERROR: malloc fail in dumpFrameFromInts."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
 
   if ((outfile = fopen(fName,"wb")) == NULL)
@@ -204,46 +247,22 @@ int dumpFrameRGBFromInts(int width, int height, int *bufferRGB, int nfr, int gai
 
   int i,d;
 #pragma omp parallel for private(i,d)
-  for (i=0; i<frameSize*3; i++) tmpc[i]=CLIP256( bufferRGB[i] * gain / nfr );
+  for (i=0; i<frameSize*channels; i++) tmpc[i]=CLIP256( (buffer[i] - nfr*buffer2[i]) * gain / nfr );
 
-  fwrite(&width ,1,sizeof(int),outfile);
-  fwrite(&height,1,sizeof(int),outfile);
-  fwrite(tmpc   ,1,frameSize*3,outfile);
-  fclose(outfile);
-  free(tmpc);
-  return 0;
- }
-
-int dumpFrameRGBFromISub(int width, int height, int *bufferRGB, int nfr, int gain, unsigned char *buffer2, char *fName)
- {
-  FILE *outfile;
-  int frameSize = width*height;
-  unsigned char *tmpc = malloc(frameSize*3);
-  if (!tmpc) { sprintf(temp_err_string, "ERROR: malloc fail in dumpFrameFromInts."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
-
-  if ((outfile = fopen(fName,"wb")) == NULL)
-   {
-    sprintf(temp_err_string, "ERROR: Cannot open output RAW image frame %s.\n", fName); gnom_error(ERR_GENERAL,temp_err_string);
-    return 1;
-   }
-
-  int i,d;
-#pragma omp parallel for private(i,d)
-  for (i=0; i<frameSize*3; i++) tmpc[i]=CLIP256( (bufferRGB[i] - nfr*buffer2[i]) * gain / nfr );
-
-  fwrite(&width ,1,sizeof(int),outfile);
-  fwrite(&height,1,sizeof(int),outfile);
-  fwrite(tmpc   ,1,frameSize*3,outfile);
+  fwrite(&width   ,1,sizeof(int),outfile);
+  fwrite(&height  ,1,sizeof(int),outfile);
+  fwrite(&channels,1,sizeof(int),outfile);
+  fwrite(tmpc     ,1,frameSize*channels,outfile);
   fclose(outfile);
   free(tmpc);
   return 0;
  }
 
 
-int dumpVideo(int nfr1, int nfr2, int width, int height, unsigned char *buffer1, unsigned char *buffer2, unsigned char *buffer3, char *fName)
+int dumpVideo(int width, int height, unsigned char *buffer1, int buffer1frames, unsigned char *buffer2, int buffer2frames, char *fName)
  {
   const int frameSize = width*height*1.5;
-  const int blen = sizeof(int) + 2*sizeof(int) + (nfr1+nfr1+nfr2)*frameSize;
+  const int blen = sizeof(int) + 2*sizeof(int) + (buffer1frames+buffer2frames)*frameSize;
 
   FILE *outfile;
   if ((outfile = fopen(fName,"wb")) == NULL)
@@ -252,12 +271,11 @@ int dumpVideo(int nfr1, int nfr2, int width, int height, unsigned char *buffer1,
     return 1; 
    }
 
-  fwrite(&blen  ,1,sizeof(int),outfile);
-  fwrite(&width ,1,sizeof(int),outfile);
-  fwrite(&height,1,sizeof(int),outfile);
-  fwrite(buffer1,1,frameSize*nfr1,outfile);
-  fwrite(buffer2,1,frameSize*nfr1,outfile);
-  fwrite(buffer3,1,frameSize*nfr2,outfile);
+  fwrite(&blen    ,1,sizeof(int),outfile);
+  fwrite(&width   ,1,sizeof(int),outfile);
+  fwrite(&height  ,1,sizeof(int),outfile);
+  fwrite(buffer1  ,1,frameSize*buffer1frames,outfile);
+  fwrite(buffer2  ,1,frameSize*buffer2frames,outfile);
   fclose(outfile);
   return 0;
  }

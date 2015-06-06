@@ -36,23 +36,31 @@ int main(int argc, char *argv[])
     sprintf(temp_err_string, "ERROR: Cannot open output raw image file %s.\n", rawFname); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
-  int width, height;
-  i=fread(&width ,sizeof(int),1,infile);
-  i=fread(&height,sizeof(int),1,infile);
+  int width, height, channels;
+  i=fread(&width   ,sizeof(int),1,infile);
+  i=fread(&height  ,sizeof(int),1,infile);
+  i=fread(&channels,sizeof(int),1,infile);
 
   const int frameSize=width*height;
-  unsigned char *imgRaw = malloc(3*frameSize);
+  unsigned char *imgRaw = malloc(channels*frameSize);
   if (imgRaw==NULL) { sprintf(temp_err_string, "ERROR: malloc fail"); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
-  i=fread(imgRaw,1,3*frameSize,infile);
+  i=fread(imgRaw,1,channels*frameSize,infile);
   fclose(infile);
 
   image_ptr OutputImage;
   image_alloc(&OutputImage, width, height);
   OutputImage.data_w = 1;
-  for (i=0; i<frameSize; i++) OutputImage.data_red[i] = imgRaw[i              ];
-  for (i=0; i<frameSize; i++) OutputImage.data_grn[i] = imgRaw[i + frameSize  ];
-  for (i=0; i<frameSize; i++) OutputImage.data_blu[i] = imgRaw[i + frameSize*2];
-  image_deweight(&OutputImage);
+
+  if (channels>=3)
+   {
+    for (i=0; i<frameSize; i++) OutputImage.data_red[i] = imgRaw[i              ];
+    for (i=0; i<frameSize; i++) OutputImage.data_grn[i] = imgRaw[i + frameSize  ];
+    for (i=0; i<frameSize; i++) OutputImage.data_blu[i] = imgRaw[i + frameSize*2];
+   } else {
+    for (i=0; i<frameSize; i++) OutputImage.data_red[i] = imgRaw[i];
+    for (i=0; i<frameSize; i++) OutputImage.data_grn[i] = imgRaw[i];
+    for (i=0; i<frameSize; i++) OutputImage.data_blu[i] = imgRaw[i];
+   }
 
   int lc;
   for (lc=lcmin; lc<2; lc++)

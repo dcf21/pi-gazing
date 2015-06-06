@@ -35,9 +35,11 @@ int main(int argc, char *argv[])
     sprintf(temp_err_string, "ERROR: Cannot open output raw image file %s.\n", rawFname); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
-  int width, height;
-  i=fread(&width ,sizeof(int),1,infile);
-  i=fread(&height,sizeof(int),1,infile);
+  int width, height, channels;
+  i=fread(&width   ,sizeof(int),1,infile);
+  i=fread(&height  ,sizeof(int),1,infile);
+  i=fread(&channels,sizeof(int),1,infile);
+  if (channels!=3) { sprintf(temp_err_string, "ERROR: cannot generate separate RGB PNGs from a mono PNG."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
 
   const int frameSize=width*height;
   unsigned char *imgRawR = malloc(frameSize);

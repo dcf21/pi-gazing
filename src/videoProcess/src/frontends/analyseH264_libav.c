@@ -25,8 +25,6 @@
 #include "vidtools/color.h"
 #include "settings.h"
 
-extern char *analysisCameraId;
-
 void sigint_handler(int signal) { printf("\n"); exit(0); }
 
 #define INBUF_SIZE 200000
@@ -135,14 +133,13 @@ int main(int argc, char **argv)
   ctx.utcoffset= 0;
   ctx.FPS      = GetFloat(argv[3],NULL);
   ctx.maskFile = argv[4];
-  analysisCameraId = argv[5];
   initLut();
 
   // Register all the codecs
   av_register_all();
   avcodec_register_all();
   decoder_init(&ctx);
-  observe((void *)&ctx, ctx.utcoffset, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, "nonlive", ctx.mask, &fetchFrame, &rewindVideo);
+  observe((void *)&ctx, argv[5], ctx.utcoffset, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, "nonlive", ctx.mask, &fetchFrame, &rewindVideo);
   decoder_shutdown(&ctx);
   printf("\n");
   return 0;

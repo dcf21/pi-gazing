@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 
     // Add stacked image into median map
 #pragma omp parallel for private(j)
-    for (j=0; j<3*frameSize; j++)
+    for (j=0; j<Nchannels*frameSize; j++)
      {
       int d;
       int pixelVal = CLIP256( tmpi[j]/nfr );
@@ -97,17 +97,23 @@ int main(int argc, char *argv[])
    }
 
   // Calculate median map
-  medianCalculate(width, height, medianWorkspace, medianMap);
-  dumpFrameRGB(width, height, medianMap, rawfname);
+  medianCalculate(width, height, Nchannels, medianWorkspace, medianMap);
+  dumpFrame(width, height, Nchannels, medianMap, rawfname);
 
   // Make a PNG version for diagnostic use
   image_ptr OutputImage;
   image_alloc(&OutputImage, width, height);
   OutputImage.data_w = 1;
-  for (i=0; i<frameSize; i++) OutputImage.data_red[i] = medianMap[i              ];
-  for (i=0; i<frameSize; i++) OutputImage.data_grn[i] = medianMap[i + frameSize  ];
-  for (i=0; i<frameSize; i++) OutputImage.data_blu[i] = medianMap[i + frameSize*2];
-  image_deweight(&OutputImage);
+  if (Nchannels>=3)
+   {
+    for (i=0; i<frameSize; i++) OutputImage.data_red[i] = medianMap[i              ];
+    for (i=0; i<frameSize; i++) OutputImage.data_grn[i] = medianMap[i + frameSize  ];
+    for (i=0; i<frameSize; i++) OutputImage.data_blu[i] = medianMap[i + frameSize*2];
+   } else {
+    for (i=0; i<frameSize; i++) OutputImage.data_red[i] = medianMap[i];
+    for (i=0; i<frameSize; i++) OutputImage.data_grn[i] = medianMap[i];
+    for (i=0; i<frameSize; i++) OutputImage.data_blu[i] = medianMap[i];
+   }
   image_put(frOut, OutputImage, ALLDATAMONO);
 
   // Clean up
