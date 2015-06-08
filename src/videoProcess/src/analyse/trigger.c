@@ -30,6 +30,7 @@ inline void triggerBlocksMerge(observeStatus *os, int idOld, int idNew)
   os->triggerBlock_sumx[idNew] += os->triggerBlock_sumx[idOld];
   os->triggerBlock_sumy[idNew] += os->triggerBlock_sumy[idOld];
   os->triggerBlock_suml[idNew] += os->triggerBlock_suml[idOld];
+  os->triggerBlock_N   [idOld]     = 0;
   os->triggerBlock_redirect[idOld] = idNew;
   return;
  }
@@ -41,14 +42,15 @@ int checkForTriggers(observeStatus *os, const int *image1, const int *image2, co
   int output=0;
 
   const int margin=10; // Ignore pixels within this distance of the edge
-  const int threshold_blockSize=20; // To trigger this number of pixels connected together must have brightened
+  const int threshold_blockSize=10; // To trigger this number of pixels connected together must have brightened
   const int radius=8; // Pixel must be brighter than test pixels this distance away
-  const int threshold=2*os->noiseLevel*sqrt(coAddedFrames); // Pixel must have brightened by at least 2 standard deviations
+        int threshold=1.5*os->noiseLevel*sqrt(coAddedFrames); // Pixel must have brightened by at least N standard deviations
+  if (threshold<1) threshold=1;
   unsigned char *triggerR = os->triggerRGB;
   unsigned char *triggerG = os->triggerRGB + os->frameSize*1; // These arrays are used to produce diagnostic images when the camera triggers
   unsigned char *triggerB = os->triggerRGB + os->frameSize*2;
   memset(os->triggerMap, 0, os->frameSize*sizeof(int));
-  int Nblocks = 1;
+  int Nblocks = 0;
 
   static unsigned long long pastTriggerMapAverage = 1;
   unsigned int              nPixelsWithinMask = 1;
@@ -106,13 +108,13 @@ int checkForTriggers(observeStatus *os, const int *image1, const int *image2, co
      }
 #pragma omp critical (trigger_cleanup)
      {
-      pastTriggerMapAverage += triggerMap_linesum;
-      nPixelsWithinMask     += nPixelsWithinMask_linesum;
+      pastTriggerMapAverageNew += triggerMap_linesum;
+      nPixelsWithinMask        += nPixelsWithinMask_linesum;
      }
    }
 
   int i;
-  for (i=0; i<Nblocks; i++)
+  for (i=1; i<=Nblocks; i++)
    {
     if (i==MAX_TRIGGER_BLOCKS-1) break;
     if (os->triggerBlock_N[i]>threshold_blockSize)

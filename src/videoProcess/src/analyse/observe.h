@@ -37,7 +37,7 @@ typedef struct observeStatus
   int (*fetchFrame)(void *,unsigned char *,double *);
   float fps;
   int frameSize;
-  char *cameraId;
+  const char *cameraId;
 
   double utc;
   int triggeringAllowed;
@@ -55,7 +55,7 @@ typedef struct observeStatus
   int            triggerSuffixNGroups;
 
   // Timelapse buffers
-  double  timelapseFrameStart;
+  double  timelapseUTCStart;
   int     framesTimelapse;
   int    *stackT;
 

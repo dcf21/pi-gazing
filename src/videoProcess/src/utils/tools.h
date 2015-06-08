@@ -17,7 +17,7 @@ typedef struct videoMetadata
   char *cameraId, *videoDevice, *filename, *maskFile;
  } videoMetadata;
 
-void  writeMetadata       (videoMetadata v);
+void  writeRawVidMetaData (videoMetadata v);
 int   nearestMultiple     (double in, int factor);
 void  frameInvert         (unsigned char *buffer, int len);
 void *videoRecord         (struct vdIn *videoIn, double seconds);

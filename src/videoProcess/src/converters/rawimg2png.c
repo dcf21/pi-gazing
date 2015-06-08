@@ -71,12 +71,12 @@ int main(int argc, char *argv[])
     if (lc)
      {
       image_ptr CorrectedImage = lensCorrect(&OutputImage, barrelA, barrelB, barrelC);
-      image_put(frOut, CorrectedImage, ALLDATAMONO);
+      image_put(frOut, CorrectedImage, (channels<3));
       image_dealloc(&CorrectedImage);
      }
     else
      {
-      image_put(frOut, OutputImage, ALLDATAMONO);
+      image_put(frOut, OutputImage, (channels<3));
      }
 
     sprintf(frOut,"%s_LC%d.txt",fname,lc);

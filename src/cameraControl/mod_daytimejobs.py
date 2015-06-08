@@ -17,7 +17,7 @@ else:
 # Nmax = maximum number of jobs which can run in parallel. NB: OpenMAX can only be used by one process at a time
 
 #                 HWMoutput           Nmax   Folder of input files      Folder of output files                          InExt   OutExt  Shell command
-dayTimeTasks = [ ['rawvideo'        , 2 , [ ['rawvideo'               ,['triggers_raw_nonlive','timelapse_raw_nonlive'],'h264', '???' , rawH264ToTriggers] ]],
+dayTimeTasks = [ ['rawvideo'        , 1 , [ ['rawvideo'               ,['triggers_raw_nonlive','timelapse_raw_nonlive'],'h264', '???' , rawH264ToTriggers] ]],
                  ['triggers_rawimg' , 3 , [ ['triggers_raw_nonlive'   ,['triggers_img_processed']                      ,'rgb' , 'png' , rawImgToPng],
                                             ['triggers_raw_live'      ,['triggers_img_processed']                      ,'rgb' , 'png' , rawImgToPng],
                                             ['triggers_raw_nonlive'   ,['triggers_img_processed']                      ,'sep' , 'png' , rawImgToPng3],

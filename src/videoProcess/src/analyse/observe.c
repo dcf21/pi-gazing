@@ -40,7 +40,7 @@ char *fNameGenerate(char *output, const char *cameraId, double utc, char *tag, c
  }
 
 // Record metadata to accompany a file. fname must be writable.
-void writeMetaData(char *fname, int nItems, ...)
+void writeMetaData(char *fname, char *itemTypes, ...)
  {
   // Change file extension to .txt
   int flen = strlen(fname);
@@ -52,12 +52,17 @@ void writeMetaData(char *fname, int nItems, ...)
   FILE *f=fopen(fname,"w");
   if (!f) return;
   va_list ap;
-  va_start(ap, nItems);
-  for (i=0; i<nItems; i++)
+  va_start(ap, itemTypes);
+  for (i=0; itemTypes[i]!='\0'; i++)
    {
     char *x = va_arg(ap, char*);
-    char *y = va_arg(ap, char*);
-    fprintf(f,"%s %s\n",x,y);
+    switch (itemTypes[i])
+     {
+      case 's': { char   *y = va_arg(ap, char* ); fprintf(f,"%s %s\n",x,y); break; }
+      case 'd': { double  y = va_arg(ap, double); fprintf(f,"%s %.15e\n",x,y); break; }
+      case 'i': { int     y = va_arg(ap, int   ); fprintf(f,"%s %d\n",x,y); break; }
+      default:  { sprintf(temp_err_string, "ERROR: Unrecognised data type character '%c'.", itemTypes[i]); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
+     }
    }
   va_end(ap);
   fclose(f);
@@ -117,6 +122,7 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
   os->width = width;
   os->height = height;
   os->label = label;
+  os->cameraId = cameraId;
   os->mask = mask;
   os->fetchFrame = fetchFrame;
   os->fps = VIDEO_FPS;       // Requested frame rate
@@ -137,7 +143,7 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
 
   // Timelapse buffers
   os->utc                 = 0;
-  os->timelapseFrameStart = 1e40; // Store timelapse exposures at set intervals. This is UTC of next frame, but we don't start until we've done a run-in period
+  os->timelapseUTCStart   = 1e40; // Store timelapse exposures at set intervals. This is UTC of next frame, but we don't start until we've done a run-in period
   os->framesTimelapse     = os->fps * TIMELAPSE_EXPOSURE;
   os->stackT              = malloc(os->frameSize*sizeof(int)*Nchannels);
 
@@ -196,7 +202,7 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
      {
       if (DEBUG) { sprintf(line, "Run-in period completed."); gnom_log(line); }
       (*rewindVideo)(os->videoHandle,&os->utc);
-      os->timelapseFrameStart = ceil(os->utc/60)*60; // Start making timelapse video
+      os->timelapseUTCStart = ceil(os->utc/60)*60 + 0.001; // Start making timelapse video
      }
 
     // Work out where we're going to read next second of video to. Either bufferA / bufferB, or the long buffer if we're recording
@@ -220,7 +226,7 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
 
     // Periodically, dump a stacked timelapse exposure lasting for <secondsTimelapseBuff> seconds
     if (os->timelapseCount>=0) { os->timelapseCount++; }
-    else if (os->utc > os->timelapseFrameStart)
+    else if (os->utc > os->timelapseUTCStart)
       {
        memset(os->stackT, 0, os->frameSize*3*sizeof(int));
        os->timelapseCount=0;
@@ -229,14 +235,14 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
     // If timelapse exposure is finished, dump it
     if (os->timelapseCount>=os->framesTimelapse/TRIGGER_FRAMEGROUP)
      {
-      char fstub[FNAME_LENGTH], fname[FNAME_LENGTH]; fNameGenerate(fstub,os->cameraId,os->utc,"frame_","timelapse_raw",os->label);
+      char fstub[FNAME_LENGTH], fname[FNAME_LENGTH]; fNameGenerate(fstub,os->cameraId,os->timelapseUTCStart,"frame_","timelapse_raw",os->label);
       sprintf(fname, "%s%s",fstub,"BS0.rgb");
       dumpFrameFromInts(os->width, os->height, Nchannels, os->stackT, os->framesTimelapse, 1, fname);
-      writeMetaData(fname, 1, "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(os->framesTimelapse), "stackedFrames", os->framesTimelapse);
+      writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(os->framesTimelapse), "stackedFrames", os->framesTimelapse);
       sprintf(fname, "%s%s",fstub,"BS1.rgb");
       dumpFrameFromISub(os->width, os->height, Nchannels, os->stackT, os->framesTimelapse, STACK_GAIN, os->medianMap, fname);
-      writeMetaData(fname, 1, "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(os->framesTimelapse)*STACK_GAIN, "stackedFrames", os->framesTimelapse);
-      os->timelapseFrameStart+=TIMELAPSE_INTERVAL;
+      writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(os->framesTimelapse)*STACK_GAIN, "stackedFrames", os->framesTimelapse);
+      os->timelapseUTCStart+=TIMELAPSE_INTERVAL;
       os->timelapseCount=-1;
      }
 
@@ -327,20 +333,20 @@ void registerTrigger(observeStatus *os, const int xpos, const int ypos, const in
   fNameGenerate(os->eventList[i].filenameStub,os->cameraId,os->utc,"trigger","triggers_raw",os->label);
   sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_MAP.sep");
   dumpFrame(os->width, os->height, 3, os->triggerRGB, fname);
-  writeMetaData(fname, 1, "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel);
+  writeMetaData(fname, "sd", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel);
 
   sprintf(fname, "%s%s",os->eventList[i].filenameStub,"2_BS0.rgb");
   dumpFrameFromInts(os->width, os->height, Nchannels, image1, coAddedFrames, 1, fname);
-  writeMetaData(fname, 1, "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
+  writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
   sprintf(fname, "%s%s",os->eventList[i].filenameStub,"2_BS1.rgb");
   dumpFrameFromISub(os->width, os->height, Nchannels, image1, coAddedFrames, STACK_GAIN, os->medianMap, fname);
-  writeMetaData(fname, 1, "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames)*STACK_GAIN, "stackedFrames", coAddedFrames);
+  writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames)*STACK_GAIN, "stackedFrames", coAddedFrames);
   sprintf(fname, "%s%s",os->eventList[i].filenameStub,"1_BS0.rgb");
   dumpFrameFromInts(os->width, os->height, Nchannels, image2, coAddedFrames, 1, fname);
-  writeMetaData(fname, 1, "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
+  writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
   sprintf(fname, "%s%s",os->eventList[i].filenameStub,"1_BS1.rgb");
   dumpFrameFromISub(os->width, os->height, Nchannels, image2, coAddedFrames, STACK_GAIN, os->medianMap, fname);
-  writeMetaData(fname, 1, "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames)*STACK_GAIN, "stackedFrames", coAddedFrames);
+  writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames)*STACK_GAIN, "stackedFrames", coAddedFrames);
   memcpy(os->eventList[i].stackedImage, image1, os->frameSize*Nchannels*sizeof(int));
  }
 
@@ -364,30 +370,34 @@ void registerTriggerEnds(observeStatus *os)
       {
         os->eventList[i].active=0;
 
+        // If event was seen in fewer than three frames, reject it
+        if (os->eventList[i].Ndetections < 3) continue;
+
+        // Dump stacked images of entire duration of event
         int coAddedFrames = (os->frameCounter - os->eventList[i].detections[0].frameCount) * TRIGGER_FRAMEGROUP;
         char fname[FNAME_LENGTH], pathJSON[LSTR_LENGTH];
         sprintf(fname, "%s%s",os->eventList[i].filenameStub,"3_BS0.rgb");
         dumpFrameFromInts(os->width, os->height, Nchannels, os->eventList[i].stackedImage, coAddedFrames, 1, fname);
-        writeMetaData(fname, 1, "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
+        writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
         sprintf(fname, "%s%s",os->eventList[i].filenameStub,"3_BS1.rgb");
         dumpFrameFromISub(os->width, os->height, Nchannels, os->eventList[i].stackedImage, coAddedFrames, STACK_GAIN, os->medianMap, fname);
-        writeMetaData(fname, 1, "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames)*STACK_GAIN, "stackedFrames", coAddedFrames);
+        writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames)*STACK_GAIN, "stackedFrames", coAddedFrames);
 
         // Dump a video of the meteor from our video buffer
-        int            videoBytes  = (os->frameCounter - os->eventList[i].detections[N0].frameCount + os->triggerPrefixNGroups)*os->buffGroupBytes;
-        unsigned char *bufferPos   = os->buffer + (os->frameCounter % os->buffNGroups)*os->buffGroupBytes;
-        unsigned char *video1      = NULL;
-        int            video1bytes = 0;
-        unsigned char *video2      = bufferPos - videoBytes;
-        int            video2bytes = videoBytes;
+        int            videoFrames  = (os->frameCounter - os->eventList[i].detections[N0].frameCount + os->triggerPrefixNGroups) * TRIGGER_FRAMEGROUP;
+        unsigned char *bufferPos    = os->buffer + (os->frameCounter % os->buffNGroups)*os->buffGroupBytes;
+        unsigned char *video1       = NULL;
+        int            video1frs    = 0;
+        unsigned char *video2       = bufferPos - videoFrames*os->frameSize*YUV420;
+        int            video2frs    = videoFrames;
 
         // Video spans a buffer wrap-around, so need to include two chunks of video data
         if (video2<os->buffer)
          {
-          video1bytes = os->buffer - video2;
-          video1      = os->buffer + os->bufflen - video1bytes;
-          video2bytes-= video1bytes;
-          video2      = os->buffer;
+          video2frs = (bufferPos - os->buffer) / (os->frameSize*YUV420);
+          video1frs = videoFrames - video2frs;
+          video1    = video2 + os->bufflen;
+          video2    = os->buffer;
          }
 
         // Write path of event as JSON string
@@ -406,13 +416,13 @@ void registerTriggerEnds(observeStatus *os)
         }
 
         sprintf(fname, "%s%s",os->eventList[i].filenameStub,".vid");
-        dumpVideo(os->width, os->height, video1, video1bytes, video2, video2bytes, fname);
-        writeMetaData(fname, 1, "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "path", pathJSON,
-                                "duration", os->eventList[i].detections[N2].utc-os->eventList[i].detections[N0].utc,
-                                "amplitudeTimeIntegrated", amplitudeTimeIntegrated, "amplitudePeak", amplitudePeak,
-                                "x0", os->eventList[i].detections[N0].x, "y0", os->eventList[i].detections[N0].y, "t0", os->eventList[i].detections[N0].utc,
-                                "x1", os->eventList[i].detections[N1].x, "y1", os->eventList[i].detections[N1].y, "t1", os->eventList[i].detections[N1].utc,
-                                "x2", os->eventList[i].detections[N2].x, "y2", os->eventList[i].detections[N2].y, "t2", os->eventList[i].detections[N2].utc
+        dumpVideo(os->width, os->height, video1, video1frs, video2, video2frs, fname);
+        writeMetaData(fname, "sdsdiiiidiidiid", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "path", pathJSON,
+                                 "duration", os->eventList[i].detections[N2].utc-os->eventList[i].detections[N0].utc,
+                                 "amplitudeTimeIntegrated", amplitudeTimeIntegrated, "amplitudePeak", amplitudePeak,
+                                 "x0", os->eventList[i].detections[N0].x, "y0", os->eventList[i].detections[N0].y, "t0", os->eventList[i].detections[N0].utc,
+                                 "x1", os->eventList[i].detections[N1].x, "y1", os->eventList[i].detections[N1].y, "t1", os->eventList[i].detections[N1].utc,
+                                 "x2", os->eventList[i].detections[N2].x, "y2", os->eventList[i].detections[N2].y, "t2", os->eventList[i].detections[N2].utc
                      );
      }
    }

@@ -556,7 +556,7 @@ int main(int argc, char **argv)
     const int height= videoIn->height;
     vmd.width  = width;
     vmd.height = height;
-    writeMetadata(vmd);
+    writeRawVidMetaData(vmd);
 
     // Initialise H264 encoder
     bcm_host_init();

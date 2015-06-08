@@ -14,7 +14,7 @@
 
 #include "settings.h"
 
-void writeMetadata(videoMetadata v)
+void writeRawVidMetaData(videoMetadata v)
  {
   char fname[FNAME_BUFFER];
   sprintf(fname,"%s.txt",v.filename);
@@ -142,8 +142,8 @@ double estimateNoiseLevel (int width, int height, unsigned char *buffer, int Nfr
   const int frameStride = 3*frameSize/2;
   const int pixelStride = 499; // Only study every 499th pixel
   const int NStudyPixels = frameSize / pixelStride;
-  int *sum_y = malloc(NStudyPixels * sizeof(int));
-  int *sum_y2= malloc(NStudyPixels * sizeof(int));
+  int *sum_y = calloc(NStudyPixels , sizeof(int));
+  int *sum_y2= calloc(NStudyPixels , sizeof(int));
   if ( (!sum_y) || (!sum_y2) ) return -1;
 
   int frame,i;

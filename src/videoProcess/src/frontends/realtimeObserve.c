@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
   const int height= videoIn->height;
   vmd.width  = width;
   vmd.height = height;
-  //writeMetadata(vmd);
+  //writeRawVidMetaData(vmd);
   videoIn->upsideDown = vmd.flagUpsideDown;
 
   unsigned char *mask = malloc(width*height);
