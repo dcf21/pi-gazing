@@ -8,18 +8,23 @@
 #define MAX_DETECTIONS 1024 /* Maximum detections of a single event; about 40 seconds of frames */
 #define MAX_EVENTS        3 /* Number of simultaneous events */
 
+#define MAX_TRIGGER_BLOCKS 65536
+
+#include "str_constants.h"
+
 typedef struct detection
  {
-  int frameCount;
-  int x,y;
+  int    frameCount;
+  int    x,y,npixels,amplitude;
+  double utc;
  } detection;
 
 typedef struct event
  {
   int  active;
   int  Ndetections;
-  char filenameStub[FNAME_BUFFER]; // When testTrigger detects a meteor, this string is set to a filename stub with time stamp of the time when the camera triggered
-  int  stackedImage[frameSize*Nchannels];
+  char filenameStub[FNAME_LENGTH]; // When testTrigger detects a meteor, this string is set to a filename stub with time stamp of the time when the camera triggered
+  int *stackedImage;
   detection detections[MAX_DETECTIONS];
  } event;
 
@@ -27,7 +32,8 @@ typedef struct observeStatus
  {
   void *videoHandle;
   int width,height;
-  unsigned char *mask;
+  const unsigned char *mask;
+  const char *label;
   int (*fetchFrame)(void *,unsigned char *,double *);
   float fps;
   int frameSize;
@@ -62,7 +68,7 @@ typedef struct observeStatus
 
   // Buffers used while checking for triggers, to give a visual report on why triggers occur when they do
   int *triggerMap;
-  int *triggerBlock;
+  int *triggerBlock_N, *triggerBlock_sumx, *triggerBlock_sumy, *triggerBlock_suml, *triggerBlock_redirect;
   unsigned char *triggerRGB;
 
   int groupNum; // Flag for whether we're feeding images into stackA or stackB
@@ -78,9 +84,11 @@ typedef struct observeStatus
   event eventList[MAX_EVENTS];
  } observeStatus;
 
-char *fNameGenerate  (int utc, const char *cameraId, char *tag, const char *dirname, const char *label);
-void  readFrameGroup (void *videoHandle, int nfr, int width, int height, unsigned char *buffer, int *stack1, int *stack2, unsigned char *maxMap, unsigned char *medianWorkspace, double *utc, int (*fetchFrame)(void *,unsigned char *,double *));
+char *fNameGenerate  (char *output, const char *cameraId, double utc, char *tag, const char *dirname, const char *label);
+int   readFrameGroup (observeStatus *os, unsigned char *buffer, int *stack1, int *stack2);
 int   observe        (void *videoHandle, const char *cameraId, const int utcoffset, const int tstart, const int tstop, const int width, const int height, const char *label, const unsigned char *mask, int (*fetchFrame)(void *,unsigned char *,double *), int (*rewindVideo)(void *, double *));
+void registerTrigger(observeStatus *os, const int xpos, const int ypos, const int npixels, const int amplitude, const int *image1, const int *image2, const int coAddedFrames);
+void registerTriggerEnds(observeStatus *os);
 
 #endif
 

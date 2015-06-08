@@ -26,10 +26,10 @@ double calculateSkyClarity(image_ptr *img);
 double estimateNoiseLevel (int width, int height, unsigned char *buffer, int Nframes);
 void  medianCalculate     (const int width, const int height, const int channels, int *medianWorkspace, unsigned char *medianMap);
 
-int dumpFrame(int width, int height, int channels, unsigned char *buffer, char *fName);
-int dumpFrameFromInts(int width, int height, int channels, int *buffer, int nfr, int gain, char *fName);
-int dumpFrameFromISub(int width, int height, int channels, int *buffer, int nfr, int gain, unsigned char *buffer2, char *fName);
-int dumpVideo(int width, int height, unsigned char *buffer1, int buffer1frames, unsigned char *buffer2, int buffer2frames, char *fName);
+int dumpFrame(int width, int height, int channels, const unsigned char *buffer, char *fName);
+int dumpFrameFromInts(int width, int height, int channels, const int *buffer, int nfr, int gain, char *fName);
+int dumpFrameFromISub(int width, int height, int channels, const int *buffer, int nfr, int gain, const unsigned char *buffer2, char *fName);
+int dumpVideo(int width, int height, const unsigned char *buffer1, int buffer1frames, const unsigned char *buffer2, int buffer2frames, char *fName);
 
 #endif
 

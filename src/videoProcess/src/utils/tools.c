@@ -157,7 +157,7 @@ double estimateNoiseLevel (int width, int height, unsigned char *buffer, int Nfr
      }
    }
 
-  double sd_sum;
+  double sd_sum=0;
   for (i=0; i<NStudyPixels; i++)
    {
     double mean = sum_y[i] / ((double)NStudyPixels);
@@ -188,7 +188,7 @@ void medianCalculate(const int width, const int height, const int channels, int 
   return;
  }
 
-int dumpFrame(int width, int height, int channels, unsigned char *buffer, char *fName)
+int dumpFrame(int width, int height, int channels, const unsigned char *buffer, char *fName)
  {
   FILE *outfile;
   const int frameSize = width*height;
@@ -206,7 +206,7 @@ int dumpFrame(int width, int height, int channels, unsigned char *buffer, char *
   return 0;
  }
 
-int dumpFrameFromInts(int width, int height, int channels, int *buffer, int nfr, int gain, char *fName)
+int dumpFrameFromInts(int width, int height, int channels, const int *buffer, int nfr, int gain, char *fName)
  {
   FILE *outfile;
   int frameSize = width*height;
@@ -232,7 +232,7 @@ int dumpFrameFromInts(int width, int height, int channels, int *buffer, int nfr,
   return 0;
  }
 
-int dumpFrameFromISub(int width, int height, int channels, int *buffer, int nfr, int gain, unsigned char *buffer2, char *fName)
+int dumpFrameFromISub(int width, int height, int channels, const int *buffer, int nfr, int gain, const unsigned char *buffer2, char *fName)
  {
   FILE *outfile;
   int frameSize = width*height;
@@ -259,7 +259,7 @@ int dumpFrameFromISub(int width, int height, int channels, int *buffer, int nfr,
  }
 
 
-int dumpVideo(int width, int height, unsigned char *buffer1, int buffer1frames, unsigned char *buffer2, int buffer2frames, char *fName)
+int dumpVideo(int width, int height, const unsigned char *buffer1, int buffer1frames, const unsigned char *buffer2, int buffer2frames, char *fName)
  {
   const int frameSize = width*height*1.5;
   const int blen = sizeof(int) + 2*sizeof(int) + (buffer1frames+buffer2frames)*frameSize;
