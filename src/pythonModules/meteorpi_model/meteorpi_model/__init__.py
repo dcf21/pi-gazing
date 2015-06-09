@@ -441,6 +441,7 @@ class Event(ModelEqualityMixin):
             event_time,
             event_id,
             event_type,
+            status_id,
             file_records=None,
             meta=None):
         """
@@ -462,6 +463,8 @@ class Event(ModelEqualityMixin):
         self.event_id = event_id
         self.event_time = event_time
         self.event_type = event_type
+        # UUID of the camera status
+        self.status_id = status_id
         # Sequence of FileRecord
         if file_records is None:
             self.file_records = []
@@ -488,6 +491,7 @@ class Event(ModelEqualityMixin):
         _add_value(d, 'camera_id', self.camera_id)
         _add_datetime(d, 'event_time', self.event_time)
         _add_string(d, 'event_type', self.event_type)
+        _add_uuid(d, 'status_id', self.status_id)
         d['files'] = list(fr.as_dict() for fr in self.file_records)
         d['meta'] = list(fm.as_dict() for fm in self.meta)
         return d
@@ -499,14 +503,15 @@ class Event(ModelEqualityMixin):
                      event_time=_datetime_from_dict(d, 'event_time'),
                      event_type=NSString.from_string(_string_from_dict(d, 'event_type')),
                      file_records=list(FileRecord.from_dict(frd) for frd in d['files']),
-                     meta=list((Meta.from_dict(m) for m in d['meta'])))
+                     meta=list((Meta.from_dict(m) for m in d['meta'])),
+                     status_id=_uuid_from_dict(d, 'status_id'))
 
 
 class FileRecord(ModelEqualityMixin):
     """A piece of binary data with associated metadata, typically used to store
     an image or video from the camera."""
 
-    def __init__(self, camera_id, mime_type, semantic_type, file_name=None):
+    def __init__(self, camera_id, mime_type, semantic_type, status_id, file_name=None):
         self.camera_id = camera_id
         self.mime_type = mime_type
         # NSString value
@@ -515,12 +520,13 @@ class FileRecord(ModelEqualityMixin):
         self.file_id = None
         self.file_time = None
         self.file_size = 0
+        self.status_id = status_id
         self.file_name = file_name
 
     def __str__(self):
         return (
             'FileRecord(file_id={0} camera_id={1} mime={2} '
-            'stype={3} time={4} size={5} meta={6}, name={7}'.format(
+            'stype={3} time={4} size={5} meta={6}, name={7}, status_id={8}'.format(
                 self.file_id.hex,
                 self.camera_id,
                 self.mime_type,
@@ -528,7 +534,8 @@ class FileRecord(ModelEqualityMixin):
                 self.file_time,
                 self.file_size,
                 str([str(obj) for obj in self.meta]),
-                self.file_name))
+                self.file_name,
+                self.status_id))
 
     def as_dict(self):
         d = {}
@@ -539,6 +546,7 @@ class FileRecord(ModelEqualityMixin):
         _add_string(d, 'semantic_type', str(self.semantic_type))
         _add_datetime(d, 'file_time', self.file_time)
         _add_value(d, 'file_size', self.file_size)
+        _add_uuid(d, 'status_id', self.status_id)
         d['meta'] = list(fm.as_dict() for fm in self.meta)
         return d
 
@@ -547,7 +555,8 @@ class FileRecord(ModelEqualityMixin):
         fr = FileRecord(
             camera_id=_string_from_dict(d, 'camera_id'),
             mime_type=_string_from_dict(d, 'mime_type'),
-            semantic_type=NSString.from_string(_string_from_dict(d, 'semantic_type'))
+            semantic_type=NSString.from_string(_string_from_dict(d, 'semantic_type')),
+            status_id=_uuid_from_dict(d, 'status_id')
         )
         fr.file_size = int(_value_from_dict(d, 'file_size'))
         fr.file_time = _datetime_from_dict(d, 'file_time')
@@ -706,7 +715,7 @@ class CameraStatus(ModelEqualityMixin):
 
     """
 
-    def __init__(self, lens, sensor, inst_url, inst_name, orientation, location, status_id=None):
+    def __init__(self, lens, sensor, inst_url, inst_name, orientation, location, camera_id, status_id=None):
         self.lens = lens
         self.sensor = sensor
         self.inst_url = inst_url
@@ -717,12 +726,13 @@ class CameraStatus(ModelEqualityMixin):
         self.valid_from = None
         self.valid_to = None
         self.regions = []
+        self.camera_id = camera_id
         self.status_id = status_id
 
     def __str__(self):
         return (
             'CameraStatus(location={0}, orientation={1}, validFrom={2},'
-            'validTo={3}, version={4}, lens={5}, sensor={6}, regions={7})'.format(
+            'validTo={3}, version={4}, lens={5}, sensor={6}, regions={7}, id={8})'.format(
                 self.location,
                 self.orientation,
                 self.valid_from,
@@ -730,7 +740,8 @@ class CameraStatus(ModelEqualityMixin):
                 self.software_version,
                 self.lens,
                 self.sensor,
-                self.regions))
+                self.regions,
+                self.camera_id))
 
     def add_region(self, r):
         a = iter(r)
@@ -755,6 +766,7 @@ class CameraStatus(ModelEqualityMixin):
                             'rot': self.orientation.rotation,
                             'width': self.orientation.width_of_field}
         d['regions'] = self.regions
+        _add_string(d, 'camera_id', self.camera_id)
         _add_uuid(d, 'status_id', self.status_id)
         return d
 
@@ -775,6 +787,7 @@ class CameraStatus(ModelEqualityMixin):
                                             longitude=_value_from_dict(ld, 'long'),
                                             gps=_value_from_dict(ld, 'gps'),
                                             error=_value_from_dict(ld, 'error')),
+                          camera_id=_string_from_dict(d, 'camera_id'),
                           status_id=_uuid_from_dict(d, 'status_id'))
         cs.valid_from = _datetime_from_dict(d, 'valid_from')
         cs.valid_to = _datetime_from_dict(d, 'valid_to')
