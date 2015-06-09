@@ -6,6 +6,17 @@ from itertools import izip
 import numbers
 
 
+def _nsstring_from_dict(d, key, default=None):
+    if key in d:
+        return NSString.from_string(d[key])
+    else:
+        return default
+
+
+def _boolean_from_dict(d, key):
+    return key in d and d[key] == 1
+
+
 def _string_from_dict(d, key, default=None):
     if key in d:
         return str(d[key])
@@ -54,6 +65,16 @@ def _add_datetime(d, key, datetime_value):
 def _add_value(d, key, value):
     if value is not None:
         d[key] = value
+
+
+def _add_boolean(d, key, value):
+    if value:
+        d[key] = 1
+
+
+def _add_nsstring(d, key, value):
+    if value is not None:
+        d[key] = str(value)
 
 
 class ModelEqualityMixin():
@@ -164,7 +185,7 @@ class FileRecordSearch(ModelEqualityMixin):
     """Encapsulates the possible parameters which can be used to search for FileRecord instances"""
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
-                 before=None, mime_type=None, semantic_type=None, exclude_events=False, latest=False, after_offset=None,
+                 before=None, mime_type=None, semantic_type=None, exclude_events=False, after_offset=None,
                  before_offset=None, meta_constraints=None, limit=100, skip=0):
         """
         :param camera_ids: Optional - if specified, restricts results to only those the the specified camera IDs.
@@ -184,9 +205,6 @@ class FileRecordSearch(ModelEqualityMixin):
             The type of this value should be an instance of NSString
         :param exclude_events: Optional - if True then files associated with an Event will be excluded from the results,
             otherwise files will be included whether they are associated with an Event or not.
-        :param latest: Optional - if True then only the latest file will be returned rather than all matching files.
-            This complicates the internal querying process, but might be useful when your result set would otherwise
-            be unreasonably large and you only actually want the latest (in terms of file time) result.
         :param after_offset: Optional - if specified this defines a lower bound on the time of day of the file time,
             irrespective of the date of the file. This can be used to e.g. only return files which were produced after
             2am on any given day. Specified as seconds since the previous mid-day.
@@ -230,8 +248,6 @@ class FileRecordSearch(ModelEqualityMixin):
         self.semantic_type = semantic_type
         # Boolean, set to true to prevent files associated with events from appearing in the results
         self.exclude_events = exclude_events
-        # Boolean, set to true to only return the latest file or files matched by the other criteria
-        self.latest = latest
         # FileMeta constraints
         if meta_constraints is None:
             self.meta_constraints = []
@@ -260,12 +276,8 @@ class FileRecordSearch(ModelEqualityMixin):
         _add_string(d, 'mime_type', self.mime_type)
         _add_value(d, 'skip', self.skip)
         _add_value(d, 'limit', self.limit)
-        if self.semantic_type is not None:
-            _add_string(d, 'semantic_type', str(self.semantic_type))
-        if self.exclude_events:
-            d['exclude_events'] = 1
-        if self.latest:
-            d['latest'] = 1
+        _add_nsstring(d, 'semantic_type', self.semantic_type)
+        _add_boolean(d, 'exclude_events', self.exclude_events)
         d['meta_constraints'] = list((x.as_dict() for x in self.meta_constraints))
         return d
 
@@ -283,7 +295,8 @@ class FileRecordSearch(ModelEqualityMixin):
         mime_type = _string_from_dict(d, 'mime_type')
         skip = _value_from_dict(d, 'skip', 0)
         limit = _value_from_dict(d, 'limit', 100)
-        semantic_type = NSString.from_string(_string_from_dict(d, 'semantic_type'))
+        semantic_type = _nsstring_from_dict(d, 'semantic_type')
+        exclude_events = _boolean_from_dict(d, 'exclude_events')
         if 'meta_constraints' in d:
             meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta_constraints']))
         else:
@@ -292,8 +305,7 @@ class FileRecordSearch(ModelEqualityMixin):
                                 long_max=long_max, after=after, before=before, after_offset=after_offset,
                                 before_offset=before_offset, mime_type=mime_type,
                                 semantic_type=semantic_type,
-                                exclude_events='exclude_events' in d and d['exclude_events'],
-                                latest='latest' in d and d['latest'],
+                                exclude_events=exclude_events,
                                 meta_constraints=meta_constraints, limit=limit, skip=skip)
 
 
@@ -490,7 +502,7 @@ class Event(ModelEqualityMixin):
         _add_uuid(d, 'event_id', self.event_id)
         _add_value(d, 'camera_id', self.camera_id)
         _add_datetime(d, 'event_time', self.event_time)
-        _add_string(d, 'event_type', self.event_type)
+        _add_nsstring(d, 'event_type', self.event_type)
         _add_uuid(d, 'status_id', self.status_id)
         d['files'] = list(fr.as_dict() for fr in self.file_records)
         d['meta'] = list(fm.as_dict() for fm in self.meta)
@@ -501,7 +513,7 @@ class Event(ModelEqualityMixin):
         return Event(camera_id=_value_from_dict(d, 'camera_id'),
                      event_id=_uuid_from_dict(d, 'event_id'),
                      event_time=_datetime_from_dict(d, 'event_time'),
-                     event_type=NSString.from_string(_string_from_dict(d, 'event_type')),
+                     event_type=_nsstring_from_dict(d, 'event_type'),
                      file_records=list(FileRecord.from_dict(frd) for frd in d['files']),
                      meta=list((Meta.from_dict(m) for m in d['meta'])),
                      status_id=_uuid_from_dict(d, 'status_id'))
@@ -543,7 +555,7 @@ class FileRecord(ModelEqualityMixin):
         _add_string(d, 'camera_id', self.camera_id)
         _add_string(d, 'mime_type', self.mime_type)
         _add_string(d, 'file_name', self.file_name)
-        _add_string(d, 'semantic_type', str(self.semantic_type))
+        _add_nsstring(d, 'semantic_type', self.semantic_type)
         _add_datetime(d, 'file_time', self.file_time)
         _add_value(d, 'file_size', self.file_size)
         _add_uuid(d, 'status_id', self.status_id)
@@ -555,7 +567,7 @@ class FileRecord(ModelEqualityMixin):
         fr = FileRecord(
             camera_id=_string_from_dict(d, 'camera_id'),
             mime_type=_string_from_dict(d, 'mime_type'),
-            semantic_type=NSString.from_string(_string_from_dict(d, 'semantic_type')),
+            semantic_type=_nsstring_from_dict(d, 'semantic_type'),
             status_id=_uuid_from_dict(d, 'status_id')
         )
         fr.file_size = int(_value_from_dict(d, 'file_size'))
@@ -614,7 +626,7 @@ class Meta(ModelEqualityMixin):
             _add_value(d, "value", self.value)
         elif type == "string":
             _add_string(d, "value", self.value)
-        return d;
+        return d
 
     @staticmethod
     def from_dict(d):

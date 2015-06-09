@@ -88,7 +88,7 @@ class TestClient(TestCase):
              'expect': 'e0:f0,e0:f1,e1:f0,e1:f1,e1:f2,e1:f3,f10,f11,f6,f7,f8,f9'},
             {'search': model.FileRecordSearch(exclude_events=True),
              'expect': 'f10,f11,f6,f7,f8,f9'},
-            {'search': model.FileRecordSearch(exclude_events=True, latest=True, camera_ids=dummy.CAMERA_1),
+            {'search': model.FileRecordSearch(exclude_events=True, limit=1, camera_ids=dummy.CAMERA_1),
              'expect': 'f7'},
             {'search': model.FileRecordSearch(camera_ids=dummy.CAMERA_1,
                                               meta_constraints=[model.MetaConstraint(constraint_type='less',

@@ -213,12 +213,6 @@ class MeteorDatabase:
             sql += 'SKIP {0} '.format(search.skip)
         sql += 'f.internalID ' \
                'FROM t_file f, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
-        # If the latest flag is set then add an additional inner clause
-        if search.latest:
-            sql += ' AND f.fileTime = (SELECT MAX(f.fileTime) ' \
-                   'FROM t_file f, t_cameraStatus s WHERE ' + \
-                   (' AND '.join(where_clauses)) + ')'
-            sql_args.extend(sql_args)
         sql += ' ORDER BY f.fileTime DESC'
 
         cur = self.con.cursor()
@@ -228,10 +222,6 @@ class MeteorDatabase:
         total_rows = rows_returned + search.skip
         if (search.limit > 0 and rows_returned == search.limit) or (rows_returned == 0 and search.skip > 0):
             count_sql = 'SELECT count(*) FROM t_file f, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
-            if search.latest:
-                count_sql += ' AND f.fileTime = (SELECT MAX(f.fileTime) ' \
-                             'FROM t_file f, t_cameraStatus s WHERE ' + \
-                             (' AND '.join(where_clauses)) + ')'
             count_cur = self.con.cursor()
             count_cur.execute(count_sql, sql_args)
             total_rows = count_cur.fetchone()[0]
@@ -239,28 +229,20 @@ class MeteorDatabase:
         return {"count": total_rows,
                 "files": (self.get_file(internal_id=x['internalID']) for x in file_map)}
 
-    def get_events(self, event_id=None, internal_ids=None, cursor=None):
+    def get_events(self, event_id=None, cursor=None):
         """Retrieve Events by an eventID, set of internalIDs or by a cursor
         which should contain a result set of rows from t_event."""
-        if event_id is None and internal_ids is None and cursor is None:
+        if event_id is None and cursor is None:
             raise ValueError(
-                'Must specify one of eventID, internalIDs or cursor!')
+                'Must specify one of eventID or cursor!')
         # If we have a cursor use it, otherwise get one.
-        if cursor is None:
+        if cursor is None and event_id is not None:
             _cur = self.con.cursor()
-            if event_id is not None:
-                # Use event ID
-                _cur.execute(
-                    'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, '
-                    'e.eventType, s.statusID '
-                    'FROM t_event e, t_cameraStatus s '
-                    'WHERE e.eventID = (?) AND s.internalID = e.statusID', (event_id.bytes,))
-            else:
-                _cur.execute(
-                    'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, '
-                    'e.eventType, s.statusID '
-                    'FROM t_event e, t_cameraStatus s '
-                    'WHERE e.internalID IN (?) AND s.internalID = e.statusID', (internal_ids,))
+            _cur.execute(
+                'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, '
+                'e.eventType, s.statusID '
+                'FROM t_event e, t_cameraStatus s '
+                'WHERE e.eventID = (?) AND s.internalID = e.statusID', (event_id.bytes,))
         else:
             _cur = cursor
         events = {}
@@ -309,9 +291,13 @@ class MeteorDatabase:
             camera_id,
             event_time,
             event_type,
-            file_records=[],
-            event_meta=[]):
+            file_records=None,
+            event_meta=None):
         """Register a new row in t_event, returning the Event object."""
+        if file_records is None:
+            file_records = []
+        if event_meta is None:
+            event_meta = []
         status_id = self._get_camera_status_id(camera_id=camera_id, time=event_time)
         if status_id is None:
             raise ValueError('No status defined for camera id <%s> at time <%s>!' % (camera_id, event_time))
@@ -731,6 +717,11 @@ class MeteorDatabase:
         else:
             raise ValueError("Incorrect password")
 
+    def get_users(self):
+        cur = self.con.cursor()
+        cur.execute('SELECT userID, roleMask FROM t_user ORDER BY userID ASC')
+        return list(mp.User(user_id=row['userID'], role_mask=row['roleMask]']) for row in cur.fetchallmap)
+
     def create_or_update_user(self, user_id, password, roles):
         """
         Create a new user record, or update an existing one
@@ -759,6 +750,11 @@ class MeteorDatabase:
         else:
             self.con.commit()
             return "update"
+
+    def delete_user(self, user_id):
+        cur = self.con.cursor()
+        cur.execute('DELETE FROM t_user WHERE userID = (?)', (user_id,))
+        self.con.commit()
 
     def clear_database(self):
         """
