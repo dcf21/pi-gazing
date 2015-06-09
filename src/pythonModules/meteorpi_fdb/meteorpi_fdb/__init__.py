@@ -525,8 +525,8 @@ class MeteorDatabase:
             'INSERT INTO t_cameraStatus (cameraID, validFrom, validTo, '
             'softwareVersion, orientationAltitude, orientationAzimuth, '
             'orientationRotation, orientationError, widthOfField, locationLatitude, locationLongitude, '
-            'locationGPS, lens, sensor, instURL, instName, locationError, statusID) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
+            'locationGPS, lens, sensor, instURL, instName, locationError) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
             'RETURNING internalID',
             (camera_id,
              time,
@@ -544,8 +544,7 @@ class MeteorDatabase:
              ns.sensor,
              ns.inst_url,
              ns.inst_name,
-             ns.location.error,
-             ns.status_id))
+             ns.location.error))
         # Retrieve the newly created internal ID for the status block, use this to
         # insert visible regions
         status_internal_id = cur.fetchone()[0]
