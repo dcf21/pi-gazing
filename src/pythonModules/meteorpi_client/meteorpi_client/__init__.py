@@ -2,6 +2,7 @@ import time
 import json
 import urllib
 
+import types
 import requests
 from yaml import safe_load
 import meteorpi_model as model
@@ -45,7 +46,8 @@ class MeteorClient():
         response_object = safe_load(response.text)
         event_dicts = response_object['events']
         event_count = response_object['count']
-        return {'count': event_count, 'events': list(model.Event.from_dict(d) for d in event_dicts)}
+        return {'count': event_count,
+                'events': list((self._augment_event_files(e) for e in (model.Event.from_dict(d) for d in event_dicts)))}
 
     def search_files(self, search=None):
         if search is None:
@@ -55,7 +57,37 @@ class MeteorClient():
         response_object = safe_load(response.text)
         file_dicts = response_object['files']
         file_count = response_object['count']
-        return {'count': file_count, 'files': list(model.FileRecord.from_dict(d) for d in file_dicts)}
+        return {'count': file_count,
+                'files': list((self._augment_file(f) for f in (model.FileRecord.from_dict(d) for d in file_dicts)))}
+
+    def _augment_file(self, f):
+        """Augment a FileRecord with methods to get the data URL and to download, returning the updated file for use
+        in generator functions"""
+        # Placeholder
+        def get_url(target):
+            if target.file_size is None:
+                return None
+            return self.base_url + '/files/content/{0}/{1}'.format(target.file_id.hex, target.file_name)
+
+        f.get_url = types.MethodType(get_url, f)
+
+        def download_to(target, file_name):
+            url = target.get_url()
+            r = requests.get(url, stream=True)
+            with open(file_name, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=1024):
+                    if chunk:  # filter out keep-alive new chunks
+                        f.write(chunk)
+                        f.flush()
+            return file_name
+
+        f.download_to = types.MethodType(download_to, f)
+        return f
+
+    def _augment_event_files(self, e):
+        """Augment all the file records in an event"""
+        e.file_records = list(self._augment_file(f) for f in e.file_records)
+        return e
 
 
 def _datetime_string(t):
