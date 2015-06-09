@@ -70,6 +70,22 @@ def build_app(db):
     def login():
         return jsonify({'user': get_user().as_dict()})
 
+    @app.route('/cameras/<camera_id>/status', methods=['POST'])
+    @requires_auth(roles=['camera_admin'])
+    def update_camera_status(camera_id):
+        update = safe_load(request.get_data())
+        status = db.get_camera_status(camera_id=camera_id)
+        if status is None:
+            return 'No active camera with ID {0}'.format(camera_id), 404
+        else:
+            status.inst_name = update["inst_name"]
+            status.inst_url = update["inst_url"]
+            status.regions = update["regions"]
+            db.update_camera_status(ns=status, camera_id=camera_id)
+            # Update status and push changes to DB
+            new_status = db.get_camera_status(camera_id=camera_id)
+            return jsonify({'status': new_status.as_dict()})
+
     @app.route('/cameras', methods=['GET'])
     def get_active_cameras():
         cameras = db.get_cameras()

@@ -81,6 +81,13 @@ define(['knockout', 'text!./region-editor.html', 'jquery'], function (ko, templa
             jquery(self.imageElement).css("top", marginWidth + "px").css("left", marginWidth + "px");
             self.ctx = self.canvasElement.getContext("2d");
             self.polygons = params.polygons;
+            if (ko.isObservable(params.polygons)) {
+                self.polygonsSubscription = self.polygons.subscribe(function (newValue) {
+                    self.draggedPoint = null;
+                    self.activePolygon = null;
+                    self.drawCanvas();
+                });
+            }
             self.imageURL = params.imageURL;
             self.imageURLSubscription = null;
             self.draggedPoint = null;
@@ -321,8 +328,11 @@ define(['knockout', 'text!./region-editor.html', 'jquery'], function (ko, templa
          */
         RegionEditor.prototype.dispose = function () {
             var self = this;
-            if (self.imageURLSubscription != null) {
+            if (self.imageURLSubscription) {
                 self.imageURLSubscription.dispose();
+            }
+            if (self.polygonsSubscription) {
+                self.polygonsSubscription.dispose();
             }
         };
 

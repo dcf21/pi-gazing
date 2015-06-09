@@ -20,6 +20,9 @@ define(["jquery", "knockout"], function (jquery, ko) {
         self.user = ko.observable();
 
         var ajaxAuth = function (uri, method, data) {
+            if (method == null) {
+                method = "GET"
+            }
             var request = {
                 beforeSend: function (xhr) {
                     xhr.setRequestHeader("Authorization",
@@ -30,13 +33,18 @@ define(["jquery", "knockout"], function (jquery, ko) {
                 contentType: "application/json",
                 accepts: "application/json",
                 cache: false,
-                dataType: 'json',
-                data: JSON.stringify(data)
+                dataType: 'json'
             };
+            if (data != null) {
+                request.data = JSON.stringify(data)
+            }
             return jquery.ajax(request)
         };
 
         var ajax = function (uri, method, data) {
+            if (method == null) {
+                method = "GET"
+            }
             var request = {
                 url: config.urlPrefix + uri,
                 type: method,
@@ -232,8 +240,13 @@ define(["jquery", "knockout"], function (jquery, ko) {
          * @param callback callback called with (err:string, status:{})
          */
         self.getStatus = function (cameraID, date, callback) {
-            applyCallback(ajax("cameras/" + cameraID + "/status" + (date == null ? "" : date.getTime())), "status", callback)
+            applyCallback(ajax("cameras/" + cameraID + "/status" + (date == null ? "" : "/" + date.getTime()), "GET"), "status", callback)
         };
+
+        self.updateCameraStatus = function (cameraID, newStatus, callback) {
+            applyCallback(ajaxAuth("cameras/" + cameraID + "/status", "POST", newStatus), "status", callback)
+        };
+
 
         /**
          * Build and return a pure computed knockout observable which wraps up a supplied observable containing a time

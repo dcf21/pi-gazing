@@ -24,8 +24,9 @@ define(["knockout", "crossroads", "hasher", "client"], function (ko, crossroads,
             });
         });
 
-        /** Check for permissions when we change route, including on startup. Attempt to log in if we
-         *  haven't already, delay doing this until the first time we're routed to prevent race conditions.
+        /**
+         * Check for permissions when we change route, including on startup. Attempt to log in if we
+         * haven't already, delay doing this until the first time we're routed to prevent race conditions.
          */
         crossroads.routed.add(function (request, data) {
             var attemptedLogin = false;
@@ -65,11 +66,19 @@ define(["knockout", "crossroads", "hasher", "client"], function (ko, crossroads,
         activateCrossroads();
     }
 
+    /**
+     * Call to explicitly navigate to a named page.
+     * @param name name for the page, passed as a key in the dict used to initialise the Router
+     * @param params params to interpolate into the route for that page
+     */
     Router.prototype.goTo = function (name, params) {
         var newHash = this.routes[name].interpolate(params);
         hasher.setHash(newHash);
     };
 
+    /**
+     * Bind hasher and crossroads so crossroads handles changes to the hash part of the URL
+     */
     function activateCrossroads() {
         function parseHash(newHash, oldHash) {
             crossroads.parse(newHash);
@@ -81,6 +90,9 @@ define(["knockout", "crossroads", "hasher", "client"], function (ko, crossroads,
         hasher.init();
     }
 
+    /**
+     * Routes configured here, including role restrictions
+     */
     return new Router({
         routes: [
             {name: 'home', url: '', params: {page: 'home-page'}},
@@ -89,7 +101,7 @@ define(["knockout", "crossroads", "hasher", "client"], function (ko, crossroads,
             {name: 'files', url: 'files/:search:', params: {page: 'files-page'}},
             {name: 'events', url: 'events/:search:', params: {page: 'events-page'}},
             {name: 'admin-camera', url: 'admin/camera', params: {page: 'admin-camera-page', role: 'camera_admin'}},
-            {name: 'admin-users', url: 'admin/users', params: {page: 'admin-users-page'}}
+            {name: 'admin-users', url: 'admin/users', params: {page: 'admin-users-page', role: 'camera_admin'}}
         ]
     });
 
