@@ -1,4 +1,4 @@
-define(["knockout", "crossroads", "hasher"], function (ko, crossroads, hasher) {
+define(["knockout", "crossroads", "hasher", "client"], function (ko, crossroads, hasher, client) {
 
     // This module configures crossroads.js, a routing library. If you prefer, you
     // can use any other routing library (or none at all) as Knockout is designed to
@@ -14,11 +14,54 @@ define(["knockout", "crossroads", "hasher"], function (ko, crossroads, hasher) {
         var self = this;
         var currentRoute = this.currentRoute = ko.observable({});
         this.routes = {};
+
+        /**
+         * Push routes into a dict, allowing us to use the goTo functionality later
+         */
         ko.utils.arrayForEach(config.routes, function (route) {
             self.routes[route.name] = crossroads.addRoute(route.url, function (requestParams) {
                 currentRoute(ko.utils.extend(requestParams, route.params));
             });
         });
+
+        /** Check for permissions when we change route, including on startup. Attempt to log in if we
+         *  haven't already, delay doing this until the first time we're routed to prevent race conditions.
+         */
+        crossroads.routed.add(function (request, data) {
+            var attemptedLogin = false;
+            var checkPermissions = function () {
+                if (data.params[0].role) {
+                    var userRoles = client.user() == null ? [] : client.user().roles;
+                    if (userRoles.indexOf(data.params[0].role) < 0) {
+                        self.goTo("home");
+                    }
+                }
+            };
+            if (attemptedLogin) {
+                checkPermissions();
+            }
+            else {
+                client.tryAutoLogin(function () {
+                    attemptedLogin = true;
+                    checkPermissions();
+                })
+            }
+        });
+
+        /**
+         * Explicitly subscribe to the client.user observable to detect logout, at which point check the route
+         * permissions and redirect to the home if needed.
+         */
+        client.user.subscribe(function (newValue) {
+            if (newValue == null) {
+                var requiredRoles = currentRoute() == null ? null : currentRoute().role;
+                if (requiredRoles != null) {
+                    self.goTo("home");
+                }
+            }
+        });
+
+        /** Go */
         activateCrossroads();
     }
 
@@ -45,7 +88,7 @@ define(["knockout", "crossroads", "hasher"], function (ko, crossroads, hasher) {
             {name: 'status', url: 'status', params: {page: 'status-page'}},
             {name: 'files', url: 'files/:search:', params: {page: 'files-page'}},
             {name: 'events', url: 'events/:search:', params: {page: 'events-page'}},
-            {name: 'admin-camera', url: 'admin/camera', params: {page: 'admin-camera-page'}},
+            {name: 'admin-camera', url: 'admin/camera', params: {page: 'admin-camera-page', role: 'camera_admin'}},
             {name: 'admin-users', url: 'admin/users', params: {page: 'admin-users-page'}}
         ]
     });

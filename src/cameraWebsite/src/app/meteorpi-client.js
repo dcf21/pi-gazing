@@ -145,17 +145,37 @@ define(["jquery", "knockout"], function (jquery, ko) {
                     self.username = null;
                     self.password = null;
                     self.user(null);
-                    callback(null);
+                    if (callback) {
+                        callback(null);
+                    }
                 }
                 if (user) {
                     self.user(user);
-                    callback(user)
+                    if (typeof(Storage) !== "undefined") {
+                        localStorage.setItem("meteorpiUser", username);
+                        localStorage.setItem("meteorpiPassword", password);
+                    }
+                    if (callback) {
+                        callback(user)
+                    }
                 }
             });
         };
 
+        self.tryAutoLogin = function (callback) {
+            if (typeof(Storage) !== "undefined" && localStorage.meteorpiUser) {
+                self.login(localStorage.meteorpiUser, localStorage.meteorpiPassword, callback);
+            } else {
+                callback(null);
+            }
+        };
+
         self.logout = function () {
             self.user(null);
+            if (typeof(Storage) !== "undefined") {
+                localStorage.removeItem("meteorpiUser");
+                localStorage.removeItem("meteorpiPassword");
+            }
         };
 
         /**

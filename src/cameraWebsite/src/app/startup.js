@@ -1,4 +1,4 @@
-define(['jquery', 'knockout', 'router', 'bootstrap', 'knockout-projections', 'kendo', 'kendobindings', 'chart', 'knockout-postbox'], function ($, ko, router) {
+define(['jquery', 'knockout', 'router', 'client', 'bootstrap', 'knockout-projections', 'kendo', 'kendobindings', 'chart', 'knockout-postbox'], function ($, ko, router, client) {
 
     // Components can be packaged as AMD modules, such as the following:
     ko.components.register('nav-bar', {require: 'components/nav-bar/nav-bar'});
@@ -29,4 +29,6 @@ define(['jquery', 'knockout', 'router', 'bootstrap', 'knockout-projections', 'ke
 
     // Start the application
     ko.applyBindings({route: router.currentRoute});
+
+
 });
