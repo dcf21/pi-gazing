@@ -61,7 +61,7 @@ gulp.task('css', function () {
 });
 
 gulp.task('images', function () {
-    return gulp.src('src/bower_modules/kendo-ui-core/web/styles/Bootstrap/sprite*').pipe(gulp.dest('./dist/Bootstrap/'));
+    return gulp.src('src/bower_modules/kendo-ui-core/styles/Bootstrap/sprite*').pipe(gulp.dest('./dist/Bootstrap/'));
 });
 
 // Copies index.html, replacing <script> and <link> tags to reference production URLs

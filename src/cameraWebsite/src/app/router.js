@@ -24,12 +24,14 @@ define(["knockout", "crossroads", "hasher", "client"], function (ko, crossroads,
             });
         });
 
+        var attemptedLogin = false;
+
         /**
          * Check for permissions when we change route, including on startup. Attempt to log in if we
          * haven't already, delay doing this until the first time we're routed to prevent race conditions.
          */
         crossroads.routed.add(function (request, data) {
-            var attemptedLogin = false;
+
             var checkPermissions = function () {
                 if (data.params[0].role) {
                     var userRoles = client.user() == null ? [] : client.user().roles;
