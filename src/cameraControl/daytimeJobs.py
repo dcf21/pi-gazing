@@ -170,7 +170,7 @@ try:
       runJobGrp(jobGrp)
       highWaterMarks[HWMout] = jobList[jobListLen-1]['utc']+HWMmargin
       logTxt("Completed %d jobs"%len(jobList))
-      # os.system("rm -f /tmp/triggermask_%d_*"%(os.getpid())) # Delete trigger masks that we've finished with
+      os.system("rm -f /tmp/triggermask_%d_*"%(os.getpid())) # Delete trigger masks that we've finished with
 
 except TimeOut:
       logTxt("Interrupting processing as we've run out of time")

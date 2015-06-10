@@ -29,6 +29,7 @@ for cameraId in cameraList:
   print "%s\n  * %s\n  * High water mark: %s"%(cameraId,fdb_handle.get_camera_status(camera_id=cameraId),fdb_handle.get_high_water_mark(camera_id=cameraId))
   search = mp.EventSearch(camera_ids=[cameraId],before=tmax,after=tmin)
   triggers = fdb_handle.search_events(search)
+  triggers = triggers['events']
   triggers.sort(key=lambda x: x.event_time)
   print "  * %d matching triggers in time range %s --> %s"%(len(triggers),tmin,tmax)
   for event in triggers:

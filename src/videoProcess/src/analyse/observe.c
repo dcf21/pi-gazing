@@ -111,6 +111,7 @@ int readFrameGroup(observeStatus *os, unsigned char *buffer, int *stack1, int *s
 
 int observe(void *videoHandle, const char *cameraId, const int utcoffset, const int tstart, const int tstop, const int width, const int height, const char *label, const unsigned char *mask, int (*fetchFrame)(void *,unsigned char *,double *), int (*rewindVideo)(void *, double *))
  {
+  int i;
   char line[FNAME_LENGTH],line2[FNAME_LENGTH],line3[FNAME_LENGTH];
 
   if (DEBUG) { sprintf(line, "Starting observing run at %s; observing run will end at %s.", StrStrip(FriendlyTimestring(tstart),line2),StrStrip(FriendlyTimestring(tstop),line3)); gnom_log(line); }
@@ -135,8 +136,11 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
   os->buffNFrames    = os->buffNGroups * TRIGGER_FRAMEGROUP;
   os->bufflen        = os->buffNGroups * os->buffGroupBytes;
   os->buffer         = malloc(os->bufflen);
-  os->stackA         = malloc(os->frameSize*sizeof(int)*Nchannels); // A stacked version of the current and preceding frame group; used to form a difference image
-  os->stackB         = malloc(os->frameSize*sizeof(int)*Nchannels);
+  for (i=0; i<=STACK_COMPARISON_INTERVAL; i++)
+   {
+    os->stack[i] = malloc(os->frameSize*sizeof(int)*Nchannels); // A stacked version of the current and preceding frame group; used to form a difference image
+    if (!os->stack[i]) { sprintf(temp_err_string, "ERROR: malloc fail in observe."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
+   }
 
   os->triggerPrefixNGroups = TRIGGER_PREFIX_TIME * os->fps / TRIGGER_FRAMEGROUP;
   os->triggerSuffixNGroups = TRIGGER_SUFFIX_TIME * os->fps / TRIGGER_FRAMEGROUP;
@@ -159,20 +163,21 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
   os->triggerRGB   = calloc(1,os->frameSize*3);
 
   os->triggerBlock_N    = calloc(1,MAX_TRIGGER_BLOCKS*sizeof(int)); // Count of how many pixels are in each numbered connected block
+  os->triggerBlock_top  = calloc(1,MAX_TRIGGER_BLOCKS*sizeof(int));
+  os->triggerBlock_bot  = calloc(1,MAX_TRIGGER_BLOCKS*sizeof(int));
   os->triggerBlock_sumx = calloc(1,MAX_TRIGGER_BLOCKS*sizeof(int));
   os->triggerBlock_sumy = calloc(1,MAX_TRIGGER_BLOCKS*sizeof(int));
   os->triggerBlock_suml = calloc(1,MAX_TRIGGER_BLOCKS*sizeof(int));
   os->triggerBlock_redirect = calloc(1,MAX_TRIGGER_BLOCKS*sizeof(int));
 
   if ((!os->buffer) ||
-      (!os->stackA)||(!os->stackB)||(!os->stackT) ||
+      (!os->stackT) ||
       (!os->medianMap)||(!os->medianWorkspace) || (!os->pastTriggerMap) ||
       (!os->triggerMap)||(!os->triggerRGB) ||
-      (!os->triggerBlock_N)||(!os->triggerBlock_sumx)||(!os->triggerBlock_sumy)||(!os->triggerBlock_suml)||(!os->triggerBlock_redirect)
+      (!os->triggerBlock_N)||(!os->triggerBlock_top)||(!os->triggerBlock_bot)||(!os->triggerBlock_sumx)||(!os->triggerBlock_sumy)||(!os->triggerBlock_suml)||(!os->triggerBlock_redirect)
      )
    { sprintf(temp_err_string, "ERROR: malloc fail in observe."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
 
-  int i;
   for (i=0; i<MAX_EVENTS; i++)
    {
     os->eventList[i].stackedImage = malloc(os->frameSize*Nchannels*sizeof(int));
@@ -212,7 +217,7 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
     if (bufferPos==os->buffer) os->noiseLevel = estimateNoiseLevel(os->width,os->height,os->buffer,16);
 
     // Read the next second of video
-    int status = readFrameGroup(os, bufferPos, os->groupNum?os->stackB:os->stackA, (os->timelapseCount>=0)?os->stackT:NULL);
+    int status = readFrameGroup(os, bufferPos, os->stack[ os->frameCounter % (STACK_COMPARISON_INTERVAL+1) ], (os->timelapseCount>=0)?os->stackT:NULL);
     if (status) break; // We've run out of video
     os->frameCounter++;
 
@@ -254,18 +259,21 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
     // Test whether motion sensor has triggered
     os->triggeringAllowed = ((!os->runInCountdown) && (os->triggerThrottleCounter<TRIGGER_THROTTLE_MAXEVT) );
     registerTriggerEnds(os);
-    checkForTriggers(  os, os->groupNum?os->stackB:os->stackA , os->groupNum?os->stackA:os->stackB , TRIGGER_FRAMEGROUP);
+    int *imageNew = os->stack[  os->frameCounter                              % (STACK_COMPARISON_INTERVAL+1) ];
+    int *imageOld = os->stack[ (os->frameCounter + STACK_COMPARISON_INTERVAL) % (STACK_COMPARISON_INTERVAL+1) ];
+    checkForTriggers(  os, imageNew, imageOld, TRIGGER_FRAMEGROUP );
 
     os->groupNum=!os->groupNum;
    }
 
+  for (i=0; i<=STACK_COMPARISON_INTERVAL; i++) free(os->stack[i]);
   free(os->triggerMap); free(os->triggerBlock_N); free(os->triggerBlock_sumx); free(os->triggerBlock_sumy); free(os->triggerBlock_suml); free(os->triggerBlock_redirect); free(os->triggerRGB);
-  free(os->buffer); free(os->stackA); free(os->stackB); free(os->stackT); free(os->medianMap); free(os->medianWorkspace); free(os->pastTriggerMap); free(os);
+  free(os->buffer); free(os->stackT); free(os->medianMap); free(os->medianWorkspace); free(os->pastTriggerMap); free(os);
   return 0;
  }
 
 // Register a new trigger event
-void registerTrigger(observeStatus *os, const int xpos, const int ypos, const int npixels, const int amplitude, const int *image1, const int *image2, const int coAddedFrames)
+void registerTrigger(observeStatus *os, const int blockId, const int xpos, const int ypos, const int npixels, const int amplitude, const int *image1, const int *image2, const int coAddedFrames)
  {
   int i,closestTrigger=-1,closestTriggerDist=9999;
   if (!os->triggeringAllowed) return;
@@ -317,8 +325,23 @@ void registerTrigger(observeStatus *os, const int xpos, const int ypos, const in
 
   for (i=0; i<MAX_EVENTS; i++) if (!os->eventList[i].active) break;
   if (i>=MAX_EVENTS) { gnom_log("Ignoring trigger; no event descriptors available."); return; } // No free event storage space
-  os->triggerThrottleCounter++;
 
+  // Colour in block of pixels which have triggered in schematic trigger map
+  int k;
+  for (k=1; k<=os->Nblocks; k++)
+   {
+    int k2=k;
+    while (os->triggerBlock_redirect[k2]>0) k2=os->triggerBlock_redirect[k2];
+    if (k2==blockId)
+     {
+      unsigned char *triggerB = os->triggerRGB + os->frameSize*2;
+      int j;
+#pragma omp parallel for private(j)
+      for (j=0; j<os->frameSize; j++) if (os->triggerMap[j]==k2) triggerB[j]*=4;
+     }
+   }
+
+  // Register event in events table
   os->eventList[i].active = 1;
   os->eventList[i].Ndetections = 1;
   detection *d  = &os->eventList[i].detections[0];
@@ -354,7 +377,7 @@ void registerTrigger(observeStatus *os, const int xpos, const int ypos, const in
 void registerTriggerEnds(observeStatus *os)
  {
   int i;
-  int *stackbuf = os->groupNum?os->stackB:os->stackA;
+  int *stackbuf = os->stack[ os->frameCounter % (STACK_COMPARISON_INTERVAL+1) ];
   for (i=0; i<MAX_EVENTS; i++)
    if (os->eventList[i].active)
     {
@@ -370,12 +393,15 @@ void registerTriggerEnds(observeStatus *os)
       {
         os->eventList[i].active=0;
 
-        // If event was seen in fewer than three frames, reject it
-        if (os->eventList[i].Ndetections < 3) continue;
+        // If event was seen in fewer than two frames, reject it
+        if (os->eventList[i].Ndetections < 2) continue;
+
+        // Update counter for trigger rate throttling
+        os->triggerThrottleCounter++;
 
         // Dump stacked images of entire duration of event
         int coAddedFrames = (os->frameCounter - os->eventList[i].detections[0].frameCount) * TRIGGER_FRAMEGROUP;
-        char fname[FNAME_LENGTH], pathJSON[LSTR_LENGTH];
+        char fname[FNAME_LENGTH], pathJSON[LSTR_LENGTH], pathBezier[FNAME_LENGTH];
         sprintf(fname, "%s%s",os->eventList[i].filenameStub,"3_BS0.rgb");
         dumpFrameFromInts(os->width, os->height, Nchannels, os->eventList[i].stackedImage, coAddedFrames, 1, fname);
         writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
@@ -408,21 +434,30 @@ void registerTriggerEnds(observeStatus *os)
          for (j=0; j<os->eventList[i].Ndetections; j++)
           {
            const detection *d = &os->eventList[i].detections[j];
-           sprintf(pathJSON+k,"%s[%d,%d,%.3f]", j?",":"", d->x, d->y, d->utc); k+=strlen(pathJSON+k);
+           sprintf(pathJSON+k,"%s[%d,%d,%d,%.3f]", j?",":"", d->x, d->y, d->amplitude, d->utc); k+=strlen(pathJSON+k);
            amplitudeTimeIntegrated += d->amplitude;
            if (d->amplitude > amplitudePeak) amplitudePeak = d->amplitude;
           }
          sprintf(pathJSON+k,"]"); k+=strlen(pathJSON+k);
         }
 
+        // Write path of event as a three-point Bezier curve
+        {
+         int k=0;
+         sprintf(pathBezier+k,"["); k+=strlen(pathBezier+k);
+         sprintf(pathBezier+k,"[%d,%d,%.3f],", os->eventList[i].detections[N0].x, os->eventList[i].detections[N0].y, os->eventList[i].detections[N0].utc); k+=strlen(pathBezier+k);
+         sprintf(pathBezier+k,"[%d,%d,%.3f],", os->eventList[i].detections[N1].x, os->eventList[i].detections[N1].y, os->eventList[i].detections[N1].utc); k+=strlen(pathBezier+k);
+         sprintf(pathBezier+k,"[%d,%d,%.3f]" , os->eventList[i].detections[N2].x, os->eventList[i].detections[N2].y, os->eventList[i].detections[N2].utc); k+=strlen(pathBezier+k);
+         sprintf(pathBezier+k,"]"); k+=strlen(pathBezier+k);
+        }
+
         sprintf(fname, "%s%s",os->eventList[i].filenameStub,".vid");
         dumpVideo(os->width, os->height, video1, video1frs, video2, video2frs, fname);
-        writeMetaData(fname, "sdsdiiiidiidiid", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "path", pathJSON,
+        writeMetaData(fname, "sdsdiiis", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "path", pathJSON,
                                  "duration", os->eventList[i].detections[N2].utc-os->eventList[i].detections[N0].utc,
+                                 "detectionCount", os->eventList[i].Ndetections,
                                  "amplitudeTimeIntegrated", amplitudeTimeIntegrated, "amplitudePeak", amplitudePeak,
-                                 "x0", os->eventList[i].detections[N0].x, "y0", os->eventList[i].detections[N0].y, "t0", os->eventList[i].detections[N0].utc,
-                                 "x1", os->eventList[i].detections[N1].x, "y1", os->eventList[i].detections[N1].y, "t1", os->eventList[i].detections[N1].utc,
-                                 "x2", os->eventList[i].detections[N2].x, "y2", os->eventList[i].detections[N2].y, "t2", os->eventList[i].detections[N2].utc
+                                 "pathBezier", pathBezier
                      );
      }
    }

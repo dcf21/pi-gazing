@@ -15,7 +15,7 @@ def getUTC():
 def getUTCoffset():
   return -toffset
 
-logfile = open( os.path.join(mod_settings.DATA_PATH,"piInSky.log") , "a" )
+logfile = open( os.path.join(mod_settings.DATA_PATH,"meteorPi.log") , "a" )
 
 def logTxt(txt):
  output = "[%s py] %s"%(time.strftime("%b %d %Y %H:%M:%S", time.gmtime(getUTC())),txt)

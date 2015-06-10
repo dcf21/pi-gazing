@@ -11,6 +11,7 @@
 #define MAX_TRIGGER_BLOCKS 65536
 
 #include "str_constants.h"
+#include "settings.h"
 
 typedef struct detection
  {
@@ -49,8 +50,7 @@ typedef struct observeStatus
   int            buffNFrames;
   int            bufflen;
   unsigned char *buffer;
-  int           *stackA;
-  int           *stackB;
+  int           *stack[STACK_COMPARISON_INTERVAL+1];
   int            triggerPrefixNGroups;
   int            triggerSuffixNGroups;
 
@@ -67,8 +67,9 @@ typedef struct observeStatus
   int           *pastTriggerMap;
 
   // Buffers used while checking for triggers, to give a visual report on why triggers occur when they do
+  int  Nblocks;
   int *triggerMap;
-  int *triggerBlock_N, *triggerBlock_sumx, *triggerBlock_sumy, *triggerBlock_suml, *triggerBlock_redirect;
+  int *triggerBlock_N, *triggerBlock_top, *triggerBlock_bot, *triggerBlock_sumx, *triggerBlock_sumy, *triggerBlock_suml, *triggerBlock_redirect;
   unsigned char *triggerRGB;
 
   int groupNum; // Flag for whether we're feeding images into stackA or stackB
@@ -87,7 +88,7 @@ typedef struct observeStatus
 char *fNameGenerate  (char *output, const char *cameraId, double utc, char *tag, const char *dirname, const char *label);
 int   readFrameGroup (observeStatus *os, unsigned char *buffer, int *stack1, int *stack2);
 int   observe        (void *videoHandle, const char *cameraId, const int utcoffset, const int tstart, const int tstop, const int width, const int height, const char *label, const unsigned char *mask, int (*fetchFrame)(void *,unsigned char *,double *), int (*rewindVideo)(void *, double *));
-void registerTrigger(observeStatus *os, const int xpos, const int ypos, const int npixels, const int amplitude, const int *image1, const int *image2, const int coAddedFrames);
+void registerTrigger(observeStatus *os, const int blockId, const int xpos, const int ypos, const int npixels, const int amplitude, const int *image1, const int *image2, const int coAddedFrames);
 void registerTriggerEnds(observeStatus *os);
 
 #endif

@@ -691,7 +691,10 @@ class MeteorDatabase:
                 file_name = uuid.UUID(bytes=row[0]).hex
                 # print 'removing {0}'.format(file_name)
                 target_file_path = path.join(self.file_store_path, file_name)
-                os.remove(target_file_path)
+                try:
+                  os.remove(target_file_path)
+                except OSError:
+                  print "Warning: could not remove file <%s>."%target_file_path
             # First handle camera status, the visibility regions will be handled by
             # a CASCADE in the schema
             cur.execute(

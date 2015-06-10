@@ -33,6 +33,7 @@ fdb_handle = meteorpi_fdb.MeteorDatabase( DBPATH , FDBFILESTORE )
 
 search = mp.FileRecordSearch(camera_ids=[cameraId],semantic_type=mp.NSString("timelapse/frame/lensCorr"),exclude_events=True,before=UTC2datetime(utcMax),after=UTC2datetime(utcMin))
 files  = fdb_handle.search_files(search)
+files  = [i for i in files['files']]
 files.sort(key=lambda x: x.file_time)
 
 filestub="/tmp/frame_%d_%%08d.jpg"%pid

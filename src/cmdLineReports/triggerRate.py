@@ -40,9 +40,11 @@ fdb_handle = meteorpi_fdb.MeteorDatabase( DBPATH , FDBFILESTORE )
 
 search = mp.FileRecordSearch(camera_ids=[cameraId],semantic_type=mp.NSString("timelapse/frame/lensCorr"),exclude_events=True,before=UTC2datetime(utcMax),after=UTC2datetime(utcMin))
 files  = fdb_handle.search_files(search)
+files  = [i for i in files['files']]
 
 search = mp.EventSearch(camera_ids=[cameraId],before=UTC2datetime(utcMax),after=UTC2datetime(utcMin))
 events = fdb_handle.search_events(search)
+events = [i for i in events['events']]
 
 histogram = {}
 
@@ -76,6 +78,11 @@ while (hour<=utcMax):
   if (hour not in histogram):out.write("%12s %12s %12s %12s\n"%(0,0,0,0))
   else:
     d = histogram[hour]
-    out.write("%12s %12s %12s %12s\n"%(len(d['images']) , len(d['events']) , sum( getMetaItem(i,'skyClarity') for i in d['images'])/len(d['images']) , sum( getMetaItem(i,'sunAlt') for i in d['images'])/len(d['images']) ))
+    sunAlt = "---"
+    skyCla = "---"
+    if (d['images']):
+      sunAlt = sum( getMetaItem(i,'sunAlt') for i in d['images'])/len(d['images'])
+      skyCla = sum( getMetaItem(i,'skyClarity') for i in d['images'])/len(d['images'])
+    out.write("%12s %12s %12s %12s\n"%(len(d['images']) , len(d['events']) , skyCla , sunAlt ))
   hour+=3600
 

@@ -104,7 +104,7 @@ void gnom_log(char *msg)
   latch = 1;
   if (logfile==NULL)
    {
-    if ((logfile=fopen( OUTPUT_PATH "/piInSky.log","a")) == NULL) { gnom_fatal(__FILE__,__LINE__,"Could not open log file to write."); exit(1); }
+    if ((logfile=fopen( OUTPUT_PATH "/meteorPi.log","a")) == NULL) { gnom_fatal(__FILE__,__LINE__,"Could not open log file to write."); exit(1); }
     setvbuf(logfile, NULL, _IOLBF, 0); // Set log file to be line-buffered, so that log file is always up-to-date
    }
 
