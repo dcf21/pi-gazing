@@ -123,9 +123,10 @@ def build_app(db):
     @app.route('/files/content/<file_id>/<file_name>', methods=['GET'])
     @app.route('/files/content/<file_id>', methods=['GET'])
     def get_file_content(file_id, file_name=None):
-        fr = db.get_file(file_id=uuid.UUID(hex=file_id))
-        if fr is not None:
-            return flask.send_file(filename_or_fp=fr.get_path(), mimetype=fr.mime_type)
+        fr = list(db.get_files(file_id=uuid.UUID(hex=file_id)))
+        if len(fr) > 0:
+            record = fr[0]
+            return flask.send_file(filename_or_fp=record.get_path(), mimetype=record.mime_type)
         else:
             return flask.abort(404)
 
