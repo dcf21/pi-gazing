@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import shutil
 import uuid
+from contextlib import closing
 
 from passlib.hash import pbkdf2_sha256
 import os.path as path
@@ -648,54 +649,49 @@ class MeteorDatabase:
         any status blocks with validTo dates after the high water mark
         will have their validTo set to None to make them current
         """
-        cur = self.con.cursor()
         last = self.get_high_water_mark(camera_id)
         if last is None and allow_advance:
             # No high water mark defined, set it and return
-            cur.execute(
-                'INSERT INTO t_highWaterMark (cameraID, mark) VALUES (?,?)',
-                (camera_id,
-                 time))
+            with closing(self.con.cursor()) as cur:
+                cur.execute(
+                    'INSERT INTO t_highWaterMark (cameraID, mark) VALUES (?,?)',
+                    (camera_id,
+                     time))
         elif last is not None and last < time and allow_advance:
             # Defined, but new one is later, we don't really have to do much
-            cur.execute(
-                'UPDATE t_highWaterMark t SET t.mark = (?) WHERE t.cameraID = (?)',
-                (time,
-                 camera_id))
+            with closing(self.con.cursor()) as cur:
+                cur.execute(
+                    'UPDATE t_highWaterMark t SET t.mark = (?) WHERE t.cameraID = (?)',
+                    (time,
+                     camera_id))
         elif last is not None and last > time and allow_rollback:
             # More complicated, we're rolling back time so need to clean up a load
             # of future data
-            cur.execute(
-                'UPDATE t_highWaterMark t SET t.mark = (?) WHERE t.cameraID = (?)',
-                (time,
-                 camera_id))
-            # Delete files from the future
-            cur.execute(
-                'SELECT fileID FROM t_file t '
-                'WHERE t.fileTime > (?) AND t.cameraID = (?)',
-                (time, camera_id))
-            for row in cur.fetchall():
-                # Get the filename from the UUID object constructed from the byte array
-                # we get back from the database as the file ID
-                file_name = uuid.UUID(bytes=row[0]).hex
-                # print 'removing {0}'.format(file_name)
-                target_file_path = path.join(self.file_store_path, file_name)
-                try:
-                  os.remove(target_file_path)
-                except OSError:
-                  print "Warning: could not remove file <%s>."%target_file_path
-            # First handle camera status, the visibility regions will be handled by
-            # a CASCADE in the schema
-            cur.execute(
-                'DELETE FROM t_cameraStatus t '
-                'WHERE t.validFrom > (?) AND t.cameraID = (?)',
-                (time,
-                 camera_id))
-            cur.execute(
-                'UPDATE t_cameraStatus t SET t.validTo = NULL '
-                'WHERE t.validTo >= (?) AND t.cameraID = (?)',
-                (time,
-                 camera_id))
+            with closing(self.con.cursor()) as read_cursor, closing(self.con.cursor()) as update_cursor:
+                read_cursor.execute(
+                    'SELECT fileID AS file_id FROM t_file '
+                    'WHERE fileTime > (?) AND cameraID = (?) FOR UPDATE',
+                    (time, camera_id))
+                read_cursor.name = "read_cursor"
+                for (file_id,) in read_cursor:
+                    update_cursor.execute("DELETE FROM t_file WHERE CURRENT OF read_cursor")
+                    os.remove(path.join(self.file_store_path, uuid.UUID(bytes=file_id).hex))
+                update_cursor.execute(
+                    "DELETE FROM t_event WHERE eventTime > (?) AND cameraID = (?)",
+                    (time, camera_id))
+                update_cursor.execute(
+                    'UPDATE t_highWaterMark t SET t.mark = (?) WHERE t.cameraID = (?)',
+                    (time, camera_id))
+                # Delete future status blocks
+                update_cursor.execute(
+                    'DELETE FROM t_cameraStatus t '
+                    'WHERE t.validFrom > (?) AND t.cameraID = (?)',
+                    (time, camera_id))
+                # Set the new current camera status block
+                update_cursor.execute(
+                    'UPDATE t_cameraStatus t SET t.validTo = NULL '
+                    'WHERE t.validTo >= (?) AND t.cameraID = (?)',
+                    (time, camera_id))
 
         self.con.commit()
 

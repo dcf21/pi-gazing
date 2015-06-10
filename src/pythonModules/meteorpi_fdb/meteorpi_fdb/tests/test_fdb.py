@@ -11,19 +11,20 @@ class TestFdb(TestCase):
     def __init__(self, *args, **kwargs):
         super(TestFdb, self).__init__(*args, **kwargs)
         self._status1 = model.CameraStatus(
-            'a_lens',
-            'a_sensor',
-            'http://foo.bar.com',
-            'test installation',
-            model.Orientation(
+            lens='a_lens',
+            sensor='a_sensor',
+            inst_url='http://foo.bar.com',
+            inst_name='test installation',
+            orientation=model.Orientation(
                 0.5,
                 0.6,
                 0.7),
-            model.Location(
+            location=model.Location(
                 20.0,
                 30.0,
                 True,
-                1.0))
+                1.0),
+            camera_id="aabbccddeeff")
         self._status1.regions = [[{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 0, "y": 100}], [
             {"x": 100, "y": 100}, {"x": 100, "y": 0}, {"x": 0, "y": 100}]]
 
