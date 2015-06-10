@@ -134,7 +134,7 @@ class MeteorDatabase:
             sql += 'FIRST {0} '.format(search.limit)
         if search.skip > 0:
             sql += 'SKIP {0} '.format(search.skip)
-        sql += 'e.cameraID, e.eventID, e.internalID, e.eventTime, e.eventType ' \
+        sql += 'e.cameraID, e.eventID, e.internalID, e.eventTime, e.eventType, s.statusID ' \
                'FROM t_event e, t_cameraStatus s WHERE '
         sql += ' AND '.join(where_clauses)
         sql += ' ORDER BY e.eventTime DESC'
@@ -153,7 +153,6 @@ class MeteorDatabase:
 
         return {"count": total_rows,
                 "events": events}
-
 
     def search_files(self, search):
         sql_args = []
@@ -214,12 +213,6 @@ class MeteorDatabase:
             sql += 'SKIP {0} '.format(search.skip)
         sql += 'f.internalID ' \
                'FROM t_file f, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
-        # If the latest flag is set then add an additional inner clause
-        if search.latest:
-            sql += ' AND f.fileTime = (SELECT MAX(f.fileTime) ' \
-                   'FROM t_file f, t_cameraStatus s WHERE ' + \
-                   (' AND '.join(where_clauses)) + ')'
-            sql_args.extend(sql_args)
         sql += ' ORDER BY f.fileTime DESC'
 
         cur = self.con.cursor()
@@ -229,10 +222,6 @@ class MeteorDatabase:
         total_rows = rows_returned + search.skip
         if (search.limit > 0 and rows_returned == search.limit) or (rows_returned == 0 and search.skip > 0):
             count_sql = 'SELECT count(*) FROM t_file f, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
-            if search.latest:
-                count_sql += ' AND f.fileTime = (SELECT MAX(f.fileTime) ' \
-                             'FROM t_file f, t_cameraStatus s WHERE ' + \
-                             (' AND '.join(where_clauses)) + ')'
             count_cur = self.con.cursor()
             count_cur.execute(count_sql, sql_args)
             total_rows = count_cur.fetchone()[0]
@@ -240,28 +229,20 @@ class MeteorDatabase:
         return {"count": total_rows,
                 "files": (self.get_file(internal_id=x['internalID']) for x in file_map)}
 
-    def get_events(self, event_id=None, internal_ids=None, cursor=None):
+    def get_events(self, event_id=None, cursor=None):
         """Retrieve Events by an eventID, set of internalIDs or by a cursor
         which should contain a result set of rows from t_event."""
-        if event_id is None and internal_ids is None and cursor is None:
+        if event_id is None and cursor is None:
             raise ValueError(
-                'Must specify one of eventID, internalIDs or cursor!')
+                'Must specify one of eventID or cursor!')
         # If we have a cursor use it, otherwise get one.
-        if cursor is None:
+        if cursor is None and event_id is not None:
             _cur = self.con.cursor()
-            if event_id is not None:
-                # Use event ID
-                _cur.execute(
-                    'SELECT cameraID, eventID, internalID, eventTime, '
-                    'eventType '
-                    'FROM t_event '
-                    'WHERE eventID = (?)', (event_id.bytes,))
-            else:
-                _cur.execute(
-                    'SELECT cameraID, eventID, internalID, eventTime, '
-                    'eventType '
-                    'FROM t_event '
-                    'WHERE internalID IN (?)', (internal_ids,))
+            _cur.execute(
+                'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, '
+                'e.eventType, s.statusID '
+                'FROM t_event e, t_cameraStatus s '
+                'WHERE e.eventID = (?) AND s.internalID = e.statusID', (event_id.bytes,))
         else:
             _cur = cursor
         events = {}
@@ -271,7 +252,8 @@ class MeteorDatabase:
                 camera_id=row['cameraID'],
                 event_time=row['eventTime'],
                 event_id=uuid.UUID(bytes=row['eventID']),
-                event_type=mp.NSString.from_string(row['eventType']))
+                event_type=mp.NSString.from_string(row['eventType']),
+                status_id=uuid.UUID(bytes=row['statusID']))
             events[str(row['internalID'])] = event
             result.append(event)
         for internal_id, event in events.iteritems():
@@ -309,9 +291,13 @@ class MeteorDatabase:
             camera_id,
             event_time,
             event_type,
-            file_records=[],
-            event_meta=[]):
+            file_records=None,
+            event_meta=None):
         """Register a new row in t_event, returning the Event object."""
+        if file_records is None:
+            file_records = []
+        if event_meta is None:
+            event_meta = []
         status_id = self._get_camera_status_id(camera_id=camera_id, time=event_time)
         if status_id is None:
             raise ValueError('No status defined for camera id <%s> at time <%s>!' % (camera_id, event_time))
@@ -327,11 +313,12 @@ class MeteorDatabase:
              day_and_offset['day'],
              day_and_offset['seconds'],
              str(event_type),
-             status_id))
+             status_id['internal_id']))
         ids = cur.fetchone()
         event_internal_id = ids[0]
         event_id = uuid.UUID(bytes=ids[1])
-        event = mp.Event(camera_id=camera_id, event_time=ids[2], event_id=event_id, event_type=event_type)
+        event = mp.Event(camera_id=camera_id, event_time=ids[2], event_id=event_id, event_type=event_type,
+                         status_id=status_id['status_id'])
         for file_record_index, file_record in enumerate(file_records):
             event.file_records.append(file_record)
             cur.execute(
@@ -401,7 +388,7 @@ class MeteorDatabase:
              day_and_offset['day'],
              day_and_offset['seconds'],
              file_size_bytes,
-             status_id,
+             status_id['internal_id'],
              file_name))
         row = cur.fetchonemap()
         # Retrieve the internal ID of the file row to link fileMeta if required
@@ -411,7 +398,8 @@ class MeteorDatabase:
         file_id = uuid.UUID(bytes=row['fileID'])
         # Retrieve the file time as stored in the DB
         stored_file_time = row['fileTime']
-        result_file = mp.FileRecord(camera_id=camera_id, mime_type=mime_type, semantic_type=semantic_type)
+        result_file = mp.FileRecord(camera_id=camera_id, mime_type=mime_type, semantic_type=semantic_type,
+                                    status_id=status_id['status_id'])
         result_file.file_time = stored_file_time
         result_file.file_id = file_id
         result_file.file_size = file_size_bytes
@@ -442,14 +430,14 @@ class MeteorDatabase:
         cur = self.con.cursor()
         if internal_id is not None:
             cur.execute(
-                'SELECT internalID, cameraID, mimeType, '
-                'semanticType, fileTime, fileSize, fileID, fileName '
-                'FROM t_file t WHERE t.internalID=(?)', (internal_id,))
+                'SELECT t.internalID, t.cameraID, t.mimeType, '
+                't.semanticType, t.fileTime, t.fileSize, t.fileID, t.fileName, s.statusID '
+                'FROM t_file t, t_cameraStatus s WHERE t.internalID=(?) AND t.statusID = s.internalID', (internal_id,))
         elif file_id is not None:
             cur.execute(
-                'SELECT internalID, cameraID, mimeType, '
-                'semanticType, fileTime, fileSize, fileID, fileName '
-                'FROM t_file t WHERE t.fileID=(?)', (file_id.bytes,))
+                'SELECT t.internalID, t.cameraID, t.mimeType, '
+                't.semanticType, t.fileTime, t.fileSize, t.fileID, t.fileName, s.statusID '
+                'FROM t_file t, t_cameraStatus s WHERE t.fileID=(?) AND t.statusID = s.internalID', (file_id.bytes,))
         row = cur.fetchonemap()
         if row is None:
             raise ValueError(
@@ -458,7 +446,8 @@ class MeteorDatabase:
                     internal_id))
         file_record = mp.FileRecord(camera_id=row['cameraID'],
                                     mime_type=row['mimeType'],
-                                    semantic_type=mp.NSString.from_string(row['semanticType']))
+                                    semantic_type=mp.NSString.from_string(row['semanticType']),
+                                    status_id=uuid.UUID(bytes=row['statusID']))
         file_record.file_id = uuid.UUID(bytes=row['fileID'])
         file_record.file_size = row['fileSize']
         file_record.file_time = row['fileTime']
@@ -525,8 +514,8 @@ class MeteorDatabase:
             'INSERT INTO t_cameraStatus (cameraID, validFrom, validTo, '
             'softwareVersion, orientationAltitude, orientationAzimuth, '
             'orientationRotation, orientationError, widthOfField, locationLatitude, locationLongitude, '
-            'locationGPS, lens, sensor, instURL, instName, locationError, statusID) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
+            'locationGPS, lens, sensor, instURL, instName, locationError) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
             'RETURNING internalID',
             (camera_id,
              time,
@@ -544,8 +533,7 @@ class MeteorDatabase:
              ns.sensor,
              ns.inst_url,
              ns.inst_name,
-             ns.location.error,
-             ns.status_id))
+             ns.location.error))
         # Retrieve the newly created internal ID for the status block, use this to
         # insert visible regions
         status_internal_id = cur.fetchone()[0]
@@ -565,21 +553,21 @@ class MeteorDatabase:
             self,
             time=None,
             camera_id=get_installation_id()):
-        """Return the integer internal ID of the camera status block for the
+        """Return the integer internal ID and UUID of the camera status block for the
         given time and camera, or None if there wasn't one."""
         if time is None:
             time = datetime.now()
         time = round_time(time)
         cur = self.con.cursor()
         cur.execute(
-            'SELECT internalID FROM t_cameraStatus t '
+            'SELECT internalID, statusID FROM t_cameraStatus t '
             'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
             'AND (t.validTo IS NULL OR t.validTo > (?))',
             (camera_id, time, time))
         row = cur.fetchone()
         if row is None:
             return None
-        return row[0]
+        return {'internal_id': row[0], 'status_id': uuid.UUID(bytes=row[1])}
 
     def get_camera_status(
             self,
@@ -620,6 +608,7 @@ class MeteorDatabase:
                                  longitude=row['locationLongitude'],
                                  gps=row['locationGPS'] == True,
                                  error=row['locationError']),
+                             camera_id=camera_id,
                              status_id=uuid.UUID(bytes=row['statusID']))
         cs.valid_from = row['validFrom']
         cs.valid_to = row['validTo']
@@ -731,6 +720,11 @@ class MeteorDatabase:
         else:
             raise ValueError("Incorrect password")
 
+    def get_users(self):
+        cur = self.con.cursor()
+        cur.execute('SELECT userID, roleMask FROM t_user ORDER BY userID ASC')
+        return list(mp.User(user_id=row['userID'], role_mask=row['roleMask]']) for row in cur.fetchallmap)
+
     def create_or_update_user(self, user_id, password, roles):
         """
         Create a new user record, or update an existing one
@@ -759,6 +753,11 @@ class MeteorDatabase:
         else:
             self.con.commit()
             return "update"
+
+    def delete_user(self, user_id):
+        cur = self.con.cursor()
+        cur.execute('DELETE FROM t_user WHERE userID = (?)', (user_id,))
+        self.con.commit()
 
     def clear_database(self):
         """

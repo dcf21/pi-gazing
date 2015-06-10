@@ -1,3 +1,62 @@
-<h2>admin-camera-page</h2>
+<form class="form-horizontal">
 
-<p data-bind='text: message'></p>
+
+    <div class="form-group">
+        <label for="camera" class="control-label col-xs-2">Camera</label>
+
+        <div class="col-xs-2">
+            <select id="camera" class="form-control"
+                    data-bind="options: cameras, value: selectedCamera, event: { change:setCamera }"></select>
+        </div>
+    </div>
+
+    <div data-bind="if:status">
+
+        <div class="form-group">
+            <label for="inst_name" class="control-label col-xs-2">Status UUID</label>
+
+            <div class="col-xs-4">
+                <span class="form-value" data-bind="text: status_id"></span>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="inst_name" class="control-label col-xs-2">Installation Name</label>
+
+            <div class="col-xs-8">
+                <input class="form-control" id="inst_name" data-bind="value: status.inst_name"
+                       placeholder="Friendly name..."/>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="inst_url" class="control-label col-xs-2">Installation URL</label>
+
+            <div class="col-xs-8">
+                <input class="form-control" id="inst_url" data-bind="value: status.inst_url"
+                       placeholder="http://host:port/path"/>
+            </div>
+        </div>
+
+
+        <div class="form-group">
+            <label for="regions" class="control-label col-xs-2">Visible Regions</label>
+
+            <div data-bind="if: imageURL">
+                <div class="col-xs-10">
+                    <region-editor params="imageURL: imageURL, polygons: status.regions"></region-editor>
+                </div>
+            </div>
+            <div data-bind="if: imageURL()==null">
+                <p>No Image</p>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="col-xs-offset-2 col-xs-10">
+                <button type="submit" class="btn btn-primary" data-bind="click: saveChanges">Save Changes</button>
+            </div>
+        </div>
+
+    </div>
+</form>

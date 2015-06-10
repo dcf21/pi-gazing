@@ -20,6 +20,9 @@ define(["jquery", "knockout"], function (jquery, ko) {
         self.user = ko.observable();
 
         var ajaxAuth = function (uri, method, data) {
+            if (method == null) {
+                method = "GET"
+            }
             var request = {
                 beforeSend: function (xhr) {
                     xhr.setRequestHeader("Authorization",
@@ -30,13 +33,18 @@ define(["jquery", "knockout"], function (jquery, ko) {
                 contentType: "application/json",
                 accepts: "application/json",
                 cache: false,
-                dataType: 'json',
-                data: JSON.stringify(data)
+                dataType: 'json'
             };
+            if (data != null) {
+                request.data = JSON.stringify(data)
+            }
             return jquery.ajax(request)
         };
 
         var ajax = function (uri, method, data) {
+            if (method == null) {
+                method = "GET"
+            }
             var request = {
                 url: config.urlPrefix + uri,
                 type: method,
@@ -145,17 +153,37 @@ define(["jquery", "knockout"], function (jquery, ko) {
                     self.username = null;
                     self.password = null;
                     self.user(null);
-                    callback(null);
+                    if (callback) {
+                        callback(null);
+                    }
                 }
                 if (user) {
                     self.user(user);
-                    callback(user)
+                    if (typeof(Storage) !== "undefined") {
+                        localStorage.setItem("meteorpiUser", username);
+                        localStorage.setItem("meteorpiPassword", password);
+                    }
+                    if (callback) {
+                        callback(user)
+                    }
                 }
             });
         };
 
+        self.tryAutoLogin = function (callback) {
+            if (typeof(Storage) !== "undefined" && localStorage.meteorpiUser) {
+                self.login(localStorage.meteorpiUser, localStorage.meteorpiPassword, callback);
+            } else {
+                callback(null);
+            }
+        };
+
         self.logout = function () {
             self.user(null);
+            if (typeof(Storage) !== "undefined") {
+                localStorage.removeItem("meteorpiUser");
+                localStorage.removeItem("meteorpiPassword");
+            }
         };
 
         /**
@@ -212,8 +240,13 @@ define(["jquery", "knockout"], function (jquery, ko) {
          * @param callback callback called with (err:string, status:{})
          */
         self.getStatus = function (cameraID, date, callback) {
-            applyCallback(ajax("cameras/" + cameraID + "/status" + (date == null ? "" : date.getTime())), "status", callback)
+            applyCallback(ajax("cameras/" + cameraID + "/status" + (date == null ? "" : "/" + date.getTime()), "GET"), "status", callback)
         };
+
+        self.updateCameraStatus = function (cameraID, newStatus, callback) {
+            applyCallback(ajaxAuth("cameras/" + cameraID + "/status", "POST", newStatus), "status", callback)
+        };
+
 
         /**
          * Build and return a pure computed knockout observable which wraps up a supplied observable containing a time

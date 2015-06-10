@@ -22,7 +22,11 @@
         </tr>
         <tr>
             <th>Camera ID</th>
-            <td><span data-bind="text: selectedCamera"></span></td>
+            <td><span data-bind="text: status().camera_id"></span></td>
+        </tr>
+        <tr>
+            <th>Status UUID</th>
+            <td><span data-bind="text: status().status_id"></span></td>
         </tr>
         <tr>
             <th>Sensor</th>

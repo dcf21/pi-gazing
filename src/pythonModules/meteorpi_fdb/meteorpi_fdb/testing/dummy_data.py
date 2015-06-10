@@ -75,7 +75,8 @@ def add_dummy_status(db, camera, time,
                            location=model.Location(latitude=latitude,
                                                    longitude=longitude,
                                                    gps=gps,
-                                                   error=location_error))
+                                                   error=location_error),
+                           camera_id=camera)
     s.regions = [[{"x": 0, "y": 0}, {"x": region_size, "y": 0}, {"x": 0, "y": region_size}], [
         {"x": region_size, "y": region_size}, {"x": region_size, "y": 0}, {"x": 0, "y": region_size}]]
     db.update_camera_status(ns=s, time=make_time(time), camera_id=camera)
