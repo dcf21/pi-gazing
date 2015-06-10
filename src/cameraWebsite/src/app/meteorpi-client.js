@@ -221,7 +221,7 @@ define(["jquery", "knockout"], function (jquery, ko) {
         };
 
         self.filenameForFile = function (file) {
-            if (file['file_name'] == null || file['file_name'].length() == 0) {
+            if (file['file_name'] == null || file['file_name'].length == 0) {
                 /**
                  * TODO - implement some kind of sensible default naming logic here based on the file properties.
                  */
