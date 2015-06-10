@@ -10,6 +10,13 @@ import fdb
 import meteorpi_model as mp
 
 
+def first_non_null(values):
+    for item in values:
+        if item is not None:
+            return item
+    raise ValueError("No non-null item in supplied list.")
+
+
 def get_installation_id():
     """Get the installation ID of the current system, using the MAC address
     rendered as a 12 character hex string."""
@@ -139,21 +146,20 @@ class MeteorDatabase:
                'FROM t_event e, t_cameraStatus s WHERE '
         sql += ' AND '.join(where_clauses)
         sql += ' ORDER BY e.eventTime DESC'
-        cur = self.con.cursor()
-        cur.execute(sql, sql_args)
-        events = self.get_events(cursor=cur)
 
-        rows_returned = len(events)
-        total_rows = rows_returned + search.skip
-        if (search.limit > 0 and rows_returned == search.limit) or (rows_returned == 0 and search.skip > 0):
-            count_sql = 'SELECT count(*) FROM t_event e, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
-            count_cur = self.con.cursor()
-            print count_sql
-            count_cur.execute(count_sql, sql_args)
-            total_rows = count_cur.fetchone()[0]
-
-        return {"count": total_rows,
-                "events": events}
+        with closing(self.con.cursor()) as cur:
+            cur.execute(sql, sql_args)
+            events = list(self.get_events(cursor=cur))
+            rows_returned = len(events)
+            total_rows = rows_returned + search.skip
+            if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
+                count_sql = 'SELECT count(*) FROM t_event e, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
+                count_cur = self.con.cursor()
+                print count_sql
+                count_cur.execute(count_sql, sql_args)
+                total_rows = count_cur.fetchone()[0]
+            return {"count": total_rows,
+                    "events": events}
 
     def search_files(self, search):
         sql_args = []
@@ -212,80 +218,119 @@ class MeteorDatabase:
             sql += 'FIRST {0} '.format(search.limit)
         if search.skip > 0:
             sql += 'SKIP {0} '.format(search.skip)
-        sql += 'f.internalID ' \
+        sql += 'f.internalID, f.cameraID, f.mimeType, ' \
+               'f.semanticType, f.fileTime, f.fileSize, f.fileID, f.fileName, s.statusID ' \
                'FROM t_file f, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
         sql += ' ORDER BY f.fileTime DESC'
 
-        cur = self.con.cursor()
-        cur.execute(sql, sql_args)
-        file_map = cur.fetchallmap()
-        rows_returned = len(file_map)
-        total_rows = rows_returned + search.skip
-        if (search.limit > 0 and rows_returned == search.limit) or (rows_returned == 0 and search.skip > 0):
-            count_sql = 'SELECT count(*) FROM t_file f, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
-            count_cur = self.con.cursor()
-            count_cur.execute(count_sql, sql_args)
-            total_rows = count_cur.fetchone()[0]
-
-        return {"count": total_rows,
-                "files": (self.get_file(internal_id=x['internalID']) for x in file_map)}
+        with closing(self.con.cursor()) as cur:
+            cur.execute(sql, sql_args)
+            files = list(self.get_files(cursor=cur))
+            rows_returned = len(files)
+            total_rows = rows_returned + search.skip
+            if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
+                count_sql = 'SELECT count(*) FROM t_file f, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
+                count_cur = self.con.cursor()
+                count_cur.execute(count_sql, sql_args)
+                total_rows = count_cur.fetchone()[0]
+            return {"count": total_rows,
+                    "files": files}
 
     def get_events(self, event_id=None, cursor=None):
-        """Retrieve Events by an eventID, set of internalIDs or by a cursor
+        """Retrieve Events by an eventID, or by a cursor
         which should contain a result set of rows from t_event."""
         if event_id is None and cursor is None:
             raise ValueError(
                 'Must specify one of eventID or cursor!')
+
         # If we have a cursor use it, otherwise get one.
-        if cursor is None and event_id is not None:
+        _cur = cursor
+        if _cur is None:
             _cur = self.con.cursor()
             _cur.execute(
                 'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, '
                 'e.eventType, s.statusID '
                 'FROM t_event e, t_cameraStatus s '
                 'WHERE e.eventID = (?) AND s.internalID = e.statusID', (event_id.bytes,))
-        else:
-            _cur = cursor
-        events = {}
-        result = []
-        for row in _cur.fetchallmap():
-            event = mp.Event(
-                camera_id=row['cameraID'],
-                event_time=row['eventTime'],
-                event_id=uuid.UUID(bytes=row['eventID']),
-                event_type=mp.NSString.from_string(row['eventType']),
-                status_id=uuid.UUID(bytes=row['statusID']))
-            events[str(row['internalID'])] = event
-            result.append(event)
-        for internal_id, event in events.iteritems():
-            # Get all the files
-            _cur.execute(
-                'SELECT fileID FROM t_event_to_file '
-                'WHERE eventID = (?) '
-                'ORDER BY sequenceNumber ASC', (internal_id,))
-            for row in _cur.fetchallmap():
-                event.file_records.append(self.get_file(internal_id=row['fileID']))
-            # Get all the event meta
-            _cur.execute(
-                'SELECT metaKey, stringValue, floatValue, dateValue '
-                'FROM t_eventMeta t '
-                'WHERE t.eventID = (?) '
-                'ORDER BY metaIndex ASC',
-                (internal_id,))
-            for meta in _cur.fetchallmap():
-                if meta['stringValue'] is not None:
-                    value = meta['stringValue']
-                elif meta['floatValue'] is not None:
-                    value = meta['floatValue']
-                elif meta['dateValue'] is not None:
-                    value = meta['dateValue']
-                else:
-                    raise ValueError('Unhandled metadata value type')
-                # print event
-                event.meta.append(
-                    mp.Meta(key=mp.NSString.from_string(meta['metaKey']),
-                            value=value))
-        return result
+
+        # Retrieve events based on supplied cursor
+        def event_generator(cursor):
+            for (cameraID, eventID, internalID, eventTime, eventType, statusID) in cursor:
+                event = mp.Event(
+                    camera_id=cameraID,
+                    event_time=eventTime,
+                    event_id=uuid.UUID(bytes=eventID),
+                    event_type=mp.NSString.from_string(eventType),
+                    status_id=uuid.UUID(bytes=statusID))
+                with closing(self.con.cursor()) as cur:
+                    cur.execute(
+                        'SELECT f.internalID, f.cameraID, f.mimeType, '
+                        'f.semanticType, f.fileTime, f.fileSize, f.fileID, f.fileName, s.statusID '
+                        'FROM t_file f, t_cameraStatus s, t_event_to_file ef '
+                        'WHERE f.statusID = s.internalID AND ef.fileID = f.internalID AND ef.eventID = (?)',
+                        (internalID,))
+                    event.file_records = list(self.get_files(cursor=cur))
+                    cur.execute(
+                        'SELECT metaKey, stringValue, floatValue, dateValue '
+                        'FROM t_eventMeta t '
+                        'WHERE t.eventID = (?) '
+                        'ORDER BY metaIndex ASC',
+                        (internalID,))
+                    for (metaKey, stringValue, floatValue, dateValue) in cur:
+                        event.meta.append(
+                            mp.Meta(key=mp.NSString.from_string(metaKey),
+                                    value=first_non_null([stringValue, floatValue, dateValue])))
+                yield event
+
+        return event_generator(_cur)
+
+    def get_files(self, file_id=None, internal_id=None, cursor=None):
+        if file_id is None and internal_id is None and cursor is None:
+            raise ValueError('Must specify either fileID, internalID, or cursor!')
+
+        _cur = cursor
+        if _cur is None:
+            _cur = self.con.cursor()
+            if internal_id is not None:
+                _cur.execute(
+                    'SELECT t.internalID, t.cameraID, t.mimeType, '
+                    't.semanticType, t.fileTime, t.fileSize, t.fileID, t.fileName, s.statusID '
+                    'FROM t_file t, t_cameraStatus s WHERE t.internalID=(?) AND t.statusID = s.internalID',
+                    (internal_id,))
+            else:
+                _cur.execute(
+                    'SELECT t.internalID, t.cameraID, t.mimeType, '
+                    't.semanticType, t.fileTime, t.fileSize, t.fileID, t.fileName, s.statusID '
+                    'FROM t_file t, t_cameraStatus s WHERE t.fileID=(?) AND t.statusID = s.internalID',
+                    (file_id.bytes,))
+
+        def file_generator(cursor):
+            for (internalID, cameraID, mimeType, semanticType, fileTime, fileSize, fileID, fileName,
+                 statusID) in cursor:
+                fr = mp.FileRecord(
+                    camera_id=cameraID,
+                    mime_type=mimeType,
+                    semantic_type=mp.NSString.from_string(semanticType),
+                    status_id=uuid.UUID(bytes=statusID))
+                fr.file_id = uuid.UUID(bytes=fileID)
+                fr.file_size = fileSize
+                fr.file_time = fileTime
+                fr.file_name = fileName
+                fr.get_path = lambda: path.join(self.file_store_path, file_id.hex)
+                with closing(self.con.cursor()) as cur:
+                    cur.execute(
+                        'SELECT metaKey, stringValue, floatValue, dateValue '
+                        'FROM t_fileMeta t '
+                        'WHERE t.fileID = (?) '
+                        'ORDER BY metaIndex ASC',
+                        (internalID,))
+                    for (metaKey, stringValue, floatValue, dateValue) in cur:
+                        fr.meta.append(
+                            mp.Meta(key=mp.NSString.from_string(metaKey),
+                                    value=first_non_null([stringValue, floatValue, dateValue])))
+                yield fr
+
+        return file_generator(_cur)
 
     def register_event(
             self,
@@ -425,67 +470,13 @@ class MeteorDatabase:
         # Return the resultant file object
         return result_file
 
-    def get_file(self, file_id=None, internal_id=None):
-        if file_id is None and internal_id is None:
-            raise ValueError('Must specify either fileID or internalID!')
-        cur = self.con.cursor()
-        if internal_id is not None:
-            cur.execute(
-                'SELECT t.internalID, t.cameraID, t.mimeType, '
-                't.semanticType, t.fileTime, t.fileSize, t.fileID, t.fileName, s.statusID '
-                'FROM t_file t, t_cameraStatus s WHERE t.internalID=(?) AND t.statusID = s.internalID', (internal_id,))
-        elif file_id is not None:
-            cur.execute(
-                'SELECT t.internalID, t.cameraID, t.mimeType, '
-                't.semanticType, t.fileTime, t.fileSize, t.fileID, t.fileName, s.statusID '
-                'FROM t_file t, t_cameraStatus s WHERE t.fileID=(?) AND t.statusID = s.internalID', (file_id.bytes,))
-        row = cur.fetchonemap()
-        if row is None:
-            raise ValueError(
-                'File with ID {0} or internal ID {1} not found!'.format(
-                    file_id.hex,
-                    internal_id))
-        file_record = mp.FileRecord(camera_id=row['cameraID'],
-                                    mime_type=row['mimeType'],
-                                    semantic_type=mp.NSString.from_string(row['semanticType']),
-                                    status_id=uuid.UUID(bytes=row['statusID']))
-        file_record.file_id = uuid.UUID(bytes=row['fileID'])
-        file_record.file_size = row['fileSize']
-        file_record.file_time = row['fileTime']
-        file_record.file_name = row['fileName']
-        internal_file_id = row['internalID']
-        cur.execute(
-            'SELECT metaKey, stringValue, floatValue, dateValue '
-            'FROM t_fileMeta t '
-            'WHERE t.fileID = (?) '
-            'ORDER BY metaIndex ASC',
-            (internal_file_id,))
-        for meta in cur.fetchallmap():
-            if meta['stringValue'] is not None:
-                value = meta['stringValue']
-            elif meta['floatValue'] is not None:
-                value = meta['floatValue']
-            elif meta['dateValue'] is not None:
-                value = meta['dateValue']
-            else:
-                raise ValueError('Unhandled metadata value type')
-            file_record.meta.append(
-                mp.Meta(key=mp.NSString.from_string(meta['metaKey']),
-                        value=value))
-
-        def get_path():
-            return path.join(self.file_store_path, file_record.file_id.hex)
-
-        file_record.get_path = get_path
-        return file_record
-
     def get_cameras(self):
         """Get all Camera IDs for cameras in this database with current (i.e.
         validTo == None) status blocks."""
         cur = self.con.cursor()
         cur.execute(
             'SELECT DISTINCT cameraID FROM t_cameraStatus '
-            'WHERE validTo IS NULL')
+            'WHERE validTo IS NULL ORDER BY cameraID DESC')
         return map(lambda row: row[0], cur.fetchall())
 
     def update_camera_status(self, ns, time=None, camera_id=get_installation_id()):
@@ -675,7 +666,11 @@ class MeteorDatabase:
                 read_cursor.name = "read_cursor"
                 for (file_id,) in read_cursor:
                     update_cursor.execute("DELETE FROM t_file WHERE CURRENT OF read_cursor")
-                    os.remove(path.join(self.file_store_path, uuid.UUID(bytes=file_id).hex))
+                    file_path = path.join(self.file_store_path, uuid.UUID(bytes=file_id).hex)
+                    try:
+                        os.remove(file_path)
+                    except OSError:
+                        print "Warning: could not remove file {0}.".format(file_path)
                 update_cursor.execute(
                     "DELETE FROM t_event WHERE eventTime > (?) AND cameraID = (?)",
                     (time, camera_id))
@@ -764,22 +759,10 @@ class MeteorDatabase:
         purges all files from the fileStore
         """
         cur = self.con.cursor()
+        # Purge tables - other tables are deleted by foreign key cascades from these ones.
         cur.execute('DELETE FROM t_cameraStatus')
         cur.execute('DELETE FROM t_highWaterMark')
-        cur.execute('DELETE FROM t_file')
-        cur.execute('DELETE FROM t_fileMeta')
-        cur.execute('DELETE FROM t_eventMeta')
-        cur.execute('DELETE FROM t_event')
         cur.execute('DELETE FROM t_user')
         self.con.commit()
         shutil.rmtree(self.file_store_path)
         os.makedirs(self.file_store_path)
-
-    def get_next_internal_id(self):
-        """Retrieves and increments the internal ID from gidSequence, returning
-        it as an integer."""
-        self.con.begin()
-        next_id = self.con.cursor().execute(
-            'SELECT NEXT VALUE FOR gidSequence FROM RDB$DATABASE').fetchone()[0]
-        self.con.commit()
-        return next_id

@@ -33,12 +33,6 @@ class TestFdb(TestCase):
         installation_id = db.get_installation_id()
         self.assertTrue(len(installation_id) == 12)
 
-    def test_get_next_internal_id(self):
-        m = db.MeteorDatabase()
-        id1 = m.get_next_internal_id()
-        id2 = m.get_next_internal_id()
-        self.assertTrue(id2 == id1 + 1)
-
     def test_insert_camera(self):
         m = db.MeteorDatabase()
         # Clear the database
@@ -72,7 +66,7 @@ class TestFdb(TestCase):
                                                         'value1'),
                                              model.Meta(model.NSString('meta2'),
                                                         'value2')])
-        record2 = m.get_file(file_id=record.file_id)
+        record2 = list(m.get_files(file_id=record.file_id))[0]
         self.assertEqual(len(record.meta), 2)
         self.assertEqual(str(record), str(record2))
         self.assertFalse(record is record2)
@@ -112,7 +106,7 @@ class TestFdb(TestCase):
             event_time=datetime.now(),
             event_type=model.NSString("omgmeteors"),
             file_records=[file1, file2])
-        event2 = m.get_events(event_id=event.event_id)[0]
+        event2 = list(m.get_events(event_id=event.event_id))[0]
 
     def test_event_search(self):
         m = db.MeteorDatabase()
