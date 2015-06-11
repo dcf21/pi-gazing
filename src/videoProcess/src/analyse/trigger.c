@@ -64,7 +64,8 @@ int checkForTriggers(observeStatus *os, const int *image1, const int *image2, co
   int output=0;
 
   const int margin=20; // Ignore pixels within this distance of the edge
-  const int threshold_blockSize=10; // To trigger this number of pixels connected together must have brightened
+  const int threshold_blockSize =  7; // To trigger this number of pixels connected together must have brightened
+  const int threshold_intensity =100*os->noiseLevel*sqrt(coAddedFrames); // Total brightness excess must be 110 standard deviations
   const int thresholdTrigger=MAX(1 , 3.5*os->noiseLevel*sqrt(coAddedFrames)); // Pixel must have brightened by at least N standard deviations to trigger
   const int thresholdMonitor=MAX(1 , 2.0*os->noiseLevel*sqrt(coAddedFrames)); // Monitor and flag pixels which brighten by this amount
   unsigned char *triggerR = os->triggerRGB;
@@ -118,13 +119,16 @@ int checkForTriggers(observeStatus *os, const int *image1, const int *image2, co
               os->triggerBlock_redirect[blockId]=0;
              }
 
-            if (os->pastTriggerMap[o]<2.3*pastTriggerMapAverage) os->triggerBlock_N[blockId]++;
-            os->triggerBlock_top [blockId]  = MIN( os->triggerBlock_top[blockId] , y );
-            os->triggerBlock_bot [blockId]  = MAX( os->triggerBlock_bot[blockId] , y );
-            os->triggerBlock_sumx[blockId] += x;
-            os->triggerBlock_sumy[blockId] += y;
-            os->triggerBlock_suml[blockId] += image1[o]-image2[o];
-            os->triggerMap       [o]        = blockId;
+            if (os->pastTriggerMap[o]<2.3*pastTriggerMapAverage)
+             {
+              os->triggerBlock_N[blockId]++;
+              os->triggerBlock_top [blockId]  = MIN( os->triggerBlock_top[blockId] , y );
+              os->triggerBlock_bot [blockId]  = MAX( os->triggerBlock_bot[blockId] , y );
+              os->triggerBlock_sumx[blockId] += x;
+              os->triggerBlock_sumy[blockId] += y;
+              os->triggerBlock_suml[blockId] += image1[o]-image2[o];
+             }
+            os->triggerMap[o] = blockId;
            }
          }
        }
@@ -136,16 +140,20 @@ int checkForTriggers(observeStatus *os, const int *image1, const int *image2, co
      }
    }
 
+  // Loop over blocks of pixels which have brightened and see if any are large enough to be interesting
   int i;
   for (i=1; i<=os->Nblocks; i++)
    {
     if (i==MAX_TRIGGER_BLOCKS-1) break;
-    if ((os->triggerBlock_N[i]>threshold_blockSize) && (os->triggerBlock_bot[i]-os->triggerBlock_top[i]>=2))
+    if ((os->triggerBlock_suml[i]>threshold_intensity) &&
+        (os->triggerBlock_N[i]>threshold_blockSize) &&
+        (os->triggerBlock_bot[i]-os->triggerBlock_top[i]>=2)
+       )
      {
       const int n = os->triggerBlock_N[i];
       const int x = (os->triggerBlock_sumx[i] / n); // average x position of moving object
       const int y = (os->triggerBlock_sumy[i] / n); // average y position of moving object
-      const int l = os->triggerBlock_suml[i]; // total excess brightness
+      const int l = os->triggerBlock_suml[i] / coAddedFrames; // total excess brightness
       output=1; // We have triggered!
       registerTrigger(os, i, x, y, n, l, image1, image2, coAddedFrames);
      }

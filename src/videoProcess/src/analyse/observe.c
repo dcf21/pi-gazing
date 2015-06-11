@@ -233,7 +233,7 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
     if (os->timelapseCount>=0) { os->timelapseCount++; }
     else if (os->utc > os->timelapseUTCStart)
       {
-       memset(os->stackT, 0, os->frameSize*3*sizeof(int));
+       memset(os->stackT, 0, os->frameSize*Nchannels*sizeof(int));
        os->timelapseCount=0;
       }
 
