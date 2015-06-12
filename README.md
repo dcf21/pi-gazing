@@ -1,6 +1,6 @@
 # Meteor Pi
 
-MeteorPi is a project, run from the [http://www.cambridgesciencecentre.org/](Cambridge Science Centre), producing a network of small, low cost internet enabled observatories and their accompanying software.
+MeteorPi is a project, run from the [Cambridge Science Centre](http://www.cambridgesciencecentre.org/), producing a network of small, low cost internet enabled observatories and their accompanying software.
 
 ## Meteors
 
