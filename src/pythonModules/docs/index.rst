@@ -4,11 +4,11 @@ Welcome to MeteorPi's Python documentation!
 Contents:
 
 .. toctree::
-:maxdepth: 2
+    :maxdepth: 2
 
-        install
-        api
-        api-internal
+    install
+    api
+    api-internal
 
 Indices and tables
 ==================

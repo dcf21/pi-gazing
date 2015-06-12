@@ -7,7 +7,7 @@ Client: `meteorpi_client`
 Use this to connect to and query a remote MeteorPi server.
 
 .. autoclass:: meteorpi_client.MeteorClient
-:members:
+    :members:
 
 Model: `meteorpi_model`
 -----------------------
@@ -24,29 +24,29 @@ with their associated :class:`meteorpi_model.Meta` metadata collections.
 FileRecord
 ^^^^^^^^^^
 .. autoclass:: meteorpi_model.FileRecord
-:members:
+    :members:
 
 Event
 ^^^^^
 .. autoclass:: meteorpi_model.Event
-:members:
+    :members:
 
 Meta
 ^^^^
 .. autoclass:: meteorpi_model.Meta
-:members:
+    :members:
 
 FileRecordSearch
 ^^^^^^^^^^^^^^^^
 .. autoclass:: meteorpi_model.FileRecordSearch
-:members:
+    :members:
 
 EventSearch
 ^^^^^^^^^^^
 .. autoclass:: meteorpi_model.EventSearch
-:members:
+    :members:
 
 MetaConstraint
 ^^^^^^^^^^^^^^
 .. autoclass:: meteorpi_model.MetaConstraint
-:members:
+    :members:
