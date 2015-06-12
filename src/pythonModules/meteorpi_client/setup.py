@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='meteorpi_client',
-    version='0.1',
+    version='0.1.1',
     description='Client to the MeteorPi HTTP API',
     classifiers=['Programming Language :: Python :: 2.7'],
     url='https://github.com/camsci/meteor-pi/',
