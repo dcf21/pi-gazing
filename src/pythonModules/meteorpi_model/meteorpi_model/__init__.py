@@ -78,7 +78,7 @@ def _add_nsstring(d, key, value):
 
 
 class ModelEqualityMixin():
-    """Taken from http://stackoverflow.com/questions/390250/"""
+    """Taken from http://stackoverflow.com/questions/390250/, simplifies object equality tests."""
 
     def __eq__(self, other):
         """Override the default Equals behavior"""
@@ -98,7 +98,18 @@ class ModelEqualityMixin():
 
 
 class NSString(ModelEqualityMixin):
-    """Namespace prefixed string, with the namespace defaulting to 'meteorpi'"""
+    """
+    Namespace prefixed string, with the namespace defaulting to 'meteorpi'. These are used in various places within the
+    model where we want to specify names but avoid potential collisions. In general NSString instaces prefixed by
+    'meteorpi' are official keys provided by the core project team. In the future users and third parties may extend
+    the available metadata etc. and would use this mechanism to put all their extension elements into their own
+    namespace, thus avoiding any potential issues with overlapping names.
+
+    Instance properties:
+        ns -- string namespace, defaults to 'meteorpi'. Must not be None, the empty string,
+            or contain the ':' character.
+        s -- string part, can be any value. Must not be None.
+    """
 
     def __init__(self, s, ns='meteorpi'):
         """
@@ -132,19 +143,44 @@ class NSString(ModelEqualityMixin):
 
 
 class User(ModelEqualityMixin):
-    """A single user in an instance of the MeteorPi server"""
+    """
+    A single user in an instance of the MeteorPi server
+
+    Class properties:
+        roles -- a sequence of roles, the ordering of items in this sequence is meaningful and must not be changed, new
+            values may be appended. The current value is ["user", "camera_admin", "import"], corresponding to:
+                user : the user can log in, no other permissions
+                camera_admin : the user can manipulate the editable parts of CameraStatus, vis. the installation url
+                    and name, and the visible region polygons.
+                import : the user can import data into this node, used to manage from which parties data can be
+                    received during import / export operations.
+
+    Instance properties:
+        user_id -- a string ID for the user
+        role_mask -- an integer bit-mask defining the available roles for the user
+    """
+
+    roles = ["user", "camera_admin", "import"]
 
     def __init__(self, user_id, role_mask):
         self.user_id = user_id
         self.role_mask = role_mask
 
     def has_role(self, role):
+        """
+        Determine whether the user has a given role
+        :param role: the role
+        :return: True if the user can act in that role, False otherwise
+        """
         try:
             return self.role_mask & (1 << User.roles.index(role)) > 0
         except ValueError:
             return False
 
     def get_roles(self):
+        """
+        :return: a sequence of strings, each string being a role that the user can access
+        """
         return User.roles_from_role_mask(self.role_mask)
 
     def as_dict(self):
@@ -162,6 +198,12 @@ class User(ModelEqualityMixin):
 
     @staticmethod
     def role_mask_from_roles(r):
+        """
+        Get a role_mask bit-mask from a sequence of strings, the string values must correspond
+        to roles in User.roles
+        :param r: a sequence of string role-names
+        :return: a role_mask which can be used to concisely store the roles.
+        """
         rm = 0
         if r is None:
             return rm
@@ -171,14 +213,16 @@ class User(ModelEqualityMixin):
 
     @staticmethod
     def roles_from_role_mask(rm):
+        """
+        Get a list of roles for a given role_mask
+        :param rm: an integer interpreted as a bit-mask
+        :return: a list of strings containing roles corresponding to the supplied mask
+        """
         result = []
         for index, role in enumerate(User.roles):
             if rm & (1 << index) > 0:
                 result.append(role)
         return result
-
-    """Available roles, do not change ordering, only append!"""
-    roles = ["user", "camera_admin"]
 
 
 class FileRecordSearch(ModelEqualityMixin):
@@ -188,7 +232,10 @@ class FileRecordSearch(ModelEqualityMixin):
                  before=None, mime_type=None, semantic_type=None, exclude_events=False, after_offset=None,
                  before_offset=None, meta_constraints=None, limit=100, skip=0):
         """
-        :param camera_ids: Optional - if specified, restricts results to only those the the specified camera IDs.
+        Create a new FileRecordSearch. All parameters are optional, a default search will be created which returns
+        at most the first 100 FileRecord instances. All parameters specify restrictions on these results.
+        :param camera_ids: Optional - if specified, restricts results to only those the the specified camera IDs which
+            are expressed as an array of strings.
         :param lat_min: Optional - if specified, only returns results where the camera status at the time of the file
             had a latitude field of at least the specified value.
         :param lat_max: Optional - if specified, only returns results where the camera status at the time of the file
@@ -218,7 +265,7 @@ class FileRecordSearch(ModelEqualityMixin):
         :param skip: Optional, defaults to 0 - used with the limit parameter, this will skip the specified number
             of results from the result set. Use when limiting the number returned by each query to paginate the results,
             i.e. use skip 0 and limit 10 to get the first ten, then skip 10 limit 10 to get the next and so on.
-        :return:
+        :return: the new FileRecordSearch
         """
         if camera_ids is None == False and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
@@ -263,6 +310,10 @@ class FileRecordSearch(ModelEqualityMixin):
                                  ','.join(('{0}=\'{1}\''.format(x['name'], str(x['value'])) for x in fields)))
 
     def as_dict(self):
+        """
+        Convert this FileRecordSearch to a dict, ready for serialization to JSON for use in the API.
+        :return: dict representation of this FileRecordSearch instance
+        """
         d = {}
         _add_value(d, 'camera_ids', self.camera_ids)
         _add_value(d, 'lat_min', self.lat_min)
@@ -283,6 +334,11 @@ class FileRecordSearch(ModelEqualityMixin):
 
     @staticmethod
     def from_dict(d):
+        """
+        Builds a new instance of FileRecordSearch from a dict
+        :param d: the dict to parse
+        :return: a new FileRecordSearch based on the supplied dict
+        """
         camera_ids = _value_from_dict(d, 'camera_ids')
         lat_min = _value_from_dict(d, 'lat_min')
         lat_max = _value_from_dict(d, 'lat_max')
@@ -310,7 +366,7 @@ class FileRecordSearch(ModelEqualityMixin):
 
 
 class MetaConstraint(ModelEqualityMixin):
-    """Defines a constraint over Meta"""
+    """Defines a constraint over metadata on a FileRecord or Event, used in the respective searches."""
 
     def __init__(self, constraint_type, key, value):
         """
@@ -364,6 +420,38 @@ class EventSearch(ModelEqualityMixin):
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
                  before=None, after_offset=None, before_offset=None, event_type=None, meta_constraints=None, limit=100,
                  skip=0):
+        """
+        Create a new EventSearch. All parameters are optional, a default search will be created which returns
+        at most the first 100 Event instances. All parameters specify restrictions on these results.
+        :param camera_ids: Optional - if specified, restricts results to only those the the specified camera IDs which
+            are expressed as an array of strings.
+        :param lat_min: Optional - if specified, only returns results where the camera status at the time of the event
+            had a latitude field of at least the specified value.
+        :param lat_max: Optional - if specified, only returns results where the camera status at the time of the event
+            had a latitude field of at most the specified value.
+        :param long_min: Optional - if specified, only returns results where the camera status at the time of the event
+            had a longitude field of at least the specified value.
+        :param long_max: Optional - if specified, only returns results where the camera status at the time of the event
+            had a longitude field of at most the specified value.
+        :param after: Optional - if specified, only returns results where the event time is after the specified value.
+        :param before: Optional - if specified, only returns results where the event time is before the specified value.
+        :param semantic_type: Optional - if specified, only returns results where the semantic type exactly matches.
+            The type of this value should be an instance of NSString
+        :param after_offset: Optional - if specified this defines a lower bound on the time of day of the event time,
+            irrespective of the date of the file. This can be used to e.g. only return events which were produced after
+            2am on any given day. Specified as seconds since the previous mid-day.
+        :param before_offset: Optional - interpreted in a similar manner to after_offset but specifies an upper bound.
+            Use both in the same query to filter for a particular range, i.e. 2am to 4am on any day.
+        :param meta_constraints: Optional - a list of MetaConstraint objects providing restrictions over the event
+            metadata.
+        :param limit: Optional, defaults to 100 - controls the maximum number of results that will be returned by this
+            search. If set to 0 will return all results, but be aware that this may potentially have negative effects on
+            the server software. Only set this to 0 when you are sure that you won't return too many results!
+        :param skip: Optional, defaults to 0 - used with the limit parameter, this will skip the specified number
+            of results from the result set. Use when limiting the number returned by each query to paginate the results,
+            i.e. use skip 0 and limit 10 to get the first ten, then skip 10 limit 10 to get the next and so on.
+        :return: the new EventSearch
+        """
         if camera_ids is None == False and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
         if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
@@ -443,9 +531,27 @@ class EventSearch(ModelEqualityMixin):
 
 
 class Event(ModelEqualityMixin):
-    """A single meteor observation, containing a set of data from the image
-    processing tools and zero or more files containing images, video or any
-    other appropriate information to support the event."""
+    """
+    Represents a single interpretation. You can think of the FileRecord as being an observation, and the Event as being
+    an interpretation of one or more observations (i.e. the files may contain images of a flashing light in the sky,
+    and the event contains inferred information that it's a flying saucer). You typically won't create Event instances,
+    instead you will use the client API to search for them, or (for internal use) the database API to register them.
+
+    Instance properties:
+        camera_id -- the string ID of the camera which produced this event.
+        status_id -- the UUID of the CameraStatus describing the state, location, lens type and similar properties of
+            the camera at the time the event was created.
+        event_id -- the UUID of the event itself.
+        event_time -- the datetime the event was created on the camera.
+        event_type -- the semantic type of the event. The semantic type is used to describe the kind of event, so we
+            might have a semantic type for an event meaning 'we think this is a meteor', for example. This is an
+            NSString, and can take any arbitrary value. You should consult the documentation for the particular project
+            you're working with for more information on what might appear here.
+        file_records -- a list of zero or more FileRecord objects. You can think of these as the supporting evidence
+            for the other information in the event.
+        meta -- a list of zero or more Meta objects. Meta objects are used to provide arbitrary extra, searchable,
+            information about the event.
+    """
 
     def __init__(
             self,
@@ -458,7 +564,7 @@ class Event(ModelEqualityMixin):
             meta=None):
         """
         Constructor function. Note that typically you'd use the methods on the database to
-            create a new Event, or on the client API to retrieve an existing one. This constructor is only really for
+            create a new Event, or on the client API to retrieve an existing one. This constructor is only for
             internal use within the database layer.
         :param camera_id: Camera ID which is responsible for this event
         :param event_time: Datetime for the event
@@ -520,8 +626,31 @@ class Event(ModelEqualityMixin):
 
 
 class FileRecord(ModelEqualityMixin):
-    """A piece of binary data with associated metadata, typically used to store
-    an image or video from the camera."""
+    """
+    Represents a single data file, either within an Event instance or stand-alone. You will typically not construct
+    FileRecord instances yourself, rather using the search methods in the client, or (for internal use) the register
+    methods in the database API.
+
+    Instance properties:
+        camera_id -- the string ID of the camera which produced this file.
+        status_id -- the UUID of the CameraStatus describing the state, location, lens type and similar properties of
+            the camera at the time the file was created.
+        file_id -- the UUID of the file itself.
+        file_time -- the datetime the file was created on the camera.
+        file_size -- the file size in bytes. A value of 0 means that the underlying file is not yet available, so it
+            cannot be downloaded. This may happen if you are retrieving results from a central server which has received
+            the information about a file from another system (i.e. a camera) but has not yet received the actual file.
+        file_name -- optional, and can be None, this contains a suggested name for the file. This is used in the web
+            interface to show the file name to download, but is not guaranteed to be unique (if you need a unique ID you
+            should use the file_id)
+        mime_type -- the MIME type of the file, typically used to determine which application opens it. Values are
+            strings like 'text/plain' and 'image/png'
+        semantic_type -- the semantic type of the file. This defines the meaning of the contents (mime_type defining the
+            format of the contents). This is an NSString, and can take any arbitrary value. You should consult the
+            documentation for the particular project you're working with for more information on what might appear here.
+        meta -- a list of zero or more Meta objects. Meta objects are used to provide arbitrary extra, searchable,
+            information about the file and its contents.
+    """
 
     def __init__(self, camera_id, mime_type, semantic_type, status_id, file_name=None):
         self.camera_id = camera_id
@@ -579,7 +708,13 @@ class FileRecord(ModelEqualityMixin):
 
 
 class Meta(ModelEqualityMixin):
-    """A single piece of metadata pertaining to a FileRecord or an Event."""
+    """
+    A single piece of metadata pertaining to a FileRecord or an Event.
+
+    Instance properties:
+        key -- the name of this metadata property, specified as an NSString
+        value -- the value of this property, this can be a Number, string or datetime.date
+    """
 
     def __init__(self, key, value):
         self.key = key
@@ -718,7 +853,7 @@ class CameraStatus(ModelEqualityMixin):
         inst_url -- Web address associated with installation, e.g. the school's website
         orientation -- An instance of class Orientation
         location -- An instance of class Location
-        software_version -- ??
+        software_version -- Integer version number of the software stack on the camera node.
         regions -- List of list of dictionaries of the form {'x':x,'y':y}. The points in each list describe a polygon
             within which camera can see the sky.
         valid_from -- datetime object representing the earliest date of observation from which this camera status

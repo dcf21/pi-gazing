@@ -2,8 +2,10 @@ import threading
 from datetime import datetime
 import uuid
 from functools import wraps
+import urllib
 
 from yaml import safe_load
+
 import os.path as path
 import flask
 from tornado.ioloop import IOLoop
@@ -107,16 +109,16 @@ def build_app(db):
         else:
             return jsonify({'status': status.as_dict()})
 
-    @app.route('/events/<search_string>', methods=['GET'])
+    @app.route('/events/<search_string>', methods=['GET'], strict_slashes=True)
     def search_events(search_string):
-        search = model.EventSearch.from_dict(safe_load(search_string))
+        search = model.EventSearch.from_dict(safe_load(urllib.unquote(search_string)))
         events = db.search_events(search)
         return jsonify({'events': list(x.as_dict() for x in events['events']), 'count': events['count']})
 
     @app.route('/files/<search_string>', methods=['GET'])
     def search_files(search_string):
         # print search_string
-        search = model.FileRecordSearch.from_dict(safe_load(search_string))
+        search = model.FileRecordSearch.from_dict(safe_load(urllib.unquote(search_string)))
         files = db.search_files(search)
         return jsonify({'files': list(x.as_dict() for x in files['files']), 'count': files['count']})
 

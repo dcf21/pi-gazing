@@ -110,7 +110,33 @@ define(["jquery", "knockout"], function (jquery, ko) {
                     return value;
                 }
             );
-            return encodeURIComponent(jsonString);
+            var result = encodeURIComponent(encodeURIComponent(jsonString));
+            return result;
+        };
+
+        /**
+         * Decode a string encoded twice with URI component encoding into a JSON object,
+         * optionally mapping named keys to particular types.
+         * @param s the encoded string
+         * @param types a dict of key name to value, values can be either 'bool' or 'date'. In the case
+         * of booleans the value is set to True if the key value is 1, and False otherwise. For dates the
+         * value is treated as time since the unix epoch and converted to a Javascript
+         * Date object with new Date(value * 1000) - Javascript having a higher time resolution than the server.
+         */
+        self.decodeString = function (s, types) {
+            var jsonString = decodeURIComponent(decodeURIComponent(s));
+            var o = JSON.parse(jsonString, function (key, value) {
+                if (types && key) {
+                    if (types[key] === "date") {
+                        value = new Date(value * 1000);
+                    }
+                    if (types[key] === "bool") {
+                        value = (value == 1);
+                    }
+                }
+                return value;
+            });
+            return o;
         };
 
         /**
@@ -121,15 +147,7 @@ define(["jquery", "knockout"], function (jquery, ko) {
          * or 'bool' to handle mappings to those types particularly.
          */
         self.populateObservables = function (ob, s, types) {
-            var o = JSON.parse(decodeURIComponent(s), function (key, value) {
-                if (key && types[key] === "date") {
-                    value = new Date(value * 1000);
-                }
-                if (key && types[key] === "bool") {
-                    value = (value == 1);
-                }
-                return value;
-            });
+            var o = self.decodeString(s, types);
             for (var key in ob) {
                 if (ob.hasOwnProperty(key)) {
                     if (key in o) {

@@ -57,7 +57,7 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'jquery'], fun
                 "exclude_events": "bool"
             });
             // Configure the observable array of file meta
-            var sourceMeta = JSON.parse(decodeURIComponent(params.search))['meta_constraints'];
+            var sourceMeta = client.decodeString(params.search)['meta_constraints'];
             if (sourceMeta) {
                 ko.utils.arrayForEach(sourceMeta, function (meta) {
                     var type = meta['type'];
