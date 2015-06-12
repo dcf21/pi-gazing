@@ -14,6 +14,7 @@ def _to_encoded_string(o):
     Build an encoded string suitable for use as a URL component. This includes double-escaping the string to
     avoid issues with escaped backslash characters being automatically converted by WSGI or, in some cases
     such as default Apache servers, blocked entirely.
+
     :param o: an object of any kind, if it has an as_dict() method this will be used, otherwise uses __dict__
     :return: an encoded string suitable for use as a URL component
     :internal:
@@ -27,6 +28,7 @@ def _to_encoded_string(o):
 def _datetime_string(t):
     """
     Builds a string representation of a timestamp, used for URL components
+
     :internal:
     """
     if t is not None:
@@ -42,10 +44,12 @@ class MeteorClient():
     def __init__(self, base_url):
         """
         Create a new MeteorPi client, use this to access the data in your MeteorPi server.
-        :param base_url: the URL for the API. For a camera this will be the address of the camera with '/api/' added,
-        so for example if your camera website is at 'https://myhost.com/camera' you'd use
-        'https://myhost.com/camera/api/' here. You might see a '#' symbol in your web browser address bar, ignore it and
-        just use the bits of the URL before that point.
+
+        :param base_url:
+            the URL for the API. For a camera this will be the address of the camera with '/api/' added, so for example
+            if your camera website is at 'https://myhost.com/camera' you'd use 'https://myhost.com/camera/api/' here.
+            You might see a '#' symbol in your web browser address bar, ignore it and just use the bits of the URL
+            before that point.
         :return: a configured instance of the MeteorPi client
         """
         self.base_url = base_url
@@ -53,6 +57,7 @@ class MeteorClient():
     def list_cameras(self):
         """
         Get the IDs of all cameras on this server with currently active status.
+
         :return: a sequence of strings containing camera IDs
         """
         response = requests.get(self.base_url + '/cameras').text
@@ -61,12 +66,16 @@ class MeteorClient():
     def get_camera_status(self, camera_id, time=None):
         """
         Get details of the specified camera's status
-        :param camera_id: a cameraID, as returned by list_cameras()
-        :param time: optional, if specified attempts to get the status for the given camera at a particular point in
-        time specified as a datetime instance. This is useful if you want to retrieve the status of the camera at the
-        time a given event or file was produced. If this is None or not specified the time is 'now'.
-        :return: a CameraStatus object, or None if there was either no camera found or the camera didn't have an active
-        status at the specified time.
+
+        :param camera_id:
+            a cameraID, as returned by list_cameras()
+        :param time:
+            optional, if specified attempts to get the status for the given camera at a particular point in time
+            specified as a datetime instance. This is useful if you want to retrieve the status of the camera at the
+            time a given event or file was produced. If this is None or not specified the time is 'now'.
+        :return:
+            a CameraStatus object, or None if there was either no camera found or the camera didn't have an active
+            status at the specified time.
         """
         if time is None:
             response = requests.get(
@@ -85,11 +94,14 @@ class MeteorClient():
         Search for files, returning a Event for each result. FileRecords within result Events have two additional
         methods patched into them, get_url() and download_to(file_name), which will retrieve the URL for the file
         content and download that content to a named file on disk, respectively.
-        :param search: an instance of EventSearch - see the model docs for details on how to construct this
-        :return: an object containing 'count' and 'events'. 'events' is a sequence of Event objects containing the
-        results of the search, and 'count' is the total number of results which would be returned if no result limit was
-        in place (i.e. if the number of Events in the 'events' part is less than 'count' you have more records which
-        weren't returned because of a query limit. Note that the default query limit is 100).
+
+        :param search:
+            an instance of EventSearch - see the model docs for details on how to construct this
+        :return:
+            an object containing 'count' and 'events'. 'events' is a sequence of Event objects containing the results of
+            the search, and 'count' is the total number of results which would be returned if no result limit was in
+            place (i.e. if the number of Events in the 'events' part is less than 'count' you have more records which
+            weren't returned because of a query limit. Note that the default query limit is 100).
         """
         if search is None:
             search = model.EventSearch()
@@ -106,11 +118,14 @@ class MeteorClient():
         Search for files, returning a FileRecord for each result. FileRecords have two additional
         methods patched into them, get_url() and download_to(file_name), which will retrieve the URL for the file
         content and download that content to a named file on disk, respectively.
-        :param search: an instance of FileRecordSearch - see the model docs for details on how to construct this
-        :return: an object containing 'count' and 'files'. 'files' is a sequence of FileRecord objects containing the
-        results of the search, and 'count' is the total number of results which would be returned if no result limit was
-        in place (i.e. if the number of FileRecords in the 'files' part is less than 'count' you have more records which
-        weren't returned because of a query limit. Note that the default query limit is 100).
+
+        :param search:
+            an instance of FileRecordSearch - see the model docs for details on how to construct this
+        :return:
+            an object containing 'count' and 'files'. 'files' is a sequence of FileRecord objects containing the
+            results of the search, and 'count' is the total number of results which would be returned if no result limit
+            was in place (i.e. if the number of FileRecords in the 'files' part is less than 'count' you have more
+            records which weren't returned because of a query limit. Note that the default query limit is 100).
         """
         if search is None:
             search = model.FileRecordSearch()
