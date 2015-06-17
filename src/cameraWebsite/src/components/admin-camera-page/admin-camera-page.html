@@ -52,6 +52,7 @@
             </div>
         </div>
 
+
         <div class="form-group">
             <div class="col-xs-offset-2 col-xs-10">
                 <button type="submit" class="btn btn-primary" data-bind="click: saveChanges">Save Changes</button>
@@ -60,3 +61,34 @@
 
     </div>
 </form>
+
+<div class="row">
+    <div class="col-xs-12">
+        <h4>Using the Region Editor</h4>
+        <dl class="dl-horizontal">
+            <dt>Selection</dt>
+            <dd>Click on the interior of a polygon or on any of its points to select it. Click on an empty
+                region, or on the
+                border, to de-select
+            </dd>
+            <dt>Move points</dt>
+            <dd>Click and drag to move a point. Hold
+                <kbd>shift</kbd>
+                after starting the drag to snap to points of other polygons.
+            </dd>
+            <dt>Add points</dt>
+            <dd>Click with
+                <kbd>shift</kbd>
+                held either near the border of a polygon, or, if a polygon is selected, anywhere on the image to
+                create a new
+                point.
+            </dd>
+            <dt>Delete points</dt>
+            <dd>Click with <kbd>shift</kbd> held on a point to delete it.</dd>
+        </dl>
+        <p>
+            Note - where points overlap, points belonging to a selected polygon will be moved or deleted.
+        </p>
+    </div>
+</div>
+

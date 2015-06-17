@@ -1,5 +1,12 @@
 define(['knockout', 'text!./region-editor.html', 'jquery'], function (ko, templateMarkup, jquery) {
 
+        /** Pixel width of the margin around the loaded image */
+        var marginWidth = 30;
+        /** Pixel width of the point selection toggles */
+        var toggleSize = 10;
+        /** Pixel distance within which line segments are selectable when creating new points */
+        var lineSelectRange = 30;
+
         /**
          * Get an RGBA format colour string, spacing colours around the colour wheel with full value and
          * saturation, and alpha determined explicitly.
@@ -52,9 +59,29 @@ define(['knockout', 'text!./region-editor.html', 'jquery'], function (ko, templa
             return "rgba(" + rgb.red + "," + rgb.green + "," + rgb.blue + "," + alpha + ")";
         };
 
-        var marginWidth = 30;
-        var toggleSize = 10;
-
+        /**
+         * Calculate the distance from a point to a line segment, along with the intersection point on the (infinite)
+         * line defined by the segment and the u value indicating how far along the line segment this intersection
+         * occurs.
+         * @param p1 start {x,y}
+         * @param p2 end {x,y}
+         * @param p3 point {x,y}
+         */
+        var pointToLine = function (p1, p2, p3) {
+            var lengthSquared = (p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y);
+            // u is the coefficient where the line is defined as p = p1 + u(p2-p1) and ranges from 0 to 1
+            // where the point is on the line, less than 0 when off one end and greater than one at the other.
+            var u = ((p3.x - p1.x) * (p2.x - p1.x) + (p3.y - p1.y) * (p2.y - p1.y)) / lengthSquared;
+            var x = p1.x + u * (p2.x - p1.x);
+            var y = p1.y + u * (p2.y - p1.y);
+            var distanceToLine = Math.sqrt((p3.x - x) * (p3.x - x) + (p3.y - y) * (p3.y - y));
+            return {
+                u: u,
+                d: distanceToLine,
+                x: x,
+                y: y
+            }
+        };
 
         /**
          * Canvas based editor used to define an array of polygon regions, displayed on top of an image.
@@ -64,17 +91,21 @@ define(['knockout', 'text!./region-editor.html', 'jquery'], function (ko, templa
          */
         function RegionEditor(element, params) {
             var self = this;
+            var screenToImage = function (point) {
+                return {
+                    x: Math.min(Math.max(point.x - marginWidth, 0), self.imageElement.clientWidth - 1),
+                    y: Math.min(Math.max(point.y - marginWidth, 0), self.imageElement.clientHeight - 1)
+                };
+            };
             /**
              * Get the image-space coordinates for a mouse event on the canvas, this takes margins into account.
              * @param event
              * @returns {{x: number, y: number}}
              */
             var eventCoordinates = function (event) {
-                return {
-                    x: Math.min(Math.max(event.offsetX - marginWidth, 0), self.imageElement.clientWidth - 1),
-                    y: Math.min(Math.max(event.offsetY - marginWidth, 0), self.imageElement.clientHeight - 1)
-                };
+                return screenToImage({x: event.offsetX, y: event.offsetY});
             };
+
             self.element = jquery(element).find("#container");
             self.canvasElement = self.element.find("#canvas").get(0);
             self.imageElement = self.element.find("#image").get(0);
@@ -99,7 +130,50 @@ define(['knockout', 'text!./region-editor.html', 'jquery'], function (ko, templa
             }
             jquery(self.canvasElement).mousedown(function (event) {
                 var coords = eventCoordinates(event);
-                self.draggedPoint = self.pointAt(coords.x, coords.y);
+                var point = self.pointAt(coords.x, coords.y);
+                if (event.shiftKey) {
+                    if (point == null) {
+                        // If we don't have a point under the click and shift is held, add a new point
+                        var insertAt;
+                        if (self.activePolygon != null) {
+                            insertAt = self.insertionIndexForPolygon(self.activePolygon, coords);
+                            if (insertAt == null) {
+                                self.polygons()[self.activePolygon].push(coords);
+                            } else {
+                                self.polygons()[self.activePolygon].splice(insertAt + 1, 0, coords);
+                            }
+                        } else {
+                            var added = false;
+                            for (var polygonIndex = 0; polygonIndex < self.polygons().length && !added; polygonIndex++) {
+                                insertAt = self.insertionIndexForPolygon(polygonIndex, coords);
+                                if (insertAt != null) {
+                                    self.polygons()[polygonIndex].splice(insertAt + 1, 0, coords);
+                                    added = true;
+                                }
+                            }
+                            // Create a new polygon
+                            if (!added) {
+                                var x = event.offsetX;
+                                var y = event.offsetY;
+                                var newPoly = [
+                                    screenToImage({x: x - 30, y: y - 30}),
+                                    screenToImage({x: x + 30, y: y - 30}),
+                                    screenToImage({x: x + 30, y: y + 30}),
+                                    screenToImage({x: x - 30, y: y + 30})
+                                ];
+                                self.polygons().push(newPoly);
+                            }
+                        }
+                    }
+                    else {
+                        self.polygons()[point.polygonIndex].splice(point.pointIndex, 1);
+                        if (self.polygons()[point.polygonIndex].length == 0) {
+                            self.polygons().splice(point.polygonIndex, 1);
+                        }
+                    }
+                    point = self.pointAt(coords.x, coords.y);
+                }
+                self.draggedPoint = point;
                 if (self.draggedPoint == null) {
                     self.activePolygon = self.polygonAt(coords.x, coords.y);
                 } else {
@@ -209,6 +283,40 @@ define(['knockout', 'text!./region-editor.html', 'jquery'], function (ko, templa
             return bestPoint;
         };
 
+        /**
+         * Calculates the best index after which a point can be inserted when adding points to a polygon. Attempts to
+         * find line segments in the polygon which are close to the point, and returns the necessary index to add the
+         * new point between the end points of this segment.
+         * @param polygonIndex the polygon index within self.polygons
+         * @param point the new point
+         * @return an index, the point should be inserted after this index to make the most sense. Null if there was no
+         * nearby line segment in this polygon.
+         */
+        RegionEditor.prototype.insertionIndexForPolygon = function (polygonIndex, point) {
+            var self = this;
+            if (self.polygons == null) {
+                return null;
+            }
+            var polygon = self.polygons()[polygonIndex];
+            var bestIndex = null;
+            var bestDistance = lineSelectRange;
+            var ptl;
+            for (var i = 0; i < polygon.length - 1; i++) {
+                ptl = pointToLine(polygon[i], polygon[i + 1], point);
+                if (ptl.u > 0 && ptl.u < 1 && ptl.d < bestDistance) {
+                    bestIndex = i;
+                    bestDistance = ptl.d;
+                }
+            }
+            // If we have a polygon, check the virtual segment formed from the 0 to the end index.
+            if (polygon.length > 2) {
+                ptl = pointToLine(polygon[polygon.length - 1], polygon[0], point);
+                if (ptl.u > 0 && ptl.u < 1 && ptl.d < bestDistance) {
+                    bestIndex = polygon.length - 1;
+                }
+            }
+            return bestIndex;
+        };
 
         RegionEditor.prototype.pointsWithinBox = function (x, y, boxWidth) {
             var self = this;
