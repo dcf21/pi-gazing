@@ -25,6 +25,8 @@ define(['jquery', 'knockout', 'router', 'client', 'bootstrap', 'knockout-project
 
     ko.components.register('admin-users-page', {require: 'components/admin-users-page/admin-users-page'});
 
+    ko.components.register('search-editor', {require: 'components/search-editor/search-editor'});
+
     // [Scaffolded component registrations will be inserted here. To retain this feature, don't remove this comment.]
 
     // Start the application

@@ -1,0 +1,129 @@
+<form class="form-horizontal">
+
+    <button type="submit" class="defaultsink" data-bind="click: performSearch">Search</button>
+
+    <div class="form-group">
+        <div data-bind="if: search.hasOwnProperty('after')">
+            <label for="after" class="control-label col-xs-2">After (date and time)</label>
+
+            <div class="col-xs-4">
+                <input class="form-control" data-bind="kendoDateTimePicker: { value: search.after }" id="after"/>
+            </div>
+        </div>
+        <div data-bind="if: search.hasOwnProperty('after_offset')">
+            <label for="after_offset" class="control-label col-xs-2">After (time)</label>
+
+            <div class="col-xs-4">
+                <input class="form-control"
+                       data-bind="kendoTimePicker: { value: afterOffsetDate, min: minTime, max: maxTime, interval: 15}"
+                       id="after_offset"/>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div data-bind="if: search.hasOwnProperty('before')">
+            <label for="before" class="control-label col-xs-2">Before (date and time)</label>
+
+            <div class="col-xs-4">
+                <input class="form-control" data-bind="kendoDateTimePicker: { value: search.before }" id="before"/>
+            </div>
+        </div>
+
+        <div data-bind="if: search.hasOwnProperty('before_offset')">
+            <label for="before_offset" class="control-label col-xs-2">Before (time)</label>
+
+            <div class="col-xs-4">
+                <input class="form-control"
+                       data-bind="kendoTimePicker: { value: beforeOffsetDate, min: minTime, max: maxTime, interval: 15}"
+                       id="before_offset"/>
+            </div>
+        </div>
+    </div>
+
+    <div data-bind="if: search.hasOwnProperty('event_type')">
+        <div class="form-group">
+            <label for="event_type" class="control-label col-xs-2">Event type</label>
+
+            <div class="form-inline col-xs-2">
+                <input type="text" placeholder="ns:value" class="form-control" data-bind="value: search.event_type"
+                       id="event_type"/>
+            </div>
+        </div>
+    </div>
+
+    <div data-bind="if: search.hasOwnProperty('semantic_type')">
+        <div class="form-group">
+            <label for="event_type" class="control-label col-xs-2">File type</label>
+
+            <div class="form-inline col-xs-2">
+                <input type="text" placeholder="ns:value" class="form-control" data-bind="value: search.semantic_type"
+                       id="file_type"/>
+            </div>
+        </div>
+    </div>
+
+    <div data-bind="if: search.hasOwnProperty('meta')">
+        <div class="form-group">
+            <label class="control-label col-xs-2">Metadata</label>
+
+            <div class="col-xs-10">
+                <button class="btn btn-default" data-bind="click: addMeta">
+                    <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>
+                    <span data-bind="if: search.meta().length==0">Add a metadata constraint</span>
+                    <span data-bind="if: search.meta().length>0">Add another metadata constraint</span>
+                </button>
+            </div>
+        </div>
+
+        <div data-bind="foreach: search.meta">
+            <div class="form-group">
+                <div class="form-inline col-xs-10 col-xs-offset-2">
+
+                    <input class="form-control" id="meta-key-picker" data-bind="value: key" placeholder="ns:keyname"/>
+                    <select data-bind="value: type" class="form-control" id="meta-type-select">
+                        <option value="string_equals">equals (string)</option>
+                        <option value="number_equals">equals (number)</option>
+                        <option value="less">is less than</option>
+                        <option value="greater">is greater than</option>
+                        <option value="before">is before</option>
+                        <option value="after">is after</option>
+                    </select>
+                <span data-bind="if: (type()==='before' || type()==='after')">
+                    <input class="form-control"
+                           data-bind="kendoDateTimePicker: { value: date_value }"
+                           id="meta-date-picker"/>
+                </span>
+                <span data-bind="if: (type()==='number_equals' || type()==='less' || type()==='greater')">
+                    <input data-bind="kendoNumericTextBox: { value: number_value}"/>
+                    </span>
+                <span data-bind="if: (type()==='string_equals')">
+                    <input class="form-control" id="meta-text-picker" data-bind="value: string_value"
+                           placeholder="String value..."/>
+                </span>
+                    <button class="btn btn-default" data-bind="click: $parent.removeMeta"><span
+                            class="glyphicon glyphicon-trash" aria-hidden="true"></span></button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div data-bind="if: search.hasOwnProperty('exclude_events')">
+        <div class="form-group">
+            <div class="col-xs-offset-2 col-xs-10">
+                <div class="checkbox">
+                    <label><input type="checkbox" data-bind="checked: search.exclude_events">Exclude events?</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="col-xs-offset-2 col-xs-10">
+            <button type="submit" class="btn btn-primary" data-bind="click: performSearch">Search</button>
+        </div>
+    </div>
+
+</form>
+

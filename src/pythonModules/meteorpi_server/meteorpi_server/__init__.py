@@ -5,7 +5,6 @@ from functools import wraps
 import urllib
 
 from yaml import safe_load
-
 import os.path as path
 import flask
 from tornado.ioloop import IOLoop
@@ -87,6 +86,11 @@ def build_app(db):
             # Update status and push changes to DB
             new_status = db.get_camera_status(camera_id=camera_id)
             return jsonify({'status': new_status.as_dict()})
+
+    @app.route('/users', methods=['GET'])
+    @requires_auth(roles=['camera_admin'])
+    def get_users():
+        return jsonify({'users': (u.as_dict() for u in db.get_users())})
 
     @app.route('/cameras', methods=['GET'])
     def get_active_cameras():

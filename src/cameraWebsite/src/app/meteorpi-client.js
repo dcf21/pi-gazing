@@ -1,8 +1,4 @@
-/**
- * Created by tom on 17/05/15.
- */
-
-define(["jquery", "knockout"], function (jquery, ko) {
+define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
 
     return new MeteorPiClient({
         urlPrefix: "http://localhost:12345/"
@@ -17,151 +13,103 @@ define(["jquery", "knockout"], function (jquery, ko) {
 
         var self = this;
 
+        /**
+         * Maintains the current user state, any UI or other elements can subscribe to this to be notified of log in and
+         * log out events.
+         */
         self.user = ko.observable();
 
-        var ajaxAuth = function (uri, method, data) {
-            if (method == null) {
-                method = "GET"
-            }
-            var request = {
-                beforeSend: function (xhr) {
-                    xhr.setRequestHeader("Authorization",
-                        "Basic " + btoa(self.username + ":" + self.password));
-                },
-                url: config.urlPrefix + uri,
-                type: method,
-                contentType: "application/json",
-                accepts: "application/json",
-                cache: false,
-                dataType: 'json'
-            };
-            if (data != null) {
-                request.data = JSON.stringify(data)
-            }
-            return jquery.ajax(request)
-        };
-
-        var ajax = function (uri, method, data) {
-            if (method == null) {
-                method = "GET"
-            }
-            var request = {
-                url: config.urlPrefix + uri,
-                type: method,
-                contentType: "application/json",
-                accepts: "application/json",
-                cache: false,
-                dataType: 'json'
-            };
-            if (data != null) {
-                request.data = JSON.stringify(data)
-            }
-            return jquery.ajax(request)
-        };
-
-        var applyCallback = function (request, name, callback) {
-            request.done(function (data) {
-                if (name == null) {
-                    callback(null, data);
-                } else {
-                    callback(null, data[name]);
-                }
-            });
-            request.fail(function (jqXHR, textStatus) {
-                callback(textStatus, null)
-            });
-        };
-
-        self.toJSRemovingDefaults = function (obj, defaults) {
-            var copy = ko.toJS(obj);
-            var isEmptyArray = function (o) {
-                return (toString.call(o) === "[object Array]" && o.length == 0)
-            };
-            for (var key in copy) {
-                if (copy.hasOwnProperty(key)) {
-                    var val = copy[key];
-                    if (val === null || val === undefined || isEmptyArray(val)) {
-                        delete copy[key];
-                    } else if (defaults != null && defaults.hasOwnProperty(key) && defaults[key] === val) {
-                        delete copy[key];
-                    }
-                }
-            }
-            return copy;
+        /**
+         * Retrieve the current set of users, requires a logged in user with camera_admin role.
+         * @param callback called with a list of all current users.
+         */
+        self.getUsers = function (callback) {
+            applyCallback(ajaxAuth("users", "GET"), "users", callback)
         };
 
         /**
-         * Pull out values from an observable
-         * @param ob
-         * @returns {string}
+         * Get all currently active cameras for this installation
+         * @param callback called with (err:string, [cameraID:string])
          */
-        self.stringFromObservables = function (ob) {
-            var jsonString = JSON.stringify(ob, function (key, ob_value) {
-                    var value = ko.unwrap(this.hasOwnProperty(key) ? this[key] : ob_value);
-                    if (value == null || value == false) {
-                        return undefined;
-                    }
-                    if (jquery.type(value) == "date") {
-                        return value.getTime() / 1000.0;
-                    }
-                    if (typeof value === "boolean") {
-                        return value ? 1 : undefined;
-                    }
-                    return value;
-                }
-            );
-            var result = encodeURIComponent(encodeURIComponent(jsonString));
-            return result;
+        self.listCameras = function (callback) {
+            applyCallback(ajax("cameras", "GET"), "cameras", callback)
         };
 
         /**
-         * Decode a string encoded twice with URI component encoding into a JSON object,
-         * optionally mapping named keys to particular types.
-         * @param s the encoded string
-         * @param types a dict of key name to value, values can be either 'bool' or 'date'. In the case
-         * of booleans the value is set to True if the key value is 1, and False otherwise. For dates the
-         * value is treated as time since the unix epoch and converted to a Javascript
-         * Date object with new Date(value * 1000) - Javascript having a higher time resolution than the server.
+         * Search for Event objects from the API
+         * @param search an EventSearch used to define the search
+         * @param callback callback called with (err:string, [event:{}])
          */
-        self.decodeString = function (s, types) {
-            var jsonString = decodeURIComponent(decodeURIComponent(s));
-            var o = JSON.parse(jsonString, function (key, value) {
-                if (types && key) {
-                    if (types[key] === "date") {
-                        value = new Date(value * 1000);
-                    }
-                    if (types[key] === "bool") {
-                        value = (value == 1);
-                    }
-                }
-                return value;
-            });
-            return o;
+        self.searchEvents = function (search, callback) {
+            applyCallback(ajax("events/" + utils.encodeString(search), "GET"), null, callback);
         };
 
         /**
-         * Push values from an encoded string into an observable
-         * @param ob an observable or dictionary of observables
-         * @param s an encoded string produced by stringFromObservable
-         * @param types - a dict of keys to types, where a type can be 'date'
-         * or 'bool' to handle mappings to those types particularly.
+         * Search for FileRecord objects from the API
+         * @param search a FileRecordSearch used to define the search
+         * @param callback callback called with (err:string, [filerecord:{}])
          */
-        self.populateObservables = function (ob, s, types) {
-            var o = self.decodeString(s, types);
-            for (var key in ob) {
-                if (ob.hasOwnProperty(key)) {
-                    if (key in o) {
-                        if (ko.isObservable(ob[key])) {
-                            //console.log("Pushing " + ko.unwrap(o[key]) + " into " + key);
-                            ob[key](ko.unwrap(o[key]));
-                        } else {
-                            ob[key] = o[key];
-                        }
-                    }
-                }
+        self.searchFiles = function (search, callback) {
+            applyCallback(ajax("files/" + utils.encodeString(search), "GET"), null, callback);
+        };
+
+
+        /**
+         * Get the camera status for a given camera and time. If the time is not specified (is null) this
+         * is interpreted to mean 'now'.
+         * @param cameraID camera ID for which status should be retrieved
+         * @param date the time at which the status applies
+         * @param callback callback called with (err:string, status:{})
+         */
+        self.getStatus = function (cameraID, date, callback) {
+            applyCallback(ajax("cameras/" + cameraID + "/status" + (date == null ? "" : "/" + date.getTime()), "GET"), "status", callback)
+        };
+
+        /**
+         * Update the manually modifiable parts of the camera status, specifically the installation URL and name and the
+         * visible regions array. Requires a current users with camera_admin role.
+         * @param cameraID ID of the camera for which status is to be updated.
+         * @param newStatus the updated values.
+         * @param callback called with the updated camera status.
+         */
+        self.updateCameraStatus = function (cameraID, newStatus, callback) {
+            applyCallback(ajaxAuth("cameras/" + cameraID + "/status", "POST", newStatus), "status", callback)
+        };
+
+
+        /**
+         * Get a URL which can be used to retrieve the contents of the given file.
+         * @param file a file structure.
+         * @returns {string} URL pointing at the file contents on the server.
+         */
+        self.urlForFile = function (file) {
+            return config.urlPrefix + "files/content/" + file['file_id'] + "/" + self.filenameForFile(file);
+        };
+
+        /**
+         * Return a filename for the given file
+         * @param file a file structure
+         * @returns {string} a filename to be shown for the given file in the UI, this will also be the file used
+         * when generating links so the browser downloads with this name.
+         */
+        self.filenameForFile = function (file) {
+            if (file['file_name'] == null || file['file_name'].length == 0) {
+                return file['file_id'];
+            }
+            else {
+                return file['file_name'];
             }
         };
 
+        /**
+         * Attempt to log into the server. If successful this sets the 'user' observable on this object to contain
+         * details of the logged in user including its name and roles, otherwise this is set to null. Other components
+         * such as the navbar listen to this observable and expose appropriate navigation options based on roles.
+         * @param username the user to log in.
+         * @param password password.
+         * @param callback a callback which is called with either null (in the event of an authentication failure) or
+         * the new value of the user observable otherwise. This is called after the observable has been updated.
+         */
         self.login = function (username, password, callback) {
             self.username = username;
             self.password = password;
@@ -188,6 +136,12 @@ define(["jquery", "knockout"], function (jquery, ko) {
             });
         };
 
+        /**
+         * Called when the application first loads, checks for login credentials stored in HTML5 localStorage, and uses
+         * them to log in if available.
+         * @param callback a callback, called with either null (indicating an authentication failure or no previously
+         * stored credentials) or with the logged in user object.
+         */
         self.tryAutoLogin = function (callback) {
             if (typeof(Storage) !== "undefined" && localStorage.meteorpiUser) {
                 self.login(localStorage.meteorpiUser, localStorage.meteorpiPassword, callback);
@@ -196,6 +150,9 @@ define(["jquery", "knockout"], function (jquery, ko) {
             }
         };
 
+        /**
+         * Logs out, setting the user observable to null and removing any previously stored credentials in localStorage
+         */
         self.logout = function () {
             self.user(null);
             if (typeof(Storage) !== "undefined") {
@@ -205,116 +162,83 @@ define(["jquery", "knockout"], function (jquery, ko) {
         };
 
         /**
-         * Get all currently active cameras for this installation
-         * @param callback called with (err:string, [cameraID:string])
+         * Build an authenticated cross-domain ajax request. Self.user() must not be null. Pass the result of this on
+         * to applyCallback to make the call and be notified of response or failure.
+         * @param uri the URI under config.urlPrefix to use as the target.
+         * @param method HTTP method, if not specified then assumed to be 'GET'
+         * @param data request body, if specified this is serialised with JSON.stringify and set as request.data
+         * @returns {*} the request.
          */
-        self.listCameras = function (callback) {
-            applyCallback(ajax("cameras", "GET"), "cameras", callback)
-        };
-
-        /**
-         * Search for Event objects from the API
-         * @param search an EventSearch used to define the search
-         * @param callback callback called with (err:string, [event:{}])
-         */
-        self.searchEvents = function (search, callback) {
-            var searchObject = self.toJSRemovingDefaults(search, {skip: 0});
-            var searchString = self.stringFromObservables(searchObject);
-            applyCallback(ajax("events/" + searchString, "GET"), null, callback);
-        };
-
-        /**
-         * Search for FileRecord objects from the API
-         * @param search a FileRecordSearch used to define the search
-         * @param callback callback called with (err:string, [filerecord:{}])
-         */
-        self.searchFiles = function (search, callback) {
-            var searchObject = self.toJSRemovingDefaults(search, {exclude_events: false, skip: 0});
-            var searchString = self.stringFromObservables(searchObject);
-            applyCallback(ajax("files/" + searchString, "GET"), null, callback);
-        };
-
-        self.urlForFile = function (file) {
-            return config.urlPrefix + "files/content/" + file['file_id'] + "/" + self.filenameForFile(file);
-        };
-
-        self.filenameForFile = function (file) {
-            if (file['file_name'] == null || file['file_name'].length == 0) {
-                /**
-                 * TODO - implement some kind of sensible default naming logic here based on the file properties.
-                 */
-                return file['file_id'];
+        var ajaxAuth = function (uri, method, data) {
+            if (method == null) {
+                method = "GET"
             }
-            else {
-                return file['file_name'];
-            }
-        };
-
-        /**
-         * Get the camera status for a given camera and time. If the time is not specified (is null) this
-         * is interpreted to mean 'now'.
-         * @param cameraID camera ID for which status should be retrieved
-         * @param date the time at which the status applies
-         * @param callback callback called with (err:string, status:{})
-         */
-        self.getStatus = function (cameraID, date, callback) {
-            applyCallback(ajax("cameras/" + cameraID + "/status" + (date == null ? "" : "/" + date.getTime()), "GET"), "status", callback)
-        };
-
-        self.updateCameraStatus = function (cameraID, newStatus, callback) {
-            applyCallback(ajaxAuth("cameras/" + cameraID + "/status", "POST", newStatus), "status", callback)
-        };
-
-
-        /**
-         * Build and return a pure computed knockout observable which wraps up a supplied observable containing a time
-         * offset and exposes a date. The date can be written or read and will update the underlying observable data
-         * accordingly.
-         * @param ob the observable to wrap to create the computed value.
-         */
-        self.wrapTimeOffsetObservable = function (ob) {
-            /**
-             * Take a number of seconds since mid-day and produce a date object representing that number of
-             * seconds after 2000-1-1 12:00 PM. This can be used in e.g. a TimePicker to show the times.
-             * @param offset
-             * @returns {Date}
-             */
-            var secondsOffsetToDate = function (offset) {
-                var midday = new Date(2000, 0, 1, 12, 0, 0);
-                var theDate = new Date(2000, 0, 1, 12, 0, 0);
-                theDate.setSeconds(midday.getSeconds() + offset);
-                return theDate;
-
-            };
-
-            /**
-             * Take a date, and return the number of seconds between that date and the most recent mid-day
-             * @param date
-             * @returns {*}
-             */
-            var dateToSecondsOffset = function (date) {
-                if (date == null) {
-                    return null;
-                }
-                var theDate;
-                if (date.getHours() < 12) {
-                    theDate = new Date(2000, 0, 2, date.getHours(), date.getMinutes(), 0);
-                } else {
-                    theDate = new Date(2000, 0, 1, date.getHours(), date.getMinutes(), 0);
-                }
-                var midday = new Date(2000, 0, 1, 12, 0, 0);
-                return (theDate.getTime() - midday.getTime()) / 1000;
-            };
-
-            return ko.pureComputed({
-                read: function () {
-                    return secondsOffsetToDate(ob());
+            var request = {
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("Authorization",
+                        "Basic " + btoa(self.username + ":" + self.password));
                 },
-                write: function (value) {
-                    ob(dateToSecondsOffset(value));
+                url: config.urlPrefix + uri,
+                type: method,
+                contentType: "application/json",
+                accepts: "application/json",
+                cache: false,
+                dataType: 'json'
+            };
+            if (data != null) {
+                request.data = JSON.stringify(data)
+            }
+            return jquery.ajax(request)
+        };
+
+        /**
+         * Build an non-authenticated cross-domain ajax request. Pass the result of this on
+         * to applyCallback to make the call and be notified of response or failure.
+         * @param uri the URI under config.urlPrefix to use as the target.
+         * @param method HTTP method, if not specified then assumed to be 'GET'
+         * @param data request body, if specified this is serialised with JSON.stringify and set as request.data
+         * @returns {*} the request.
+         */
+        var ajax = function (uri, method, data) {
+            if (method == null) {
+                method = "GET"
+            }
+            var request = {
+                url: config.urlPrefix + uri,
+                type: method,
+                contentType: "application/json",
+                accepts: "application/json",
+                cache: false,
+                dataType: 'json'
+            };
+            if (data != null) {
+                request.data = JSON.stringify(data)
+            }
+            return jquery.ajax(request)
+        };
+
+        /**
+         * Apply a callback, adding .done(..) and .fail(..) listeners to the supplied XHR instance such that the
+         * callback is called with either success or failure appropriately. Optionally also unwraps the data in the
+         * result.
+         * @param request an XHR, use ajax(..) and ajaxAuth(..) to generate.
+         * @param name if specified, the name of the desired root object in the de-serialised JSON response. For example
+         * if the server responds with {foo:[bar]} and you just want the [bar] this argument should be defined and set
+         * to 'foo'.
+         * @param callback a callback, called with (err, result) where err is null if there's a result and vice versa.
+         */
+        var applyCallback = function (request, name, callback) {
+            request.done(function (data) {
+                if (name == null) {
+                    callback(null, data);
+                } else {
+                    callback(null, data[name]);
                 }
             });
-        }
+            request.fail(function (jqXHR, textStatus) {
+                callback(textStatus, null)
+            });
+        };
 
     }
 
