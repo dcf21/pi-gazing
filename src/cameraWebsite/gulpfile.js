@@ -27,9 +27,11 @@ requireJsOptimizerConfig = merge(requireJsRuntimeConfig, {
         'components/login-modal/login-modal',
         'components/region-editor/region-editor',
         'components/status-page/status-page',
+        'components/search-editor/search-editor',
         'modal',
         'kendobindings',
-        'kendo'
+        'kendo',
+        'utils'
     ],
     insertRequire: ['app/startup'],
     bundles: {

@@ -155,7 +155,6 @@ class MeteorDatabase:
             if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
                 count_sql = 'SELECT count(*) FROM t_event e, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
                 count_cur = self.con.cursor()
-                print count_sql
                 count_cur.execute(count_sql, sql_args)
                 total_rows = count_cur.fetchone()[0]
             return {"count": total_rows,
