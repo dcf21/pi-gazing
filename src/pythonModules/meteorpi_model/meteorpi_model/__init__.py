@@ -1,9 +1,10 @@
 # MeteorPi API module
 import uuid
 import datetime
-import time
 from itertools import izip
 import numbers
+import math
+import calendar
 
 
 def _nsstring_from_dict(d, key, default=None):
@@ -33,7 +34,7 @@ def _uuid_from_dict(d, key, default=None):
 
 def _datetime_from_dict(d, key, default=None):
     if key in d:
-        return datetime.datetime.fromtimestamp(timestamp=d[key])
+        return milliseconds_to_utc_datetime(d[key])
     else:
         return default
 
@@ -57,9 +58,7 @@ def _add_uuid(d, key, uuid_value):
 
 def _add_datetime(d, key, datetime_value):
     if datetime_value is not None:
-        d[key] = time.mktime((datetime_value.year, datetime_value.month, datetime_value.day,
-                              datetime_value.hour, datetime_value.minute, datetime_value.second,
-                              -1, -1, -1)) + datetime_value.microsecond / 1e6
+        d[key] = utc_datetime_to_milliseconds(datetime_value)
 
 
 def _add_value(d, key, value):
@@ -76,6 +75,40 @@ def _add_nsstring(d, key, value):
     if value is not None:
         d[key] = str(value)
 
+
+def get_day_and_offset(date):
+    """
+    Get the day, as a date, in which the preceding midday occurred, as well as the number of seconds since that
+    midday for the specified date.
+    :param date: a UTC datetime
+    :return: {previous_noon:datetime, seconds:int}
+    """
+    if date.hour <= 12:
+        cdate = date - datetime.timedelta(days=1)
+    else:
+        cdate = date
+    noon = datetime.datetime(year=cdate.year, month=cdate.month, day=cdate.day, hour=12)
+    return {"previous_noon": noon, "seconds": (date - noon).total_seconds()}
+
+
+def now():
+    """Returns the current UTC datetime"""
+    return datetime.datetime.utcnow()
+
+
+def utc_datetime_to_milliseconds(dt):
+    """See https://docs.python.org/2/library/time.html"""
+    if dt is None:
+        return None
+    return calendar.timegm(dt.timetuple()) * 1000 + int(dt.microsecond / 1000.0)
+
+
+def milliseconds_to_utc_datetime(milliseconds):
+    """See https://docs.python.org/2/library/time.html"""
+    if milliseconds is None:
+        return None
+    split = math.modf(milliseconds / 1000.0)
+    return datetime.datetime.utcfromtimestamp(int(split[1])) + datetime.timedelta(microseconds=int(split[0] * 1000.0))
 
 class ModelEqualityMixin():
     """

@@ -29,6 +29,11 @@ define(['jquery', 'knockout', 'router', 'client', 'bootstrap', 'knockout-project
 
     // [Scaffolded component registrations will be inserted here. To retain this feature, don't remove this comment.]
 
+    Date.prototype.toString = function () {
+        return this.toUTCString();
+    };
+
+
     // Start the application
     ko.applyBindings({route: router.currentRoute});
 

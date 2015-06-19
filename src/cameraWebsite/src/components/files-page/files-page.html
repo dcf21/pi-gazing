@@ -34,7 +34,7 @@
     <tbody data-bind="foreach: results">
     <tr>
         <td data-bind="text: camera_id"></td>
-        <td data-bind="text: new Date(file_time*1000)"></td>
+        <td data-bind="text: new Date(file_time)"></td>
         <td data-bind="text: mime_type"></td>
         <td data-bind="text: semantic_type"></td>
         <td><a data-bind="text: $parent.filenameForFile($data), attr : {href : $parent.urlForFile($data)}"></a>

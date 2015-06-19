@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta
 import shutil
 import uuid
 from contextlib import closing
@@ -31,32 +30,6 @@ def get_installation_id():
         return result
 
     return _to_array(uuid.getnode())
-
-
-def get_day_and_offset(date):
-    """
-    Get the day, as a date, in which the preceding midday occurred, as well as the number of seconds since that
-    midday for the specified date.
-    :param date: a datetime
-    :return: {day:date, seconds:int}
-    """
-    if date.hour <= 12:
-        cdate = date - timedelta(days=1)
-    else:
-        cdate = date
-    noon = datetime(year=cdate.year, month=cdate.month, day=cdate.day, hour=12)
-    return {"day": noon, "seconds": (date - noon).total_seconds()}
-
-
-def round_time(time=None):
-    """
-    Rounds a datetime, discarding the millisecond part.
-
-    Needed because Python and Firebird precision is different! Default value returned is the rounded version of datetime.now()
-    """
-    if time is None:
-        time = datetime.now()
-    return time + timedelta(0, 0, -time.microsecond)
 
 
 SOFTWARE_VERSION = 1
@@ -105,8 +78,8 @@ class MeteorDatabase:
         _add_sql(search.lat_max, 's.locationLatitude <= (?)')
         _add_sql(search.long_min, 's.locationLongitude >= (?)')
         _add_sql(search.long_max, 's.locationLongitude <= (?)')
-        _add_sql(search.before, 'e.eventTime < (?)')
-        _add_sql(search.after, 'e.eventTime > (?)')
+        _add_sql(mp.utc_datetime_to_milliseconds(search.before), 'e.eventTime < (?)')
+        _add_sql(mp.utc_datetime_to_milliseconds(search.after), 'e.eventTime > (?)')
         _add_sql(search.before_offset, 'e.eventOffset < (?)')
         _add_sql(search.after_offset, 'e.eventOffset > (?)')
         # Have to handle this a bit differently as we have an NS string
@@ -119,7 +92,10 @@ class MeteorDatabase:
             ct = fmc.constraint_type
             sql_template = 'e.internalID IN (' \
                            'SELECT em.eventID FROM t_eventMeta em WHERE em.{0} {1} (?) AND em.metaKey = (?))'
-            sql_args.append(fmc.value)
+            if ct == 'after' or ct == 'before':
+                sql_args.append(mp.utc_datetime_to_milliseconds(fmc.value))
+            else:
+                sql_args.append(fmc.value)
             sql_args.append(str(fmc.key))
             if ct == 'after':
                 where_clauses.append(sql_template.format('dateValue', '>', meta_key))
@@ -178,8 +154,8 @@ class MeteorDatabase:
         _add_sql(search.lat_max, 's.locationLatitude <= (?)')
         _add_sql(search.long_min, 's.locationLongitude >= (?)')
         _add_sql(search.long_max, 's.locationLongitude <= (?)')
-        _add_sql(search.before, 'f.fileTime < (?)')
-        _add_sql(search.after, 'f.fileTime > (?)')
+        _add_sql(mp.utc_datetime_to_milliseconds(search.before), 'f.fileTime < (?)')
+        _add_sql(mp.utc_datetime_to_milliseconds(search.after), 'f.fileTime > (?)')
         _add_sql(search.before_offset, 'f.fileOffset < (?)')
         _add_sql(search.after_offset, 'f.fileOffset > (?)')
         _add_sql(search.mime_type, 'f.mimeType = (?)')
@@ -192,7 +168,10 @@ class MeteorDatabase:
             ct = fmc.constraint_type
             sql_template = 'f.internalID IN (' \
                            'SELECT fm.fileID FROM t_fileMeta fm WHERE fm.{0} {1} (?) AND fm.metaKey = (?))'
-            sql_args.append(fmc.value)
+            if ct == 'after' or ct == 'before':
+                sql_args.append(mp.utc_datetime_to_milliseconds(fmc.value))
+            else:
+                sql_args.append(fmc.value)
             sql_args.append(str(fmc.key))
             if ct == 'after':
                 where_clauses.append(sql_template.format('dateValue', '>', meta_key))
@@ -257,7 +236,7 @@ class MeteorDatabase:
             for (cameraID, eventID, internalID, eventTime, eventType, statusID) in cursor:
                 event = mp.Event(
                     camera_id=cameraID,
-                    event_time=eventTime,
+                    event_time=mp.milliseconds_to_utc_datetime(eventTime),
                     event_id=uuid.UUID(bytes=eventID),
                     event_type=mp.NSString.from_string(eventType),
                     status_id=uuid.UUID(bytes=statusID))
@@ -313,7 +292,7 @@ class MeteorDatabase:
                     status_id=uuid.UUID(bytes=statusID))
                 fr.file_id = uuid.UUID(bytes=fileID)
                 fr.file_size = fileSize
-                fr.file_time = fileTime
+                fr.file_time = mp.milliseconds_to_utc_datetime(fileTime)
                 fr.file_name = fileName
                 fr.get_path = lambda: path.join(self.file_store_path, file_id.hex)
                 with closing(self.con.cursor()) as cur:
@@ -347,23 +326,22 @@ class MeteorDatabase:
         if status_id is None:
             raise ValueError('No status defined for camera id <%s> at time <%s>!' % (camera_id, event_time))
         cur = self.con.cursor()
-        day_and_offset = get_day_and_offset(event_time)
+        day_and_offset = mp.get_day_and_offset(event_time)
         cur.execute(
-            'INSERT INTO t_event (cameraID, eventTime, eventDay, eventOffset, eventType, '
+            'INSERT INTO t_event (cameraID, eventTime, eventOffset, eventType, '
             'statusID) '
-            'VALUES (?, ?, ?, ?, ?, ?) '
+            'VALUES (?, ?, ?, ?, ?) '
             'RETURNING internalID, eventID, eventTime',
             (camera_id,
-             event_time,
-             day_and_offset['day'],
+             mp.utc_datetime_to_milliseconds(event_time),
              day_and_offset['seconds'],
              str(event_type),
              status_id['internal_id']))
         ids = cur.fetchone()
         event_internal_id = ids[0]
         event_id = uuid.UUID(bytes=ids[1])
-        event = mp.Event(camera_id=camera_id, event_time=ids[2], event_id=event_id, event_type=event_type,
-                         status_id=status_id['status_id'])
+        event = mp.Event(camera_id=camera_id, event_time=mp.milliseconds_to_utc_datetime(ids[2]),
+                         event_id=event_id, event_type=event_type, status_id=status_id['status_id'])
         for file_record_index, file_record in enumerate(file_records):
             event.file_records.append(file_record)
             cur.execute(
@@ -388,7 +366,7 @@ class MeteorDatabase:
                  str(meta.key),
                  meta.string_value(),
                  meta.float_value(),
-                 meta.date_value(),
+                 mp.utc_datetime_to_milliseconds(meta.date_value()),
                  meta_index))
             event.meta.append(
                 mp.Meta(key=meta.key, value=meta.value))
@@ -420,17 +398,16 @@ class MeteorDatabase:
         if status_id is None:
             raise ValueError('No status defined for camera id <%s> at time <%s>!' % (camera_id, file_time))
         cur = self.con.cursor()
-        day_and_offset = get_day_and_offset(file_time)
+        day_and_offset = mp.get_day_and_offset(file_time)
         cur.execute(
             'INSERT INTO t_file (cameraID, mimeType, '
-            'semanticType, fileTime, fileDay, fileOffset, fileSize, statusID, fileName) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) '
+            'semanticType, fileTime, fileOffset, fileSize, statusID, fileName) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?) '
             'RETURNING internalID, fileID, fileTime',
             (camera_id,
              mime_type,
              str(semantic_type),
-             file_time,
-             day_and_offset['day'],
+             mp.utc_datetime_to_milliseconds(file_time),
              day_and_offset['seconds'],
              file_size_bytes,
              status_id['internal_id'],
@@ -445,7 +422,7 @@ class MeteorDatabase:
         stored_file_time = row['fileTime']
         result_file = mp.FileRecord(camera_id=camera_id, mime_type=mime_type, semantic_type=semantic_type,
                                     status_id=status_id['status_id'])
-        result_file.file_time = stored_file_time
+        result_file.file_time = mp.milliseconds_to_utc_datetime(stored_file_time)
         result_file.file_id = file_id
         result_file.file_size = file_size_bytes
         # Store the fileMeta
@@ -458,7 +435,7 @@ class MeteorDatabase:
                  str(file_meta.key),
                  file_meta.string_value(),
                  file_meta.float_value(),
-                 file_meta.date_value(),
+                 mp.utc_datetime_to_milliseconds(file_meta.date_value()),
                  file_meta_index))
             result_file.meta.append(
                 mp.Meta(key=file_meta.key, value=file_meta.value))
@@ -488,8 +465,7 @@ class MeteorDatabase:
         as if setHighWaterMark was called.
         """
         if time is None:
-            time = datetime.now()
-        time = round_time(time)
+            time = mp.now()
         # Set the high water mark, allowing it to advance to this point or to rollback if
         # we have data products produced after this status' time.
         self.set_high_water_mark(camera_id=camera_id, time=time, allow_rollback=True, allow_advance=True)
@@ -498,7 +474,7 @@ class MeteorDatabase:
         cur.execute(
             'UPDATE t_cameraStatus t SET t.validTo = (?) '
             'WHERE t.validTo IS NULL AND t.cameraID = (?)',
-            (time,
+            (mp.utc_datetime_to_milliseconds(time),
              camera_id))
         # Insert the new status into the database
         cur.execute(
@@ -509,7 +485,7 @@ class MeteorDatabase:
             'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
             'RETURNING internalID',
             (camera_id,
-             time,
+             mp.utc_datetime_to_milliseconds(time),
              None,
              SOFTWARE_VERSION,
              ns.orientation.altitude,
@@ -547,14 +523,13 @@ class MeteorDatabase:
         """Return the integer internal ID and UUID of the camera status block for the
         given time and camera, or None if there wasn't one."""
         if time is None:
-            time = datetime.now()
-        time = round_time(time)
+            time = mp.now()
         cur = self.con.cursor()
         cur.execute(
             'SELECT internalID, statusID FROM t_cameraStatus t '
             'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
             'AND (t.validTo IS NULL OR t.validTo > (?))',
-            (camera_id, time, time))
+            (camera_id, mp.utc_datetime_to_milliseconds(time), mp.utc_datetime_to_milliseconds(time)))
         row = cur.fetchone()
         if row is None:
             return None
@@ -567,8 +542,7 @@ class MeteorDatabase:
         """Return the camera status for a given time, or None if no status is
         available time : datetime.datetime object, default now."""
         if time is None:
-            time = datetime.now()
-        time = round_time(time)
+            time = mp.now()
         cur = self.con.cursor()
         cur.execute(
             'SELECT lens, sensor, instURL, instName, locationLatitude, '
@@ -579,8 +553,8 @@ class MeteorDatabase:
             'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
             'AND (t.validTo IS NULL OR t.validTo > (?))',
             (camera_id,
-             time,
-             time))
+             mp.utc_datetime_to_milliseconds(time),
+             mp.utc_datetime_to_milliseconds(time)))
         row = cur.fetchonemap()
         if row is None:
             return None
@@ -601,8 +575,8 @@ class MeteorDatabase:
                                  error=row['locationError']),
                              camera_id=camera_id,
                              status_id=uuid.UUID(bytes=row['statusID']))
-        cs.valid_from = row['validFrom']
-        cs.valid_to = row['validTo']
+        cs.valid_from = mp.milliseconds_to_utc_datetime(row['validFrom'])
+        cs.valid_to = mp.milliseconds_to_utc_datetime(row['validTo'])
         cs.software_version = row['softwareVersion']
         camera_status_id = row['internalID']
         cur.execute('SELECT region, pointOrder, x, y FROM t_visibleRegions t '
@@ -625,7 +599,7 @@ class MeteorDatabase:
         row = cur.fetchone()
         if row is None:
             return None
-        return row[0]
+        return mp.milliseconds_to_utc_datetime(row[0])
 
     def set_high_water_mark(self, time, camera_id=get_installation_id(), allow_rollback=True, allow_advance=True):
         """
@@ -646,13 +620,13 @@ class MeteorDatabase:
                 cur.execute(
                     'INSERT INTO t_highWaterMark (cameraID, mark) VALUES (?,?)',
                     (camera_id,
-                     time))
+                     mp.utc_datetime_to_milliseconds(time)))
         elif last is not None and last < time and allow_advance:
             # Defined, but new one is later, we don't really have to do much
             with closing(self.con.cursor()) as cur:
                 cur.execute(
                     'UPDATE t_highWaterMark t SET t.mark = (?) WHERE t.cameraID = (?)',
-                    (time,
+                    (mp.utc_datetime_to_milliseconds(time),
                      camera_id))
         elif last is not None and last > time and allow_rollback:
             # More complicated, we're rolling back time so need to clean up a load
@@ -661,7 +635,7 @@ class MeteorDatabase:
                 read_cursor.execute(
                     'SELECT fileID AS file_id FROM t_file '
                     'WHERE fileTime > (?) AND cameraID = (?) FOR UPDATE',
-                    (time, camera_id))
+                    (mp.utc_datetime_to_milliseconds(time), camera_id))
                 read_cursor.name = "read_cursor"
                 for (file_id,) in read_cursor:
                     update_cursor.execute("DELETE FROM t_file WHERE CURRENT OF read_cursor")
@@ -672,20 +646,20 @@ class MeteorDatabase:
                         print "Warning: could not remove file {0}.".format(file_path)
                 update_cursor.execute(
                     "DELETE FROM t_event WHERE eventTime > (?) AND cameraID = (?)",
-                    (time, camera_id))
+                    (mp.utc_datetime_to_milliseconds(time), camera_id))
                 update_cursor.execute(
                     'UPDATE t_highWaterMark t SET t.mark = (?) WHERE t.cameraID = (?)',
-                    (time, camera_id))
+                    (mp.utc_datetime_to_milliseconds(time), camera_id))
                 # Delete future status blocks
                 update_cursor.execute(
                     'DELETE FROM t_cameraStatus t '
                     'WHERE t.validFrom > (?) AND t.cameraID = (?)',
-                    (time, camera_id))
+                    (mp.utc_datetime_to_milliseconds(time), camera_id))
                 # Set the new current camera status block
                 update_cursor.execute(
                     'UPDATE t_cameraStatus t SET t.validTo = NULL '
                     'WHERE t.validTo >= (?) AND t.cameraID = (?)',
-                    (time, camera_id))
+                    (mp.utc_datetime_to_milliseconds(time), camera_id))
 
         self.con.commit()
 

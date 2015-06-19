@@ -38,13 +38,13 @@
         </td>
         <td data-bind="text: event_type"></td>
         <td>
-            <p data-bind="text: new Date(event_time*1000)"></p>
+            <p data-bind="text: new Date(event_time)"></p>
             <table class="table table-condensed">
                 <tbody data-bind="foreach: meta">
                 <tr>
                     <td data-bind="text: key"></td>
                     <td>=</td>
-                    <td data-bind="text: type==='date'?new Date(value*1000):value"></td>
+                    <td data-bind="text: type==='date'?new Date(value):value"></td>
                 </tr>
                 </tbody>
             </table>

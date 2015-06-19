@@ -26,15 +26,15 @@ CREATE TABLE t_user (
 
 CREATE TABLE t_highWaterMark (
   cameraID CHAR(12)  NOT NULL,
-  mark     TIMESTAMP NOT NULL
+  mark BIGINT NOT NULL /* Time since epoch in milliseconds */
 );
 
 CREATE TABLE t_cameraStatus (
   internalID          INTEGER           NOT NULL,
   statusID            CHAR(16) CHARACTER SET OCTETS NOT NULL, /* Always use literal byte values */
   cameraID            CHAR(12)          NOT NULL,
-  validFrom           TIMESTAMP         NOT NULL,
-  validTo             TIMESTAMP,
+  validFrom BIGINT NOT NULL, /* Time since epoch in milliseconds */
+  validTo   BIGINT, /* Time since epoch in milliseconds */
   softwareVersion     INTEGER DEFAULT 0 NOT NULL,
   orientationAltitude FLOAT             NOT NULL,
   orientationAzimuth  FLOAT             NOT NULL,
@@ -67,8 +67,7 @@ CREATE TABLE t_event (
   internalID  INTEGER      NOT NULL,
   eventID     CHAR(16) CHARACTER SET OCTETS NOT NULL, /* Always use literal byte values */
   cameraID    CHAR(12)     NOT NULL,
-  eventTime   TIMESTAMP    NOT NULL,
-  eventDay    TIMESTAMP    NOT NULL,
+  eventTime BIGINT NOT NULL, /* Time since epoch in milliseconds */
   eventOffset INTEGER      NOT NULL,
   eventType   VARCHAR(255) NOT NULL,
   statusID    INTEGER      NOT NULL,
@@ -81,7 +80,7 @@ CREATE TABLE t_eventMeta (
   internalID  INTEGER           NOT NULL,
   metaKey     VARCHAR(255)      NOT NULL,
   stringValue VARCHAR(255),
-  dateValue   TIMESTAMP,
+  dateValue BIGINT, /* Time since epoch in milliseconds */
   floatValue  FLOAT,
   eventID     INTEGER           NOT NULL,
   metaIndex   INTEGER DEFAULT 0 NOT NULL,
@@ -97,8 +96,7 @@ CREATE TABLE t_file (
   mimeType     VARCHAR(100) DEFAULT 'text/plain' NOT NULL,
   fileName     VARCHAR(255),
   semanticType VARCHAR(255)                      NOT NULL,
-  fileTime     TIMESTAMP                         NOT NULL,
-  fileDay      TIMESTAMP                         NOT NULL,
+  fileTime BIGINT NOT NULL, /* Time since epoch in milliseconds */
   fileOffset   INTEGER                           NOT NULL,
   fileSize     INTEGER                           NOT NULL,
   statusID     INTEGER                           NOT NULL,
@@ -111,7 +109,7 @@ CREATE TABLE t_fileMeta (
   internalID INTEGER           NOT NULL,
   metaKey    VARCHAR(255)      NOT NULL,
   stringValue VARCHAR(255),
-  dateValue   TIMESTAMP,
+  dateValue BIGINT, /* Time since epoch in milliseconds */
   floatValue  FLOAT,
   fileID     INTEGER           NOT NULL,
   metaIndex  INTEGER DEFAULT 0 NOT NULL,

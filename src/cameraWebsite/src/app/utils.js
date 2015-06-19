@@ -34,7 +34,7 @@ define(["jquery", "knockout"], function (jquery, ko) {
                         type: ko.observable(type),
                         key: ko.observable(meta['key']),
                         string_value: ko.observable(isString ? meta['value'] : ''),
-                        date_value: ko.observable(isDate ? new Date(meta['value'] * 1000) : new Date(Date.now())),
+                        date_value: ko.observable(isDate ? new Date(meta['value']) : new Date(Date.now())),
                         number_value: ko.observable(isNumber ? meta['value'] : 0)
                     };
                     search.meta.push(d);
@@ -67,7 +67,7 @@ define(["jquery", "knockout"], function (jquery, ko) {
                         }
                     } else if (type == "after" || type == "before") {
                         if (ko.unwrap(m.date_value) != null) {
-                            func.value = ko.unwrap(m.date_value).getTime() / 1000.0;
+                            func.value = ko.unwrap(m.date_value).getTime();
                         } else {
                             func.value = null;
                         }
@@ -137,13 +137,19 @@ define(["jquery", "knockout"], function (jquery, ko) {
          * twice to work around issues where encoded forward slash characters in URL fragments are rejected by certain
          * application servers (including Apache and some WSGI containers used behind such servers).
          *
-         * Dates are encoded with value.getTime()/1000.0, boolean values are encoded by representing them as a '1' if
+         * Dates are encoded with value.getTime(), boolean values are encoded by representing them as a '1' if
          * true and excluding them from the result if false.
          *
          * @param ob the object to encode, any immediate properties of this object will be included as will their
          * descendants. Values will be passed through ko.unwrap(..) so this method handles Knockout observables as well
          * as regular JS objects.
          * @returns {string} a double URL component encoded representation of the supplied object.
+         *
+         * Note - this method contains a similarly nasty hack to that of the decodeString, in that
+         * it ignores timezones and calculates the unix timestamp (the form we send to the server)
+         * as if any date objects are UTC. So, if you're looking for events which happen after 1st
+         * April 2015, 12:30 AM UTC, and you're in +5 timezone, you still create a date with 12:30 AM
+         * as the time and this will all work. Don't try to be clever and work out your own time mapping.
          */
         encodeString: function (ob) {
             var jsonString = JSON.stringify(ob, function (key, ob_value) {
@@ -152,7 +158,9 @@ define(["jquery", "knockout"], function (jquery, ko) {
                         return undefined;
                     }
                     if (jquery.type(value) == "date") {
-                        return value.getTime() / 1000.0;
+                        // Ignore timezone information
+                        return Date.UTC(value.getFullYear(), value.getMonth(), value.getDate(),
+                            value.getHours(), value.getMinutes(), value.getSeconds());
                     }
                     if (typeof value === "boolean") {
                         return value ? 1 : undefined;
@@ -171,14 +179,24 @@ define(["jquery", "knockout"], function (jquery, ko) {
          * @param types a dict of key name to value, values can be either 'bool' or 'date'. In the case
          * of booleans the value is set to True if the key value is 1, and False otherwise. For dates the
          * value is treated as time since the unix epoch and converted to a Javascript
-         * Date object with new Date(value * 1000) - Javascript having a higher time resolution than the server.
+         * Date object with new Date(value)
+         *
+         * Note - this method contains a hack, adding back the timezone delta onto the time. This
+         * makes the fields of the date contain the same numbers as if they were in UTC, but
+         * doesn't actually change the timezone which is treated as the local one. It's a nasty
+         * hack, but needed because components like the Kendo date/time picker construct their
+         * dates internally and use whatever the default browser timezone is.
          */
         decodeString: function (s, types) {
             var jsonString = decodeURIComponent(decodeURIComponent(s));
             return JSON.parse(jsonString, function (key, value) {
                 if (types && key) {
                     if (types[key] === "date") {
-                        value = new Date(value * 1000);
+                        value = new Date(value);
+                        // Get the minute time zone offset and add it back, fudging the local
+                        // date to be like a UTC date with the same year, month, day etc fields.
+                        var tzDelta = value.getTimezoneOffset();
+                        value = new Date(value.getTime() + tzDelta * 60000);
                     }
                     if (types[key] === "bool") {
                         value = (value == 1);
