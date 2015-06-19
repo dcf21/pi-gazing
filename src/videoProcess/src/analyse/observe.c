@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <errno.h>
 #include <math.h>
 #include <time.h>
 #include <unistd.h>
@@ -32,8 +35,16 @@ char *fNameGenerate(char *output, const char *cameraId, double utc, char *tag, c
   const double JD = utc / 86400.0 + 2440587.5;
   int year,month,day,hour,min,status; double sec;
   InvJulianDay(JD-0.5,&year,&month,&day,&hour,&min,&sec,&status,output); // Subtract 0.5 from Julian Day as we want days to start at noon, not midnight
-  sprintf(path,"%s/%s_%s/%04d%02d%02d", OUTPUT_PATH, dirname, label, year, month, day);
-  sprintf(output, "mkdir -p %s", path); status=system(output);
+
+  sprintf(path,"%s/%s_%s", OUTPUT_PATH, dirname, label);
+  status=mkdir(path , S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+  if (status && (errno!=EEXIST)) { sprintf(temp_err_string, "ERROR: Could not create directory <%s>. Returned error code %d. errno %d. %s.", path, status, errno, strerror(errno)); gnom_log(temp_err_string); }
+
+  const int i=strlen(path);
+  sprintf(path+i,"/%04d%02d%02d", year, month, day);
+  status=mkdir(path , S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+  if (status && (errno!=EEXIST)) { sprintf(temp_err_string, "ERROR: Could not create directory <%s>. Returned error code %d. errno %d. %s.", path, status, errno, strerror(errno)); gnom_log(temp_err_string); }
+
   InvJulianDay(JD,&year,&month,&day,&hour,&min,&sec,&status,output);
   sprintf(output,"%s/%04d%02d%02d%02d%02d%02d_%s_%s", path, year, month, day, hour, min, (int)sec, cameraId, tag);
   return output;
