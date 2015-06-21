@@ -192,7 +192,8 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
   for (i=0; i<MAX_EVENTS; i++)
    {
     os->eventList[i].stackedImage = malloc(os->frameSize*Nchannels*sizeof(int));
-    if (!os->eventList[i].stackedImage) { sprintf(temp_err_string, "ERROR: malloc fail in observe."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
+    os->eventList[i].maxStack     = malloc(os->frameSize*Nchannels*sizeof(int));
+    if ((!os->eventList[i].stackedImage) || (!os->eventList[i].maxStack)) { sprintf(temp_err_string, "ERROR: malloc fail in observe."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
    }
 
   os->groupNum       = 0; // Flag for whether we're feeding images into stackA or stackB
@@ -278,6 +279,7 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
    }
 
   for (i=0; i<=STACK_COMPARISON_INTERVAL; i++) free(os->stack[i]);
+  for (i=0; i<=MAX_EVENTS; i++) { free(os->eventList[i].stackedImage); free(os->eventList[i].maxStack); }
   free(os->triggerMap); free(os->triggerBlock_N); free(os->triggerBlock_sumx); free(os->triggerBlock_sumy); free(os->triggerBlock_suml); free(os->triggerBlock_redirect); free(os->triggerRGB);
   free(os->buffer); free(os->stackT); free(os->medianMap); free(os->medianWorkspace); free(os->pastTriggerMap); free(os);
   return 0;
@@ -364,24 +366,27 @@ void registerTrigger(observeStatus *os, const int blockId, const int xpos, const
   d->amplitude  = amplitude;
 
   char fname[FNAME_LENGTH];
-  fNameGenerate(os->eventList[i].filenameStub,os->cameraId,os->utc,"trigger","triggers_raw",os->label);
-  sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_MAP.sep");
-  dumpFrame(os->width, os->height, 3, os->triggerRGB, fname);
+  fNameGenerate(os->eventList[i].filenameStub,os->cameraId,os->utc,"event","triggers_raw",os->label);
+  sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_mapDifference.rgb");
+  dumpFrame(os->width, os->height, 1, os->triggerRGB+0*os->frameSize, fname);
+  writeMetaData(fname, "sd", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel);
+  sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_mapExcludedPixels.rgb");
+  dumpFrame(os->width, os->height, 1, os->triggerRGB+1*os->frameSize, fname);
+  writeMetaData(fname, "sd", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel);
+  sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_mapTrigger.rgb");
+  dumpFrame(os->width, os->height, 1, os->triggerRGB+2*os->frameSize, fname);
   writeMetaData(fname, "sd", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel);
 
-  sprintf(fname, "%s%s",os->eventList[i].filenameStub,"2_BS0.rgb");
+  sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_triggerFrame.rgb");
   dumpFrameFromInts(os->width, os->height, Nchannels, image1, coAddedFrames, 1, fname);
   writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
-  sprintf(fname, "%s%s",os->eventList[i].filenameStub,"2_BS1.rgb");
-  dumpFrameFromISub(os->width, os->height, Nchannels, image1, coAddedFrames, STACK_GAIN, os->medianMap, fname);
-  writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames)*STACK_GAIN, "stackedFrames", coAddedFrames);
-  sprintf(fname, "%s%s",os->eventList[i].filenameStub,"1_BS0.rgb");
+  sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_previousFrame.rgb");
   dumpFrameFromInts(os->width, os->height, Nchannels, image2, coAddedFrames, 1, fname);
   writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
-  sprintf(fname, "%s%s",os->eventList[i].filenameStub,"1_BS1.rgb");
-  dumpFrameFromISub(os->width, os->height, Nchannels, image2, coAddedFrames, STACK_GAIN, os->medianMap, fname);
-  writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames)*STACK_GAIN, "stackedFrames", coAddedFrames);
   memcpy(os->eventList[i].stackedImage, image1, os->frameSize*Nchannels*sizeof(int));
+  int j;
+  #pragma omp parallel for private(j)
+  for (j=0; j<os->frameSize*Nchannels; j++) os->eventList[i].maxStack[j]=image1[j];
  }
 
 // Check through list of events we are currently tracking. Weed out any which haven't been seen for a long time, or are exceeding maximum allowed recording time.
@@ -398,6 +403,8 @@ void registerTriggerEnds(observeStatus *os)
      const int N2 = os->eventList[i].Ndetections-1;
 #pragma omp parallel for private(j)
      for (j=0; j<os->frameSize*Nchannels; j++) os->eventList[i].stackedImage[j]+=stackbuf[j];
+#pragma omp parallel for private(j)
+     for (j=0; j<os->frameSize*Nchannels; j++) { const int x=stackbuf[j]; if (x>os->eventList[i].maxStack[j]) os->eventList[i].maxStack[j]=x; }
 
      if ( ( os->eventList[i].detections[N0].frameCount < (os->frameCounter-(os->buffNGroups-os->triggerPrefixNGroups)) ) || // Event is exceeding TRIGGER_MAXRECORDLEN?
           ( os->eventList[i].detections[N2].frameCount < (os->frameCounter-os->triggerSuffixNGroups)) ) // ... or event hasn't been seen for TRIGGER_SUFFIXTIME?
@@ -413,12 +420,12 @@ void registerTriggerEnds(observeStatus *os)
         // Dump stacked images of entire duration of event
         int coAddedFrames = (os->frameCounter - os->eventList[i].detections[0].frameCount) * TRIGGER_FRAMEGROUP;
         char fname[FNAME_LENGTH], pathJSON[LSTR_LENGTH], pathBezier[FNAME_LENGTH];
-        sprintf(fname, "%s%s",os->eventList[i].filenameStub,"3_BS0.rgb");
+        sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_timeAverage.rgb");
         dumpFrameFromInts(os->width, os->height, Nchannels, os->eventList[i].stackedImage, coAddedFrames, 1, fname);
         writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
-        sprintf(fname, "%s%s",os->eventList[i].filenameStub,"3_BS1.rgb");
-        dumpFrameFromISub(os->width, os->height, Nchannels, os->eventList[i].stackedImage, coAddedFrames, STACK_GAIN, os->medianMap, fname);
-        writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames)*STACK_GAIN, "stackedFrames", coAddedFrames);
+        sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_maxBrightness.rgb");
+        dumpFrameFromInts(os->width, os->height, Nchannels, os->eventList[i].maxStack, TRIGGER_FRAMEGROUP, 1, fname);
+        writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
 
         // Dump a video of the meteor from our video buffer
         int            videoFrames  = (os->frameCounter - os->eventList[i].detections[N0].frameCount + os->triggerPrefixNGroups) * TRIGGER_FRAMEGROUP;

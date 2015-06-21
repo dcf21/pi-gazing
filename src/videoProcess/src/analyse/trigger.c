@@ -65,7 +65,7 @@ int checkForTriggers(observeStatus *os, const int *image1, const int *image2, co
 
   const int margin=20; // Ignore pixels within this distance of the edge
   const int threshold_blockSize =  7; // To trigger this number of pixels connected together must have brightened
-  const int threshold_intensity =100*os->noiseLevel*sqrt(coAddedFrames); // Total brightness excess must be 110 standard deviations
+  const int threshold_intensity =110*os->noiseLevel*sqrt(coAddedFrames); // Total brightness excess must be 110 standard deviations
   const int thresholdTrigger=MAX(1 , 3.5*os->noiseLevel*sqrt(coAddedFrames)); // Pixel must have brightened by at least N standard deviations to trigger
   const int thresholdMonitor=MAX(1 , 2.0*os->noiseLevel*sqrt(coAddedFrames)); // Monitor and flag pixels which brighten by this amount
   unsigned char *triggerR = os->triggerRGB;

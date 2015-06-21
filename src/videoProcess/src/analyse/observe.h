@@ -25,7 +25,8 @@ typedef struct event
   int  active;
   int  Ndetections;
   char filenameStub[FNAME_LENGTH]; // When testTrigger detects a meteor, this string is set to a filename stub with time stamp of the time when the camera triggered
-  int *stackedImage;
+  int *stackedImage; // Stacked image, averaged over whole duration of event
+  int *maxStack; // Maximum pixel values over whole duration of event
   detection detections[MAX_DETECTIONS];
  } event;
 
