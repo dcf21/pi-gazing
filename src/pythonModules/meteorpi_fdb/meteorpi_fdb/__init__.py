@@ -3,6 +3,7 @@ import uuid
 from contextlib import closing
 
 from passlib.hash import pbkdf2_sha256
+
 import os.path as path
 import os
 import fdb
@@ -10,6 +11,15 @@ import meteorpi_model as mp
 
 
 def first_non_null(values):
+    """
+    Retrieve the first, non-null item in the specified list
+    :param values:
+        a list of values from which the first non-null is returned
+    :return:
+        the first non-null item
+    :raises:
+        ValueError if there isn't any such item in the list.
+    """
     for item in values:
         if item is not None:
             return item
@@ -18,7 +28,14 @@ def first_non_null(values):
 
 def get_installation_id():
     """Get the installation ID of the current system, using the MAC address
-    rendered as a 12 character hex string."""
+    rendered as a 12 character hex string.
+
+    :return:
+        ID for this installation. Currently this is based on the MAC address of the first network interface - for our
+        Pi based cameras this will also be the only hardware network interface but it might be good to have a way for
+        us to specify this ID explicitly somewhere, in a configuration file or similar. The installation ID is more
+        problematic for non-camera nodes.
+    """
 
     def _to_array(number):
         result = ''
@@ -32,6 +49,158 @@ def get_installation_id():
     return _to_array(uuid.getnode())
 
 
+def _first_from_generator(generator):
+    """Pull the first value from a generator and return it.
+
+    :param generator:
+        A generator, this will be mapped onto a list and the first item extracted.
+    :return:
+        None if there are no items, or the first item otherwise.
+    :internal:
+    """
+    results = list(generator)
+    if len(results) == 0:
+        return None
+    return results[0]
+
+
+class SQLBuilder:
+    """
+    Helper class to make it easier to build large, potentially complex, SQL clauses.
+    :internal:
+    """
+
+    def __init__(self, where_clauses=None):
+        """
+        Construct a new, empty, WhereClauseBuilder
+
+        :param where_clauses:
+            optionally specify an initial array of WHERE clauses, defaults to an empty sequence.
+        :ivar where_clauses:
+            a list of strings of SQL, which should be prefixed by 'WHERE' to construct a constraint
+        :ivar sql_args:
+            a list of values which will be bound into an execution of the SQL query
+        :return:
+            an unpopulated WhereClauseBuilder
+        """
+        self.sql_args = []
+        if where_clauses is None:
+            self.where_clauses = []
+        self.where_clauses = where_clauses
+
+    def add_sql(self, value, clause):
+        """
+        Add a WHERE clause to the state
+
+        :param value:
+            the unknown to bind into the state
+        :param clause:
+            a SQL fragment defining the restriction on the unknown value
+        """
+        if value is not None:
+            self.where_clauses.append(clause)
+            self.sql_args.append(value)
+
+    def add_ns_sql(self, value, clause):
+        """
+        Behaves as add_sql but specifically intended to handle NSString instances
+
+        :param value:
+            the unknown to bind into the state
+        :param clause:
+            a SQL fragment defining the restriction on the unknown value
+        """
+        if value is not None:
+            self.add_sql(str(value), clause)
+
+    def add_set_membership(self, values, column_name):
+        """
+        Append a set membership test, creating a query of the form 'WHERE name IN {?,?...?}'.
+
+        :param values:
+            a list of values. If this is non-None and non-empty this will add a set membership test to the state.
+        :param column_name:
+            the name of the column to use when checking the 'IN' condition.
+        """
+        if values is not None and len(values) > 0:
+            unknowns = ', '.join(list("?" for id in values))
+            self.where_clauses.append('{0} IN ({1})'.format(column_name, unknowns))
+            for value in values:
+                self.sql_args.append(value)
+
+    def add_metadata_query_properties(self, meta_constraints, meta_table_name):
+        """
+        Construct WHERE clauses from a list of MetaConstraint objects, adding them to the query state.
+
+        :param meta_constraints:
+            a list of MetaConstraint objects, each of which defines a condition over metadata which must be satisfied
+            for results to be included in the overall query.
+        :param meta_table_name:
+            the name of the link table between the queried entity and metadata, i.e. t_eventMeta or t_fileMeta in the
+            current code.
+        :raises:
+            ValueError if an unknown meta constraint type is encountered.
+        """
+        for mc in meta_constraints:
+            meta_key = str(mc.key)
+            ct = mc.constraint_type
+            sql_template = 'f.internalID IN (' \
+                           'SELECT fm.fileID FROM {0} fm WHERE fm.{1} {2} (?) AND fm.metaKey = (?))'
+            # Put the value, mapping datetime to milliseconds since epoch first
+            if ct == 'after' or ct == 'before':
+                self.sql_args.append(mp.utc_datetime_to_milliseconds(mc.value))
+            else:
+                self.sql_args.append(mc.value)
+            # Put the meta key
+            self.sql_args.append(str(mc.key))
+            # Put an appropriate WHERE clause
+            if ct == 'after':
+                self.where_clauses.append(sql_template.format(meta_table_name, 'dateValue', '>', meta_key))
+            elif ct == 'before':
+                self.where_clauses.append(sql_template.format(meta_table_name, 'dateValue', '<', meta_key))
+            elif ct == 'less':
+                self.where_clauses.append(sql_template.format(meta_table_name, 'floatValue', '<', meta_key))
+            elif ct == 'greater':
+                self.where_clauses.append(sql_template.format(meta_table_name, 'floatValue', '>', meta_key))
+            elif ct == 'number_equals':
+                self.where_clauses.append(sql_template.format(meta_table_name, 'floatValue', '=', meta_key))
+            elif ct == 'string_equals':
+                self.where_clauses.append(sql_template.format(meta_table_name, 'stringValue', '=', meta_key))
+            else:
+                raise ValueError("Unknown meta constraint type!")
+
+    def get_select_sql(self, columns, tables, order=None, limit=0, skip=0):
+        """
+        Build a SELECT query based on the current state of the builder.
+
+        :param columns:
+            sql fragment describing which columns to select i.e. 'e.cameraID, s.statusID'
+        :param tables:
+            sql fragment defining the 'FROM' part, i.e. 't_event e, t_cameraStatus s'
+        :param order:
+            optional ordering constraint, i.e. 'e.eventTime DESC'
+        :param limit:
+            optional, used to build the 'FIRST n' clause
+        :param skip:
+            optional, used to build the 'SKIP n' clause
+        :returns:
+            a SQL SELECT query, which will make use of self.sql_args when executed.
+        """
+        sql = 'SELECT '
+        if limit > 0:
+            sql += 'FIRST {0} '.format(limit)
+        if skip > 0:
+            sql += 'SKIP {0} '.format(skip)
+        sql += '{0} FROM {1} WHERE '.format(columns, tables)
+        sql += ' AND '.join(self.where_clauses)
+        if order is not None:
+            sql += ' ORDER BY {0}'.format(order)
+        return sql
+
+    def get_count_sql(self, tables):
+        return 'SELECT count(*) FROM ' + tables + ' WHERE ' + (' AND '.join(self.where_clauses))
+
+
 SOFTWARE_VERSION = 1
 
 
@@ -43,6 +212,20 @@ class MeteorDatabase:
             self,
             db_path='localhost:/var/lib/firebird/2.5/data/meteorpi.fdb',
             file_store_path=path.expanduser("~/meteorpi_files")):
+        """
+        Create a new db instance. This connects to the specified firebird database and retains a connection which is
+        then used by methods in this class when querying or updating the database.
+
+        :param db_path:
+            String passed to the firebird database driver and specifying a file location. Defaults to
+            localhost:/var/lib/firebird/2.5/data/meteorpi.fdb
+        :param file_store_path:
+            File data is stored on the file system in a flat structure within the specified directory. Defaults to
+            the expansion for the current user of ~/meteorpi_files. If this location doesn't exist it will be created,
+            along with any necessary parent directories.
+        :return:
+            An instance of MeteorDatabase.
+        """
         self.con = fdb.connect(
             dsn=db_path,
             user='meteorpi',
@@ -56,183 +239,28 @@ class MeteorDatabase:
         self.file_store_path = file_store_path
 
     def __str__(self):
+        """Simple string representation of this db object
+
+        :return: info about the db path and file store location
+        """
         return 'MeteorDatabase(db={0}, file_store_path={1}'.format(
             self.db_path,
             self.file_store_path)
 
-    def search_events(self, search):
-        sql_args = []
-        where_clauses = ['e.statusID = s.internalID']
+    def _event_generator(self, sql, sql_args):
+        """Generator for Event
 
-        def _add_sql(value, clause):
-            if value is not None:
-                where_clauses.append(clause)
-                sql_args.append(value)
-
-        if search.camera_ids is not None and len(search.camera_ids) > 0:
-            unknowns = ', '.join(list("?" for id in search.camera_ids))
-            where_clauses.append('e.cameraID IN ({0})'.format(unknowns))
-            for camera_id in search.camera_ids:
-                sql_args.append(camera_id)
-        _add_sql(search.lat_min, 's.locationLatitude >= (?)')
-        _add_sql(search.lat_max, 's.locationLatitude <= (?)')
-        _add_sql(search.long_min, 's.locationLongitude >= (?)')
-        _add_sql(search.long_max, 's.locationLongitude <= (?)')
-        _add_sql(mp.utc_datetime_to_milliseconds(search.before), 'e.eventTime < (?)')
-        _add_sql(mp.utc_datetime_to_milliseconds(search.after), 'e.eventTime > (?)')
-        _add_sql(search.before_offset, 'e.eventOffset < (?)')
-        _add_sql(search.after_offset, 'e.eventOffset > (?)')
-        # Have to handle this a bit differently as we have an NS string
-        if search.event_type is not None:
-            _add_sql(str(search.event_type), 'e.eventType = (?)')
-
-        # Check for meta based constraints
-        for fmc in search.meta_constraints:
-            meta_key = str(fmc.key)
-            ct = fmc.constraint_type
-            sql_template = 'e.internalID IN (' \
-                           'SELECT em.eventID FROM t_eventMeta em WHERE em.{0} {1} (?) AND em.metaKey = (?))'
-            if ct == 'after' or ct == 'before':
-                sql_args.append(mp.utc_datetime_to_milliseconds(fmc.value))
-            else:
-                sql_args.append(fmc.value)
-            sql_args.append(str(fmc.key))
-            if ct == 'after':
-                where_clauses.append(sql_template.format('dateValue', '>', meta_key))
-            elif ct == 'before':
-                where_clauses.append(sql_template.format('dateValue', '<', meta_key))
-            elif ct == 'less':
-                where_clauses.append(sql_template.format('floatValue', '<', meta_key))
-            elif ct == 'greater':
-                where_clauses.append(sql_template.format('floatValue', '>', meta_key))
-            elif ct == 'number_equals':
-                where_clauses.append(sql_template.format('floatValue', '=', meta_key))
-            elif ct == 'string_equals':
-                where_clauses.append(sql_template.format('stringValue', '=', meta_key))
-            else:
-                raise ValueError("Unknown meta constraint type!")
-
-        # Build the SQL statement
-        sql = 'SELECT '
-        if search.limit > 0:
-            sql += 'FIRST {0} '.format(search.limit)
-        if search.skip > 0:
-            sql += 'SKIP {0} '.format(search.skip)
-        sql += 'e.cameraID, e.eventID, e.internalID, e.eventTime, e.eventType, s.statusID ' \
-               'FROM t_event e, t_cameraStatus s WHERE '
-        sql += ' AND '.join(where_clauses)
-        sql += ' ORDER BY e.eventTime DESC'
-
-        with closing(self.con.cursor()) as cur:
-            cur.execute(sql, sql_args)
-            events = list(self.get_events(cursor=cur))
-            rows_returned = len(events)
-            total_rows = rows_returned + search.skip
-            if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
-                count_sql = 'SELECT count(*) FROM t_event e, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
-                count_cur = self.con.cursor()
-                count_cur.execute(count_sql, sql_args)
-                total_rows = count_cur.fetchone()[0]
-            return {"count": total_rows,
-                    "events": events}
-
-    def search_files(self, search):
-        sql_args = []
-        where_clauses = ['f.statusID = s.internalID']
-
-        def _add_sql(value, clause):
-            if value is not None:
-                where_clauses.append(clause)
-                sql_args.append(value)
-
-        if search.camera_ids is not None and len(search.camera_ids) > 0:
-            unknowns = ', '.join(list("?" for id in search.camera_ids))
-            where_clauses.append('f.cameraID IN ({0})'.format(unknowns))
-            for camera_id in search.camera_ids:
-                sql_args.append(camera_id)
-        _add_sql(search.lat_min, 's.locationLatitude >= (?)')
-        _add_sql(search.lat_max, 's.locationLatitude <= (?)')
-        _add_sql(search.long_min, 's.locationLongitude >= (?)')
-        _add_sql(search.long_max, 's.locationLongitude <= (?)')
-        _add_sql(mp.utc_datetime_to_milliseconds(search.before), 'f.fileTime < (?)')
-        _add_sql(mp.utc_datetime_to_milliseconds(search.after), 'f.fileTime > (?)')
-        _add_sql(search.before_offset, 'f.fileOffset < (?)')
-        _add_sql(search.after_offset, 'f.fileOffset > (?)')
-        _add_sql(search.mime_type, 'f.mimeType = (?)')
-        # Handle semantic type differently as it's based on an NSString
-        if search.semantic_type is not None:
-            _add_sql(str(search.semantic_type), 'f.semanticType = (?)')
-        # Check for file-meta based constraints
-        for fmc in search.meta_constraints:
-            meta_key = str(fmc.key)
-            ct = fmc.constraint_type
-            sql_template = 'f.internalID IN (' \
-                           'SELECT fm.fileID FROM t_fileMeta fm WHERE fm.{0} {1} (?) AND fm.metaKey = (?))'
-            if ct == 'after' or ct == 'before':
-                sql_args.append(mp.utc_datetime_to_milliseconds(fmc.value))
-            else:
-                sql_args.append(fmc.value)
-            sql_args.append(str(fmc.key))
-            if ct == 'after':
-                where_clauses.append(sql_template.format('dateValue', '>', meta_key))
-            elif ct == 'before':
-                where_clauses.append(sql_template.format('dateValue', '<', meta_key))
-            elif ct == 'less':
-                where_clauses.append(sql_template.format('floatValue', '<', meta_key))
-            elif ct == 'greater':
-                where_clauses.append(sql_template.format('floatValue', '>', meta_key))
-            elif ct == 'number_equals':
-                where_clauses.append(sql_template.format('floatValue', '=', meta_key))
-            elif ct == 'string_equals':
-                where_clauses.append(sql_template.format('stringValue', '=', meta_key))
-            else:
-                raise ValueError("Unknown meta constraint type!")
-        # Check for avoiding event files
-        if search.exclude_events:
-            where_clauses.append('f.internalID NOT IN (SELECT fileID from t_event_to_file)')
-        # Build the SQL statement
-        sql = 'SELECT '
-        if search.limit > 0:
-            sql += 'FIRST {0} '.format(search.limit)
-        if search.skip > 0:
-            sql += 'SKIP {0} '.format(search.skip)
-        sql += 'f.internalID, f.cameraID, f.mimeType, ' \
-               'f.semanticType, f.fileTime, f.fileSize, f.fileID, f.fileName, s.statusID ' \
-               'FROM t_file f, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
-        sql += ' ORDER BY f.fileTime DESC'
-
-        with closing(self.con.cursor()) as cur:
-            cur.execute(sql, sql_args)
-            files = list(self.get_files(cursor=cur))
-            rows_returned = len(files)
-            total_rows = rows_returned + search.skip
-            if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
-                count_sql = 'SELECT count(*) FROM t_file f, t_cameraStatus s WHERE ' + ' AND '.join(where_clauses)
-                count_cur = self.con.cursor()
-                count_cur.execute(count_sql, sql_args)
-                total_rows = count_cur.fetchone()[0]
-            return {"count": total_rows,
-                    "files": files}
-
-    def get_events(self, event_id=None, cursor=None):
-        """Retrieve Events by an eventID, or by a cursor
-        which should contain a result set of rows from t_event."""
-        if event_id is None and cursor is None:
-            raise ValueError(
-                'Must specify one of eventID or cursor!')
-
-        # If we have a cursor use it, otherwise get one.
-        _cur = cursor
-        if _cur is None:
-            _cur = self.con.cursor()
-            _cur.execute(
-                'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, '
-                'e.eventType, s.statusID '
-                'FROM t_event e, t_cameraStatus s '
-                'WHERE e.eventID = (?) AND s.internalID = e.statusID', (event_id.bytes,))
-
-        # Retrieve events based on supplied cursor
-        def event_generator(cursor):
+        :param sql:
+            A SQL statement which must return rows with, in order, camera ID, event ID, internal ID, event time, event
+            semantic type, status ID
+        :param sql_args:
+            Any variables required to populate the query provided in 'sql'
+        :return:
+            A generator which produces Event instances from the supplied SQL, closing any opened cursors on completion.
+        :internal:
+        """
+        with closing(self.con.cursor()) as cursor:
+            cursor.execute(sql, sql_args)
             for (cameraID, eventID, internalID, eventTime, eventType, statusID) in cursor:
                 event = mp.Event(
                     camera_id=cameraID,
@@ -240,49 +268,39 @@ class MeteorDatabase:
                     event_id=uuid.UUID(bytes=eventID),
                     event_type=mp.NSString.from_string(eventType),
                     status_id=uuid.UUID(bytes=statusID))
-                with closing(self.con.cursor()) as cur:
-                    cur.execute(
-                        'SELECT f.internalID, f.cameraID, f.mimeType, '
-                        'f.semanticType, f.fileTime, f.fileSize, f.fileID, f.fileName, s.statusID '
-                        'FROM t_file f, t_cameraStatus s, t_event_to_file ef '
-                        'WHERE f.statusID = s.internalID AND ef.fileID = f.internalID AND ef.eventID = (?)',
-                        (internalID,))
-                    event.file_records = list(self.get_files(cursor=cur))
-                    cur.execute(
+                fr_sql = 'SELECT f.internalID, f.cameraID, f.mimeType, ' \
+                         'f.semanticType, f.fileTime, f.fileSize, f.fileID, f.fileName, s.statusID ' \
+                         'FROM t_file f, t_cameraStatus s, t_event_to_file ef ' \
+                         'WHERE f.statusID = s.internalID AND ef.fileID = f.internalID AND ef.eventID = (?)'
+                event.file_records = list(self._file_generator(fr_sql, (internalID,)))
+                with closing(self.con.cursor()) as meta_cur:
+                    meta_cur.execute(
                         'SELECT metaKey, stringValue, floatValue, dateValue '
                         'FROM t_eventMeta t '
                         'WHERE t.eventID = (?) '
                         'ORDER BY metaIndex ASC',
                         (internalID,))
-                    for (metaKey, stringValue, floatValue, dateValue) in cur:
+                    for (metaKey, stringValue, floatValue, dateValue) in meta_cur:
                         event.meta.append(
                             mp.Meta(key=mp.NSString.from_string(metaKey),
                                     value=first_non_null([stringValue, floatValue, dateValue])))
                 yield event
 
-        return event_generator(_cur)
+    def _file_generator(self, sql, sql_args):
+        """Generator for FileRecord
 
-    def get_files(self, file_id=None, internal_id=None, cursor=None):
-        if file_id is None and internal_id is None and cursor is None:
-            raise ValueError('Must specify either fileID, internalID, or cursor!')
-
-        _cur = cursor
-        if _cur is None:
-            _cur = self.con.cursor()
-            if internal_id is not None:
-                _cur.execute(
-                    'SELECT t.internalID, t.cameraID, t.mimeType, '
-                    't.semanticType, t.fileTime, t.fileSize, t.fileID, t.fileName, s.statusID '
-                    'FROM t_file t, t_cameraStatus s WHERE t.internalID=(?) AND t.statusID = s.internalID',
-                    (internal_id,))
-            else:
-                _cur.execute(
-                    'SELECT t.internalID, t.cameraID, t.mimeType, '
-                    't.semanticType, t.fileTime, t.fileSize, t.fileID, t.fileName, s.statusID '
-                    'FROM t_file t, t_cameraStatus s WHERE t.fileID=(?) AND t.statusID = s.internalID',
-                    (file_id.bytes,))
-
-        def file_generator(cursor):
+        :param sql:
+            A SQL statement which must return rows with, in order, internal ID, camera ID, mime type, semantic type,
+            file time, file size, file ID, file name and file status ID.
+        :param sql_args:
+            Any variables required to populate the query provided in 'sql'
+        :return:
+            A generator which produces FileRecord instances from the supplied SQL, closing any opened cursors on
+            completion.
+        :internal:
+        """
+        with closing(self.con.cursor()) as cursor:
+            cursor.execute(sql, sql_args)
             for (internalID, cameraID, mimeType, semanticType, fileTime, fileSize, fileID, fileName,
                  statusID) in cursor:
                 fr = mp.FileRecord(
@@ -294,21 +312,125 @@ class MeteorDatabase:
                 fr.file_size = fileSize
                 fr.file_time = mp.milliseconds_to_utc_datetime(fileTime)
                 fr.file_name = fileName
-                fr.get_path = lambda: path.join(self.file_store_path, file_id.hex)
-                with closing(self.con.cursor()) as cur:
-                    cur.execute(
+                fr.get_path = lambda: path.join(self.file_store_path, fr.file_id.hex)
+                with closing(self.con.cursor()) as meta_cur:
+                    meta_cur.execute(
                         'SELECT metaKey, stringValue, floatValue, dateValue '
                         'FROM t_fileMeta t '
                         'WHERE t.fileID = (?) '
                         'ORDER BY metaIndex ASC',
                         (internalID,))
-                    for (metaKey, stringValue, floatValue, dateValue) in cur:
+                    for (metaKey, stringValue, floatValue, dateValue) in meta_cur:
                         fr.meta.append(
                             mp.Meta(key=mp.NSString.from_string(metaKey),
                                     value=first_non_null([stringValue, floatValue, dateValue])))
                 yield fr
 
-        return file_generator(_cur)
+    def search_events(self, search):
+        """
+        Search for events
+
+        :param search:
+            an instance of EventSearch used to constrain the events returned from the DB
+        :return:
+            a structure of {count:int total rows of an unrestricted search, events:list of Event}
+        """
+        b = SQLBuilder(where_clauses=['e.statusID = s.internalID'])
+        b.add_set_membership(search.camera_ids, 'e.cameraID')
+        b.add_sql(search.lat_min, 's.locationLatitude >= (?)')
+        b.add_sql(search.lat_max, 's.locationLatitude <= (?)')
+        b.add_sql(search.long_min, 's.locationLongitude >= (?)')
+        b.add_sql(search.long_max, 's.locationLongitude <= (?)')
+        b.add_sql(mp.utc_datetime_to_milliseconds(search.before), 'e.eventTime < (?)')
+        b.add_sql(mp.utc_datetime_to_milliseconds(search.after), 'e.eventTime > (?)')
+        b.add_sql(search.before_offset, 'e.eventOffset < (?)')
+        b.add_sql(search.after_offset, 'e.eventOffset > (?)')
+        b.add_ns_sql(search.event_type, 'e.eventType = (?)')
+        b.add_metadata_query_properties(meta_constraints=search.meta_constraints, meta_table_name='t_eventMeta')
+
+        sql = b.get_select_sql(columns='e.cameraID, e.eventID, e.internalID, e.eventTime, e.eventType, s.statusID',
+                               tables='t_event e, t_cameraStatus s',
+                               skip=search.skip,
+                               limit=search.limit,
+                               order='e.eventTime DESC')
+
+        events = list(self._event_generator(sql, b.sql_args))
+        rows_returned = len(events)
+        total_rows = rows_returned + search.skip
+        if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
+            with closing(self.con.cursor()) as count_cur:
+                count_cur.execute(b.get_count_sql(tables='t_event e, t_cameraStatus s'), b.sql_args)
+                total_rows = count_cur.fetchone()[0]
+        return {"count": total_rows,
+                "events": events}
+
+    def search_files(self, search):
+        """
+        Search for FileRecords
+
+        :param search:
+            an instance of FileRecordSearch used to constrain the events returned from the DB
+        :return:
+            a structure of {count:int total rows of an unrestricted search, events:list of FileRecord}
+        """
+        b = SQLBuilder(where_clauses=['f.statusID = s.internalID'])
+        b.add_set_membership(search.camera_ids, 'f.cameraID')
+        b.add_sql(search.lat_min, 's.locationLatitude >= (?)')
+        b.add_sql(search.lat_max, 's.locationLatitude <= (?)')
+        b.add_sql(search.long_min, 's.locationLongitude >= (?)')
+        b.add_sql(search.long_max, 's.locationLongitude <= (?)')
+        b.add_sql(mp.utc_datetime_to_milliseconds(search.before), 'f.fileTime < (?)')
+        b.add_sql(mp.utc_datetime_to_milliseconds(search.after), 'f.fileTime > (?)')
+        b.add_sql(search.before_offset, 'f.fileOffset < (?)')
+        b.add_sql(search.after_offset, 'f.fileOffset > (?)')
+        b.add_sql(search.mime_type, 'f.mimeType = (?)')
+        b.add_ns_sql(search.semantic_type, 'f.semanticType = (?)')
+        b.add_metadata_query_properties(meta_constraints=search.meta_constraints, meta_table_name='t_fileMeta')
+        # Check for avoiding event files
+        if search.exclude_events:
+            b.where_clauses.append('f.internalID NOT IN (SELECT fileID from t_event_to_file)')
+
+        sql = b.get_select_sql(columns='f.internalID, f.cameraID, f.mimeType, ' \
+                                       'f.semanticType, f.fileTime, f.fileSize, f.fileID, f.fileName, s.statusID',
+                               tables='t_file f, t_cameraStatus s',
+                               skip=search.skip,
+                               limit=search.limit,
+                               order='f.fileTime DESC')
+
+        files = list(self._file_generator(sql=sql, sql_args=b.sql_args))
+        rows_returned = len(files)
+        total_rows = rows_returned + search.skip
+        if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
+            with closing(self.con.cursor()) as cur:
+                cur.execute(b.get_count_sql(tables='t_file f, t_cameraStatus s'), b.sql_args)
+                total_rows = cur.fetchone()[0]
+        return {"count": total_rows,
+                "files": files}
+
+    def get_event(self, event_id):
+        """
+        Retrieve an existing Event by its ID
+
+        :param event_id:
+        :return:
+        """
+        sql = 'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, ' \
+              'e.eventType, s.statusID ' \
+              'FROM t_event e, t_cameraStatus s ' \
+              'WHERE e.eventID = (?) AND s.internalID = e.statusID'
+        return _first_from_generator(self._event_generator(sql=sql, sql_args=(event_id.bytes)))
+
+    def get_file(self, file_id):
+        """
+        Retrieve an existing FileRecord by its ID
+
+        :param file_id:
+        :return:
+        """
+        sql = 'SELECT t.internalID, t.cameraID, t.mimeType, ' \
+              't.semanticType, t.fileTime, t.fileSize, t.fileID, t.fileName, s.statusID ' \
+              'FROM t_file t, t_cameraStatus s WHERE t.fileID=(?) AND t.statusID = s.internalID'
+        return _first_from_generator(self._file_generator(sql=sql, sql_args=(file_id.bytes,)))
 
     def register_event(
             self,
@@ -317,7 +439,16 @@ class MeteorDatabase:
             event_type,
             file_records=None,
             event_meta=None):
-        """Register a new row in t_event, returning the Event object."""
+        """
+        Register a new event, updating the database and returning the corresponding Event object
+
+        :param camera_id:
+        :param event_time:
+        :param event_type:
+        :param file_records:
+        :param event_meta:
+        :return:
+        """
         if file_records is None:
             file_records = []
         if event_meta is None:
@@ -325,51 +456,51 @@ class MeteorDatabase:
         status_id = self._get_camera_status_id(camera_id=camera_id, time=event_time)
         if status_id is None:
             raise ValueError('No status defined for camera id <%s> at time <%s>!' % (camera_id, event_time))
-        cur = self.con.cursor()
-        day_and_offset = mp.get_day_and_offset(event_time)
-        cur.execute(
-            'INSERT INTO t_event (cameraID, eventTime, eventOffset, eventType, '
-            'statusID) '
-            'VALUES (?, ?, ?, ?, ?) '
-            'RETURNING internalID, eventID, eventTime',
-            (camera_id,
-             mp.utc_datetime_to_milliseconds(event_time),
-             day_and_offset['seconds'],
-             str(event_type),
-             status_id['internal_id']))
-        ids = cur.fetchone()
-        event_internal_id = ids[0]
-        event_id = uuid.UUID(bytes=ids[1])
-        event = mp.Event(camera_id=camera_id, event_time=mp.milliseconds_to_utc_datetime(ids[2]),
-                         event_id=event_id, event_type=event_type, status_id=status_id['status_id'])
-        for file_record_index, file_record in enumerate(file_records):
-            event.file_records.append(file_record)
+        with closing(self.con.cursor()) as cur:
+            day_and_offset = mp.get_day_and_offset(event_time)
             cur.execute(
-                'SELECT internalID FROM t_file WHERE fileID = (?)',
-                (file_record.file_id.bytes,
-                 ))
-            file_internal_id = cur.fetchone()[0]
-            cur.execute(
-                'INSERT INTO t_event_to_file '
-                '(fileID, eventID, sequenceNumber) '
-                'VALUES (?, ?, ?)',
-                (file_internal_id,
-                 event_internal_id,
-                 file_record_index))
-        # Store the event metadata
-        for meta_index, meta in enumerate(event_meta):
-            cur.execute(
-                'INSERT INTO t_eventMeta '
-                '(eventID, metaKey, stringValue, floatValue, dateValue, metaIndex) '
-                'VALUES (?, ?, ?, ?, ?, ?)',
-                (event_internal_id,
-                 str(meta.key),
-                 meta.string_value(),
-                 meta.float_value(),
-                 mp.utc_datetime_to_milliseconds(meta.date_value()),
-                 meta_index))
-            event.meta.append(
-                mp.Meta(key=meta.key, value=meta.value))
+                'INSERT INTO t_event (cameraID, eventTime, eventOffset, eventType, '
+                'statusID) '
+                'VALUES (?, ?, ?, ?, ?) '
+                'RETURNING internalID, eventID, eventTime',
+                (camera_id,
+                 mp.utc_datetime_to_milliseconds(event_time),
+                 day_and_offset['seconds'],
+                 str(event_type),
+                 status_id['internal_id']))
+            ids = cur.fetchone()
+            event_internal_id = ids[0]
+            event_id = uuid.UUID(bytes=ids[1])
+            event = mp.Event(camera_id=camera_id, event_time=mp.milliseconds_to_utc_datetime(ids[2]),
+                             event_id=event_id, event_type=event_type, status_id=status_id['status_id'])
+            for file_record_index, file_record in enumerate(file_records):
+                event.file_records.append(file_record)
+                cur.execute(
+                    'SELECT internalID FROM t_file WHERE fileID = (?)',
+                    (file_record.file_id.bytes,
+                     ))
+                file_internal_id = cur.fetchone()[0]
+                cur.execute(
+                    'INSERT INTO t_event_to_file '
+                    '(fileID, eventID, sequenceNumber) '
+                    'VALUES (?, ?, ?)',
+                    (file_internal_id,
+                     event_internal_id,
+                     file_record_index))
+            # Store the event metadata
+            for meta_index, meta in enumerate(event_meta):
+                cur.execute(
+                    'INSERT INTO t_eventMeta '
+                    '(eventID, metaKey, stringValue, floatValue, dateValue, metaIndex) '
+                    'VALUES (?, ?, ?, ?, ?, ?)',
+                    (event_internal_id,
+                     str(meta.key),
+                     meta.string_value(),
+                     meta.float_value(),
+                     mp.utc_datetime_to_milliseconds(meta.date_value()),
+                     meta_index))
+                event.meta.append(
+                    mp.Meta(key=meta.key, value=meta.value))
         self.con.commit()
         return event
 
@@ -383,11 +514,17 @@ class MeteorDatabase:
             camera_id=get_installation_id(),
             file_name=None):
         """
-        Register a new row in t_file representing a file on disk.
+        Register a file in the database, also moving the file into the file store. Returns the corresponding FileRecord
+        object.
 
-        At the same time once the transaction has committed, move the
-        file at the specified path to the local store. Returns the
-        FileRecord object produced.
+        :param file_path:
+        :param mime_type:
+        :param semantic_type:
+        :param file_time:
+        :param file_metas:
+        :param camera_id:
+        :param file_name:
+        :return:
         """
         # Check the file exists, and retrieve its size
         if not path.exists(file_path):
@@ -447,13 +584,17 @@ class MeteorDatabase:
         return result_file
 
     def get_cameras(self):
-        """Get all Camera IDs for cameras in this database with current (i.e.
-        validTo == None) status blocks."""
-        cur = self.con.cursor()
-        cur.execute(
-            'SELECT DISTINCT cameraID FROM t_cameraStatus '
-            'WHERE validTo IS NULL ORDER BY cameraID DESC')
-        return map(lambda row: row[0], cur.fetchall())
+        """
+        Retrieve the IDs of all cameras with active status blocks.
+
+        :return:
+            A list of camera IDs for all cameras with status blocks where the 'validTo' date is null
+        """
+        with closing(self.con.cursor()) as cur:
+            cur.execute(
+                'SELECT DISTINCT cameraID FROM t_cameraStatus '
+                'WHERE validTo IS NULL ORDER BY cameraID DESC')
+            return map(lambda row: row[0], cur.fetchall())
 
     def update_camera_status(self, ns, time=None, camera_id=get_installation_id()):
         """
@@ -469,51 +610,51 @@ class MeteorDatabase:
         # Set the high water mark, allowing it to advance to this point or to rollback if
         # we have data products produced after this status' time.
         self.set_high_water_mark(camera_id=camera_id, time=time, allow_rollback=True, allow_advance=True)
-        cur = self.con.cursor()
-        # If there's an existing status block then set its end time to now
-        cur.execute(
-            'UPDATE t_cameraStatus t SET t.validTo = (?) '
-            'WHERE t.validTo IS NULL AND t.cameraID = (?)',
-            (mp.utc_datetime_to_milliseconds(time),
-             camera_id))
-        # Insert the new status into the database
-        cur.execute(
-            'INSERT INTO t_cameraStatus (cameraID, validFrom, validTo, '
-            'softwareVersion, orientationAltitude, orientationAzimuth, '
-            'orientationRotation, orientationError, widthOfField, locationLatitude, locationLongitude, '
-            'locationGPS, lens, sensor, instURL, instName, locationError) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
-            'RETURNING internalID',
-            (camera_id,
-             mp.utc_datetime_to_milliseconds(time),
-             None,
-             SOFTWARE_VERSION,
-             ns.orientation.altitude,
-             ns.orientation.azimuth,
-             ns.orientation.rotation,
-             ns.orientation.error,
-             ns.orientation.width_of_field,
-             ns.location.latitude,
-             ns.location.longitude,
-             ns.location.gps,
-             ns.lens,
-             ns.sensor,
-             ns.inst_url,
-             ns.inst_name,
-             ns.location.error))
-        # Retrieve the newly created internal ID for the status block, use this to
-        # insert visible regions
-        status_internal_id = cur.fetchone()[0]
-        for region_index, region in enumerate(ns.regions):
-            for point_index, point in enumerate(region):
-                cur.execute(
-                    'INSERT INTO t_visibleRegions (cameraStatusID, '
-                    'region, pointOrder, x, y) VALUES (?,?,?,?,?)',
-                    (status_internal_id,
-                     region_index,
-                     point_index,
-                     point['x'],
-                     point['y']))
+        with closing(self.con.cursor()) as cur:
+            # If there's an existing status block then set its end time to now
+            cur.execute(
+                'UPDATE t_cameraStatus t SET t.validTo = (?) '
+                'WHERE t.validTo IS NULL AND t.cameraID = (?)',
+                (mp.utc_datetime_to_milliseconds(time),
+                 camera_id))
+            # Insert the new status into the database
+            cur.execute(
+                'INSERT INTO t_cameraStatus (cameraID, validFrom, validTo, '
+                'softwareVersion, orientationAltitude, orientationAzimuth, '
+                'orientationRotation, orientationError, widthOfField, locationLatitude, locationLongitude, '
+                'locationGPS, lens, sensor, instURL, instName, locationError) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
+                'RETURNING internalID',
+                (camera_id,
+                 mp.utc_datetime_to_milliseconds(time),
+                 None,
+                 SOFTWARE_VERSION,
+                 ns.orientation.altitude,
+                 ns.orientation.azimuth,
+                 ns.orientation.rotation,
+                 ns.orientation.error,
+                 ns.orientation.width_of_field,
+                 ns.location.latitude,
+                 ns.location.longitude,
+                 ns.location.gps,
+                 ns.lens,
+                 ns.sensor,
+                 ns.inst_url,
+                 ns.inst_name,
+                 ns.location.error))
+            # Retrieve the newly created internal ID for the status block, use this to
+            # insert visible regions
+            status_internal_id = cur.fetchone()[0]
+            for region_index, region in enumerate(ns.regions):
+                for point_index, point in enumerate(region):
+                    cur.execute(
+                        'INSERT INTO t_visibleRegions (cameraStatusID, '
+                        'region, pointOrder, x, y) VALUES (?,?,?,?,?)',
+                        (status_internal_id,
+                         region_index,
+                         point_index,
+                         point['x'],
+                         point['y']))
         self.con.commit()
 
     def _get_camera_status_id(
@@ -524,16 +665,16 @@ class MeteorDatabase:
         given time and camera, or None if there wasn't one."""
         if time is None:
             time = mp.now()
-        cur = self.con.cursor()
-        cur.execute(
-            'SELECT internalID, statusID FROM t_cameraStatus t '
-            'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
-            'AND (t.validTo IS NULL OR t.validTo > (?))',
-            (camera_id, mp.utc_datetime_to_milliseconds(time), mp.utc_datetime_to_milliseconds(time)))
-        row = cur.fetchone()
-        if row is None:
-            return None
-        return {'internal_id': row[0], 'status_id': uuid.UUID(bytes=row[1])}
+        with closing(self.con.cursor()) as cur:
+            cur.execute(
+                'SELECT internalID, statusID FROM t_cameraStatus t '
+                'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
+                'AND (t.validTo IS NULL OR t.validTo > (?))',
+                (camera_id, mp.utc_datetime_to_milliseconds(time), mp.utc_datetime_to_milliseconds(time)))
+            row = cur.fetchone()
+            if row is None:
+                return None
+            return {'internal_id': row[0], 'status_id': uuid.UUID(bytes=row[1])}
 
     def get_camera_status(
             self,
@@ -543,63 +684,63 @@ class MeteorDatabase:
         available time : datetime.datetime object, default now."""
         if time is None:
             time = mp.now()
-        cur = self.con.cursor()
-        cur.execute(
-            'SELECT lens, sensor, instURL, instName, locationLatitude, '
-            'locationLongitude, locationGPS, locationError, orientationAltitude, '
-            'orientationAzimuth, orientationError, orientationRotation, widthOfField, validFrom, validTo, '
-            'softwareVersion, internalID, statusID '
-            'FROM t_cameraStatus t '
-            'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
-            'AND (t.validTo IS NULL OR t.validTo > (?))',
-            (camera_id,
-             mp.utc_datetime_to_milliseconds(time),
-             mp.utc_datetime_to_milliseconds(time)))
-        row = cur.fetchonemap()
-        if row is None:
-            return None
-        cs = mp.CameraStatus(lens=row['lens'],
-                             sensor=row['sensor'],
-                             inst_url=row['instURL'],
-                             inst_name=row['instName'],
-                             orientation=mp.Orientation(
-                                 altitude=row['orientationAltitude'],
-                                 azimuth=row['orientationAzimuth'],
-                                 rotation=row['orientationRotation'],
-                                 error=row['orientationError'],
-                                 width_of_field=row['widthOfField']),
-                             location=mp.Location(
-                                 latitude=row['locationLatitude'],
-                                 longitude=row['locationLongitude'],
-                                 gps=row['locationGPS'] == True,
-                                 error=row['locationError']),
-                             camera_id=camera_id,
-                             status_id=uuid.UUID(bytes=row['statusID']))
-        cs.valid_from = mp.milliseconds_to_utc_datetime(row['validFrom'])
-        cs.valid_to = mp.milliseconds_to_utc_datetime(row['validTo'])
-        cs.software_version = row['softwareVersion']
-        camera_status_id = row['internalID']
-        cur.execute('SELECT region, pointOrder, x, y FROM t_visibleRegions t '
-                    'WHERE t.cameraStatusID = (?) '
-                    'ORDER BY region ASC, pointOrder ASC', [camera_status_id])
-        for point in cur.fetchallmap():
-            if len(cs.regions) <= point['region']:
-                cs.regions.append([])
-            cs.regions[point['region']].append(
-                {'x': point['x'], 'y': point['y']})
-        return cs
+        with closing(self.con.cursor()) as cur:
+            cur.execute(
+                'SELECT lens, sensor, instURL, instName, locationLatitude, '
+                'locationLongitude, locationGPS, locationError, orientationAltitude, '
+                'orientationAzimuth, orientationError, orientationRotation, widthOfField, validFrom, validTo, '
+                'softwareVersion, internalID, statusID '
+                'FROM t_cameraStatus t '
+                'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
+                'AND (t.validTo IS NULL OR t.validTo > (?))',
+                (camera_id,
+                 mp.utc_datetime_to_milliseconds(time),
+                 mp.utc_datetime_to_milliseconds(time)))
+            row = cur.fetchonemap()
+            if row is None:
+                return None
+            cs = mp.CameraStatus(lens=row['lens'],
+                                 sensor=row['sensor'],
+                                 inst_url=row['instURL'],
+                                 inst_name=row['instName'],
+                                 orientation=mp.Orientation(
+                                     altitude=row['orientationAltitude'],
+                                     azimuth=row['orientationAzimuth'],
+                                     rotation=row['orientationRotation'],
+                                     error=row['orientationError'],
+                                     width_of_field=row['widthOfField']),
+                                 location=mp.Location(
+                                     latitude=row['locationLatitude'],
+                                     longitude=row['locationLongitude'],
+                                     gps=row['locationGPS'] is True,
+                                     error=row['locationError']),
+                                 camera_id=camera_id,
+                                 status_id=uuid.UUID(bytes=row['statusID']))
+            cs.valid_from = mp.milliseconds_to_utc_datetime(row['validFrom'])
+            cs.valid_to = mp.milliseconds_to_utc_datetime(row['validTo'])
+            cs.software_version = row['softwareVersion']
+            camera_status_id = row['internalID']
+            cur.execute('SELECT region, pointOrder, x, y FROM t_visibleRegions t '
+                        'WHERE t.cameraStatusID = (?) '
+                        'ORDER BY region ASC, pointOrder ASC', [camera_status_id])
+            for point in cur.fetchallmap():
+                if len(cs.regions) <= point['region']:
+                    cs.regions.append([])
+                cs.regions[point['region']].append(
+                    {'x': point['x'], 'y': point['y']})
+            return cs
 
     def get_high_water_mark(self, camera_id=get_installation_id()):
         """Retrieves the current high water mark for a camera installation, or
         None if none has been set."""
-        cur = self.con.cursor()
-        cur.execute(
-            'SELECT mark FROM t_highWaterMark t WHERE t.cameraID = (?)',
-            (camera_id,))
-        row = cur.fetchone()
-        if row is None:
-            return None
-        return mp.milliseconds_to_utc_datetime(row[0])
+        with closing(self.con.cursor()) as cur:
+            cur.execute(
+                'SELECT mark FROM t_highWaterMark t WHERE t.cameraID = (?)',
+                (camera_id,))
+            row = cur.fetchone()
+            if row is None:
+                return None
+            return mp.milliseconds_to_utc_datetime(row[0])
 
     def set_high_water_mark(self, time, camera_id=get_installation_id(), allow_rollback=True, allow_advance=True):
         """
@@ -666,61 +807,72 @@ class MeteorDatabase:
     def get_user(self, user_id, password):
         """
         Retrieve a user record
-        :param user_id: the user ID
-        :param password: password
-        :return: null if the specified user isn't found, a User if everything is correct
-        :raises: ValueError if the user is found but password is incorrect
+
+        :param user_id:
+            the user ID
+        :param password:
+            password
+        :return:
+            null if the specified user isn't found, a User if everything is correct
+        :raises:
+            ValueError if the user is found but password is incorrect
         """
-        cur = self.con.cursor()
-        cur.execute('SELECT userID, pwHash, roleMask FROM t_user WHERE userID = (?)', (user_id,))
-        row = cur.fetchonemap()
-        if row is None:
-            return None
-        pw_hash = row['pwHash']
-        role_mask = row['roleMask']
-        # Check the password
-        if pbkdf2_sha256.verify(password, pw_hash):
-            return mp.User(user_id=user_id, role_mask=role_mask)
-        else:
-            raise ValueError("Incorrect password")
+        with closing(self.con.cursor()) as cur:
+            cur.execute('SELECT userID, pwHash, roleMask FROM t_user WHERE userID = (?)', (user_id,))
+            row = cur.fetchonemap()
+            if row is None:
+                return None
+            pw_hash = row['pwHash']
+            role_mask = row['roleMask']
+            # Check the password
+            if pbkdf2_sha256.verify(password, pw_hash):
+                return mp.User(user_id=user_id, role_mask=role_mask)
+            else:
+                raise ValueError("Incorrect password")
 
     def get_users(self):
-        cur = self.con.cursor()
-        cur.execute('SELECT userID, roleMask FROM t_user ORDER BY userID ASC')
-        return list(mp.User(user_id=row['userID'], role_mask=row['roleMask]']) for row in cur.fetchallmap)
+        with closing(self.con.cursor()) as cur:
+            cur.execute('SELECT userID, roleMask FROM t_user ORDER BY userID ASC')
+            return list(mp.User(user_id=row['userID'], role_mask=row['roleMask]']) for row in cur.fetchallmap)
 
     def create_or_update_user(self, user_id, password, roles):
         """
         Create a new user record, or update an existing one
-        :param user_id: user ID to update or create
-        :param password: new password, or None to leave unchanged
-        :param roles: new roles, or None to leave unchanged
-        :return: the action taken, one of "none", "update", "create"
-        :raises: ValueError if there is no existing user and either password or roles is None
+
+        :param user_id:
+            user ID to update or create
+        :param password:
+            new password, or None to leave unchanged
+        :param roles:
+            new roles, or None to leave unchanged
+        :return:
+            the action taken, one of "none", "update", "create"
+        :raises:
+            ValueError if there is no existing user and either password or roles is None
         """
         if password is None and roles is None:
             return "none"
-        cur = self.con.cursor()
-        if password is not None:
-            cur.execute('UPDATE t_user SET pwHash = (?) WHERE userID = (?)',
-                        (pbkdf2_sha256.encrypt(password), user_id))
-        if roles is not None:
-            cur.execute('UPDATE t_user SET roleMask = (?) WHERE userID = (?)',
-                        (mp.User.role_mask_from_roles(roles), user_id))
-        if cur.rowcount == 0:
-            if password is None or roles is None:
-                raise ValueError("Must specify both password and roles when creating a user!")
-            cur.execute('INSERT INTO t_user (userID, pwHash, roleMask) VALUES (?, ?, ?)',
-                        (user_id, pbkdf2_sha256.encrypt(password), mp.User.role_mask_from_roles(roles)))
-            self.con.commit()
-            return "create"
-        else:
-            self.con.commit()
-            return "update"
+        with closing(self.con.cursor()) as cur:
+            if password is not None:
+                cur.execute('UPDATE t_user SET pwHash = (?) WHERE userID = (?)',
+                            (pbkdf2_sha256.encrypt(password), user_id))
+            if roles is not None:
+                cur.execute('UPDATE t_user SET roleMask = (?) WHERE userID = (?)',
+                            (mp.User.role_mask_from_roles(roles), user_id))
+            if cur.rowcount == 0:
+                if password is None or roles is None:
+                    raise ValueError("Must specify both password and roles when creating a user!")
+                cur.execute('INSERT INTO t_user (userID, pwHash, roleMask) VALUES (?, ?, ?)',
+                            (user_id, pbkdf2_sha256.encrypt(password), mp.User.role_mask_from_roles(roles)))
+                self.con.commit()
+                return "create"
+            else:
+                self.con.commit()
+                return "update"
 
     def delete_user(self, user_id):
-        cur = self.con.cursor()
-        cur.execute('DELETE FROM t_user WHERE userID = (?)', (user_id,))
+        with closing(self.con.cursor()) as cur:
+            cur.execute('DELETE FROM t_user WHERE userID = (?)', (user_id,))
         self.con.commit()
 
     def clear_database(self):
@@ -731,11 +883,11 @@ class MeteorDatabase:
         but does otherwise remove all data from the database. Also
         purges all files from the fileStore
         """
-        cur = self.con.cursor()
         # Purge tables - other tables are deleted by foreign key cascades from these ones.
-        cur.execute('DELETE FROM t_cameraStatus')
-        cur.execute('DELETE FROM t_highWaterMark')
-        cur.execute('DELETE FROM t_user')
+        with closing(self.con.cursor()) as cur:
+            cur.execute('DELETE FROM t_cameraStatus')
+            cur.execute('DELETE FROM t_highWaterMark')
+            cur.execute('DELETE FROM t_user')
         self.con.commit()
         shutil.rmtree(self.file_store_path)
         os.makedirs(self.file_store_path)
