@@ -110,7 +110,8 @@ def milliseconds_to_utc_datetime(milliseconds):
     split = math.modf(milliseconds / 1000.0)
     return datetime.datetime.utcfromtimestamp(int(split[1])) + datetime.timedelta(microseconds=int(split[0] * 1000.0))
 
-class ModelEqualityMixin():
+
+class ModelEqualityMixin(object):
     """
     Taken from http://stackoverflow.com/questions/390250/, simplifies object equality tests.
 
@@ -136,15 +137,17 @@ class ModelEqualityMixin():
 
 class NSString(ModelEqualityMixin):
     """
-    Namespace prefixed string, with the namespace defaulting to 'meteorpi'. These are used in various places within the
-    model where we want to specify names but avoid potential collisions. In general NSString instaces prefixed by
+    Namespace prefixed string, with the namespace defaulting to 'meteorpi'.
+
+    These are used in various places within the
+    model where we want to specify names but avoid potential collisions. In general NSString instances prefixed by
     'meteorpi' are official keys provided by the core project team. In the future users and third parties may extend
     the available metadata etc. and would use this mechanism to put all their extension elements into their own
     namespace, thus avoiding any potential issues with overlapping names.
 
-    :ivar String ns:
+    :ivar string ns:
         string namespace, defaults to 'meteorpi'. Must not be None, the empty string, or contain the ':' character.
-    :ivar String s:
+    :ivar string s:
         string part, can be any value. Must not be None.
     """
 
@@ -152,8 +155,10 @@ class NSString(ModelEqualityMixin):
         """
         Create a new namespaced string
 
-        :param String s: The value part of the string object.
-        :param String ns: The namespace, optional, defaults to 'meteorpi' if not specified.
+        :param string s:
+            The value part of the namespaced string object.
+        :param string ns:
+            The namespace, optional, defaults to 'meteorpi' if not specified.
         """
         if ':' in ns:
             raise ValueError('Namespace part must not contain the : character.')
@@ -185,8 +190,8 @@ class User(ModelEqualityMixin):
 
     Class variables:
 
-    :cvar String[] roles:
-        a sequence of roles, the ordering of items in this sequence is meaningful and must not be changed, new
+    :cvar list[string] roles:
+        A sequence of roles, the ordering of items in this sequence is meaningful and must not be changed, new
         values may be appended. The current values, in order, are:
 
         :user:
@@ -200,9 +205,9 @@ class User(ModelEqualityMixin):
 
     Instance variables:
 
-    :ivar String user_id:
+    :ivar string user_id:
         a string ID for the user
-    :ivar Integer role_mask:
+    :ivar int role_mask:
         an integer bit-mask defining the available roles for the user
     """
 
@@ -216,8 +221,10 @@ class User(ModelEqualityMixin):
         """
         Determine whether the user has a given role
 
-        :param String role: the role
-        :return: True if the user can act in that role, False otherwise
+        :param string role:
+            The role to test
+        :returns:
+            True if the user can act in that role, False otherwise
         """
         try:
             return self.role_mask & (1 << User.roles.index(role)) > 0
@@ -226,7 +233,8 @@ class User(ModelEqualityMixin):
 
     def get_roles(self):
         """
-        :return: a sequence of strings, each string being a role that the user can access
+        :returns:
+            A sequence of strings, each string being a role that the user can access
         """
         return User.roles_from_role_mask(self.role_mask)
 
@@ -249,8 +257,10 @@ class User(ModelEqualityMixin):
         Get a role_mask bit-mask from a sequence of strings, the string values must correspond
         to roles in User.roles
 
-        :param r: a sequence of string role-names
-        :return: a role_mask which can be used to concisely store the roles.
+        :param list[string] r:
+            A sequence of string role-names
+        :returns:
+            A role_mask which can be used to concisely store the roles.
         """
         rm = 0
         if r is None:
@@ -264,8 +274,10 @@ class User(ModelEqualityMixin):
         """
         Get a list of roles for a given role_mask
 
-        :param rm: an integer interpreted as a bit-mask
-        :return: a list of strings containing roles corresponding to the supplied mask
+        :param int rm:
+            An integer interpreted as a bit-mask
+        :returns:
+            A list of strings containing roles corresponding to the supplied mask
         """
         result = []
         for index, role in enumerate(User.roles):
@@ -275,7 +287,9 @@ class User(ModelEqualityMixin):
 
 
 class FileRecordSearch(ModelEqualityMixin):
-    """Encapsulates the possible parameters which can be used to search for :class:`FileRecord` instances"""
+    """
+    Encapsulates the possible parameters which can be used to search for :class:`meteorpi_model.FileRecord` instances
+    """
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
                  before=None, mime_type=None, semantic_type=None, exclude_events=False, after_offset=None,
@@ -284,62 +298,62 @@ class FileRecordSearch(ModelEqualityMixin):
         Create a new FileRecordSearch. All parameters are optional, a default search will be created which returns
         at most the first 100 FileRecord instances. All parameters specify restrictions on these results.
 
-        :param String[] camera_ids:
+        :param list[string] camera_ids:
             Optional - if specified, restricts results to only those the the specified camera IDs which
             are expressed as an array of strings.
-        :param Number lat_min:
+        :param float lat_min:
             Optional - if specified, only returns results where the camera status at the time of the file
             had a latitude field of at least the specified value.
-        :param Number lat_max:
+        :param float lat_max:
             Optional - if specified, only returns results where the camera status at the time of the file
             had a latitude field of at most the specified value.
-        :param Number long_min:
+        :param float long_min:
             Optional - if specified, only returns results where the camera status at the time of the file
             had a longitude field of at least the specified value.
-        :param Number long_max:
+        :param float long_max:
             Optional - if specified, only returns results where the camera status at the time of the file
             had a longitude field of at most the specified value.
-        :param Date after:
+        :param datetime.datetime after:
             Optional - if specified, only returns results where the file time is after the specified value.
-        :param Date before:
+        :param datetime.datetime before:
             Optional - if specified, only returns results where the file time is before the specified value.
-        :param String mime_type:
+        :param string mime_type:
             Optional - if specified, only returns results where the MIME type exactly matches the
             specified value.
         :param NSString semantic_type:
             Optional - if specified, only returns results where the semantic type exactly matches.
-            The type of this value should be an instance of NSString
+            The type of this value should be an instance of :class:`meteorpi_model.NSString`
         :param Boolean exclude_events:
-            Optional - if True then files associated with an Event will be excluded from the results,
-            otherwise files will be included whether they are associated with an Event or not.
-        :param Number after_offset:
+            Optional - if True then files associated with an :class:`meteorpi_model.Event` will be excluded from the
+            results, otherwise files will be included whether they are associated with an Event or not.
+        :param int after_offset:
             Optional - if specified this defines a lower bound on the time of day of the file time,
             irrespective of the date of the file. This can be used to e.g. only return files which were produced after
             2am on any given day. Specified as seconds since the previous mid-day.
-        :param Number before_offset:
+        :param int before_offset:
             Optional - interpreted in a similar manner to after_offset but specifies an upper bound.
             Use both in the same query to filter for a particular range, i.e. 2am to 4am on any day.
-        :param MetaConstraint[] meta_constraints:
-            Optional - a list of :class:`MetaConstraint` objects providing restrictions over the file
+        :param list[MetaConstraint] meta_constraints:
+            Optional - a list of :class:`meteorpi_model.MetaConstraint` objects providing restrictions over the file
             record metadata.
-        :param Integer limit:
+        :param int limit:
             Optional, defaults to 100 - controls the maximum number of results that will be returned by this
             search. If set to 0 will return all results, but be aware that this may potentially have negative effects on
             the server software. Only set this to 0 when you are sure that you won't return too many results!
-        :param Integer skip:
+        :param int skip:
             Optional, defaults to 0 - used with the limit parameter, this will skip the specified number
             of results from the result set. Use when limiting the number returned by each query to paginate the results,
             i.e. use skip 0 and limit 10 to get the first ten, then skip 10 limit 10 to get the next and so on.
         """
-        if camera_ids is None == False and len(camera_ids) == 0:
+        if camera_ids is not None and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
-        if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
+        if lat_min is not None and lat_max is not None and lat_max < lat_min:
             raise ValueError('Latitude max cannot be less than latitude minimum')
-        if long_min is None == False and long_max is None == False and long_max < long_min:
+        if long_min is not None and long_max is not None and long_max < long_min:
             raise ValueError('Longitude max cannot be less than longitude minimum')
-        if after is None == False and before is None == False and before < after:
+        if after is not None and before is not None and before < after:
             raise ValueError('From time cannot be after before time')
-        if after_offset is None == False and before_offset is None == False and before_offset < after_offset:
+        if after_offset is not None and before_offset is not None and before_offset < after_offset:
             raise ValueError('From offset cannot be after before offset')
         if isinstance(camera_ids, basestring):
             camera_ids = [camera_ids]
@@ -377,7 +391,8 @@ class FileRecordSearch(ModelEqualityMixin):
         """
         Convert this FileRecordSearch to a dict, ready for serialization to JSON for use in the API.
 
-        :return: dict representation of this FileRecordSearch instance
+        :return:
+            Dict representation of this FileRecordSearch instance
         """
         d = {}
         _add_value(d, 'camera_ids', self.camera_ids)
@@ -438,13 +453,13 @@ class MetaConstraint(ModelEqualityMixin):
         """
         Constructor
 
-        :param String constraint_type:
+        :param string constraint_type:
             one of 'before', 'after', 'string_equals', 'number_equals', 'less', 'greater'
         :param NSString key:
-            an NSString containing the namespace prefixed string to use as a key
-        :param Object value:
-            the value, for string_equals this is a String, for 'before' and 'after' it's a DateTime and
-            for 'less', 'greater' and 'number_equals' a Number.
+            an :class:`meteorpi_model.NSString` containing the namespace prefixed string to use as a key
+        :param object value:
+            the value, for string_equals this is a String, for 'before' and 'after' it's a :class:`datetime.datetime`
+            and for 'less', 'greater' and 'number_equals' a number (generally a :class:`float` or :class:`int`).
         """
         self.constraint_type = constraint_type
         self.key = key
@@ -491,55 +506,55 @@ class EventSearch(ModelEqualityMixin):
         Create a new EventSearch. All parameters are optional, a default search will be created which returns
         at most the first 100 :class:`Event` instances. All parameters specify restrictions on these results.
 
-        :param String[] camera_ids:
+        :param list[string] camera_ids:
             Optional - if specified, restricts results to only those the the specified camera IDs which
             are expressed as an array of strings.
-        :param Number lat_min:
+        :param float lat_min:
             Optional - if specified, only returns results where the camera status at the time of the event
             had a latitude field of at least the specified value.
-        :param Number lat_max:
+        :param float lat_max:
             Optional - if specified, only returns results where the camera status at the time of the event
             had a latitude field of at most the specified value.
-        :param Number long_min:
+        :param float long_min:
             Optional - if specified, only returns results where the camera status at the time of the event
             had a longitude field of at least the specified value.
-        :param Number long_max:
+        :param float long_max:
             Optional - if specified, only returns results where the camera status at the time of the event
             had a longitude field of at most the specified value.
-        :param Date after:
+        :param datetime.datetime after:
             Optional - if specified, only returns results where the event time is after the specified value.
-        :param Date before:
+        :param datetime.datetime before:
             Optional - if specified, only returns results where the event time is before the specified value.
         :param NSString semantic_type:
             Optional - if specified, only returns results where the semantic type exactly matches.
-        :param Number after_offset:
+        :param int after_offset:
             Optional - if specified this defines a lower bound on the time of day of the event time,
             irrespective of the date of the file. This can be used to e.g. only return events which were produced after
             2am on any given day. Specified as seconds since the previous mid-day.
-        :param Number before_offset:
+        :param int before_offset:
             Optional - interpreted in a similar manner to after_offset but specifies an upper bound.
             Use both in the same query to filter for a particular range, i.e. 2am to 4am on any day.
-        :param MetaConstraint[] meta_constraints:
-            Optional - a list of :class:`MetaConstraint` objects providing restrictions over the event
+        :param list[MetaConstraint] meta_constraints:
+            Optional - a list of :class:`meteorpi_model.MetaConstraint` objects providing restrictions over the event
             metadata.
-        :param Integer limit:
+        :param int limit:
             Optional, defaults to 100 - controls the maximum number of results that will be returned by this
             search. If set to 0 will return all results, but be aware that this may potentially have negative effects on
             the server software. Only set this to 0 when you are sure that you won't return too many results!
-        :param Integer skip:
+        :param int skip:
             Optional, defaults to 0 - used with the limit parameter, this will skip the specified number
             of results from the result set. Use when limiting the number returned by each query to paginate the results,
             i.e. use skip 0 and limit 10 to get the first ten, then skip 10 limit 10 to get the next and so on.
         """
-        if camera_ids is None == False and len(camera_ids) == 0:
+        if camera_ids is not None and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
-        if lat_min is None == False and lat_max is None == False and lat_max < lat_min:
+        if lat_min is not None and lat_max is not None and lat_max < lat_min:
             raise ValueError('Latitude max cannot be less than latitude minimum')
-        if long_min is None == False and long_max is None == False and long_max < long_min:
+        if long_min is not None and long_max is not None and long_max < long_min:
             raise ValueError('Longitude max cannot be less than longitude minimum')
-        if after is None == False and before is None == False and before < after:
+        if after is not None and before is not None and before < after:
             raise ValueError('From time cannot be after before time')
-        if after_offset is None == False and before_offset is None == False and before_offset < after_offset:
+        if after_offset is not None and before_offset is not None and before_offset < after_offset:
             raise ValueError('From offset cannot be after before offset')
         if isinstance(camera_ids, basestring):
             camera_ids = [camera_ids]
@@ -623,19 +638,19 @@ class Event(ModelEqualityMixin):
         the camera at the time the event was created.
     :ivar uuid.UUID event_id:
         the UUID of the event itself.
-    :ivar Date event_time:
+    :ivar datetime.datetime event_time:
         the datetime the event was created on the camera.
     :ivar NSString event_type:
         the semantic type of the event. The semantic type is used to describe the kind of event, so we
         might have a semantic type for an event meaning 'we think this is a meteor', for example. This is an
         NSString, and can take any arbitrary value. You should consult the documentation for the particular project
         you're working with for more information on what might appear here.
-    :ivar FileRecord[] file_records:
-        a list of zero or more :class:`FileRecord` objects. You can think of these as the supporting evidence
-        for the other information in the event.
-    :ivar Meta[] meta:
-        a list of zero or more :class:`Meta` objects. Meta objects are used to provide arbitrary extra, searchable,
-        information about the event.
+    :ivar list[FileRecord] file_records:
+        a list of zero or more :class:`meteorpi_model.FileRecord` objects. You can think of these as the supporting
+        evidence for the other information in the event.
+    :ivar list[Meta] meta:
+        a list of zero or more :class:`meteorpi_model.Meta` objects. Meta objects are used to provide arbitrary extra,
+        searchable, information about the event.
     """
 
     def __init__(
@@ -653,16 +668,16 @@ class Event(ModelEqualityMixin):
         internal use within the database layer.
 
         :param string camera_id: Camera ID which is responsible for this event
-        :param Date event_time: Date for the event
+        :param datetime.datetime event_time: Date for the event
         :param uuid.UUID event_id: UUID for this event
         :param NSString event_type:
-            NSString defining the event type, we use this because the concept of an Event has
-            evolved beyond being restricted to meteor sightings.
-        :param FileRecord[] file_records:
-            A list of :class:`FileRecord`, or None to specify no files, which support the event.
-        :param Meta[] meta:
-            A list of :class:`Meta`, or None to specify an empty list, which provide additional information about the
-            event.
+            :class:`meteorpi_model.NSString` defining the event type, we use this because the concept of a
+            :class:`meteorpi_model.Event` has evolved beyond being restricted to meteor sightings.
+        :param list[FileRecord] file_records:
+            A list of :class:`meteorpi_model.FileRecord`, or None to specify no files, which support the event.
+        :param list[Meta] meta:
+            A list of :class:`meteorpi_model.Meta`, or None to specify an empty list, which provide additional
+            information about the event.
         """
         self.camera_id = camera_id
         # Will be a uuid.UUID when stored in the database
@@ -720,33 +735,34 @@ class FileRecord(ModelEqualityMixin):
     methods in the database API.
 
 
-    :ivar String camera_id:
+    :ivar string camera_id:
         String ID of the camera which produced this file.
     :ivar uuid.UUID status_id:
         UUID of the CameraStatus describing the state, location, lens type and similar properties of
         the camera at the time the file was created.
     :ivar uuid.UUID file_id:
         UUID of the file itself.
-    :ivar Date file_time:
+    :ivar datetime.datetime file_time:
         Datetime the file was created on the camera.
-    :ivar Integer file_size:
+    :ivar int file_size:
         File size in bytes. A value of 0 means that the underlying file is not yet available, so it
         cannot be downloaded. This may happen if you are retrieving results from a central server which has received
         the information about a file from another system (i.e. a camera) but has not yet received the actual file.
-    :ivar String file_name:
+    :ivar string file_name:
         Optional, and can be None, this contains a suggested name for the file. This is used in the web
         interface to show the file name to download, but is not guaranteed to be unique (if you need a unique ID you
         should use the file_id)
-    :ivar String mime_type:
+    :ivar string mime_type:
         MIME type of the file, typically used to determine which application opens it. Values are
         strings like 'text/plain' and 'image/png'
     :ivar NSString semantic_type:
         Semantic type of the file. This defines the meaning of the contents (mime_type defining the
-        format of the contents). This is an NSString, and can take any arbitrary value. You should consult the
-        documentation for the particular project you're working with for more information on what might appear here.
-    :ivar Meta[] meta:
-        List of zero or more :class:`Meta` objects. Meta objects are used to provide arbitrary extra, searchable,
-        information about the file and its contents.
+        format of the contents). This is a :class:`meteorpi_model.NSString`, and can take any arbitrary value. You
+        should consult the documentation for the particular project you're working with for more information on what
+        might appear here.
+    :ivar list[Meta] meta:
+        List of zero or more :class:`meteorpi_model.Meta` objects. Meta objects are used to provide arbitrary extra,
+        searchable, information about the file and its contents.
     """
 
     def __init__(self, camera_id, mime_type, semantic_type, status_id, file_name=None):
@@ -810,8 +826,8 @@ class Meta(ModelEqualityMixin):
 
     :ivar NSString key:
         Name of this metadata property, specified as an NSString
-    :ivar String|Date|Number value:
-        Value of this property, this can be a Number, string or datetime.date
+    :ivar object value:
+        Value of this property, this can be a Number, string or datetime.datetime
     """
 
     def __init__(self, key, value):
@@ -850,14 +866,14 @@ class Meta(ModelEqualityMixin):
 
     def as_dict(self):
         d = {}
-        type = self.type()
-        _add_string(d, "type", type)
+        meta_type = self.type()
+        _add_string(d, "type", meta_type)
         _add_string(d, "key", self.key)
-        if type == "date":
+        if meta_type == "date":
             _add_datetime(d, "value", self.value)
-        elif type == "number":
+        elif meta_type == "number":
             _add_value(d, "value", self.value)
-        elif type == "string":
+        elif meta_type == "string":
             _add_string(d, "value", self.value)
         return d
 
@@ -879,15 +895,15 @@ class Location(ModelEqualityMixin):
     A location fix, consisting of latitude and longitude, and a boolean to
     indicate whether the fix had a GPS lock or not.
 
-    :ivar Number latitude:
+    :ivar float latitude:
         Latitude of the camera installation, measured in degrees. Positive angles are north of equator,
         negative angles are south.
-    :ivar Number longitude:
+    :ivar float longitude:
         Longitude of the camera installation, measured in degrees. Positive angles are east of Greenwich,
         negative angles are west.
-    :ivar Boolean gps:
+    :ivar boolean gps:
         True if the location was identified by GPS, False otherwise.
-    :ivar Number error:
+    :ivar float error:
         Estimate of error in longitude and latitude values, expressed in meters.
     """
 
@@ -911,18 +927,18 @@ class Orientation(ModelEqualityMixin):
     The angles, including the error, are floating point quantities with degrees as the unit. These values are computed
     from astrometry.net, so use documentation there as supporting material when interpreting instances of this class.
 
-    :ivar Number altitude:
+    :ivar float altitude:
         Angle above the horizon of the centre of the camera's field of view. 0 means camera is pointing
         horizontally, 90 means camera is pointing vertically upwards.
-    :ivar Number azimuth:
+    :ivar float azimuth:
         Bearing of the centre of the camera's field of view, measured eastwards from north. 0 means camera
         pointing north, 90 east, 180 south, 270 west.
-    :ivar Number rotation:
+    :ivar float rotation:
         Position angle of camera's field of view (measured at centre of frame). 0 = celestial north up,
         90 = celestial east up, 270 = celestial west up.
-    :ivar Number error:
+    :ivar float error:
         Estimate of likely error in altitude, azimuth and rotation values, expressed in degrees.
-    :ivar Number width_of_field:
+    :ivar float width_of_field:
         For a frame of dimensions (w,h), the angular distance between the pixels (0,h/2) and
         (w/2,h/2). That is, half the angular *width* of the frame.
     """
@@ -950,18 +966,29 @@ class CameraStatus(ModelEqualityMixin):
     and up until before the given validTo datetime; if this is None then
     the status is current.
 
-    Instance properties:
-        :lens: Name of the camera lens in use. This must match the name field of an entry in <sensorProperties/lenses.xml>
-        :sensor: Name of the camera in use. This must match the name field of an entry in <sensorProperties/sensors.xml>
-        :inst_name: Installation name, e.g. "Cambridge Secondary School, South Camera"
-        :inst_url: Web address associated with installation, e.g. the school's website
-        :orientation: An instance of class Orientation
-        :location: An instance of class Location
-        :software_version: Integer version number of the software stack on the camera node
-        :regions: List of list of dictionaries of the form `{'x':x,'y':y}`. The points in each list describe a polygon within which camera can see the sky.
-        :valid_from: datetime object representing the earliest date of observation from which this camera status is valid
-        :valid_to: datetime object representing the latest date of observation for which this camera status is valid
-
+    :ivar string lens:
+        Name of the camera lens in use. This must match the name field of an entry in <sensorProperties/lenses.xml>
+    :ivar string sensor:
+        Name of the camera in use. This must match the name field of an entry in <sensorProperties/sensors.xml>
+    :ivar string inst_name:
+        Installation name, e.g. "Cambridge Secondary School, South Camera"
+    :ivar string inst_url:
+        Web address associated with installation, e.g. the school's website
+    :ivar Orientation orientation:
+        An instance of :class:`meteorpi_model.Orientation` describing the orientation of the camera.
+    :ivar Location location:
+        An instance of :class:`meteorpi_model.Location` describing the location (including potential uncertainty) of the
+        camera.
+    :ivar int software_version:
+        Integer version number of the software stack on the camera node
+    :ivar list[dict] regions:
+        List of list of dictionaries of the form `{'x':x,'y':y}`. The points in each list
+        describe a polygon within which camera can see the sky. Coordinates are in image space, so the origin at 0,0 is
+        at the top left as viewed on the screen, and values are pixels.
+    :ivar datetime.datetime valid_from:
+        datetime object representing the earliest date of observation from which this camera status is valid
+    :ivar datetime.datetime valid_to:
+        datetime object representing the latest date of observation for which this camera status is valid
     """
 
     def __init__(self, lens, sensor, inst_url, inst_name, orientation, location, camera_id, status_id=None):

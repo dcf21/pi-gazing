@@ -40,7 +40,7 @@ class TestClient(TestCase):
         for t in range(0, 30):
             # At time 0 there shouldn't be a status and both should return None
             status_from_db = self.server.db.get_camera_status(camera_id=dummy.CAMERA_1, time=dummy.make_time(t))
-            status_from_client = self.client.get_camera_status(camera_id=dummy.CAMERA_1, time=dummy.make_time(t))
+            status_from_client = self.client.get_camera_status(camera_id=dummy.CAMERA_1, status_time=dummy.make_time(t))
             if status_from_db is not None and status_from_client is not None:
                 self.assertDictEqual(status_from_db.as_dict(), status_from_client.as_dict())
             else:

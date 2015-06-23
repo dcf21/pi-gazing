@@ -1,10 +1,10 @@
 import threading
-from datetime import datetime
 import uuid
 from functools import wraps
 import urllib
 
 from yaml import safe_load
+
 import os.path as path
 import flask
 from tornado.ioloop import IOLoop
@@ -20,11 +20,6 @@ from flask.ext.cors import CORS
 DEFAULT_DB_PATH = 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb'
 DEFAULT_FILE_PATH = path.expanduser("~/meteorpi_files")
 DEFAULT_PORT = 12345
-
-
-def _datetime_from_timestamp(time_string):
-    """Parse date strings in request URLs"""
-    return datetime.fromtimestamp(timestamp=float(time_string))
 
 
 def build_app(db):
@@ -107,7 +102,7 @@ def build_app(db):
 
     @app.route('/cameras/<camera_id>/status/<time_string>', methods=['GET'])
     def get_camera_status(camera_id, time_string):
-        status = db.get_camera_status(camera_id=camera_id, time=_datetime_from_timestamp(time_string))
+        status = db.get_camera_status(camera_id=camera_id, time=model.milliseconds_to_utc_datetime(int(time_string)))
         if status is None:
             return 'No active camera with ID {0}'.format(camera_id), 404
         else:
@@ -139,7 +134,7 @@ def build_app(db):
     return app
 
 
-class MeteorServer():
+class MeteorServer(object):
     """HTTP server which responds to API requests and returns JSON formatted domain objects"""
 
     class IOLoopThread(threading.Thread):
@@ -161,10 +156,6 @@ class MeteorServer():
         tornado_application = Application([(r'.*', FallbackHandler, dict(fallback=WSGIContainer(app)))])
         self.server = tornado.httpserver.HTTPServer(tornado_application)
         self.port = port
-
-        def _build_datetime(datetime_string):
-            """Build a datetime from a string used as a URL component"""
-            return datetime.datetime.fromtimestamp(timestamp=datetime_string)
 
     def __str__(self):
         return 'MeteorServer(port={0}, db_path={1}, file_path={2})'.format(self.port, self.db.db_path,

@@ -50,3 +50,24 @@ MetaConstraint
 ^^^^^^^^^^^^^^
 .. autoclass:: meteorpi_model.MetaConstraint
     :members:
+
+NSString
+^^^^^^^^
+.. autoclass:: meteorpi_model.NSString
+    :members:
+
+User
+^^^^
+.. autoclass:: meteorpi_model.User
+    :members:
+
+CameraStatus
+^^^^^^^^^^^^
+.. autoclass:: meteorpi_model.CameraStatus
+    :members:
+
+.. autoclass:: meteorpi_model.Location
+    :members:
+
+.. autoclass:: meteorpi_model.Orientation
+    :members:

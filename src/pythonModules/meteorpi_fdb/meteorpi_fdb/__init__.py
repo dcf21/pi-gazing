@@ -1,5 +1,6 @@
 import shutil
 import uuid
+import datetime
 from contextlib import closing
 
 from passlib.hash import pbkdf2_sha256
@@ -13,6 +14,7 @@ import meteorpi_model as mp
 def first_non_null(values):
     """
     Retrieve the first, non-null item in the specified list
+
     :param values:
         a list of values from which the first non-null is returned
     :return:
@@ -67,76 +69,102 @@ def _first_from_generator(generator):
 class SQLBuilder:
     """
     Helper class to make it easier to build large, potentially complex, SQL clauses.
-    :internal:
+
+    This class contains various methods to allow SQL queries to be built without having to manage enormous strings of
+    SQL. It includes facilities to add metadata constraints, and to map from :py:class:`meteorpi_model.NSString` and
+    :class:`datetime.datetime` to the forms
+    we use within the firebird database (strings and big integers respectively). Also helps simplify the discovery and
+    debugging of issues with generated queries as we can pull out the query strings directly from this object.
     """
 
-    def __init__(self, where_clauses=None):
+    def __init__(self, tables, where_clauses=None):
         """
-        Construct a new, empty, WhereClauseBuilder
+        Construct a new, empty, SQLBuilder
 
         :param where_clauses:
-            optionally specify an initial array of WHERE clauses, defaults to an empty sequence.
+            Optionally specify an initial array of WHERE clauses, defaults to an empty sequence. Clauses specified here
+            must not include the string 'WHERE', but should be e.g. ['e.statusID = s.internalID']
+        :param tables:
+            A SQL fragment defining the tables used by this SQLBuilder, i.e. 't_file f, t_cameraStatus s'
         :ivar where_clauses:
-            a list of strings of SQL, which should be prefixed by 'WHERE' to construct a constraint
+            A list of strings of SQL, which will be prefixed by 'WHERE' to construct a constraint. As with the init
+            parameter these will not include the 'WHERE' itself.
         :ivar sql_args:
-            a list of values which will be bound into an execution of the SQL query
+            A list of values which will be bound into an execution of the SQL query
         :return:
-            an unpopulated WhereClauseBuilder
+            An unpopulated SQLBuilder, including any initial where clauses.
         """
+        self.tables = tables
         self.sql_args = []
         if where_clauses is None:
             self.where_clauses = []
         self.where_clauses = where_clauses
 
+    @staticmethod
+    def map_value(value):
+        """
+        Perform type translation of values to be inserted into SQL queries based on their types.
+
+        :param value:
+            The value to map
+        :return:
+            The mapped value. This will be the same as the input value other than two special cases: Firstly if the
+            input value is an instance of model.NSString we map it to the stringified form 'ns:value'. Secondly if the
+            value is an instance of datetime.datetime we map it using model.utc_datetime_to_milliseconds, returning
+            an integer.
+        """
+        if value is None:
+            return None
+        elif isinstance(value, mp.NSString):
+            return str(value)
+        elif isinstance(value, datetime.datetime):
+            return mp.utc_datetime_to_milliseconds(value)
+        else:
+            return value
+
     def add_sql(self, value, clause):
         """
-        Add a WHERE clause to the state
+        Add a WHERE clause to the state. Handles NSString and datetime.datetime sensibly.
 
         :param value:
-            the unknown to bind into the state
+            The unknown to bind into the state. Uses SQLBuilder._map_value() to map this into an appropriate database
+            compatible type.
         :param clause:
-            a SQL fragment defining the restriction on the unknown value
+            A SQL fragment defining the restriction on the unknown value
         """
         if value is not None:
+            self.sql_args.append(SQLBuilder.map_value(value))
             self.where_clauses.append(clause)
-            self.sql_args.append(value)
-
-    def add_ns_sql(self, value, clause):
-        """
-        Behaves as add_sql but specifically intended to handle NSString instances
-
-        :param value:
-            the unknown to bind into the state
-        :param clause:
-            a SQL fragment defining the restriction on the unknown value
-        """
-        if value is not None:
-            self.add_sql(str(value), clause)
 
     def add_set_membership(self, values, column_name):
         """
-        Append a set membership test, creating a query of the form 'WHERE name IN {?,?...?}'.
+        Append a set membership test, creating a query of the form 'WHERE name IN (?,?...?)'.
 
         :param values:
-            a list of values. If this is non-None and non-empty this will add a set membership test to the state.
+            A list of values, or a subclass of basestring. If this is non-None and non-empty this will add a set
+            membership test to the state. If the supplied value is a basestring it will be wrapped in a single element
+            list. Values are mapped by SQLBuilder._map_value before being added, so e.g. NSString instances will work
+            here.
         :param column_name:
-            the name of the column to use when checking the 'IN' condition.
+            The name of the column to use when checking the 'IN' condition.
         """
         if values is not None and len(values) > 0:
-            unknowns = ', '.join(list("?" for id in values))
-            self.where_clauses.append('{0} IN ({1})'.format(column_name, unknowns))
+            if isinstance(values, basestring):
+                values = [values]
+            question_marks = ', '.join(["?"] * len(values))
+            self.where_clauses.append('{0} IN ({1})'.format(column_name, question_marks))
             for value in values:
-                self.sql_args.append(value)
+                self.sql_args.append(SQLBuilder.map_value(value))
 
     def add_metadata_query_properties(self, meta_constraints, meta_table_name):
         """
         Construct WHERE clauses from a list of MetaConstraint objects, adding them to the query state.
 
         :param meta_constraints:
-            a list of MetaConstraint objects, each of which defines a condition over metadata which must be satisfied
+            A list of MetaConstraint objects, each of which defines a condition over metadata which must be satisfied
             for results to be included in the overall query.
         :param meta_table_name:
-            the name of the link table between the queried entity and metadata, i.e. t_eventMeta or t_fileMeta in the
+            The name of the link table between the queried entity and metadata, i.e. t_eventMeta or t_fileMeta in the
             current code.
         :raises:
             ValueError if an unknown meta constraint type is encountered.
@@ -146,11 +174,8 @@ class SQLBuilder:
             ct = mc.constraint_type
             sql_template = 'f.internalID IN (' \
                            'SELECT fm.fileID FROM {0} fm WHERE fm.{1} {2} (?) AND fm.metaKey = (?))'
-            # Put the value, mapping datetime to milliseconds since epoch first
-            if ct == 'after' or ct == 'before':
-                self.sql_args.append(mp.utc_datetime_to_milliseconds(mc.value))
-            else:
-                self.sql_args.append(mc.value)
+            # Meta value, mapping to the correct type as appropriate
+            self.sql_args.append(SQLBuilder.map_value(mc.value))
             # Put the meta key
             self.sql_args.append(str(mc.key))
             # Put an appropriate WHERE clause
@@ -169,36 +194,57 @@ class SQLBuilder:
             else:
                 raise ValueError("Unknown meta constraint type!")
 
-    def get_select_sql(self, columns, tables, order=None, limit=0, skip=0):
+    def get_select_sql(self, columns, order=None, limit=0, skip=0):
         """
         Build a SELECT query based on the current state of the builder.
 
         :param columns:
-            sql fragment describing which columns to select i.e. 'e.cameraID, s.statusID'
-        :param tables:
-            sql fragment defining the 'FROM' part, i.e. 't_event e, t_cameraStatus s'
+            SQL fragment describing which columns to select i.e. 'e.cameraID, s.statusID'
         :param order:
-            optional ordering constraint, i.e. 'e.eventTime DESC'
+            Optional ordering constraint, i.e. 'e.eventTime DESC'
         :param limit:
-            optional, used to build the 'FIRST n' clause
+            Optional, used to build the 'FIRST n' clause. If not specified no limit is imposed.
         :param skip:
-            optional, used to build the 'SKIP n' clause
+            Optional, used to build the 'SKIP n' clause. If not specified results are returned from the first item
+            available. Note that this parameter must be combined with 'order', otherwise there's no ordering imposed
+            on the results and subsequent queries may return overlapping data randomly. It's unlikely that this will
+            actually happen as almost all databases do in fact create an internal ordering, but there's no guarantee
+            of this (and some operations such as indexing will definitely break this property unless explicitly set).
         :returns:
-            a SQL SELECT query, which will make use of self.sql_args when executed.
+            A SQL SELECT query, which will make use of self.sql_args when executed. To run the query, use e.g.:
+
+            .. code-block:: python
+
+                b = SQLBuilder()
+                # Call add_sql etc methods on b here.
+                sql = b.get_select_sql(columns='e.cameraID, e.eventID, e.internalID, e.eventTime',
+                                       skip=search.skip,
+                                       limit=search.limit,
+                                       order='e.eventTime DESC')
+                with closing(connection.cursor()) as cursor:
+                    cursor.execute(sql, b.sql_args)
+                    # do stuff with results
+
         """
         sql = 'SELECT '
         if limit > 0:
             sql += 'FIRST {0} '.format(limit)
         if skip > 0:
             sql += 'SKIP {0} '.format(skip)
-        sql += '{0} FROM {1} WHERE '.format(columns, tables)
+        sql += '{0} FROM {1} WHERE '.format(columns, self.tables)
         sql += ' AND '.join(self.where_clauses)
         if order is not None:
             sql += ' ORDER BY {0}'.format(order)
         return sql
 
-    def get_count_sql(self, tables):
-        return 'SELECT count(*) FROM ' + tables + ' WHERE ' + (' AND '.join(self.where_clauses))
+    def get_count_sql(self):
+        """
+        Build a SELECT query which returns the count of items for an unlimited SELECT
+
+        :return:
+            A SQL SELECT query which returns the count of items for an unlimited query based on this SQLBuilder
+        """
+        return 'SELECT count(*) FROM ' + self.tables + ' WHERE ' + (' AND '.join(self.where_clauses))
 
 
 SOFTWARE_VERSION = 1
@@ -257,7 +303,6 @@ class MeteorDatabase:
             Any variables required to populate the query provided in 'sql'
         :return:
             A generator which produces Event instances from the supplied SQL, closing any opened cursors on completion.
-        :internal:
         """
         with closing(self.con.cursor()) as cursor:
             cursor.execute(sql, sql_args)
@@ -297,7 +342,6 @@ class MeteorDatabase:
         :return:
             A generator which produces FileRecord instances from the supplied SQL, closing any opened cursors on
             completion.
-        :internal:
         """
         with closing(self.con.cursor()) as cursor:
             cursor.execute(sql, sql_args)
@@ -335,21 +379,20 @@ class MeteorDatabase:
         :return:
             a structure of {count:int total rows of an unrestricted search, events:list of Event}
         """
-        b = SQLBuilder(where_clauses=['e.statusID = s.internalID'])
+        b = SQLBuilder(tables='t_event e, t_cameraSTatus s', where_clauses=['e.statusID = s.internalID'])
         b.add_set_membership(search.camera_ids, 'e.cameraID')
         b.add_sql(search.lat_min, 's.locationLatitude >= (?)')
         b.add_sql(search.lat_max, 's.locationLatitude <= (?)')
         b.add_sql(search.long_min, 's.locationLongitude >= (?)')
         b.add_sql(search.long_max, 's.locationLongitude <= (?)')
-        b.add_sql(mp.utc_datetime_to_milliseconds(search.before), 'e.eventTime < (?)')
-        b.add_sql(mp.utc_datetime_to_milliseconds(search.after), 'e.eventTime > (?)')
+        b.add_sql(search.before, 'e.eventTime < (?)')
+        b.add_sql(search.after, 'e.eventTime > (?)')
         b.add_sql(search.before_offset, 'e.eventOffset < (?)')
         b.add_sql(search.after_offset, 'e.eventOffset > (?)')
-        b.add_ns_sql(search.event_type, 'e.eventType = (?)')
+        b.add_sql(search.event_type, 'e.eventType = (?)')
         b.add_metadata_query_properties(meta_constraints=search.meta_constraints, meta_table_name='t_eventMeta')
 
         sql = b.get_select_sql(columns='e.cameraID, e.eventID, e.internalID, e.eventTime, e.eventType, s.statusID',
-                               tables='t_event e, t_cameraStatus s',
                                skip=search.skip,
                                limit=search.limit,
                                order='e.eventTime DESC')
@@ -359,7 +402,7 @@ class MeteorDatabase:
         total_rows = rows_returned + search.skip
         if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
             with closing(self.con.cursor()) as count_cur:
-                count_cur.execute(b.get_count_sql(tables='t_event e, t_cameraStatus s'), b.sql_args)
+                count_cur.execute(b.get_count_sql(), b.sql_args)
                 total_rows = count_cur.fetchone()[0]
         return {"count": total_rows,
                 "events": events}
@@ -373,26 +416,25 @@ class MeteorDatabase:
         :return:
             a structure of {count:int total rows of an unrestricted search, events:list of FileRecord}
         """
-        b = SQLBuilder(where_clauses=['f.statusID = s.internalID'])
+        b = SQLBuilder(tables='t_file f, t_cameraStatus s', where_clauses=['f.statusID = s.internalID'])
         b.add_set_membership(search.camera_ids, 'f.cameraID')
         b.add_sql(search.lat_min, 's.locationLatitude >= (?)')
         b.add_sql(search.lat_max, 's.locationLatitude <= (?)')
         b.add_sql(search.long_min, 's.locationLongitude >= (?)')
         b.add_sql(search.long_max, 's.locationLongitude <= (?)')
-        b.add_sql(mp.utc_datetime_to_milliseconds(search.before), 'f.fileTime < (?)')
-        b.add_sql(mp.utc_datetime_to_milliseconds(search.after), 'f.fileTime > (?)')
+        b.add_sql(search.before, 'f.fileTime < (?)')
+        b.add_sql(search.after, 'f.fileTime > (?)')
         b.add_sql(search.before_offset, 'f.fileOffset < (?)')
         b.add_sql(search.after_offset, 'f.fileOffset > (?)')
         b.add_sql(search.mime_type, 'f.mimeType = (?)')
-        b.add_ns_sql(search.semantic_type, 'f.semanticType = (?)')
+        b.add_sql(search.semantic_type, 'f.semanticType = (?)')
         b.add_metadata_query_properties(meta_constraints=search.meta_constraints, meta_table_name='t_fileMeta')
         # Check for avoiding event files
         if search.exclude_events:
             b.where_clauses.append('f.internalID NOT IN (SELECT fileID from t_event_to_file)')
 
-        sql = b.get_select_sql(columns='f.internalID, f.cameraID, f.mimeType, ' \
-                                       'f.semanticType, f.fileTime, f.fileSize, f.fileID, f.fileName, s.statusID',
-                               tables='t_file f, t_cameraStatus s',
+        sql = b.get_select_sql(columns='f.internalID, f.cameraID, f.mimeType, f.semanticType, f.fileTime, '
+                                       'f.fileSize, f.fileID, f.fileName, s.statusID',
                                skip=search.skip,
                                limit=search.limit,
                                order='f.fileTime DESC')
@@ -402,7 +444,7 @@ class MeteorDatabase:
         total_rows = rows_returned + search.skip
         if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
             with closing(self.con.cursor()) as cur:
-                cur.execute(b.get_count_sql(tables='t_file f, t_cameraStatus s'), b.sql_args)
+                cur.execute(b.get_count_sql(), b.sql_args)
                 total_rows = cur.fetchone()[0]
         return {"count": total_rows,
                 "files": files}
@@ -418,7 +460,7 @@ class MeteorDatabase:
               'e.eventType, s.statusID ' \
               'FROM t_event e, t_cameraStatus s ' \
               'WHERE e.eventID = (?) AND s.internalID = e.statusID'
-        return _first_from_generator(self._event_generator(sql=sql, sql_args=(event_id.bytes)))
+        return _first_from_generator(self._event_generator(sql=sql, sql_args=(event_id.bytes,)))
 
     def get_file(self, file_id):
         """

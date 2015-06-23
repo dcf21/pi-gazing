@@ -1,5 +1,5 @@
-import time
 import json
+
 import urllib
 
 from yaml import safe_load
@@ -19,26 +19,13 @@ def _to_encoded_string(o):
     :return: an encoded string suitable for use as a URL component
     :internal:
     """
-    dict = o.__dict__
+    _dict = o.__dict__
     if o.as_dict:
-        dict = o.as_dict()
-    return urllib.quote_plus(urllib.quote_plus(json.dumps(obj=dict, separators=(',', ':'))))
+        _dict = o.as_dict()
+    return urllib.quote_plus(urllib.quote_plus(json.dumps(obj=_dict, separators=(',', ':'))))
 
 
-def _datetime_string(t):
-    """
-    Builds a string representation of a timestamp, used for URL components
-
-    :internal:
-    """
-    if t is not None:
-        return str(time.mktime((t.year, t.month, t.day,
-                                t.hour, t.minute, t.second,
-                                -1, -1, -1)) + t.microsecond / 1e6)
-    raise ValueError("Time t cannot be None")
-
-
-class MeteorClient():
+class MeteorClient(object):
     """Client for the MeteorPi HTTP API. Use this to access a camera or central server."""
 
     def __init__(self, base_url):
@@ -63,26 +50,27 @@ class MeteorClient():
         response = requests.get(self.base_url + '/cameras').text
         return safe_load(response)['cameras']
 
-    def get_camera_status(self, camera_id, time=None):
+    def get_camera_status(self, camera_id, status_time=None):
         """
         Get details of the specified camera's status
 
-        :param camera_id:
+        :param string camera_id:
             a cameraID, as returned by list_cameras()
-        :param time:
+        :param datetime.datetime status_time:
             optional, if specified attempts to get the status for the given camera at a particular point in time
             specified as a datetime instance. This is useful if you want to retrieve the status of the camera at the
             time a given event or file was produced. If this is None or not specified the time is 'now'.
         :return:
-            a CameraStatus object, or None if there was either no camera found or the camera didn't have an active
-            status at the specified time.
+            a :class:`meteorpi_model.CameraStatus` object, or None if there was either no camera found or the camera
+            didn't have an active status at the specified time.
         """
-        if time is None:
+        if status_time is None:
             response = requests.get(
                 self.base_url + '/cameras/{0}/status'.format(camera_id))
         else:
             response = requests.get(
-                self.base_url + '/cameras/{0}/status/{1}'.format(camera_id, _datetime_string(time)))
+                self.base_url + '/cameras/{0}/status/{1}'.format(camera_id,
+                                                                 str(model.utc_datetime_to_milliseconds(status_time))))
         if response.status_code == 200:
             d = safe_load(response.text)
             if 'status' in d:
@@ -119,8 +107,9 @@ class MeteorClient():
         methods patched into them, get_url() and download_to(file_name), which will retrieve the URL for the file
         content and download that content to a named file on disk, respectively.
 
-        :param search:
-            an instance of FileRecordSearch - see the model docs for details on how to construct this
+        :param FileRecordSearch search:
+            an instance of :class:`meteorpi_model.FileRecordSearch` - see the model docs for details on how to construct
+            this
         :return:
             an object containing 'count' and 'files'. 'files' is a sequence of FileRecord objects containing the
             results of the search, and 'count' is the total number of results which would be returned if no result limit
@@ -147,18 +136,21 @@ class MeteorClient():
         def get_url(target):
             if target.file_size is None:
                 return None
-            return self.base_url + '/files/content/{0}/{1}'.format(target.file_id.hex, target.file_name)
+            if target.file_name is not None:
+                return self.base_url + '/files/content/{0}/{1}'.format(target.file_id.hex, target.file_name)
+            else:
+                return self.base_url + '/files/content/{0}'.format(target.file_id.hex, )
 
         f.get_url = types.MethodType(get_url, f)
 
         def download_to(target, file_name):
             url = target.get_url()
             r = requests.get(url, stream=True)
-            with open(file_name, 'wb') as f:
+            with open(file_name, 'wb') as file_to_write:
                 for chunk in r.iter_content(chunk_size=1024):
                     if chunk:  # filter out keep-alive new chunks
-                        f.write(chunk)
-                        f.flush()
+                        file_to_write.write(chunk)
+                        file_to_write.flush()
             return file_name
 
         f.download_to = types.MethodType(download_to, f)
