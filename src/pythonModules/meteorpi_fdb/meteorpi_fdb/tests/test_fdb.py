@@ -131,3 +131,14 @@ class TestFdb(TestCase):
         user = m.get_user(user_id="tom", password="password1")
         self.assertTrue(user.has_role("user"))
         self.assertTrue(user.has_role("camera_admin"))
+
+    def test_excessive_handles(self):
+        """
+        Regression test for https://github.com/camsci/meteor-pi/issues/42
+        """
+        m = db.MeteorDatabase()
+        dummy.setup_dummy_data(m, clear=True)
+        for x in range(100):
+            for x2 in range(1000):
+                y = m.get_high_water_mark(dummy.CAMERA_1)
+            print x
