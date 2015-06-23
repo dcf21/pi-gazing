@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='meteorpi_fdb',
-    version='0.1.1',
+    version='0.1.2',
     description='Data access layer, uses FireBird to persist and retrieve MeteorPi classes',
     classifiers=['Programming Language :: Python :: 2.7'],
     url='https://github.com/camsci/meteor-pi/',
