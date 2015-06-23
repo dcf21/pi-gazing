@@ -4,7 +4,6 @@ import datetime
 from contextlib import closing
 
 from passlib.hash import pbkdf2_sha256
-
 import os.path as path
 import os
 import fdb
@@ -875,7 +874,7 @@ class MeteorDatabase:
     def get_users(self):
         with closing(self.con.cursor()) as cur:
             cur.execute('SELECT userID, roleMask FROM t_user ORDER BY userID ASC')
-            return list(mp.User(user_id=row['userID'], role_mask=row['roleMask]']) for row in cur.fetchallmap)
+            return list(mp.User(user_id=row['userID'], role_mask=row['roleMask']) for row in cur.fetchallmap())
 
     def create_or_update_user(self, user_id, password, roles):
         """

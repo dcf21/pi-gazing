@@ -1,3 +1,97 @@
-<h2>admin-users-page</h2>
+<h2>Manage users</h2>
+<div class="row">
+    <div class="col-xs-10">
+        <h3>Key</h3>
+        <dl class="dl-horizontal">
+            <dt>Login</dt>
+            <dd>Check this box to allow the user to log in. In effect this can be used to disable a user temporarily
+                without
+                actually deleting the user concerned.
+            </dd>
+            <dt>Admin</dt>
+            <dd>Admin users can access this page, the camera status update and the import controls. Only check this box
+                for
+                users you trust, as any users with this role can remove <em>your</em> admin permissions.
+            </dd>
+            <dt>Import</dt>
+            <dd>This option allows users to connect from another node in the camera network and send data to this node.
+                Typically these users won't be people, they'll be used for software on different machines when
+                connecting to
+                this one. Without this permission the user can't push data to here, so it acts as a way to (temporarily)
+                disable
+                information import from this source.
+            </dd>
+        </dl>
+    </div>
+</div>
 
-<p data-bind='text: message'></p>
+<div class="row">
+    <div class="col-xs-10">
+
+        <div class="alert alert-info">
+            <p><b>Existing users</b></p>
+
+            <p>The table below shows the current users within the system. Click the button to the right to add a new
+                user, or use the controls in the table to modify or remove an existing one. You can't delete yourself,
+                or remove either login or admin rights.</p>
+        </div>
+
+        <table class="table table-condensed">
+            <thead>
+            <tr>
+                <th>User ID</th>
+                <th></th>
+                <th>Login</th>
+                <th>Admin</th>
+                <th>Import</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody data-bind="foreach: users">
+            <tr>
+                <td data-bind="text: user_id"></td>
+                <td>
+                    <button type="submit" class="btn btn-default btn-xs" data-bind="click: $parent.updatePassword">
+                        Change
+                        Password
+                    </button>
+                </td>
+                <td>
+                    <input type="checkbox" data-bind="enable: is_current()==false, checked: has_user"/>
+                </td>
+                <td>
+                    <input type="checkbox" data-bind="enable: is_current()==false, checked: has_admin"/>
+                </td>
+                <td>
+                    <input type="checkbox" data-bind="checked: has_import"/>
+                </td>
+                <td>
+                    <div data-bind="if: is_current()==false">
+                        <button type="submit" class="btn btn-danger btn-xs" data-bind="click: $parent.deleteUser">Delete
+                            User
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="col-xs-2">
+        <button type="submit" class="btn btn-default" data-bind="click: newUser">New User</button>
+    </div>
+</div>
+<div class="row">
+
+    <div class="col-xs-10">
+        <div class="alert alert-info">
+            <p>
+                You must explicitly save any changes made in the table above.
+            </p>
+
+
+        </div>
+        <button type="submit" class="btn btn-primary" data-bind="click: saveChanges">Save Changes</button>
+    </div>
+
+
+</div>
