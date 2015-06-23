@@ -8,7 +8,7 @@ Contents:
 
     install
     api
-            examples
+    examples
     api-internal
 
 Indices and tables
