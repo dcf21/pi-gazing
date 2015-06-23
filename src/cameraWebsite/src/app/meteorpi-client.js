@@ -28,6 +28,51 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
         };
 
         /**
+         * Update a set of roles
+         * @param newRoles
+         * @param callback
+         */
+        self.updateUserRoles = function (newRoles, callback) {
+            applyCallback(ajaxAuth("users/roles", "PUT", {new_roles: newRoles}), "users", callback);
+        };
+
+        /**
+         * Create a new user, or change the password for an existing one.
+         * @param userID the new or existing UserID
+         * @param password the new password
+         * @param callback called with a list of all current users.
+         */
+        self.changePasswordOrCreateUser = function (userID, password, callback) {
+            applyCallback(ajaxAuth("users", "POST", {
+                user_id: userID,
+                password: password
+            }), "users", function (error, userList) {
+                /**
+                 * If we just updated our own password, change the internal state used by the ajaxAuth calls,
+                 * otherwise we won't be able to make any more calls without a logout.
+                 */
+                if (userList != null) {
+                    if (userID === self.username) {
+                        self.password = password;
+                        localStorage.setItem("meteorpiPassword", password);
+                    }
+                }
+                /* Continue the callback */
+                callback(error, userList);
+            });
+        };
+
+        /**
+         * Delete a user on the server
+         * @param userID the ID of the user to delete.
+         * @param callback called with the list of all current users after the deletion.
+         */
+        self.deleteUser = function (userID, callback) {
+            var wrappedUserID = encodeURIComponent(encodeURIComponent(userID));
+            applyCallback(ajaxAuth("users/" + wrappedUserID, "DELETE"), "users", callback);
+        };
+
+        /**
          * Get all currently active cameras for this installation
          * @param callback called with (err:string, [cameraID:string])
          */

@@ -46,16 +46,11 @@
             </ul>
             <ul class="nav navbar-nav navbar-right">
                 <li data-bind="if: user() != null">
-                    <form>
-                        <button data-bind="click: logout" class="btn btn-default navbar-btn">Logout <span
-                                data-bind="text: user().user_id"></span></button>
-                    </form>
+                    <a href="#" data-bind="click: logout">Logout <span
+                            data-bind="text: user().user_id"></span></a>
                 </li>
                 <li data-bind="if: user() == null">
-                    <form>
-                        <button data-bind="click: login" class="btn btn-default navbar-btn"></span>Login
-                        </button>
-                    </form>
+                    <a href="#" data-bind="click: login">Login</a>
                 </li>
             </ul>
 

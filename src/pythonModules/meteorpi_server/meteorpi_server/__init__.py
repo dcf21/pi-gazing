@@ -65,6 +65,33 @@ def build_app(db):
     def login():
         return jsonify({'user': get_user().as_dict()})
 
+    @app.route('/users/<user_id>', methods=['DELETE'])
+    @requires_auth(roles=['camera_admin'])
+    def delete_user(user_id):
+        user_id = urllib.unquote(user_id)
+        db.delete_user(user_id)
+        return jsonify({'users': list(u.as_dict() for u in db.get_users())})
+
+    @app.route('/users', methods=['POST'])
+    @requires_auth(roles=['camera_admin'])
+    def create_user_or_change_password():
+        new_user = safe_load(request.get_data())
+        db.create_or_update_user(new_user['user_id'], new_user['password'], None)
+        return jsonify({'users': list(u.as_dict() for u in db.get_users())})
+
+    @app.route('/users/roles', methods=['PUT'])
+    @requires_auth(roles=['camera_admin'])
+    def update_user_roles():
+        new_roles = safe_load(request.get_data())['new_roles']
+        for user in new_roles:
+            db.create_or_update_user(user_id=user['user_id'], password=None, roles=user['roles'])
+        return jsonify({'users': list(u.as_dict() for u in db.get_users())})
+
+    @app.route('/users', methods=['GET'])
+    @requires_auth(roles=['camera_admin'])
+    def get_users():
+        return jsonify({'users': list(u.as_dict() for u in db.get_users())})
+
     @app.route('/cameras/<camera_id>/status', methods=['POST'])
     @requires_auth(roles=['camera_admin'])
     def update_camera_status(camera_id):
@@ -80,11 +107,6 @@ def build_app(db):
             # Update status and push changes to DB
             new_status = db.get_camera_status(camera_id=camera_id)
             return jsonify({'status': new_status.as_dict()})
-
-    @app.route('/users', methods=['GET'])
-    @requires_auth(roles=['camera_admin'])
-    def get_users():
-        return jsonify({'users': list(u.as_dict() for u in db.get_users())})
 
     @app.route('/cameras', methods=['GET'])
     def get_active_cameras():

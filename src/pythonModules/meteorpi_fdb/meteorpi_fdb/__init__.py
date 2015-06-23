@@ -696,7 +696,7 @@ class MeteorDatabase:
                          point_index,
                          point['x'],
                          point['y']))
-        self.con.commit()
+            self.con.commit()
 
     def _get_camera_status_id(
             self,
@@ -842,7 +842,6 @@ class MeteorDatabase:
                     'UPDATE t_cameraStatus t SET t.validTo = NULL '
                     'WHERE t.validTo >= (?) AND t.cameraID = (?)',
                     (mp.utc_datetime_to_milliseconds(time), camera_id))
-
         self.con.commit()
 
     def get_user(self, user_id, password):
@@ -901,8 +900,10 @@ class MeteorDatabase:
                 cur.execute('UPDATE t_user SET roleMask = (?) WHERE userID = (?)',
                             (mp.User.role_mask_from_roles(roles), user_id))
             if cur.rowcount == 0:
-                if password is None or roles is None:
-                    raise ValueError("Must specify both password and roles when creating a user!")
+                if password is None:
+                    raise ValueError("Must specify both password when creating a user!")
+                if roles is None:
+                    roles = ['user']
                 cur.execute('INSERT INTO t_user (userID, pwHash, roleMask) VALUES (?, ?, ?)',
                             (user_id, pbkdf2_sha256.encrypt(password), mp.User.role_mask_from_roles(roles)))
                 self.con.commit()
@@ -914,7 +915,7 @@ class MeteorDatabase:
     def delete_user(self, user_id):
         with closing(self.con.cursor()) as cur:
             cur.execute('DELETE FROM t_user WHERE userID = (?)', (user_id,))
-        self.con.commit()
+            self.con.commit()
 
     def clear_database(self):
         """
