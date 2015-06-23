@@ -327,7 +327,8 @@ class MeteorDatabase:
                     for (metaKey, stringValue, floatValue, dateValue) in meta_cur:
                         event.meta.append(
                             mp.Meta(key=mp.NSString.from_string(metaKey),
-                                    value=first_non_null([stringValue, floatValue, dateValue])))
+                                    value=first_non_null(
+                                        [stringValue, floatValue, mp.milliseconds_to_utc_datetime(dateValue)])))
                 yield event
 
     def _file_generator(self, sql, sql_args):
@@ -366,7 +367,8 @@ class MeteorDatabase:
                     for (metaKey, stringValue, floatValue, dateValue) in meta_cur:
                         fr.meta.append(
                             mp.Meta(key=mp.NSString.from_string(metaKey),
-                                    value=first_non_null([stringValue, floatValue, dateValue])))
+                                    value=first_non_null(
+                                        [stringValue, floatValue, mp.milliseconds_to_utc_datetime(dateValue)])))
                 yield fr
 
     def search_events(self, search):

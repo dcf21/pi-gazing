@@ -48,7 +48,7 @@
                 <tbody data-bind="foreach: meta">
                 <tr>
                     <td data-bind="text: key"></td>
-                    <td data-bind="text: type==='date'?new Date(value*1000):value"></td>
+                    <td data-bind="text: type==='date'?new Date(value):value"></td>
                 </tr>
                 </tbody>
             </table>
