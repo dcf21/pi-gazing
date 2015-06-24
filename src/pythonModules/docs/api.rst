@@ -71,3 +71,12 @@ CameraStatus
 
 .. autoclass:: meteorpi_model.Orientation
     :members:
+
+Export
+^^^^^^
+
+These classes are used to configure the data export mechanism within a node, it's unlikely you'll need to use them
+directly yourself but they're part of the model API so included here for completeness.
+
+.. autoclass:: meteorpi_model.ExportConfiguration
+    :members:

@@ -127,9 +127,69 @@ CREATE TABLE t_event_to_file (
   FOREIGN KEY (fileId) REFERENCES t_file (internalId) ON DELETE CASCADE
 );
 
+CREATE TABLE t_exportConfig (
+  internalID     INTEGER       NOT NULL,
+  exportConfigID CHAR(16)      CHARACTER SET OCTETS NOT NULL,
+  exportType     VARCHAR(10)   NOT NULL,
+  searchString   VARCHAR(2048) NOT NULL,
+  targetURL      VARCHAR(255)  NOT NULL,
+  targetUser     VARCHAR(255)  NOT NULL,
+  targetPassword VARCHAR(255)  NOT NULL,
+  exportName     VARCHAR(255)  NOT NULL,
+  description    VARCHAR(2048) NOT NULL,
+  active         BOOLEAN       NOT NULL,
+  PRIMARY KEY (internalID)
+);
+
+CREATE TABLE t_eventExport (
+  eventID        INTEGER NOT NULL,
+  exportConfig   INTEGER NOT NULL, /* URL of the target import API */
+  exportTime     BIGINT  NOT NULL, /* Time since epoch in milliseconds */
+  exportState    INTEGER NOT NULL, /* 0 for complete, non-zero for active */
+  FOREIGN KEY (eventID) REFERENCES t_event (internalId) ON DELETE CASCADE,
+  FOREIGN KEY (exportConfig) REFERENCES t_exportConfig (internalID) ON DELETE CASCADE
+);
+
+CREATE TABLE t_eventImport (
+  eventID        INTEGER      NOT NULL,
+  importUser     VARCHAR(255) NOT NULL, /* User ID of the user performing the import */
+  importTime     BIGINT       NOT NULL, /* Time since epoch in milliseconds */
+  importState    INTEGER      NOT NULL, /* 0 is complete, non-zero is incomplete */
+  FOREIGN KEY (eventID) REFERENCES t_event (internalID) ON DELETE CASCADE
+);
+
+CREATE TABLE t_fileExport (
+  fileID         INTEGER NOT NULL,
+  exportConfig   INTEGER NOT NULL, /* URL of the target import API */
+  exportTime     BIGINT  NOT NULL, /* Time since epoch in milliseconds */
+  exportState    INTEGER NOT NULL, /* 0 for complete, non-zero for active */
+  FOREIGN KEY (fileID) REFERENCES t_file (internalId) ON DELETE CASCADE,
+  FOREIGN KEY (exportConfig) REFERENCES t_exportConfig (internalID) ON DELETE CASCADE
+);
+
+CREATE TABLE t_fileImport (
+  fileID         INTEGER      NOT NULL,
+  importUser     VARCHAR(255) NOT NULL, /* User ID of the user performing the import */
+  importTime     BIGINT       NOT NULL, /* Time since epoch in milliseconds */
+  importState    INTEGER      NOT NULL, /* 0 is complete, non-zero is incomplete */
+  FOREIGN KEY (fileID) REFERENCES t_file (internalID) ON DELETE CASCADE
+);
+
 /* Change the terminator, need to do this so we can actually 
    have terminators within the trigger scripts. */
 SET TERM ^;
+CREATE OR ALTER TRIGGER assignExportConfigID FOR t_exportConfig
+BEFORE INSERT POSITION 0
+AS BEGIN
+IF ((new.internalID IS NULL) OR (new.internalID = 0)) THEN
+BEGIN
+new.internalID = gen_id(gidSequence, 1);
+END
+IF (new.exportConfigID IS NULL) THEN
+BEGIN
+new.exportConfigID = gen_uuid();
+END
+END ^
 CREATE OR ALTER TRIGGER assignEventID FOR t_event
 BEFORE INSERT POSITION 0
 AS BEGIN

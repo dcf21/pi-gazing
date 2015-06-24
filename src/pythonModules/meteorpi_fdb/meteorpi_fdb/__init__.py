@@ -2,6 +2,9 @@ import shutil
 import uuid
 import datetime
 from contextlib import closing
+import json
+
+from yaml import safe_load
 
 from passlib.hash import pbkdf2_sha256
 import os.path as path
@@ -118,6 +121,8 @@ class SQLBuilder:
             return str(value)
         elif isinstance(value, datetime.datetime):
             return mp.utc_datetime_to_milliseconds(value)
+        elif isinstance(value, uuid.UUID):
+            return value.bytes
         else:
             return value
 
@@ -292,6 +297,33 @@ class MeteorDatabase:
             self.db_path,
             self.file_store_path)
 
+    def _export_configuration_generator(self, sql, sql_args):
+        """
+        Generator for :class:`meteorpi_model.ExportConfiguration`
+
+        :param sql:
+            A SQL statement which must return rows with, in order, internalID, exportConfigID, exportType, searchString,
+            targetURL, targetUser, targetPassword, exportName, description, active
+        :param sql_args:
+            Any variables required to populate the query provided in 'sql'
+        :return:
+            A generator which produces :class:`meteorpi_model.ExportConfiguration` instances from the supplied SQL,
+            closing any opened cursors on completion.
+        """
+        with closing(self.con.cursor()) as cursor:
+            cursor.execute(sql, sql_args)
+            for (internalID, exportConfigID, exportType, searchString, targetURL,
+                 targetUser, targetPassword, exportName, description, active) in cursor:
+                if exportType == "event":
+                    search = mp.EventSearch.from_dict(safe_load(searchString))
+                elif exportType == "file":
+                    search = mp.FileRecordSearch.from_dict(safe_load(searchString))
+                else:
+                    raise ValueError("Unknown search type!")
+                yield mp.ExportConfiguration(target_url=targetURL, user_id=targetUser, password=targetPassword,
+                                             search=search, name=exportName, description=description, enabled=active,
+                                             config_id=uuid.UUID(bytes=exportConfigID))
+
     def _event_generator(self, sql, sql_args):
         """Generator for Event
 
@@ -393,6 +425,19 @@ class MeteorDatabase:
         b.add_sql(search.event_type, 'e.eventType = (?)')
         b.add_metadata_query_properties(meta_constraints=search.meta_constraints, meta_table_name='t_eventMeta')
 
+        # Check for import / export filters
+        if search.exclude_incomplete:
+            b.where_clauses.append(
+                'NOT EXISTS (SELECT * FROM t_eventImport i WHERE i.eventID = e.internalID AND i.importState > 0)')
+        if search.exclude_imported:
+            b.where_clauses.append('NOT EXISTS (SELECT * FROM t_eventImport i WHERE i.eventID = e.internalID')
+        if search.exclude_export_to is not None:
+            b.where_clauses.append('NOT EXISTS (SELECT * FROM t_eventExport ex, t_eventExportConfig c '
+                                   'WHERE ex.eventID = e.internalID '
+                                   'AND ex.exportConfig = c.internalID '
+                                   'AND c.exportConfigID = (?))')
+            b.sql_args.append(SQLBuilder.map_value(search.exclude_export_to))
+
         sql = b.get_select_sql(columns='e.cameraID, e.eventID, e.internalID, e.eventTime, e.eventType, s.statusID',
                                skip=search.skip,
                                limit=search.limit,
@@ -417,7 +462,8 @@ class MeteorDatabase:
         :return:
             a structure of {count:int total rows of an unrestricted search, events:list of FileRecord}
         """
-        b = SQLBuilder(tables='t_file f, t_cameraStatus s', where_clauses=['f.statusID = s.internalID'])
+        b = SQLBuilder(tables='t_file f, t_cameraStatus s',
+                       where_clauses=['f.statusID = s.internalID'])
         b.add_set_membership(search.camera_ids, 'f.cameraID')
         b.add_sql(search.lat_min, 's.locationLatitude >= (?)')
         b.add_sql(search.lat_max, 's.locationLatitude <= (?)')
@@ -432,7 +478,20 @@ class MeteorDatabase:
         b.add_metadata_query_properties(meta_constraints=search.meta_constraints, meta_table_name='t_fileMeta')
         # Check for avoiding event files
         if search.exclude_events:
-            b.where_clauses.append('f.internalID NOT IN (SELECT fileID from t_event_to_file)')
+            b.where_clauses.append(
+                'NOT EXISTS (SELECT * FROM t_event_to_file ef WHERE ef.fileID = f.internalID)')
+        # Check for import / export filters
+        if search.exclude_incomplete:
+            b.where_clauses.append(
+                'NOT EXISTS (SELECT * FROM t_fileImport i WHERE i.fileID = f.internalID AND i.importState > 0)')
+        if search.exclude_imported:
+            b.where_clauses.append('NOT EXISTS (SELECT * FROM t_fileImport i WHERE i.fileID = f.internalID')
+        if search.exclude_export_to is not None:
+            b.where_clauses.append('NOT EXISTS (SELECT * FROM t_fileExport e, t_fileExportConfig c '
+                                   'WHERE e.fileID = f.internalID '
+                                   'AND e.exportConfig = c.internalID '
+                                   'AND c.exportConfigID = (?))')
+            b.sql_args.append(SQLBuilder.map_value(search.exclude_export_to))
 
         sql = b.get_select_sql(columns='f.internalID, f.cameraID, f.mimeType, f.semanticType, f.fileTime, '
                                        'f.fileSize, f.fileID, f.fileName, s.statusID',
@@ -625,6 +684,83 @@ class MeteorDatabase:
         shutil.move(file_path, target_file_path)
         # Return the resultant file object
         return result_file
+
+    def create_or_update_export_configuration(self, export_config):
+        """
+        Create a new file export configuration or update an existing one
+
+        :param FileExportConfiguration export_config:
+            a :class:`meteorpi_model.FileExportConfiguration` containing the specification for the export. If this
+            doesn't include a 'config_id' field it will be inserted as a new record in the database and the field will
+            be populated, updating the supplied object. If it does exist already this will update the other properties
+            in the database to match the supplied object.
+        """
+        search_string = json.dumps(obj=export_config.search.as_dict())
+        user_id = export_config.user_id
+        password = export_config.password
+        target_url = export_config.target_url
+        enabled = export_config.enabled
+        name = export_config.name
+        description = export_config.description
+        export_type = export_config.type
+        with closing(self.con.cursor()) as cur:
+            if export_config.config_id is not None:
+                # Update existing record
+                cur.execute(
+                    'UPDATE t_exportConfig c '
+                    'SET c.searchString = (?), c.targetUrl = (?), c.targetUser = (?), c.targetPassword = (?), '
+                    'c.exportName = (?), c.description = (?), c.active = (?), c.exportType = (?) '
+                    'WHERE c.exportConfigId = (?)',
+                    (search_string, target_url, user_id, password, name, description, enabled, export_type,
+                     export_config.config_id.bytes))
+            else:
+                # Create new record and add the ID into the supplied config
+                cur.execute(
+                    'INSERT INTO t_exportConfig '
+                    '(searchString, targetUrl, targetUser, targetPassword, '
+                    'exportName, description, active, exportType) '
+                    'VALUES (?,?,?,?,?,?,?,?) '
+                    'RETURNING exportConfigId',
+                    (search_string, target_url, user_id, password, name, description, enabled, export_type))
+                export_config.config_id = uuid.UUID(bytes=cur.fetchone()[0])
+        self.con.commit()
+
+    def delete_export_configuration(self, config_id):
+        """
+        Delete a file export configuration by external UUID
+
+        :param uuid.UUID config_id: the ID of the config to delete
+        """
+        with closing(self.con.cursor()) as cur:
+            cur.execute('DELETE FROM t_exportConfig c WHERE c.exportConfigId = (?)', (config_id.bytes,))
+        self.con.commit()
+
+    def get_export_configuration(self, config_id):
+        """
+        Retrieve the ExportConfiguration with the given ID
+        
+        :param uuid.UUID config_id:
+            ID for which to search
+        :return:
+            a :class:`meteorpi_model.ExportConfiguration` or None, or no match was found.
+        """
+        sql = (
+            'SELECT internalID, exportConfigID, exportType, searchString, targetURL, '
+            'targetUser, targetPassword, exportName, description, active '
+            'FROM t_exportConfig WHERE exportConfigID = (?)')
+        return _first_from_generator(self._export_configuration_generator(sql=sql, sql_args=(config_id.bytes,)))
+
+    def get_export_configurations(self):
+        """
+        Retrieve all ExportConfigurations held in this db
+
+        :return: a list of all :class:`meteorpi_model.ExportConfiguration` on this server
+        """
+        sql = (
+            'SELECT internalID, exportConfigID, exportType, searchString, targetURL, '
+            'targetUser, targetPassword, exportName, description, active '
+            'FROM t_exportConfig ORDER BY internalID DESC')
+        return list(self._export_configuration_generator(sql=sql, sql_args=[]))
 
     def get_cameras(self):
         """
@@ -932,6 +1068,7 @@ class MeteorDatabase:
             cur.execute('DELETE FROM t_cameraStatus')
             cur.execute('DELETE FROM t_highWaterMark')
             cur.execute('DELETE FROM t_user')
+            cur.execute('DELETE FROM t_exportConfig')
         self.con.commit()
         shutil.rmtree(self.file_store_path)
         os.makedirs(self.file_store_path)

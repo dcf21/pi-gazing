@@ -293,7 +293,8 @@ class FileRecordSearch(ModelEqualityMixin):
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
                  before=None, mime_type=None, semantic_type=None, exclude_events=False, after_offset=None,
-                 before_offset=None, meta_constraints=None, limit=100, skip=0):
+                 before_offset=None, meta_constraints=None, limit=100, skip=0, exclude_export_to=None,
+                 exclude_incomplete=False, exclude_imported=False):
         """
         Create a new FileRecordSearch. All parameters are optional, a default search will be created which returns
         at most the first 100 FileRecord instances. All parameters specify restrictions on these results.
@@ -344,6 +345,18 @@ class FileRecordSearch(ModelEqualityMixin):
             Optional, defaults to 0 - used with the limit parameter, this will skip the specified number
             of results from the result set. Use when limiting the number returned by each query to paginate the results,
             i.e. use skip 0 and limit 10 to get the first ten, then skip 10 limit 10 to get the next and so on.
+        :param uuid.UUID exclude_export_to:
+            Optional, if specified excludes FileRecords with an entry in t_fileExport for the specified file export
+            configuration. Note that this only applies to files which are not part of an event, so it only makes sense
+            to set this flag if you also set exclude_events to True.
+        :param Boolean exclude_incomplete:
+            Optional, if True excludes any FileRecords which don't have a complete import. Note that this only
+            applies to files which are not part of an event, so it only makes sense to set this flag if you also set
+            exclude_events to True.
+        :param Boolean exclude_imported:
+            Optional, if True excludes any FileRecords which were imported from another node. Note that this only
+            applies to files which are not part of an event, so it only makes sense to set this flag if you also set
+            exclude_events to True.
         """
         if camera_ids is not None and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
@@ -373,6 +386,10 @@ class FileRecordSearch(ModelEqualityMixin):
         self.semantic_type = semantic_type
         # Boolean, set to true to prevent files associated with events from appearing in the results
         self.exclude_events = exclude_events
+        # Import / export related functions
+        self.exclude_imported = exclude_imported
+        self.exclude_export_to = exclude_export_to
+        self.exclude_incomplete = exclude_incomplete
         # FileMeta constraints
         if meta_constraints is None:
             self.meta_constraints = []
@@ -409,6 +426,9 @@ class FileRecordSearch(ModelEqualityMixin):
         _add_value(d, 'limit', self.limit)
         _add_nsstring(d, 'semantic_type', self.semantic_type)
         _add_boolean(d, 'exclude_events', self.exclude_events)
+        _add_boolean(d, 'exclude_imported', self.exclude_imported)
+        _add_boolean(d, 'exclude_incomplete', self.exclude_incomplete)
+        _add_uuid(d, 'exclude_export_to', self.exclude_export_to)
         d['meta_constraints'] = list((x.as_dict() for x in self.meta_constraints))
         return d
 
@@ -434,6 +454,9 @@ class FileRecordSearch(ModelEqualityMixin):
         limit = _value_from_dict(d, 'limit', 100)
         semantic_type = _nsstring_from_dict(d, 'semantic_type')
         exclude_events = _boolean_from_dict(d, 'exclude_events')
+        exclude_imported = _boolean_from_dict(d, 'exclude_imported')
+        exclude_incomplete = _boolean_from_dict(d, 'exclude_incomplete')
+        exclude_export_to = _uuid_from_dict(d, 'exclude_export_to')
         if 'meta_constraints' in d:
             meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta_constraints']))
         else:
@@ -443,7 +466,9 @@ class FileRecordSearch(ModelEqualityMixin):
                                 before_offset=before_offset, mime_type=mime_type,
                                 semantic_type=semantic_type,
                                 exclude_events=exclude_events,
-                                meta_constraints=meta_constraints, limit=limit, skip=skip)
+                                meta_constraints=meta_constraints, limit=limit, skip=skip,
+                                exclude_imported=exclude_imported, exclude_incomplete=exclude_incomplete,
+                                exclude_export_to=exclude_export_to)
 
 
 class MetaConstraint(ModelEqualityMixin):
@@ -501,7 +526,7 @@ class EventSearch(ModelEqualityMixin):
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
                  before=None, after_offset=None, before_offset=None, event_type=None, meta_constraints=None, limit=100,
-                 skip=0):
+                 skip=0, exclude_export_to=None, exclude_incomplete=False, exclude_imported=False):
         """
         Create a new EventSearch. All parameters are optional, a default search will be created which returns
         at most the first 100 :class:`Event` instances. All parameters specify restrictions on these results.
@@ -545,6 +570,16 @@ class EventSearch(ModelEqualityMixin):
             Optional, defaults to 0 - used with the limit parameter, this will skip the specified number
             of results from the result set. Use when limiting the number returned by each query to paginate the results,
             i.e. use skip 0 and limit 10 to get the first ten, then skip 10 limit 10 to get the next and so on.
+        :param uuid.UUID exclude_export_to:
+            Optional, if specified excludes Events with an entry in t_eventExport for the specified event export
+            configuration. Note that this only applies to files which are not part of an event, so it only makes sense
+            to set this flag if you also set exclude_events to True.
+        :param Boolean exclude_incomplete:
+            Optional, if True excludes any Events which don't have a complete import. An Event is incomplete if any of
+            its associated FileRecords haven't received binary data yet, setting this flag ensures that you'll only
+            see Events where all their supporting data are present.
+        :param Boolean exclude_imported:
+            Optional, if True excludes any Events which were imported from another node.
         """
         if camera_ids is not None and len(camera_ids) == 0:
             raise ValueError('If camera_ids is specified it must contain at least one ID')
@@ -570,6 +605,10 @@ class EventSearch(ModelEqualityMixin):
         self.event_type = event_type
         self.limit = limit
         self.skip = skip
+        # Import / export related functions
+        self.exclude_imported = exclude_imported
+        self.exclude_export_to = exclude_export_to
+        self.exclude_incomplete = exclude_incomplete
         if meta_constraints is None:
             self.meta_constraints = []
         else:
@@ -597,6 +636,9 @@ class EventSearch(ModelEqualityMixin):
         _add_string(d, 'event_type', self.event_type)
         _add_value(d, 'limit', self.limit)
         _add_value(d, 'skip', self.skip)
+        _add_boolean(d, 'exclude_imported', self.exclude_imported)
+        _add_boolean(d, 'exclude_incomplete', self.exclude_incomplete)
+        _add_uuid(d, 'exclude_export_to', self.exclude_export_to)
         d['meta_constraints'] = list((x.as_dict() for x in self.meta_constraints))
         return d
 
@@ -614,6 +656,9 @@ class EventSearch(ModelEqualityMixin):
         skip = _value_from_dict(d, 'skip', 0)
         limit = _value_from_dict(d, 'limit', 100)
         event_type = NSString.from_string(_string_from_dict(d, 'event_type'))
+        exclude_imported = _boolean_from_dict(d, 'exclude_imported')
+        exclude_incomplete = _boolean_from_dict(d, 'exclude_incomplete')
+        exclude_export_to = _uuid_from_dict(d, 'exclude_export_to')
         if 'meta_constraints' in d:
             meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta_constraints']))
         else:
@@ -621,7 +666,9 @@ class EventSearch(ModelEqualityMixin):
         return EventSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
                            long_max=long_max, after=after, before=before, after_offset=after_offset,
                            before_offset=before_offset, meta_constraints=meta_constraints, event_type=event_type,
-                           limit=limit, skip=skip)
+                           limit=limit, skip=skip, exclude_imported=exclude_imported,
+                           exclude_incomplete=exclude_incomplete,
+                           exclude_export_to=exclude_export_to)
 
 
 class Event(ModelEqualityMixin):
@@ -888,6 +935,90 @@ class Meta(ModelEqualityMixin):
             return Meta(key=key, value=_value_from_dict(d, "value"))
         else:
             raise ValueError("Unknown meta value type")
+
+
+class ExportConfiguration(ModelEqualityMixin):
+    """
+    Defines an export configuration, comprising an :class:`meteorpi_model.EventSearch` or
+    :class:`meteorpi_model.FileRecordSearch` defining a set of :class:`meteorpi_model.Event` or
+    :class:`meteorpi_model.FileRecord` objects respectively which should be exported, and the necessary information
+    about the target, including its URL, user and password. Also carries a descriptive name and long description for
+    management and a UUID for the configuration itself.
+
+    :ivar uuid.UUID config_id:
+        The external ID for this export configuration
+    :ivar string target_url:
+        The root URL of the importing API to which data should be pushed
+    :ivar string user_id:
+        The user ID that should be supplied as an auth header when pushing data to the importing API
+    :ivar string password:
+        The password that should be supplied as an auth header when pushing data to the importing API
+    :ivar EventSearch|FileRecordSearch search:
+        An class:`meteorpi_model.EventSearch` or class:`meteorpi_model.FileRecordSearch` which defines the
+        :class:`meteorpi_model.Event` or :class:`meteorpi_model.FileRecord` instances to export. Note
+        that there are some properties of the search which will be overridden by the export system, most particularly
+        searches will have exclude_incomplete and exclude_export_to set to True and the ID of this configuration so we
+        don't create duplicate export jobs for any given target. FileRecordSearch instances will also additionally have
+        their 'exclude_events' flag set, as file record exports only handle independent files and not those associated
+        with an event.
+    :ivar string name:
+        Short name for this export configuration
+    :ivar string description:
+        A longer free text description for this configuration
+    :ivar Boolean enabled:
+        True if this export configuration is enabled, False otherwise.
+    :ivar string type:
+        Set based on the type of the supplied search object, either to 'file' or 'event'.
+    """
+
+    def __init__(self, target_url, user_id, password, search, name, description, enabled=False, config_id=None):
+        if search is None:
+            raise ValueError("Search must not be None")
+
+        self.config_id = config_id
+        self.target_url = target_url
+        self.user_id = user_id
+        self.password = password
+        self.search = search
+        self.name = name
+        self.description = description
+        self.enabled = enabled
+        if isinstance(self.search, FileRecordSearch):
+            self.type = "file"
+        elif isinstance(self.search, EventSearch):
+            self.type = "event"
+
+    def as_dict(self):
+        d = {}
+        _add_string(d, "type", self.type)
+        _add_uuid(d, "config_id", self.config_id)
+        _add_string(d, "target_url", self.target_url)
+        _add_string(d, "user_id", self.user_id)
+        _add_string(d, "password", self.password)
+        d["search"] = self.search.as_dict()
+        _add_string(d, "config_name", self.name)
+        _add_string(d, "config_description", self.description)
+        _add_boolean(d, "enabled", self.enabled)
+        return d
+
+    @staticmethod
+    def from_dict(d):
+        config_id = _uuid_from_dict(d, "config_id")
+        target_url = _value_from_dict(d, "target_url")
+        user_id = _value_from_dict(d, "user_id")
+        password = _value_from_dict(d, "password")
+        type = _value_from_dict(d, "type")
+        if type == "file":
+            search = FileRecordSearch.from_dict(d["search"])
+        elif type == "event":
+            search = EventSearch.from_dict(d["search"])
+        else:
+            raise ValueError("Unknown search type!")
+        name = _value_from_dict(d, "config_name")
+        description = _value_from_dict(d, "config_description")
+        enabled = _boolean_from_dict(d, "enabled")
+        return ExportConfiguration(config_id=config_id, target_url=target_url, user_id=user_id, password=password,
+                                   search=search, name=name, description=description, enabled=enabled)
 
 
 class Location(ModelEqualityMixin):
