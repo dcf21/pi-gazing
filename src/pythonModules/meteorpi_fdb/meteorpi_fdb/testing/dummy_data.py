@@ -119,6 +119,20 @@ class DummyDataHelper():
         sorted_strings = sorted(list(_get_name(x) for x in s))
         return ','.join(sorted_strings)
 
+    def seq_to_string_no_sort(self, s):
+        if isinstance(s, basestring):
+            s = [s]
+
+        def _get_name(item):
+            if isinstance(item, model.Event) and item.event_id.hex in self.events:
+                return self.events[item.event_id.hex]
+            elif isinstance(item, model.FileRecord) and item.file_id.hex in self.files:
+                return self.files[item.file_id.hex]
+            else:
+                return 'UNKNOWN'
+
+        return ','.join(list(_get_name(x) for x in s))
+
 
 def setup_dummy_data(db, clear=False):
     h = DummyDataHelper()

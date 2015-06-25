@@ -6,6 +6,7 @@ import json
 
 from yaml import safe_load
 from passlib.hash import pbkdf2_sha256
+
 import os.path as path
 import os
 import fdb
@@ -851,6 +852,89 @@ class MeteorDatabase:
             raise ValueError("Unknown search type")
         return rows_created
 
+    def get_next_entity_to_export(self):
+        """
+        Examines the t_fileExport and t_eventExport tables, finds the earliest incomplete export task and builds
+        either a :class:`meteorpi_fdb.FileExportTask` or a :class:`meteorpi_fdb.EventExportTask` as appropriate. These
+        task objects can be used to retrieve the underlying entity and export configuration, and to update the
+        completion state or push the timestamp into the future, deferring evaluation of the task until later. Only
+        considers tasks where the timestamp is before (or equal to) the current time.
+        :return:
+            Either None, if no exports are available, or a :class:`meteorpi_fdb.FileExportTask` or
+            :class:`meteorpi_fdb.EventExportTask` depending on whether a file or event is next in the queue to export.
+        """
+        entity_type = None
+        config_id = None
+        entity_id = None
+        timestamp = None
+        config_internal_id = None
+        entity_internal_id = None
+        status = None
+        target_url = None
+        target_user = None
+        target_password = None
+        current_timestamp = mp.utc_datetime_to_milliseconds(mp.now())
+        with closing(self.con.cursor()) as cur:
+            # Try to retrieve the earliest record in t_eventExport
+            cur.execute('SELECT c.exportConfigID, e.eventID, x.exportTime, x.eventID, x.exportConfig, x.exportState, '
+                        'c.targetURL, c.targetUser, c.targetPassword '
+                        'FROM t_eventExport x, t_exportConfig C, t_event e '
+                        'WHERE x.exportConfig = c.internalID AND x.eventID = e.internalID '
+                        'AND c.active = 1 '
+                        'AND x.exportState > 0 '
+                        'AND x.exportTime <= (?)'
+                        'ORDER BY x.exportTime ASC, x.eventID ASC '
+                        'ROWS 1', (current_timestamp,))
+            row = cur.fetchone()
+            if row is not None:
+                entity_type = 'event'
+                config_id = uuid.UUID(bytes=row[0])
+                entity_id = uuid.UUID(bytes=row[1])
+                timestamp = row[2]
+                entity_internal_id = row[3]
+                config_internal_id = row[4]
+                status = row[5]
+                target_url = row[6]
+                target_user = row[7]
+                target_password = row[8]
+            # Similar operation for t_fileExport
+            cur.execute('SELECT c.exportConfigID, f.fileID, x.exportTime, x.fileID, x.exportConfig, x.exportState, '
+                        'c.targetURL, c.targetUser, c.targetPassword '
+                        'FROM t_fileExport x, t_exportConfig c, t_file f '
+                        'WHERE x.exportConfig = C.internalID AND x.fileID = f.internalID '
+                        'AND c.active = 1 '
+                        'AND x.exportState > 0 '
+                        'AND x.exportTime <= (?)'
+                        'ORDER BY x.exportTime ASC, x.fileID ASC '
+                        'ROWS 1', (current_timestamp,))
+            row = cur.fetchone()
+            if row is not None:
+                if timestamp is None or row[2] < timestamp:
+                    entity_type = 'file'
+                    config_id = uuid.UUID(bytes=row[0])
+                    entity_id = uuid.UUID(bytes=row[1])
+                    timestamp = row[2]
+                    entity_internal_id = row[3]
+                    config_internal_id = row[4]
+                    status = row[5]
+                    target_url = row[6]
+                    target_user = row[7]
+                target_password = row[8]
+        if entity_type is None:
+            return None
+        elif entity_type == 'file':
+            return FileExportTask(db=self, config_id=config_id, config_internal_id=config_internal_id,
+                                  file_id=entity_id, file_internal_id=entity_internal_id, timestamp=timestamp,
+                                  status=status, target_url=target_url, target_user=target_user,
+                                  target_password=target_password)
+        elif entity_type == 'event':
+            return EventExportTask(db=self, config_id=config_id, config_internal_id=config_internal_id,
+                                   event_id=entity_id, event_internal_id=entity_internal_id, timestamp=timestamp,
+                                   status=status, target_url=target_url, target_user=target_user,
+                                   target_password=target_password)
+        else:
+            raise ValueError("Unknown entity type, should never see this!")
+
     def get_cameras(self):
         """
         Retrieve the IDs of all cameras with active status blocks.
@@ -1161,3 +1245,72 @@ class MeteorDatabase:
         self.con.commit()
         shutil.rmtree(self.file_store_path)
         os.makedirs(self.file_store_path)
+
+
+class EventExportTask(object):
+    """
+    Represents a single active Event export, providing methods to get the underlying :class:`meteorpi_model.Event`,
+    the :class:`meteorpi_model.ExportConfiguration` and to update the completion state in the database.
+    """
+
+    def __init__(self, db, config_id, config_internal_id, event_id, event_internal_id, timestamp, status, target_url,
+                 target_user, target_password):
+        self.db = db
+        self.config_id = config_id
+        self.config_internal_id = config_internal_id
+        self.event_id = event_id
+        self.event_internal_id = event_internal_id
+        self.timestamp = timestamp
+        self.status = status
+        self.target_url = target_url
+        self.target_user = target_user
+        self.target_password = target_password
+
+    def get_event(self):
+        return self.db.get_event(self.event_id)
+
+    def get_export_config(self):
+        return self.db.get_export_configuartion(self.config_id)
+
+    def set_status(self, status):
+        with closing(self.db.con.cursor()) as cur:
+            cur.execute('UPDATE t_eventExport x '
+                        'SET x.exportState = (?) '
+                        'WHERE x.eventID = (?) AND x.exportConfig = (?)',
+                        (status, self.event_internal_id, self.config_internal_id))
+        self.db.con.commit()
+
+
+class FileExportTask(object):
+    """
+    Represents a single active FileRecord export, providing methods to get the underlying
+    :class:`meteorpi_model.FileRecord`, the :class:`meteorpi_model.ExportConfiguration` and to update the completion
+    state in the database.
+    """
+
+    def __init__(self, db, config_id, config_internal_id, file_id, file_internal_id, timestamp, status, target_url,
+                 target_user, target_password):
+        self.db = db
+        self.config_id = config_id
+        self.config_internal_id = config_internal_id
+        self.file_id = file_id
+        self.file_internal_id = file_internal_id
+        self.timestamp = timestamp
+        self.status = status
+        self.target_url = target_url
+        self.target_user = target_user
+        self.target_password = target_password
+
+    def get_file(self):
+        return self.db.get_file(self.file_id)
+
+    def get_export_config(self):
+        return self.db.get_export_configuartion(self.config_id)
+
+    def set_status(self, status):
+        with closing(self.db.con.cursor()) as cur:
+            cur.execute('UPDATE t_fileExport x '
+                        'SET x.exportState = (?) '
+                        'WHERE x.fileID = (?) AND x.exportConfig = (?)',
+                        (status, self.file_internal_id, self.config_internal_id))
+        self.db.con.commit()
