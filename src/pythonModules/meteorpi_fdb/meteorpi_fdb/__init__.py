@@ -5,7 +5,6 @@ from contextlib import closing
 import json
 
 from yaml import safe_load
-
 from passlib.hash import pbkdf2_sha256
 import os.path as path
 import os
@@ -66,6 +65,87 @@ def _first_from_generator(generator):
     if len(results) == 0:
         return None
     return results[0]
+
+
+def _search_events_sql_builder(search):
+    """
+    Create and populate an instance of :class:`meteorpi_fdb.SQLBuilder` for a given
+    :class:`meteorpi_model.EventSearch`. This can then be used to retrieve the results of the search, materialise
+    them into :class:`meteorpi_model.Event` instances etc.
+    :param EventSearch search:
+        The search to realise
+    :return:
+        A :class:`meteorpi_fdb.SQLBuilder` configured from the supplied search
+    """
+    b = SQLBuilder(tables='t_event e, t_cameraStatus s', where_clauses=['e.statusID = s.internalID'])
+    b.add_set_membership(search.camera_ids, 'e.cameraID')
+    b.add_sql(search.lat_min, 's.locationLatitude >= (?)')
+    b.add_sql(search.lat_max, 's.locationLatitude <= (?)')
+    b.add_sql(search.long_min, 's.locationLongitude >= (?)')
+    b.add_sql(search.long_max, 's.locationLongitude <= (?)')
+    b.add_sql(search.before, 'e.eventTime < (?)')
+    b.add_sql(search.after, 'e.eventTime > (?)')
+    b.add_sql(search.before_offset, 'e.eventOffset < (?)')
+    b.add_sql(search.after_offset, 'e.eventOffset > (?)')
+    b.add_sql(search.event_type, 'e.eventType = (?)')
+    b.add_metadata_query_properties(meta_constraints=search.meta_constraints, meta_table_name='t_eventMeta')
+
+    # Check for import / export filters
+    if search.exclude_incomplete:
+        b.where_clauses.append(
+            'NOT EXISTS (SELECT * FROM t_eventImport i WHERE i.eventID = e.internalID AND i.importState > 0)')
+    if search.exclude_imported:
+        b.where_clauses.append('NOT EXISTS (SELECT * FROM t_eventImport i WHERE i.eventID = e.internalID')
+    if search.exclude_export_to is not None:
+        b.where_clauses.append('NOT EXISTS (SELECT * FROM t_eventExport ex, t_exportConfig c '
+                               'WHERE ex.eventID = e.internalID '
+                               'AND ex.exportConfig = c.internalID '
+                               'AND c.exportConfigID = (?))')
+        b.sql_args.append(SQLBuilder.map_value(search.exclude_export_to))
+    return b
+
+
+def _search_files_sql_builder(search):
+    """
+    Create and populate an instance of :class:`meteorpi_fdb.SQLBuilder` for a given
+    :class:`meteorpi_model.FileRecordSearch`. This can then be used to retrieve the results of the search, materialise
+    them into :class:`meteorpi_model.FileRecord` instances etc.
+    :param FileRecordSearch search:
+        The search to realise
+    :return:
+        A :class:`meteorpi_fdb.SQLBuilder` configured from the supplied search
+    """
+    b = SQLBuilder(tables='t_file f, t_cameraStatus s',
+                   where_clauses=['f.statusID = s.internalID'])
+    b.add_set_membership(search.camera_ids, 'f.cameraID')
+    b.add_sql(search.lat_min, 's.locationLatitude >= (?)')
+    b.add_sql(search.lat_max, 's.locationLatitude <= (?)')
+    b.add_sql(search.long_min, 's.locationLongitude >= (?)')
+    b.add_sql(search.long_max, 's.locationLongitude <= (?)')
+    b.add_sql(search.before, 'f.fileTime < (?)')
+    b.add_sql(search.after, 'f.fileTime > (?)')
+    b.add_sql(search.before_offset, 'f.fileOffset < (?)')
+    b.add_sql(search.after_offset, 'f.fileOffset > (?)')
+    b.add_sql(search.mime_type, 'f.mimeType = (?)')
+    b.add_sql(search.semantic_type, 'f.semanticType = (?)')
+    b.add_metadata_query_properties(meta_constraints=search.meta_constraints, meta_table_name='t_fileMeta')
+    # Check for avoiding event files
+    if search.exclude_events:
+        b.where_clauses.append(
+            'NOT EXISTS (SELECT * FROM t_event_to_file ef WHERE ef.fileID = f.internalID)')
+    # Check for import / export filters
+    if search.exclude_incomplete:
+        b.where_clauses.append(
+            'NOT EXISTS (SELECT * FROM t_fileImport i WHERE i.fileID = f.internalID AND i.importState > 0)')
+    if search.exclude_imported:
+        b.where_clauses.append('NOT EXISTS (SELECT * FROM t_fileImport i WHERE i.fileID = f.internalID')
+    if search.exclude_export_to is not None:
+        b.where_clauses.append('NOT EXISTS (SELECT * FROM t_fileExport e, t_exportConfig c '
+                               'WHERE e.fileID = f.internalID '
+                               'AND e.exportConfig = c.internalID '
+                               'AND c.exportConfigID = (?))')
+        b.sql_args.append(SQLBuilder.map_value(search.exclude_export_to))
+    return b
 
 
 class SQLBuilder:
@@ -412,32 +492,7 @@ class MeteorDatabase:
         :return:
             a structure of {count:int total rows of an unrestricted search, events:list of Event}
         """
-        b = SQLBuilder(tables='t_event e, t_cameraSTatus s', where_clauses=['e.statusID = s.internalID'])
-        b.add_set_membership(search.camera_ids, 'e.cameraID')
-        b.add_sql(search.lat_min, 's.locationLatitude >= (?)')
-        b.add_sql(search.lat_max, 's.locationLatitude <= (?)')
-        b.add_sql(search.long_min, 's.locationLongitude >= (?)')
-        b.add_sql(search.long_max, 's.locationLongitude <= (?)')
-        b.add_sql(search.before, 'e.eventTime < (?)')
-        b.add_sql(search.after, 'e.eventTime > (?)')
-        b.add_sql(search.before_offset, 'e.eventOffset < (?)')
-        b.add_sql(search.after_offset, 'e.eventOffset > (?)')
-        b.add_sql(search.event_type, 'e.eventType = (?)')
-        b.add_metadata_query_properties(meta_constraints=search.meta_constraints, meta_table_name='t_eventMeta')
-
-        # Check for import / export filters
-        if search.exclude_incomplete:
-            b.where_clauses.append(
-                'NOT EXISTS (SELECT * FROM t_eventImport i WHERE i.eventID = e.internalID AND i.importState > 0)')
-        if search.exclude_imported:
-            b.where_clauses.append('NOT EXISTS (SELECT * FROM t_eventImport i WHERE i.eventID = e.internalID')
-        if search.exclude_export_to is not None:
-            b.where_clauses.append('NOT EXISTS (SELECT * FROM t_eventExport ex, t_eventExportConfig c '
-                                   'WHERE ex.eventID = e.internalID '
-                                   'AND ex.exportConfig = c.internalID '
-                                   'AND c.exportConfigID = (?))')
-            b.sql_args.append(SQLBuilder.map_value(search.exclude_export_to))
-
+        b = _search_events_sql_builder(search)
         sql = b.get_select_sql(columns='e.cameraID, e.eventID, e.internalID, e.eventTime, e.eventType, s.statusID',
                                skip=search.skip,
                                limit=search.limit,
@@ -462,43 +517,12 @@ class MeteorDatabase:
         :return:
             a structure of {count:int total rows of an unrestricted search, events:list of FileRecord}
         """
-        b = SQLBuilder(tables='t_file f, t_cameraStatus s',
-                       where_clauses=['f.statusID = s.internalID'])
-        b.add_set_membership(search.camera_ids, 'f.cameraID')
-        b.add_sql(search.lat_min, 's.locationLatitude >= (?)')
-        b.add_sql(search.lat_max, 's.locationLatitude <= (?)')
-        b.add_sql(search.long_min, 's.locationLongitude >= (?)')
-        b.add_sql(search.long_max, 's.locationLongitude <= (?)')
-        b.add_sql(search.before, 'f.fileTime < (?)')
-        b.add_sql(search.after, 'f.fileTime > (?)')
-        b.add_sql(search.before_offset, 'f.fileOffset < (?)')
-        b.add_sql(search.after_offset, 'f.fileOffset > (?)')
-        b.add_sql(search.mime_type, 'f.mimeType = (?)')
-        b.add_sql(search.semantic_type, 'f.semanticType = (?)')
-        b.add_metadata_query_properties(meta_constraints=search.meta_constraints, meta_table_name='t_fileMeta')
-        # Check for avoiding event files
-        if search.exclude_events:
-            b.where_clauses.append(
-                'NOT EXISTS (SELECT * FROM t_event_to_file ef WHERE ef.fileID = f.internalID)')
-        # Check for import / export filters
-        if search.exclude_incomplete:
-            b.where_clauses.append(
-                'NOT EXISTS (SELECT * FROM t_fileImport i WHERE i.fileID = f.internalID AND i.importState > 0)')
-        if search.exclude_imported:
-            b.where_clauses.append('NOT EXISTS (SELECT * FROM t_fileImport i WHERE i.fileID = f.internalID')
-        if search.exclude_export_to is not None:
-            b.where_clauses.append('NOT EXISTS (SELECT * FROM t_fileExport e, t_fileExportConfig c '
-                                   'WHERE e.fileID = f.internalID '
-                                   'AND e.exportConfig = c.internalID '
-                                   'AND c.exportConfigID = (?))')
-            b.sql_args.append(SQLBuilder.map_value(search.exclude_export_to))
-
+        b = _search_files_sql_builder(search)
         sql = b.get_select_sql(columns='f.internalID, f.cameraID, f.mimeType, f.semanticType, f.fileTime, '
                                        'f.fileSize, f.fileID, f.fileName, s.statusID',
                                skip=search.skip,
                                limit=search.limit,
                                order='f.fileTime DESC')
-
         files = list(self._file_generator(sql=sql, sql_args=b.sql_args))
         rows_returned = len(files)
         total_rows = rows_returned + search.skip
@@ -689,11 +713,14 @@ class MeteorDatabase:
         """
         Create a new file export configuration or update an existing one
 
-        :param FileExportConfiguration export_config:
-            a :class:`meteorpi_model.FileExportConfiguration` containing the specification for the export. If this
+        :param ExportConfiguration export_config:
+            a :class:`meteorpi_model.ExportConfiguration` containing the specification for the export. If this
             doesn't include a 'config_id' field it will be inserted as a new record in the database and the field will
             be populated, updating the supplied object. If it does exist already this will update the other properties
             in the database to match the supplied object.
+        :returns:
+            The supplied :class:`meteorpi_model.ExportConfiguration` as stored in the DB. This is guaranteed to have
+            its 'config_id' :class:`uuid.UUID` field defined.
         """
         search_string = json.dumps(obj=export_config.search.as_dict())
         user_id = export_config.user_id
@@ -724,6 +751,7 @@ class MeteorDatabase:
                     (search_string, target_url, user_id, password, name, description, enabled, export_type))
                 export_config.config_id = uuid.UUID(bytes=cur.fetchone()[0])
         self.con.commit()
+        return export_config
 
     def delete_export_configuration(self, config_id):
         """
@@ -761,6 +789,67 @@ class MeteorDatabase:
             'targetUser, targetPassword, exportName, description, active '
             'FROM t_exportConfig ORDER BY internalID DESC')
         return list(self._export_configuration_generator(sql=sql, sql_args=[]))
+
+    def mark_entities_to_export(self, export_config):
+        """
+        Apply the specified :class:`meteorpi_model.ExportConfiguration` to the database, running its contained query and
+        creating rows in t_eventExport or t_fileExport for matching entities.
+
+        :param ExportConfiguration export_config:
+            An instance of :class:`meteorpi_model.ExportConfiguration` to apply.
+        """
+        # Retrieve the internal ID of the export configuration, failing if it hasn't been stored
+        with closing(self.con.cursor()) as cur:
+            cur.execute('SELECT internalID FROM t_exportConfig WHERE exportConfigID = (?)',
+                        (export_config.config_id.bytes,))
+            export_config_id = cur.fetchone()[0]
+            if export_config_id is None:
+                raise ValueError("Attempt to run export on ExportConfiguration not in database")
+        # If the export is inactive then do nothing
+        if not export_config.enabled:
+            return 0
+        # The timestamp that will be used when creating new export entries
+        timestamp = mp.utc_datetime_to_milliseconds(mp.now())
+        # Track the number of rows created, return it later
+        rows_created = 0
+        # Handle EventSearch
+        if isinstance(export_config.search, mp.EventSearch):
+            # Create a deep copy of the search and set the properties required when creating exports
+            search = mp.EventSearch.from_dict(export_config.search.as_dict())
+            search.exclude_incomplete = True
+            search.exclude_export_to = export_config.config_id
+            b = _search_events_sql_builder(search)
+            with closing(self.con.cursor()) as read_cursor, closing(self.con.cursor()) as write_cursor:
+                read_cursor.execute(b.get_select_sql(columns='e.internalID'), b.sql_args)
+                for (internalID,) in read_cursor:
+                    write_cursor.execute('INSERT INTO t_eventExport '
+                                         '(eventID, exportConfig, exportTime, exportState) '
+                                         'VALUES (?,?,?,?)',
+                                         (internalID, export_config_id, timestamp, 1))
+                    rows_created += 1
+            self.con.commit()
+        # Handle FileRecordSearch
+        elif isinstance(export_config.search, mp.FileRecordSearch):
+            # Create a deep copy of the search and set the properties required when creating exports
+            search = mp.FileRecordSearch.from_dict(export_config.search.as_dict())
+            search.exclude_incomplete = True
+            search.exclude_events = True
+            search.exclude_export_to = export_config.config_id
+            b = _search_files_sql_builder(search)
+            with closing(self.con.cursor()) as read_cursor, closing(self.con.cursor()) as write_cursor:
+                read_cursor.execute(b.get_select_sql(columns='f.internalID'), b.sql_args)
+                for (internalID,) in read_cursor:
+                    write_cursor.execute('INSERT INTO t_fileExport '
+                                         '(fileID, exportConfig, exportTime, exportState) '
+                                         'VALUES (?,?,?,?)',
+                                         (internalID, export_config_id, timestamp, 1))
+                    rows_created += 1
+            self.con.commit()
+        # Complain if it's anything other than these two (nothing should be at the moment but we might introduce
+        # more search types in the future
+        else:
+            raise ValueError("Unknown search type")
+        return rows_created
 
     def get_cameras(self):
         """

@@ -3,7 +3,6 @@ from unittest import TestCase
 
 import meteorpi_fdb
 import meteorpi_model as mp
-
 import meteorpi_fdb.testing.dummy_data as dummy
 import os.path as path
 
@@ -50,3 +49,31 @@ class TestFdbExportImport(TestCase):
         self.assertEquals(len(self.db.get_export_configurations()), 1)
         self.db.delete_export_configuration(config_id=config.config_id)
         self.assertEquals(len(self.db.get_export_configurations()), 0)
+
+    def test_mark_all_events(self):
+        config = self.db.create_or_update_export_configuration(
+            mp.ExportConfiguration(target_url="http://foo/api",
+                                   user_id="u",
+                                   password="p",
+                                   search=mp.EventSearch(),
+                                   name="event_search",
+                                   description="event_search_desc"))
+        self.assertEquals(0, self.db.mark_entities_to_export(config))
+        config.enabled = True
+        self.db.create_or_update_export_configuration(config)
+        self.assertEquals(5, self.db.mark_entities_to_export(config))
+        self.assertEquals(0, self.db.mark_entities_to_export(config))
+
+    def test_mark_all_files(self):
+        config = self.db.create_or_update_export_configuration(
+            mp.ExportConfiguration(target_url="http://foo/api",
+                                   user_id="u",
+                                   password="p",
+                                   search=mp.FileRecordSearch(),
+                                   name="file_search",
+                                   description="file_search_desc"))
+        self.assertEquals(0, self.db.mark_entities_to_export(config))
+        config.enabled = True
+        self.db.create_or_update_export_configuration(config)
+        self.assertEquals(6, self.db.mark_entities_to_export(config))
+        self.assertEquals(0, self.db.mark_entities_to_export(config))
