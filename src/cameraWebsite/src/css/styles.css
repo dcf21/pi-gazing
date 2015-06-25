@@ -78,3 +78,13 @@ table.table table.table {
 .in>.modal {
     display: block !important;
 }
+
+.in>.modal.modal-fullsize>.modal-dialog {
+    width: auto;
+    padding-left: 20px;
+    padding-right: 20px;
+    margin-top: 30px;
+    margin-right: auto;
+    margin-bottom: 30px;
+    margin-left: auto;
+}

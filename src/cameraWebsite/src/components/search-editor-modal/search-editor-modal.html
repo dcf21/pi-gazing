@@ -1,0 +1,74 @@
+<div class="modal modal-fullsize">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" aria-hidden="true" data-bind="click: cancel">&times;</button>
+                <div data-bind="if: exportType()==='file'">
+                     <h3>Modify File Export Criteria</h3>
+                </div>
+                <div data-bind="if: exportType()==='event'">
+                     <h3>Modify Event Export Criteria</h3>
+                </div>
+
+            </div>
+            <div class="modal-body">
+                <search-editor params="search: search"></search-editor>
+                <form class="form-horizontal" action="#">
+                    <div class="form-group">
+                        <label for="target_url" class="control-label col-xs-2">Target URL</label>
+
+                        <div class="col-xs-10">
+                            <input type="text" placeholder="http://host.com:port/api" class="form-control"
+                                   data-bind="value: spec.target_url"
+                                   id="target_url"/>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label col-xs-2">Remote User</label>
+
+                        <div class="col-xs-10">
+                            <input type="text" placeholder="username" class="form-control"
+                                   data-bind="value: spec.user_id"/>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label col-xs-2">Remote Password</label>
+
+                        <div class="col-xs-10">
+                            <input type="password" class="form-control"
+                                   data-bind="value: spec.password"/>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="name" class="control-label col-xs-2">Name</label>
+
+                        <div class="col-xs-10">
+                            <input type="text" placeholder="" class="form-control"
+                                   data-bind="value: spec.name" id="name"/>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="description" class="control-label col-xs-2">Description</label>
+
+                        <div class="col-xs-10">
+                            <input type="text" placeholder="" class="form-control"
+                                   data-bind="value: spec.description" id="description"/>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="col-xs-offset-2 col-xs-10">
+                            <div class="checkbox">
+                                <label><input type="checkbox" data-bind="checked: spec.enabled">Enable this
+                                    export?</label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <a href="#" class="btn btn-primary" data-bind="click: update">Save Changes</a>
+                <a href="#" class="btn btn-default" data-bind="click: cancel">Cancel</a>
+            </div>
+        </div>
+    </div>
+</div>

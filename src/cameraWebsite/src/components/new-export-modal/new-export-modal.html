@@ -1,0 +1,71 @@
+<div class="modal modal-fullsize">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" aria-hidden="true" data-bind="click: cancel">&times;</button>
+                <h3>New Export Configuration</h3>
+            </div>
+            <div class="modal-body">
+                <form class="form-horizontal" data-bind="submit: add" action="#">
+                    <div class="form-group">
+                        <label for="type" class="control-label col-xs-2">Export Type</label>
+
+                        <div class="col-xs-4">
+                            <select class="form-control"
+                                    data-bind="value: spec.type"
+                                    id="type">
+                                <option value="file">Export files</option>
+                                <option value="event">Export events</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="target_url" class="control-label col-xs-2">Target URL</label>
+
+                        <div class="col-xs-10">
+                            <input type="text" placeholder="http://host.com:port/api" class="form-control"
+                                   data-bind="value: spec.target_url"
+                                   id="target_url"/>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label col-xs-2">Remote User</label>
+
+                        <div class="col-xs-10">
+                            <input type="text" placeholder="username" class="form-control"
+                                   data-bind="value: spec.user_id"/>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label col-xs-2">Remote Password</label>
+
+                        <div class="col-xs-10">
+                            <input type="password" class="form-control"
+                                   data-bind="value: spec.password"/>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="name" class="control-label col-xs-2">Name</label>
+
+                        <div class="col-xs-10">
+                            <input type="text" placeholder="" class="form-control"
+                                   data-bind="value: spec.name" id="name"/>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="description" class="control-label col-xs-2">Description</label>
+
+                        <div class="col-xs-10">
+                            <input type="text" placeholder="" class="form-control"
+                                   data-bind="value: spec.description" id="description"/>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <a href="#" class="btn btn-primary" data-bind="click: add">Create</a>
+                <a href="#" class="btn btn-default" data-bind="click: cancel">Cancel</a>
+            </div>
+        </div>
+    </div>
+</div>

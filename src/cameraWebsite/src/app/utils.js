@@ -163,7 +163,7 @@ define(["jquery", "knockout"], function (jquery, ko) {
                             value.getHours(), value.getMinutes(), value.getSeconds());
                     }
                     if (typeof value === "boolean") {
-                        return value ? 1 : undefined;
+                        return value ? true : undefined;
                     }
                     return value;
                 }
@@ -199,7 +199,7 @@ define(["jquery", "knockout"], function (jquery, ko) {
                         value = new Date(value.getTime() + tzDelta * 60000);
                     }
                     if (types[key] === "bool") {
-                        value = (value == 1);
+                        value = (value == true);
                     }
                     if (types[key] === "skip") {
                         value = undefined;

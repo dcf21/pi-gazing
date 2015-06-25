@@ -20,7 +20,44 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
         self.user = ko.observable();
 
         /**
+         * Get the current export configurations
+         *
+         * @param callback called with a list of all current export configurations
+         */
+        self.getExports = function (callback) {
+            applyCallback(ajaxAuth("export", "GET"), "configs", callback)
+        };
+
+        /**
+         * Create a new export config, returning the record from the database (including the generated uuid). A search
+         * of an appropriate type will be created as a default, and the export will be marked as inactive.
+         *
+         * @param newExport an object containing at least the following:
+         * <code>
+         *     type        : 'file' or 'event'
+         *     target_url  : url of the importing API
+         *     user_id     : userID to use when accessing the importing API
+         *     password    : password for the importing API
+         *     name        : short name for this export configuration
+         *     description : longer description if required
+         * </code>
+         * @param callback called with the newly created callback
+         */
+        self.createExport = function (newExport, callback) {
+            applyCallback(ajaxAuth("export", "POST", newExport), "config", callback)
+        };
+
+        self.deleteExport = function (exportId, callback) {
+            applyCallback(ajaxAuth("export/" + exportId, "DELETE"), null, callback)
+        };
+
+        self.updateExport = function (exportConfig, callback) {
+            applyCallback(ajaxAuth("export/" + exportConfig.config_id, "PUT", exportConfig), null, callback)
+        };
+
+        /**
          * Retrieve the current set of users, requires a logged in user with camera_admin role.
+         *
          * @param callback called with a list of all current users.
          */
         self.getUsers = function (callback) {
@@ -29,6 +66,7 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
 
         /**
          * Update a set of roles
+         *
          * @param newRoles
          * @param callback
          */
@@ -38,6 +76,7 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
 
         /**
          * Create a new user, or change the password for an existing one.
+         *
          * @param userID the new or existing UserID
          * @param password the new password
          * @param callback called with a list of all current users.
@@ -64,6 +103,7 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
 
         /**
          * Delete a user on the server
+         *
          * @param userID the ID of the user to delete.
          * @param callback called with the list of all current users after the deletion.
          */
@@ -74,6 +114,7 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
 
         /**
          * Get all currently active cameras for this installation
+         *
          * @param callback called with (err:string, [cameraID:string])
          */
         self.listCameras = function (callback) {
@@ -82,6 +123,7 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
 
         /**
          * Search for Event objects from the API
+         *
          * @param search an EventSearch used to define the search
          * @param callback callback called with (err:string, [event:{}])
          */
@@ -91,6 +133,7 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
 
         /**
          * Search for FileRecord objects from the API
+         *
          * @param search a FileRecordSearch used to define the search
          * @param callback callback called with (err:string, [filerecord:{}])
          */
@@ -102,17 +145,20 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
         /**
          * Get the camera status for a given camera and time. If the time is not specified (is null) this
          * is interpreted to mean 'now'.
+         *
          * @param cameraID camera ID for which status should be retrieved
          * @param date the time at which the status applies
          * @param callback callback called with (err:string, status:{})
          */
         self.getStatus = function (cameraID, date, callback) {
-            applyCallback(ajax("cameras/" + cameraID + "/status" + (date == null ? "" : "/" + date.getTime()), "GET"), "status", callback)
+            applyCallback(ajax("cameras/" + cameraID + "/status" + (date == null ? "" : "/" + date.getTime()), "GET"),
+                "status", callback)
         };
 
         /**
          * Update the manually modifiable parts of the camera status, specifically the installation URL and name and the
          * visible regions array. Requires a current users with camera_admin role.
+         *
          * @param cameraID ID of the camera for which status is to be updated.
          * @param newStatus the updated values.
          * @param callback called with the updated camera status.
@@ -124,6 +170,7 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
 
         /**
          * Get a URL which can be used to retrieve the contents of the given file.
+         *
          * @param file a file structure.
          * @returns {string} URL pointing at the file contents on the server.
          */
@@ -133,6 +180,7 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
 
         /**
          * Return a filename for the given file
+         *
          * @param file a file structure
          * @returns {string} a filename to be shown for the given file in the UI, this will also be the file used
          * when generating links so the browser downloads with this name.
@@ -150,6 +198,7 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
          * Attempt to log into the server. If successful this sets the 'user' observable on this object to contain
          * details of the logged in user including its name and roles, otherwise this is set to null. Other components
          * such as the navbar listen to this observable and expose appropriate navigation options based on roles.
+         *
          * @param username the user to log in.
          * @param password password.
          * @param callback a callback which is called with either null (in the event of an authentication failure) or
@@ -184,6 +233,7 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
         /**
          * Called when the application first loads, checks for login credentials stored in HTML5 localStorage, and uses
          * them to log in if available.
+         *
          * @param callback a callback, called with either null (indicating an authentication failure or no previously
          * stored credentials) or with the logged in user object.
          */
@@ -209,6 +259,7 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
         /**
          * Build an authenticated cross-domain ajax request. Self.user() must not be null. Pass the result of this on
          * to applyCallback to make the call and be notified of response or failure.
+         *
          * @param uri the URI under config.urlPrefix to use as the target.
          * @param method HTTP method, if not specified then assumed to be 'GET'
          * @param data request body, if specified this is serialised with JSON.stringify and set as request.data
@@ -239,6 +290,7 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
         /**
          * Build an non-authenticated cross-domain ajax request. Pass the result of this on
          * to applyCallback to make the call and be notified of response or failure.
+         *
          * @param uri the URI under config.urlPrefix to use as the target.
          * @param method HTTP method, if not specified then assumed to be 'GET'
          * @param data request body, if specified this is serialised with JSON.stringify and set as request.data
@@ -266,6 +318,7 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
          * Apply a callback, adding .done(..) and .fail(..) listeners to the supplied XHR instance such that the
          * callback is called with either success or failure appropriately. Optionally also unwraps the data in the
          * result.
+         *
          * @param request an XHR, use ajax(..) and ajaxAuth(..) to generate.
          * @param name if specified, the name of the desired root object in the de-serialised JSON response. For example
          * if the server responds with {foo:[bar]} and you just want the [bar] this argument should be defined and set

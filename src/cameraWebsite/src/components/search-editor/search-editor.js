@@ -4,7 +4,11 @@ define(['knockout', 'text!./search-editor.html', 'utils', 'jquery'], function (k
         var self = this;
 
         self.search = params.search;
-        self.performSearch = params.onSearch;
+        if (params.hasOwnProperty('onSearch')) {
+            self.performSearch = params.onSearch;
+        } else {
+            self.performSearch = false;
+        }
 
         /**
          * Computed value, maps between the numeric value actually held in the search observable

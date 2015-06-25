@@ -27,7 +27,33 @@ def build_app(db):
 
     CORS(app=app, resources='/*', allow_headers=['authorization', 'content-type'])
 
+    def success(message='Okay'):
+        """
+        Build a response with an object containing a single field 'message' with the supplied content
+
+        :param string message:
+            message, defaults to 'Okay'
+        :return:
+            flask Response object
+        """
+        resp = jsonify({'message': message})
+        resp.status_code = 200
+        return resp
+
     def requires_auth(roles=None):
+        """
+        Used to impose auth constraints on requests which require a logged in user with particular roles.
+
+        :param list[string] roles:
+            A list of :class:`string` representing roles the logged in user must have to perform this action. The user
+            and password are passed in each request in the authorization header obtained from request.authorization,
+            the user and password are checked against the user database and roles obtained. The user must match an
+            existing user (including the password, obviously) and must have every role specified in this parameter.
+        :return:
+            The result of the wrapped function if everything is okay, or a flask.abort(403) error code if authentication
+            fails, either because the user isn't properly authenticated or because the user doesn't have the required
+            role or roles.
+        """
 
         def authentication_failure():
             return flask.abort(403)
@@ -59,6 +85,52 @@ def build_app(db):
 
     def get_user():
         return getattr(flask.g, 'user', None)
+
+    @app.route('/export', methods=['GET'])
+    @requires_auth(roles=['camera_admin'])
+    def get_export_configurations():
+        return jsonify({'configs': list(x.as_dict() for x in db.get_export_configurations())})
+
+    @app.route('/export/<config_id>', methods=['GET'])
+    @requires_auth(roles=['camera_admin'])
+    def get_export_configuration(config_id):
+        config = db.get_export_configuration(config_id=uuid.UUID(hex=config_id))
+        if config is None:
+            return 'No export configuration with ID {0}'.format(config_id), 404
+        return jsonify({'config': config.as_dict()})
+
+    @app.route('/export/<config_id>', methods=['DELETE'])
+    @requires_auth(roles=['camera_admin'])
+    def delete_export_configuration(config_id):
+        db.delete_export_configuration(config_id=uuid.UUID(hex=config_id))
+        return success()
+
+    @app.route('/export/<config_id>', methods=['PUT'])
+    @requires_auth(roles=['camera_admin'])
+    def update_export_configuration(config_id):
+        config = model.ExportConfiguration.from_dict(safe_load(request.get_data()))
+        db.create_or_update_export_configuration(export_config=config)
+        return success()
+
+    @app.route('/export', methods=['POST'])
+    @requires_auth(roles=['camera_admin'])
+    def create_export_configuration():
+        spec = safe_load(request.get_data())
+        export_type = spec['type']
+        if export_type == 'file':
+            search = model.FileRecordSearch(limit=0)
+        elif export_type == 'event':
+            search = model.EventSearch(limit=0)
+        else:
+            raise ValueError("Search 'type' must be either 'file' or 'event'")
+        config = model.ExportConfiguration(target_url=spec['target_url'],
+                                           user_id=spec['user_id'],
+                                           password=spec['password'],
+                                           search=search,
+                                           name=spec['name'],
+                                           description=spec['description'])
+        db.create_or_update_export_configuration(config)
+        return jsonify({'config': config.as_dict()})
 
     @app.route('/login', methods=['GET'])
     @requires_auth(roles=['user'])

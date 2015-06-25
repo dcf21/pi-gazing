@@ -32,7 +32,8 @@
                 <li data-bind="css: { active: route().page === 'about-page' }">
                     <a href="#about">About</a>
                 </li>
-                <li class="dropdown" data-bind="if: user()!=null && user().roles.indexOf('camera_admin')>=0">
+                <li class="dropdown"
+                    data-bind="css: { active: route().page.indexOf('admin')==0 }, if: user()!=null && user().roles.indexOf('camera_admin')>=0">
                     <a href="#" data-toggle="dropdown" class="dropdown-toggle">Admin <b class="caret"></b></a>
                     <ul class="dropdown-menu">
                         <li data-bind="css: { active: route().page === 'admin-camera-page' }">
@@ -40,6 +41,9 @@
                         </li>
                         <li data-bind="css: { active: route().page === 'admin-users-page' }">
                             <a href="#admin/users">Users</a>
+                        </li>
+                        <li data-bind="css: { active: route().page === 'admin-exports-page' }">
+                            <a href="#admin/exports">Exports</a>
                         </li>
                     </ul>
                 </li>

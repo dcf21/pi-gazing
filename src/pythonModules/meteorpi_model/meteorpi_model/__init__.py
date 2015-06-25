@@ -15,7 +15,7 @@ def _nsstring_from_dict(d, key, default=None):
 
 
 def _boolean_from_dict(d, key):
-    return key in d and d[key] == 1
+    return key in d and d[key] == True
 
 
 def _string_from_dict(d, key, default=None):
@@ -66,9 +66,11 @@ def _add_value(d, key, value):
         d[key] = value
 
 
-def _add_boolean(d, key, value):
+def _add_boolean(d, key, value, include_false=False):
     if value:
-        d[key] = 1
+        d[key] = True
+    elif include_false:
+        d[key] = False
 
 
 def _add_nsstring(d, key, value):
@@ -429,7 +431,7 @@ class FileRecordSearch(ModelEqualityMixin):
         _add_boolean(d, 'exclude_imported', self.exclude_imported)
         _add_boolean(d, 'exclude_incomplete', self.exclude_incomplete)
         _add_uuid(d, 'exclude_export_to', self.exclude_export_to)
-        d['meta_constraints'] = list((x.as_dict() for x in self.meta_constraints))
+        d['meta'] = list((x.as_dict() for x in self.meta_constraints))
         return d
 
     @staticmethod
@@ -457,8 +459,8 @@ class FileRecordSearch(ModelEqualityMixin):
         exclude_imported = _boolean_from_dict(d, 'exclude_imported')
         exclude_incomplete = _boolean_from_dict(d, 'exclude_incomplete')
         exclude_export_to = _uuid_from_dict(d, 'exclude_export_to')
-        if 'meta_constraints' in d:
-            meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta_constraints']))
+        if 'meta' in d:
+            meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta']))
         else:
             meta_constraints = []
         return FileRecordSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
@@ -639,7 +641,7 @@ class EventSearch(ModelEqualityMixin):
         _add_boolean(d, 'exclude_imported', self.exclude_imported)
         _add_boolean(d, 'exclude_incomplete', self.exclude_incomplete)
         _add_uuid(d, 'exclude_export_to', self.exclude_export_to)
-        d['meta_constraints'] = list((x.as_dict() for x in self.meta_constraints))
+        d['meta'] = list((x.as_dict() for x in self.meta_constraints))
         return d
 
     @staticmethod
@@ -659,8 +661,8 @@ class EventSearch(ModelEqualityMixin):
         exclude_imported = _boolean_from_dict(d, 'exclude_imported')
         exclude_incomplete = _boolean_from_dict(d, 'exclude_incomplete')
         exclude_export_to = _uuid_from_dict(d, 'exclude_export_to')
-        if 'meta_constraints' in d:
-            meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta_constraints']))
+        if 'meta' in d:
+            meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta']))
         else:
             meta_constraints = []
         return EventSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
@@ -998,7 +1000,7 @@ class ExportConfiguration(ModelEqualityMixin):
         d["search"] = self.search.as_dict()
         _add_string(d, "config_name", self.name)
         _add_string(d, "config_description", self.description)
-        _add_boolean(d, "enabled", self.enabled)
+        _add_boolean(d, "enabled", self.enabled, True)
         return d
 
     @staticmethod

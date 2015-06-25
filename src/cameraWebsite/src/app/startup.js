@@ -29,6 +29,12 @@ define(['jquery', 'knockout', 'router', 'client', 'bootstrap', 'knockout-project
 
     ko.components.register('change-password-modal', { require: 'components/change-password-modal/change-password-modal' });
 
+    ko.components.register('admin-exports-page', { require: 'components/admin-exports-page/admin-exports-page' });
+
+    ko.components.register('new-export-modal', { require: 'components/new-export-modal/new-export-modal' });
+
+    ko.components.register('search-editor-modal', { require: 'components/search-editor-modal/search-editor-modal' });
+
     // [Scaffolded component registrations will be inserted here. To retain this feature, don't remove this comment.]
 
     Date.prototype.toString = function () {

@@ -103,7 +103,8 @@ define(["knockout", "crossroads", "hasher", "client"], function (ko, crossroads,
             {name: 'files', url: 'files/:search:', params: {page: 'files-page'}},
             {name: 'events', url: 'events/:search:', params: {page: 'events-page'}},
             {name: 'admin-camera', url: 'admin/camera', params: {page: 'admin-camera-page', role: 'camera_admin'}},
-            {name: 'admin-users', url: 'admin/users', params: {page: 'admin-users-page', role: 'camera_admin'}}
+            {name: 'admin-users', url: 'admin/users', params: {page: 'admin-users-page', role: 'camera_admin'}},
+            {name: 'admin-exports', url: 'admin/exports', params: {page: 'admin-exports-page', role: 'camera_admin'}}
         ]
     });
 
