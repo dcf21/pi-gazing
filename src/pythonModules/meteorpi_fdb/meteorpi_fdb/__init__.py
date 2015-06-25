@@ -6,7 +6,6 @@ import json
 
 from yaml import safe_load
 from passlib.hash import pbkdf2_sha256
-
 import os.path as path
 import os
 import fdb
@@ -54,7 +53,7 @@ def get_installation_id():
 
 
 def _first_from_generator(generator):
-    """Pull the first value from a generator and return it.
+    """Pull the first value from a generator and return it, closing the generator
 
     :param generator:
         A generator, this will be mapped onto a list and the first item extracted.
@@ -62,10 +61,13 @@ def _first_from_generator(generator):
         None if there are no items, or the first item otherwise.
     :internal:
     """
-    results = list(generator)
-    if len(results) == 0:
-        return None
-    return results[0]
+    try:
+        result = next(generator)
+    except StopIteration:
+        result = None
+    finally:
+        generator.close()
+    return result
 
 
 def _search_events_sql_builder(search):
@@ -149,7 +151,7 @@ def _search_files_sql_builder(search):
     return b
 
 
-class SQLBuilder:
+class SQLBuilder(object):
     """
     Helper class to make it easier to build large, potentially complex, SQL clauses.
 
@@ -335,25 +337,20 @@ class SQLBuilder:
 SOFTWARE_VERSION = 1
 
 
-class MeteorDatabase:
+class MeteorDatabase(object):
     """Class representing a single MeteorPi relational database and file
     store."""
 
-    def __init__(
-            self,
-            db_path='localhost:/var/lib/firebird/2.5/data/meteorpi.fdb',
-            file_store_path=path.expanduser("~/meteorpi_files")):
+    def __init__(self, db_path, file_store_path):
         """
         Create a new db instance. This connects to the specified firebird database and retains a connection which is
         then used by methods in this class when querying or updating the database.
 
         :param db_path:
             String passed to the firebird database driver and specifying a file location. Defaults to
-            localhost:/var/lib/firebird/2.5/data/meteorpi.fdb
         :param file_store_path:
-            File data is stored on the file system in a flat structure within the specified directory. Defaults to
-            the expansion for the current user of ~/meteorpi_files. If this location doesn't exist it will be created,
-            along with any necessary parent directories.
+            File data is stored on the file system in a flat structure within the specified directory. If this location
+            doesn't exist it will be created, along with any necessary parent directories.
         :return:
             An instance of MeteorDatabase.
         """
@@ -378,12 +375,77 @@ class MeteorDatabase:
             self.db_path,
             self.file_store_path)
 
+    def _camera_status_generator(self, sql, sql_args):
+        """
+        Generator for :class:`meteorpi_model.CameraStatus`
+        :param sql:
+            A SQL statement which must return rows with, in order: lens, sensor, instURL, instName, locationLatitude,
+            locationLongitude, locationGPS, locationError, orientationAltitude, orientationAzimuth, orientationError,
+            orientationRotation, widthOfField, validFrom, softwareVersion, internalID, statusID, cameraID
+        :param sql_args:
+            Any arguments required to populate the query provided in 'sql'
+        :return:
+            A generator which produces :class:`meteorpi_model.CameraStatus` instances from the supplied SQL, closing
+            any opened cursors on completion
+        """
+        with closing(self.con.cursor()) as cursor:
+            cursor.execute(sql, sql_args)
+            for (lens, sensor, instURL, instName, locationLatitude,
+                 locationLongitude, locationGPS, locationError, orientationAltitude, orientationAzimuth,
+                 orientationError, orientationRotation, widthOfField, validFrom, softwareVersion, internalID, statusID,
+                 cameraID) in cursor:
+                # Find if there's a status block for this camera ID after the current one, and use it's validFrom time
+                # as the validTo time on the camera status if so
+                with closing(self.con.cursor()) as valid_to_cursor:
+                    valid_to_cursor.execute(
+                        'SELECT validFrom FROM t_cameraStatus t '
+                        'WHERE t.cameraID = (?) AND t.validFrom > (?) '
+                        'ORDER BY t.validFrom ASC '
+                        'ROWS 1',
+                        (cameraID,
+                         validFrom))
+                    after_row = valid_to_cursor.fetchone()
+                    if after_row is None:
+                        validTo = None
+                    else:
+                        validTo = mp.milliseconds_to_utc_datetime(after_row[0])
+                cs = mp.CameraStatus(lens=lens,
+                                     sensor=sensor,
+                                     inst_url=instURL,
+                                     inst_name=instName,
+                                     orientation=mp.Orientation(
+                                         altitude=orientationAltitude,
+                                         azimuth=orientationAzimuth,
+                                         rotation=orientationRotation,
+                                         error=orientationError,
+                                         width_of_field=widthOfField),
+                                     location=mp.Location(
+                                         latitude=locationLatitude,
+                                         longitude=locationLongitude,
+                                         gps=locationGPS is True,
+                                         error=locationError),
+                                     camera_id=cameraID,
+                                     status_id=uuid.UUID(bytes=statusID))
+                cs.valid_from = mp.milliseconds_to_utc_datetime(validFrom)
+                cs.valid_to = validTo
+                cs.software_version = softwareVersion
+                with closing(self.con.cursor()) as region_cursor:
+                    region_cursor.execute('SELECT region, x, y FROM t_visibleRegions t '
+                                          'WHERE t.cameraStatusID = (?) '
+                                          'ORDER BY region ASC, pointOrder ASC', (internalID,))
+                    for (region, x, y) in region_cursor:
+                        if len(cs.regions) <= region:
+                            cs.regions.append([])
+                        cs.regions[region].append(
+                            {'x': x, 'y': 'y'})
+                yield cs
+
     def _export_configuration_generator(self, sql, sql_args):
         """
         Generator for :class:`meteorpi_model.ExportConfiguration`
 
         :param sql:
-            A SQL statement which must return rows with, in order, internalID, exportConfigID, exportType, searchString,
+            A SQL statement which must return rows with, in order: internalID, exportConfigID, exportType, searchString,
             targetURL, targetUser, targetPassword, exportName, description, active
         :param sql_args:
             Any variables required to populate the query provided in 'sql'
@@ -409,7 +471,7 @@ class MeteorDatabase:
         """Generator for Event
 
         :param sql:
-            A SQL statement which must return rows with, in order, camera ID, event ID, internal ID, event time, event
+            A SQL statement which must return rows with, in order: camera ID, event ID, internal ID, event time, event
             semantic type, status ID
         :param sql_args:
             Any variables required to populate the query provided in 'sql'
@@ -940,12 +1002,12 @@ class MeteorDatabase:
         Retrieve the IDs of all cameras with active status blocks.
 
         :return:
-            A list of camera IDs for all cameras with status blocks where the 'validTo' date is null
+            A list of camera IDs for all cameras with status blocks
         """
         with closing(self.con.cursor()) as cur:
             cur.execute(
                 'SELECT DISTINCT cameraID FROM t_cameraStatus '
-                'WHERE validTo IS NULL ORDER BY cameraID DESC')
+                'ORDER BY cameraID DESC')
             return map(lambda row: row[0], cur.fetchall())
 
     def update_camera_status(self, ns, time=None, camera_id=get_installation_id()):
@@ -963,23 +1025,17 @@ class MeteorDatabase:
         # we have data products produced after this status' time.
         self.set_high_water_mark(camera_id=camera_id, time=time, allow_rollback=True, allow_advance=True)
         with closing(self.con.cursor()) as cur:
-            # If there's an existing status block then set its end time to now
-            cur.execute(
-                'UPDATE t_cameraStatus t SET t.validTo = (?) '
-                'WHERE t.validTo IS NULL AND t.cameraID = (?)',
-                (mp.utc_datetime_to_milliseconds(time),
-                 camera_id))
+
             # Insert the new status into the database
             cur.execute(
-                'INSERT INTO t_cameraStatus (cameraID, validFrom, validTo, '
+                'INSERT INTO t_cameraStatus (cameraID, validFrom, '
                 'softwareVersion, orientationAltitude, orientationAzimuth, '
                 'orientationRotation, orientationError, widthOfField, locationLatitude, locationLongitude, '
                 'locationGPS, lens, sensor, instURL, instName, locationError) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
                 'RETURNING internalID',
                 (camera_id,
                  mp.utc_datetime_to_milliseconds(time),
-                 None,
                  SOFTWARE_VERSION,
                  ns.orientation.altitude,
                  ns.orientation.azimuth,
@@ -1021,7 +1077,8 @@ class MeteorDatabase:
             cur.execute(
                 'SELECT internalID, statusID FROM t_cameraStatus t '
                 'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
-                'AND (t.validTo IS NULL OR t.validTo > (?))',
+                'ORDER BY t.validFrom DESC '
+                'ROWS 1',
                 (camera_id, mp.utc_datetime_to_milliseconds(time), mp.utc_datetime_to_milliseconds(time)))
             row = cur.fetchone()
             if row is None:
@@ -1036,51 +1093,17 @@ class MeteorDatabase:
         available time : datetime.datetime object, default now."""
         if time is None:
             time = mp.now()
-        with closing(self.con.cursor()) as cur:
-            cur.execute(
-                'SELECT lens, sensor, instURL, instName, locationLatitude, '
-                'locationLongitude, locationGPS, locationError, orientationAltitude, '
-                'orientationAzimuth, orientationError, orientationRotation, widthOfField, validFrom, validTo, '
-                'softwareVersion, internalID, statusID '
-                'FROM t_cameraStatus t '
-                'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
-                'AND (t.validTo IS NULL OR t.validTo > (?))',
-                (camera_id,
-                 mp.utc_datetime_to_milliseconds(time),
-                 mp.utc_datetime_to_milliseconds(time)))
-            row = cur.fetchonemap()
-            if row is None:
-                return None
-            cs = mp.CameraStatus(lens=row['lens'],
-                                 sensor=row['sensor'],
-                                 inst_url=row['instURL'],
-                                 inst_name=row['instName'],
-                                 orientation=mp.Orientation(
-                                     altitude=row['orientationAltitude'],
-                                     azimuth=row['orientationAzimuth'],
-                                     rotation=row['orientationRotation'],
-                                     error=row['orientationError'],
-                                     width_of_field=row['widthOfField']),
-                                 location=mp.Location(
-                                     latitude=row['locationLatitude'],
-                                     longitude=row['locationLongitude'],
-                                     gps=row['locationGPS'] is True,
-                                     error=row['locationError']),
-                                 camera_id=camera_id,
-                                 status_id=uuid.UUID(bytes=row['statusID']))
-            cs.valid_from = mp.milliseconds_to_utc_datetime(row['validFrom'])
-            cs.valid_to = mp.milliseconds_to_utc_datetime(row['validTo'])
-            cs.software_version = row['softwareVersion']
-            camera_status_id = row['internalID']
-            cur.execute('SELECT region, pointOrder, x, y FROM t_visibleRegions t '
-                        'WHERE t.cameraStatusID = (?) '
-                        'ORDER BY region ASC, pointOrder ASC', [camera_status_id])
-            for point in cur.fetchallmap():
-                if len(cs.regions) <= point['region']:
-                    cs.regions.append([])
-                cs.regions[point['region']].append(
-                    {'x': point['x'], 'y': point['y']})
-            return cs
+
+        sql = ('SELECT lens, sensor, instURL, instName, locationLatitude, '
+               'locationLongitude, locationGPS, locationError, orientationAltitude, '
+               'orientationAzimuth, orientationError, orientationRotation, widthOfField, validFrom, '
+               'softwareVersion, internalID, statusID, cameraID '
+               'FROM t_cameraStatus t '
+               'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
+               'ORDER BY t.validFrom DESC '
+               'ROWS 1')
+        return _first_from_generator(self._camera_status_generator(sql, (camera_id,
+                                                                         mp.utc_datetime_to_milliseconds(time))))
 
     def get_high_water_mark(self, camera_id=get_installation_id()):
         """Retrieves the current high water mark for a camera installation, or
@@ -1102,9 +1125,7 @@ class MeteorDatabase:
         processed, when this call is made any data products (events,
         images etc) with time stamps later than the high water mark will
         be removed from the database. Any camera status blocks with
-        validFrom dates after the high water mark will be removed, and
-        any status blocks with validTo dates after the high water mark
-        will have their validTo set to None to make them current
+        validFrom dates after the high water mark will be removed.
         """
         last = self.get_high_water_mark(camera_id)
         if last is None and allow_advance:
@@ -1147,11 +1168,6 @@ class MeteorDatabase:
                 update_cursor.execute(
                     'DELETE FROM t_cameraStatus t '
                     'WHERE t.validFrom > (?) AND t.cameraID = (?)',
-                    (mp.utc_datetime_to_milliseconds(time), camera_id))
-                # Set the new current camera status block
-                update_cursor.execute(
-                    'UPDATE t_cameraStatus t SET t.validTo = NULL '
-                    'WHERE t.validTo >= (?) AND t.cameraID = (?)',
                     (mp.utc_datetime_to_milliseconds(time), camera_id))
         self.con.commit()
 

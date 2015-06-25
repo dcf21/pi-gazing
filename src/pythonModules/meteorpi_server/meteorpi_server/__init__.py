@@ -16,10 +16,6 @@ from flask.ext.jsonpify import jsonify
 from flask import request
 from flask.ext.cors import CORS
 
-DEFAULT_DB_PATH = 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb'
-DEFAULT_FILE_PATH = path.expanduser("~/meteorpi_files")
-DEFAULT_PORT = 12345
-
 
 def build_app(db):
     """Create and return a WSGI app to respond to API requests"""
@@ -243,7 +239,7 @@ class MeteorServer(object):
         def stop(self):
             self.loop.stop()
 
-    def __init__(self, db_path=DEFAULT_DB_PATH, file_store_path=DEFAULT_FILE_PATH, port=DEFAULT_PORT):
+    def __init__(self, db_path, file_store_path, port):
         self.db = meteorpi_fdb.MeteorDatabase(db_path=db_path, file_store_path=file_store_path)
         app = build_app(self.db)
         tornado_application = Application([(r'.*', FallbackHandler, dict(fallback=WSGIContainer(app)))])
@@ -278,6 +274,7 @@ class MeteorServer(object):
 
 """Start a blocking server if run as a script"""
 if __name__ == "__main__":
-    server = MeteorServer()
+    server = MeteorServer(db_path='localhost:/var/lib/firebird/2.5/data/meteorpi.fdb',
+                          file_store_path=path.expanduser("~/meteorpi_files"), port=12345)
     print 'Running blocking server on port {0}'.format(server.port)
     server.start()

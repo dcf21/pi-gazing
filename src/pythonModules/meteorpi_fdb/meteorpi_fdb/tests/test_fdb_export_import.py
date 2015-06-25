@@ -6,8 +6,8 @@ import meteorpi_model as mp
 import meteorpi_fdb.testing.dummy_data as dummy
 import os.path as path
 
-DEFAULT_DB_PATH = 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb'
-DEFAULT_FILE_PATH = path.expanduser("~/meteorpi_files")
+DB_PATH_1 = 'localhost:/var/lib/firebird/2.5/data/meteorpi_test1.fdb'
+FILE_PATH_1 = path.expanduser("~/meteorpi_test_1_files")
 DEFAULT_PORT = 12345
 
 
@@ -22,7 +22,7 @@ class TestFdbExportImport(TestCase):
 
     def setUp(self):
         """Clear the database and populate it with example contents"""
-        self.db = meteorpi_fdb.MeteorDatabase(db_path=DEFAULT_DB_PATH, file_store_path=DEFAULT_FILE_PATH)
+        self.db = meteorpi_fdb.MeteorDatabase(db_path=DB_PATH_1, file_store_path=FILE_PATH_1)
         self.dummy_helper = dummy.setup_dummy_data(self.db, clear=True)
 
     def tearDown(self):

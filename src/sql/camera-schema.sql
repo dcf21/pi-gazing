@@ -6,7 +6,7 @@ SET NAMES UNICODE_FSS;
  * as a user with write access to this database.
  * See https://github.com/camsci/meteor-pi/wiki/Camera-database-configuration
  */
-CONNECT 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb';
+CONNECT 'localhost:/var/lib/firebird/2.5/data/DATABASENAME.fdb';
 
 CREATE DOMAIN BOOLEAN AS SMALLINT CHECK (value IS NULL OR value IN (0, 1));
 
@@ -34,7 +34,6 @@ CREATE TABLE t_cameraStatus (
   statusID            CHAR(16) CHARACTER SET OCTETS NOT NULL, /* Always use literal byte values */
   cameraID            CHAR(12)          NOT NULL,
   validFrom BIGINT NOT NULL, /* Time since epoch in milliseconds */
-  validTo   BIGINT, /* Time since epoch in milliseconds */
   softwareVersion     INTEGER DEFAULT 0 NOT NULL,
   orientationAltitude FLOAT             NOT NULL,
   orientationAzimuth  FLOAT             NOT NULL,

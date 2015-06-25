@@ -5,6 +5,13 @@ from datetime import datetime
 import meteorpi_fdb as db
 import meteorpi_fdb.testing.dummy_data as dummy
 import meteorpi_model as model
+import os.path as path
+
+DB_PATH_1 = 'localhost:/var/lib/firebird/2.5/data/meteorpi_test1.fdb'
+FILE_PATH_1 = path.expanduser("~/meteorpi_test_1_files")
+DB_PATH_2 = 'localhost:/var/lib/firebird/2.5/data/meteorpi_test2.fdb'
+FILE_PATH_2 = path.expanduser("~/meteorpi_test_2_files")
+PORT_1 = 12345
 
 
 class TestFdb(TestCase):
@@ -29,12 +36,12 @@ class TestFdb(TestCase):
             {"x": 100, "y": 100}, {"x": 100, "y": 0}, {"x": 0, "y": 100}]]
 
     def test_get_installation_id(self):
-        m = db.MeteorDatabase()
+        m = db.MeteorDatabase(db_path=DB_PATH_1, file_store_path=FILE_PATH_1)
         installation_id = db.get_installation_id()
         self.assertTrue(len(installation_id) == 12)
 
     def test_insert_camera(self):
-        m = db.MeteorDatabase()
+        m = db.MeteorDatabase(db_path=DB_PATH_1, file_store_path=FILE_PATH_1)
         # Clear the database
         m.clear_database()
         self.assertTrue(len(m.get_cameras()) == 0)
@@ -52,7 +59,7 @@ class TestFdb(TestCase):
         self.assertTrue(len(status.regions[1]) == 3)
 
     def test_insert_file(self):
-        m = db.MeteorDatabase()
+        m = db.MeteorDatabase(db_path=DB_PATH_1, file_store_path=FILE_PATH_1)
         m.clear_database()
         # Have to have a status block otherwise we should fail
         m.update_camera_status(ns=self._status1)
@@ -66,13 +73,13 @@ class TestFdb(TestCase):
                                                         'value1'),
                                              model.Meta(model.NSString('meta2'),
                                                         'value2')])
-        record2 = list(m.get_files(file_id=record.file_id))[0]
+        record2 = m.get_file(file_id=record.file_id)
         self.assertEqual(len(record.meta), 2)
         self.assertEqual(str(record), str(record2))
         self.assertFalse(record is record2)
 
     def test_insert_event(self):
-        m = db.MeteorDatabase()
+        m = db.MeteorDatabase(db_path=DB_PATH_1, file_store_path=FILE_PATH_1)
         # Clear the database
         m.clear_database()
         # Have to have a status block otherwise we should fail
@@ -106,21 +113,21 @@ class TestFdb(TestCase):
             event_time=datetime.now(),
             event_type=model.NSString("omgmeteors"),
             file_records=[file1, file2])
-        event2 = list(m.get_events(event_id=event.event_id))[0]
+        event2 = m.get_event(event_id=event.event_id)
 
     def test_event_search(self):
-        m = db.MeteorDatabase()
+        m = db.MeteorDatabase(db_path=DB_PATH_1, file_store_path=FILE_PATH_1)
         dummy.setup_dummy_data(m, clear=True)
         events = m.search_events(model.EventSearch())
 
     def test_rollback(self):
-        m = db.MeteorDatabase()
+        m = db.MeteorDatabase(db_path=DB_PATH_1, file_store_path=FILE_PATH_1)
         dummy.setup_dummy_data(m, clear=True)
         # print m.get_high_water_mark(camera_id=dummy.CAMERA_1)
         m.set_high_water_mark(camera_id=dummy.CAMERA_1, time=dummy.make_time(6))
 
     def test_user_management(self):
-        m = db.MeteorDatabase()
+        m = db.MeteorDatabase(db_path=DB_PATH_1, file_store_path=FILE_PATH_1)
         m.clear_database()
         self.assertEquals("create", m.create_or_update_user(user_id="tom", password="password1", roles=["user"]))
         user = m.get_user(user_id="tom", password="password1")
@@ -131,14 +138,3 @@ class TestFdb(TestCase):
         user = m.get_user(user_id="tom", password="password1")
         self.assertTrue(user.has_role("user"))
         self.assertTrue(user.has_role("camera_admin"))
-
-    def test_excessive_handles(self):
-        """
-        Regression test for https://github.com/camsci/meteor-pi/issues/42
-        """
-        m = db.MeteorDatabase()
-        dummy.setup_dummy_data(m, clear=True)
-        for x in range(100):
-            for x2 in range(1000):
-                y = m.get_high_water_mark(dummy.CAMERA_1)
-            print x
