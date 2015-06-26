@@ -6,9 +6,9 @@ import meteorpi_fdb.testing.dummy_data as dummy
 import os.path as path
 
 DB_PATH_1 = 'localhost:/var/lib/firebird/2.5/data/meteorpi_test1.fdb'
-FILE_PATH_1 = path.expanduser("~/meteorpi_test_1_files")
+FILE_PATH_1 = path.expanduser("~/meteorpi_test1_files")
 DB_PATH_2 = 'localhost:/var/lib/firebird/2.5/data/meteorpi_test2.fdb'
-FILE_PATH_2 = path.expanduser("~/meteorpi_test_2_files")
+FILE_PATH_2 = path.expanduser("~/meteorpi_test2_files")
 PORT_1 = 12345
 
 
