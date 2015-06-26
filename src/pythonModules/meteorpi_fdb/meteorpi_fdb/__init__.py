@@ -437,7 +437,7 @@ class MeteorDatabase(object):
                         if len(cs.regions) <= region:
                             cs.regions.append([])
                         cs.regions[region].append(
-                            {'x': x, 'y': 'y'})
+                            {'x': x, 'y': y})
                 yield cs
 
     def _export_configuration_generator(self, sql, sql_args):
@@ -546,6 +546,17 @@ class MeteorDatabase(object):
                                         [stringValue, floatValue, mp.milliseconds_to_utc_datetime(dateValue)])))
                 yield fr
 
+    def file_path_for_id(self, file_id):
+        """
+        Get the system file path for a given file ID. Does not guarantee that the file exists!
+
+        :param uuid.UUID file_id:
+            ID of a file (which may or may not exist, this method doesn't check)
+        :return:
+            System file path for the file
+        """
+        return path.join(self.file_store_path, file_id.hex)
+
     def search_events(self, search):
         """
         Search for events
@@ -621,6 +632,52 @@ class MeteorDatabase(object):
               'FROM t_file t, t_cameraStatus s WHERE t.fileID=(?) AND t.statusID = s.internalID'
         return _first_from_generator(self._file_generator(sql=sql, sql_args=(file_id.bytes,)))
 
+    def import_event(self, event):
+        status_id = self._get_camera_status_id(camera_id=event.camera_id, time=event.event_time)
+        if status_id is None:
+            raise ValueError(
+                'No status defined for camera id {0} at time {1}!'.format(event.camera_id, event.event_time))
+        if status_id['status_id'].hex != event.status_id.hex:
+            raise ValueError('Existing status and supplied status IDs must be equal')
+        day_and_offset = mp.get_day_and_offset(event.event_time)
+        # Import the file records first
+        file_internal_ids = list(self.import_file_record(f) for f in event.file_records)
+        # Import the event
+        with closing(self.con.cursor()) as cur:
+            cur.execute(
+                'INSERT INTO t_event (cameraID, eventTime, eventOffset, eventType, '
+                'statusID, eventID) '
+                'VALUES (?, ?, ?, ?, ?, ?) '
+                'RETURNING internalID, eventID, eventTime',
+                (event.camera_id,
+                 mp.utc_datetime_to_milliseconds(event.event_time),
+                 day_and_offset['seconds'],
+                 str(event.event_type),
+                 status_id['internal_id'],
+                 event.event_id.bytes))
+            ids = cur.fetchone()
+            event_internal_id = ids[0]
+            for file_record_index, file_internal_id in enumerate(file_internal_ids):
+                cur.execute(
+                    'INSERT INTO t_event_to_file '
+                    '(fileID, eventID, sequenceNumber) '
+                    'VALUES (?, ?, ?)',
+                    (file_internal_id,
+                     event_internal_id,
+                     file_record_index))
+            for meta_index, meta in enumerate(event.meta):
+                cur.execute(
+                    'INSERT INTO t_eventMeta '
+                    '(eventID, metaKey, stringValue, floatValue, dateValue, metaIndex) '
+                    'VALUES (?, ?, ?, ?, ?, ?)',
+                    (event_internal_id,
+                     str(meta.key),
+                     meta.string_value(),
+                     meta.float_value(),
+                     mp.utc_datetime_to_milliseconds(meta.date_value()),
+                     meta_index))
+        self.con.commit()
+
     def register_event(
             self,
             camera_id,
@@ -693,6 +750,48 @@ class MeteorDatabase(object):
         self.con.commit()
         return event
 
+    def import_file_record(self, file_record):
+        if not path.exists(self.file_path_for_id(file_record.file_id)):
+            raise ValueError('Must get the binary file before importing FileRecord')
+        status_id = self._get_camera_status_id(camera_id=file_record.camera_id, time=file_record.file_time)
+        if status_id is None:
+            raise ValueError(
+                'No status defined for camera id {0} at time {1}!'.format(file_record.camera_id, file_record.file_time))
+        if status_id['status_id'].hex != file_record.status_id.hex:
+            raise ValueError('Existing status and supplied status IDs must be equal')
+        day_and_offset = mp.get_day_and_offset(file_record.file_time)
+        with closing(self.con.cursor()) as cur:
+            cur.execute(
+                'INSERT INTO t_file (cameraID, mimeType, '
+                'semanticType, fileTime, fileOffset, fileSize, statusID, fileName, fileID) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) '
+                'RETURNING internalID, fileID, fileTime',
+                (file_record.camera_id,
+                 file_record.mime_type,
+                 str(file_record.semantic_type),
+                 mp.utc_datetime_to_milliseconds(file_record.file_time),
+                 day_and_offset['seconds'],
+                 file_record.file_size,
+                 status_id['internal_id'],
+                 file_record.file_name,
+                 file_record.file_id.bytes))
+            row = cur.fetchonemap()
+            # Retrieve the internal ID of the file row to link fileMeta if required
+            file_internal_id = row['internalID']
+            for file_meta_index, file_meta in enumerate(file_record.meta):
+                cur.execute(
+                    'INSERT INTO t_fileMeta '
+                    '(fileID, metaKey, stringValue, floatValue, dateValue, metaIndex) '
+                    'VALUES (?, ?, ?, ?, ?, ?)',
+                    (file_internal_id,
+                     str(file_meta.key),
+                     file_meta.string_value(),
+                     file_meta.float_value(),
+                     mp.utc_datetime_to_milliseconds(file_meta.date_value()),
+                     file_meta_index))
+        self.con.commit()
+        return file_internal_id
+
     def register_file(
             self,
             file_path,
@@ -722,49 +821,49 @@ class MeteorDatabase(object):
         # Handle the database parts
         status_id = self._get_camera_status_id(camera_id=camera_id, time=file_time)
         if status_id is None:
-            raise ValueError('No status defined for camera id <%s> at time <%s>!' % (camera_id, file_time))
-        cur = self.con.cursor()
-        day_and_offset = mp.get_day_and_offset(file_time)
-        cur.execute(
-            'INSERT INTO t_file (cameraID, mimeType, '
-            'semanticType, fileTime, fileOffset, fileSize, statusID, fileName) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?) '
-            'RETURNING internalID, fileID, fileTime',
-            (camera_id,
-             mime_type,
-             str(semantic_type),
-             mp.utc_datetime_to_milliseconds(file_time),
-             day_and_offset['seconds'],
-             file_size_bytes,
-             status_id['internal_id'],
-             file_name))
-        row = cur.fetchonemap()
-        # Retrieve the internal ID of the file row to link fileMeta if required
-        file_internal_id = row['internalID']
-        # Retrieve the generated file ID, used to build the File object and to
-        # name the source file
-        file_id = uuid.UUID(bytes=row['fileID'])
-        # Retrieve the file time as stored in the DB
-        stored_file_time = row['fileTime']
-        result_file = mp.FileRecord(camera_id=camera_id, mime_type=mime_type, semantic_type=semantic_type,
-                                    status_id=status_id['status_id'])
-        result_file.file_time = mp.milliseconds_to_utc_datetime(stored_file_time)
-        result_file.file_id = file_id
-        result_file.file_size = file_size_bytes
-        # Store the fileMeta
-        for file_meta_index, file_meta in enumerate(file_metas):
+            raise ValueError('No status defined for camera id {0} at time {1}!'.format(camera_id, file_time))
+        with closing(self.con.cursor()) as cur:
+            day_and_offset = mp.get_day_and_offset(file_time)
             cur.execute(
-                'INSERT INTO t_fileMeta '
-                '(fileID, metaKey, stringValue, floatValue, dateValue, metaIndex) '
-                'VALUES (?, ?, ?, ?, ?, ?)',
-                (file_internal_id,
-                 str(file_meta.key),
-                 file_meta.string_value(),
-                 file_meta.float_value(),
-                 mp.utc_datetime_to_milliseconds(file_meta.date_value()),
-                 file_meta_index))
-            result_file.meta.append(
-                mp.Meta(key=file_meta.key, value=file_meta.value))
+                'INSERT INTO t_file (cameraID, mimeType, '
+                'semanticType, fileTime, fileOffset, fileSize, statusID, fileName) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?) '
+                'RETURNING internalID, fileID, fileTime',
+                (camera_id,
+                 mime_type,
+                 str(semantic_type),
+                 mp.utc_datetime_to_milliseconds(file_time),
+                 day_and_offset['seconds'],
+                 file_size_bytes,
+                 status_id['internal_id'],
+                 file_name))
+            row = cur.fetchonemap()
+            # Retrieve the internal ID of the file row to link fileMeta if required
+            file_internal_id = row['internalID']
+            # Retrieve the generated file ID, used to build the File object and to
+            # name the source file
+            file_id = uuid.UUID(bytes=row['fileID'])
+            # Retrieve the file time as stored in the DB
+            stored_file_time = row['fileTime']
+            result_file = mp.FileRecord(camera_id=camera_id, mime_type=mime_type, semantic_type=semantic_type,
+                                        status_id=status_id['status_id'])
+            result_file.file_time = mp.milliseconds_to_utc_datetime(stored_file_time)
+            result_file.file_id = file_id
+            result_file.file_size = file_size_bytes
+            # Store the fileMeta
+            for file_meta_index, file_meta in enumerate(file_metas):
+                cur.execute(
+                    'INSERT INTO t_fileMeta '
+                    '(fileID, metaKey, stringValue, floatValue, dateValue, metaIndex) '
+                    'VALUES (?, ?, ?, ?, ?, ?)',
+                    (file_internal_id,
+                     str(file_meta.key),
+                     file_meta.string_value(),
+                     file_meta.float_value(),
+                     mp.utc_datetime_to_milliseconds(file_meta.date_value()),
+                     file_meta_index))
+                result_file.meta.append(
+                    mp.Meta(key=file_meta.key, value=file_meta.value))
         self.con.commit()
         # Move the original file from its path
         target_file_path = path.join(self.file_store_path, result_file.file_id.hex)
@@ -921,7 +1020,8 @@ class MeteorDatabase(object):
         task objects can be used to retrieve the underlying entity and export configuration, and to update the
         completion state or push the timestamp into the future, deferring evaluation of the task until later. Only
         considers tasks where the timestamp is before (or equal to) the current time.
-        :return:
+
+        :returns:
             Either None, if no exports are available, or a :class:`meteorpi_fdb.FileExportTask` or
             :class:`meteorpi_fdb.EventExportTask` depending on whether a file or event is next in the queue to export.
         """
@@ -981,7 +1081,7 @@ class MeteorDatabase(object):
                     status = row[5]
                     target_url = row[6]
                     target_user = row[7]
-                target_password = row[8]
+                    target_password = row[8]
         if entity_type is None:
             return None
         elif entity_type == 'file':
@@ -1009,6 +1109,55 @@ class MeteorDatabase(object):
                 'SELECT DISTINCT cameraID FROM t_cameraStatus '
                 'ORDER BY cameraID DESC')
             return map(lambda row: row[0], cur.fetchall())
+
+    def import_camera_status(self, status):
+        """
+        Import a new camera status block, used by the import server - do not use this for local status changes, it
+        doesn't update high water marks and will not execute any kind of roll-back
+
+        :param status:
+            The new camera status block to import, this must be pre-populated with all required fields.
+        """
+        with closing(self.con.cursor()) as cur:
+            # Insert the new status into the database
+            cur.execute(
+                'INSERT INTO t_cameraStatus (statusID, cameraID, validFrom, '
+                'softwareVersion, orientationAltitude, orientationAzimuth, '
+                'orientationRotation, orientationError, widthOfField, locationLatitude, locationLongitude, '
+                'locationGPS, lens, sensor, instURL, instName, locationError) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
+                'RETURNING internalID',
+                (status.status_id.bytes,
+                 status.camera_id,
+                 mp.utc_datetime_to_milliseconds(status.valid_from),
+                 SOFTWARE_VERSION,
+                 status.orientation.altitude,
+                 status.orientation.azimuth,
+                 status.orientation.rotation,
+                 status.orientation.error,
+                 status.orientation.width_of_field,
+                 status.location.latitude,
+                 status.location.longitude,
+                 status.location.gps,
+                 status.lens,
+                 status.sensor,
+                 status.inst_url,
+                 status.inst_name,
+                 status.location.error))
+            # Retrieve the newly created internal ID for the status block, use this to
+            # insert visible regions
+            status_internal_id = cur.fetchone()[0]
+            for region_index, region in enumerate(status.regions):
+                for point_index, point in enumerate(region):
+                    cur.execute(
+                        'INSERT INTO t_visibleRegions (cameraStatusID, '
+                        'region, pointOrder, x, y) VALUES (?,?,?,?,?)',
+                        (status_internal_id,
+                         region_index,
+                         point_index,
+                         point['x'],
+                         point['y']))
+        self.con.commit()
 
     def update_camera_status(self, ns, time=None, camera_id=get_installation_id()):
         """
@@ -1104,6 +1253,15 @@ class MeteorDatabase(object):
                'ROWS 1')
         return _first_from_generator(self._camera_status_generator(sql, (camera_id,
                                                                          mp.utc_datetime_to_milliseconds(time))))
+
+    def get_camera_status_by_id(self, status_id):
+        sql = ('SELECT lens, sensor, instURL, instName, locationLatitude, '
+               'locationLongitude, locationGPS, locationError, orientationAltitude, '
+               'orientationAzimuth, orientationError, orientationRotation, widthOfField, validFrom, '
+               'softwareVersion, internalID, statusID, cameraID '
+               'FROM t_cameraStatus t '
+               'WHERE t.statusID = (?)')
+        return _first_from_generator(self._camera_status_generator(sql, (status_id.bytes,)))
 
     def get_high_water_mark(self, camera_id=get_installation_id()):
         """Retrieves the current high water mark for a camera installation, or
@@ -1288,6 +1446,12 @@ class EventExportTask(object):
     def get_export_config(self):
         return self.db.get_export_configuartion(self.config_id)
 
+    def as_dict(self):
+        return {
+            'type': 'event',
+            'event': self.get_event().as_dict()
+        }
+
     def set_status(self, status):
         with closing(self.db.con.cursor()) as cur:
             cur.execute('UPDATE t_eventExport x '
@@ -1322,6 +1486,12 @@ class FileExportTask(object):
 
     def get_export_config(self):
         return self.db.get_export_configuartion(self.config_id)
+
+    def as_dict(self):
+        return {
+            'type': 'file',
+            'file': self.get_file().as_dict()
+        }
 
     def set_status(self, status):
         with closing(self.db.con.cursor()) as cur:

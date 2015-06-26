@@ -13,7 +13,10 @@ setup(
     install_requires=[
         'meteorpi_model',
         'fdb',
-        'passlib'],
+        'passlib',
+        'pyyaml',
+        'requests',
+        'requests-toolbelt'],
     include_package_data=True,
     test_suite='nose.collector',
     tests_require=['nose'],

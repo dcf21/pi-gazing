@@ -18,3 +18,6 @@ Firebird based data access layer, uses a simple directory based file store to ha
 
 .. automodule:: meteorpi_fdb
     :members:
+
+.. automodule:: meteorpi_fdb.exporter
+    :members:

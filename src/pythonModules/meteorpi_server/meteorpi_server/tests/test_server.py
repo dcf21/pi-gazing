@@ -29,7 +29,7 @@ class TestServer(TestCase):
     def tearDown(self):
         """Stop the server"""
         self.stop()
-        self.server = None
+        self.stop = None
 
     def test_list_cameras(self):
         cameras_from_db = self.server.db.get_cameras()

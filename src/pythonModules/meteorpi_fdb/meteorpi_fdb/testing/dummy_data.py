@@ -19,6 +19,8 @@ def add_dummy_file(db, camera, time, meta, number_meta=None, date_meta=None, sem
     """Add a dummy file to the specified DB"""
     tf = tempfile.mkstemp(suffix='.tmp', prefix='meteor_pi_test_')
     tf_path = tf[1]
+    with open(tf_path, "w") as text_file:
+        text_file.write("Example file contents")
     db.set_high_water_mark(camera_id=camera, time=make_time(time), allow_rollback=False)
     file_metas = list(
         model.Meta(key=model.NSString('meta_key_{0}'.format(x)),
