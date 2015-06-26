@@ -175,7 +175,11 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
          * @returns {string} URL pointing at the file contents on the server.
          */
         self.urlForFile = function (file) {
-            return config.urlPrefix + "files/content/" + file['file_id'] + "/" + self.filenameForFile(file);
+            if (file['file_name'] == null) {
+                return config.urlPrefix + "files/content/" + file['file_id']
+            } else {
+                return config.urlPrefix + "files/content/" + file['file_id'] + "/" + self.filenameForFile(file);
+            }
         };
 
         /**

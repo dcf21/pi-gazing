@@ -37,7 +37,7 @@
         <td data-bind="text: new Date(file_time)"></td>
         <td data-bind="text: mime_type"></td>
         <td data-bind="text: semantic_type"></td>
-        <td><a data-bind="text: $parent.filenameForFile($data), attr : {href : $parent.urlForFile($data)}"></a>
+        <td><a target="_blank" data-bind="text: $parent.filenameForFile($data), attr : {href : $parent.urlForFile($data)}"></a>
             <table class="table table-condensed">
                 <thead>
                 <tr>
