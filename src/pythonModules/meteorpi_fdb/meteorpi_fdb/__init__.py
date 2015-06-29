@@ -633,6 +633,8 @@ class MeteorDatabase(object):
         return _first_from_generator(self._file_generator(sql=sql, sql_args=(file_id.bytes,)))
 
     def import_event(self, event):
+        if self.has_event_id(event.event_id):
+            return
         status_id = self._get_camera_status_id(camera_id=event.camera_id, time=event.event_time)
         if status_id is None:
             raise ValueError(
@@ -751,6 +753,8 @@ class MeteorDatabase(object):
         return event
 
     def import_file_record(self, file_record):
+        if self.has_file_id(file_record.file_id):
+            return
         if not path.exists(self.file_path_for_id(file_record.file_id)):
             raise ValueError('Must get the binary file before importing FileRecord')
         status_id = self._get_camera_status_id(camera_id=file_record.camera_id, time=file_record.file_time)
@@ -1275,6 +1279,21 @@ class MeteorDatabase(object):
                 return None
             return mp.milliseconds_to_utc_datetime(row[0])
 
+    def has_event_id(self, event_id):
+        with closing(self.con.cursor()) as cursor:
+            cursor.execute('SELECT * FROM t_event WHERE eventID = (?)', (event_id.bytes,))
+            return cursor.fetchone is not None
+
+    def has_status_id(self, status_id):
+        with closing(self.con.cursor()) as cursor:
+            cursor.execute('SELECT * FROM t_cameraStatus WHERE statusID = (?)', (status_id.bytes,))
+            return cursor.fetchone is not None
+
+    def has_file_id(self, file_id):
+        with closing(self.con.cursor()) as cursor:
+            cursor.execute('SELECT * FROM t_file WHERE fileID = (?)', (file_id.bytes,))
+            return cursor.fetchone is not None
+
     def set_high_water_mark(self, time, camera_id=get_installation_id(), allow_rollback=True, allow_advance=True):
         """
         Sets the 'high water mark' for this installation.
@@ -1452,6 +1471,9 @@ class EventExportTask(object):
             'event': self.get_event().as_dict()
         }
 
+    def get_entity_id(self):
+        return self.event_id
+
     def set_status(self, status):
         with closing(self.db.con.cursor()) as cur:
             cur.execute('UPDATE t_eventExport x '
@@ -1486,6 +1508,9 @@ class FileExportTask(object):
 
     def get_export_config(self):
         return self.db.get_export_configuartion(self.config_id)
+
+    def get_entity_id(self):
+        return self.file_id
 
     def as_dict(self):
         return {

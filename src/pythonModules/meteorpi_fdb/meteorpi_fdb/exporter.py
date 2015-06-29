@@ -52,8 +52,9 @@ class MeteorExporter(object):
                 :confused:
                     A job was processed, but the importer returned a response which we couldn't recognise
         """
+        state = None
         while True:
-            state = self._handle_next_export_subtask()
+            state = self._handle_next_export_subtask(export_state=state)
             if state is None:
                 return "nothing"
             elif state.export_task is None:
@@ -82,9 +83,15 @@ class MeteorExporter(object):
             auth = (export_state.export_task.target_user,
                     export_state.export_task.target_password)
             target_url = export_state.export_task.target_url
-            response = post(url=target_url,
-                            json=export_state.entity_dict,
-                            auth=auth)
+            if export_state.use_cache:
+                response = post(url=target_url,
+                                json={'type': 'cached_entity',
+                                      'cached_entity_id': export_state.entity_id},
+                                auth=auth)
+            else:
+                response = post(url=target_url,
+                                json=export_state.entity_dict,
+                                auth=auth)
             response.raise_for_status()
             json = response.json()
             state = json['state']
@@ -112,6 +119,10 @@ class MeteorExporter(object):
                          headers={'Content-Type': multi.content_type},
                          auth=auth)
                 return export_state.partially_processed()
+            elif state == 'continue':
+                return export_state.partially_processed()
+            elif state == 'continue-nocache':
+                return export_state.partially_processed(use_cache=False)
             else:
                 return export_state.confused()
         except HTTPError:
@@ -127,8 +138,10 @@ class MeteorExporter(object):
         def __init__(self, state=None, export_task=None):
             self.state = state
             self.export_task = export_task
+            self.use_cache = False
             if export_task is not None:
                 self.entity_dict = export_task.as_dict()
+                self.entity_id = export_task.get_entity_id().hex
             else:
                 self.entity_dict = None
 
@@ -139,8 +152,9 @@ class MeteorExporter(object):
             self.entity_dict = None
             return self
 
-        def partially_processed(self):
+        def partially_processed(self, use_cache=True):
             self.state = "partial"
+            self.use_cache = use_cache
             return self
 
         def failed(self):

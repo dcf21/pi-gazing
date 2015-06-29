@@ -1,4 +1,5 @@
 from unittest import TestCase
+import logging
 
 import os.path as path
 import meteorpi_server
@@ -13,6 +14,8 @@ DB_PATH_2 = 'localhost:/var/lib/firebird/2.5/data/meteorpi_test2.fdb'
 FILE_PATH_2 = path.expanduser("~/meteorpi_test2_files")
 PORT_1 = 12345
 
+# Logs on INFO to signal completion, DEBUG to show all messages
+logging.getLogger("meteorpi.server.import").setLevel(logging.INFO)
 
 class TestImportExport(TestCase):
     """
