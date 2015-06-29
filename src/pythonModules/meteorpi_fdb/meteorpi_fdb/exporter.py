@@ -1,8 +1,10 @@
 from uuid import UUID
+from logging import getLogger
 
 from requests import post
-from requests.exceptions import HTTPError
+from requests.exceptions import HTTPError, ConnectionError
 from requests_toolbelt.multipart.encoder import MultipartEncoder
+from apscheduler.schedulers.background import BackgroundScheduler
 
 
 class MeteorExporter(object):
@@ -10,28 +12,93 @@ class MeteorExporter(object):
     Manages the communication part of MeteorPi's export mechanism, acquiring :class:`meteorpi_fdb.FileExportTask` and
     :class:`meteorpi_fdb.EventExportTask` instances from the database and sending them on to the appropriate receiver.
     This class in effect defines the communication protocol used by this process.
+
+    The scheduler defined by default will also handle back-off under failure conditions. If an export fails, the count
+    of failures (since the server was started) for that export config will be incremented and all export tasks for that
+    config will be pushed a configurable distance into the future. If it fails more than a certain number of times the
+    config will be marked as disabled. Any successful export will reset the failure count.
+
+    :ivar scheduler:
+        An instance of :class:`apscheduler.schedulers.background.BackgroundScheduler` used to schedule regular mark of
+        entities to export and trigger the actual export of such entities.
     """
 
-    def __init__(self, db):
+    def __init__(self, db, mark_interval_seconds=300, max_failures_before_disable=4, defer_on_failure_seconds=1800,
+                 scheduler=None):
         """
         Build a new MeteorExporter. The export process won't run by default, you must call the appropriate methods on
-        this object to actually start exporting.
+        this object to actually start exporting. A scheduler is created to handle automated, regular, exports, but is
+        not started, you must explicitly call its start method if you want regular exports to function.
 
         :param MeteorDatabase db:
             The database to read from, for both entities under replication and the export configurations.
-
+        :param int mark_interval_seconds:
+            The number of seconds after finishing on mark / export round that the next one will be triggered. Defaults
+            to 300 for a five minute break. Note that at the end of an export round the process is re-run immediately,
+            only finishing when there was nothing to do. This means that if we have a lot of data generated during an
+            export run we won't wait another five minutes before we process the new data.
+        :param int defer_on_failure_seconds:
+            The number of seconds into the future which will be applied to any tasks pending for a given config when
+            a task created by that config fails (including the failed task). The timestamp for any tasks with timestamps
+            less than now + defer_on_failure_seconds will be set to now + defer_on_failure_seconds.
+        :param scheduler:
+            The scheduler to use, defaults to a BackgroundScheduler with a non-daemon thread if not specified. Use a
+            blocking one for test purposes.
+        :param int max_failures_before_disable:
+            The number of times an export configuration can have its exports fail before it is disabled.
         """
         self.db = db
+        if scheduler is None:
+            scheduler = BackgroundScheduler(daemon=False)
+        self.scheduler = scheduler
+        job_id = "meteorpi_export"
+        failure_counts = {}
+        logger = getLogger("meteorpi.db.export")
 
-    def export_all_the_things(self):
-        """
-        Process export jobs until we get a response of 'nothing'. This is overly naive and will certainly not work in
-        production, don't use it outside of test suites.
-        """
-        while True:
-            result = self.handle_next_export()
-            if result == "nothing":
-                break
+        def scheduled_export():
+            self.scheduler.pause_job(job_id=job_id)
+            job_count = -1
+            try:
+                while job_count != 0:
+                    # Mark any new entities for export
+                    for export_config in db.get_export_configurations():
+                        if export_config.enabled:
+                            db.mark_entities_to_export(export_config)
+                            logger.info("Marked entities to export for config id {0}".format(export_config.config_id))
+                    job_count = 0
+                    while True:
+                        state = self.handle_next_export()
+                        if state is None:
+                            # No jobs were processed on this tick, break out to the next control layer
+                            break
+                        elif state.state == "failed" or state.state == "confused":
+                            config_id = state.config_id
+                            job_count += 1
+                            # Handle failure
+                            export_config = db.get_export_configuration(config_id=config_id)
+                            failure_count = failure_counts.pop(config_id, 0) + 1
+                            logger.info(
+                                "Failure for {0}, previous failure count was {1}".format(config_id, failure_count))
+                            if failure_count >= max_failures_before_disable:
+                                # Disable this config
+                                export_config = db.get_export_configuration(config_id=config_id)
+                                export_config.enabled = False
+                                db.create_or_update_export_configuration(export_config)
+                                # Doesn't add the failure count back in, as we want to be able to run should the user
+                                # re-enable this export configuration
+                            else:
+                                # Defer entries created by this config
+                                failure_counts[config_id] = failure_count
+                                db.defer_export_tasks(config_id=config_id, seconds=defer_on_failure_seconds)
+                        else:
+                            config_id = state.config_id
+                            job_count += 1
+                            # Reset failure count for this config, as we just exported something with it
+                            failure_counts.pop(config_id, None)
+            finally:
+                self.scheduler.resume_job(job_id=job_id)
+
+        self.scheduler.add_job(id=job_id, func=scheduled_export, trigger="interval", seconds=mark_interval_seconds)
 
     def handle_next_export(self):
         """
@@ -39,10 +106,9 @@ class MeteorExporter(object):
         import client such as requests for binary data, camera status etc.
 
         :return:
-            A string describing the result of the last export, the result can take the following values:
+            An instance of ExportStateCache, the 'state' field contains the state of the export after running as many
+            sub-tasks as required until completion or failure. If there were no jobs to run this returns None.
 
-                :nothing:
-                    There was no pending export job in the queue
                 :complete:
                     A job was processed and completed. The job has been marked as complete in the database
                 :continue:
@@ -56,9 +122,9 @@ class MeteorExporter(object):
         while True:
             state = self._handle_next_export_subtask(export_state=state)
             if state is None:
-                return "nothing"
+                return None
             elif state.export_task is None:
-                return state.state
+                return state
 
     def _handle_next_export_subtask(self, export_state=None):
         """
@@ -127,6 +193,8 @@ class MeteorExporter(object):
                 return export_state.confused()
         except HTTPError:
             return export_state.failed()
+        except ConnectionError:
+            return export_state.failed()
 
     class ExportStateCache(object):
         """
@@ -135,15 +203,15 @@ class MeteorExporter(object):
         nothing left to do).
         """
 
-        def __init__(self, state=None, export_task=None):
+        def __init__(self, export_task, state="not_started"):
+            if export_task is None:
+                raise ValueError("Export task cannot be none, must be specified on creation")
             self.state = state
             self.export_task = export_task
+            self.config_id = export_task.config_id
             self.use_cache = False
-            if export_task is not None:
-                self.entity_dict = export_task.as_dict()
-                self.entity_id = export_task.get_entity_id().hex
-            else:
-                self.entity_dict = None
+            self.entity_dict = export_task.as_dict()
+            self.entity_id = export_task.get_entity_id().hex
 
         def fully_processed(self):
             self.state = "complete"

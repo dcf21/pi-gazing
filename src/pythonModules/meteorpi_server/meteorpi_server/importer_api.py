@@ -10,6 +10,118 @@ from flask import request, g
 from backports.functools_lru_cache import lru_cache
 
 
+class BaseImportReceiver(object):
+    """
+    Base class for entities which should be able to receive imports, whether that's to handle database to database
+    replication or otherwise. This base implementation is functional, but simply replies to both event and file record
+    imports with 'complete' messages, thus never triggering either status imports or binary data.
+    """
+
+    def receive_event(self, import_request):
+        """
+        Handle an Event import
+
+        :param ImportRequest import_request:
+            An instance of :class:`meteorpi_server.importer_api.ImportRequest` which contains the parsed request,
+            including the :class:`meteorpi_model.Event` object along with methods that can be used to continue the
+            import process. The Event is available as import_request.entity.
+        :returns:
+            A Flask response, typically generated using the response_xxx() methods on the import_request. If no return
+            is made or None is returned then treated as equivalent to returning response_complete() to terminate import
+            of this Event
+        """
+        return import_request.response_complete()
+
+    def receive_file_record(self, import_request):
+        """
+        Handle a FileRecord import
+
+        :param ImportRequest import_request:
+            An instance of :class:`meteorpi_server.importer_api.ImportRequest` which contains the parsed request,
+            including the :class:`meteorpi_model.FileRecord` object along with methods that can be used to continue the
+            import process. The FileRecord is available as import_request.entity.
+        :returns:
+            A Flask response, typically generated using the response_xxx() methods on the import_request. If no return
+            is made or None is returned then treated as equivalent to returning response_complete() to terminate import
+            of this FileRecord
+        """
+        return import_request.response_complete()
+
+    def receive_status(self, import_request):
+        """
+        Handle a :class:`meteorpi_model.CameraStatus` import in response to a previous return of response_need_status()
+        from one of the :class:`meteorpi_model.Event` or :class:`meteorpi_model.FileRecord` import methods.
+
+        :param ImportRequest import_request:
+            An instance of :class:`meteorpi_server.importer_api.ImportRequest` which contains the parsed request,
+            including the :class:`meteorpi_model.CameraStatus` object along with methods that can be used to continue
+            the import process. The CameraStatus is available as import_request.entity.
+        :returns:
+            A Flask response, typically generated using the response_xxx() methods on the import_request. If no return
+            is made or None is returned then treated as equivalent to returning response_continue() to return to the
+            import of the enclosing entity. This is different to receive_file_record() and receive_event() because we
+            only ever see a status imported in response to an attempt to import an event or file record which has a
+            status we don't have on the importing side.
+        """
+        pass
+
+    def receive_file_data(self, file_id, file_data):
+        """
+        Handle the reception of uploaded file data for a given ID. There is no return mechanism for this method, as the
+        import protocol specifies that after a binary file is uploaded the corresponding file record or event should be
+        sent again. This allows us to implement the import in a stateless fashion, caching aside, at the cost of an
+        additional very small HTTP request. The request is small because all the exporter has to do, typically, is send
+        the ID of the event or file record as the import infrastructure in this module caches the full record locally.
+
+        :param uuid.UUID file_id:
+            The ID of the FileRecord for this file data
+        :param file_data:
+            A file upload response from Flask's upload handler, acquired with `file_data = request.files['file']`
+        :returns:
+            None, continues the import irrespective of whether the file was received or not.
+        """
+        pass
+
+
+class MeteorDatabaseImportReceiver(BaseImportReceiver):
+    """
+    An implementation of :class:`meteorpi_server.import_api.BaseImportReceiver` that connects to a
+    :class:`meteorpi_fdb.MeteorDatabase` and pushes any data to it on import, including managing the acquisition of any
+    additional information (camera status, binary file data) required in the process.
+    """
+
+    def __init__(self, db):
+        self.db = db
+
+    def receive_event(self, import_request):
+        event = import_request.entity
+        if not self.db.has_event_id(event.event_id):
+            if not self.db.has_camera_status_id(event.status_id):
+                return import_request.response_need_status()
+            for file_record in event.file_records:
+                if not path.isfile(self.db.file_path_for_id(file_record.file_id)):
+                    return import_request.response_need_file_data(file_id=file_record.file_id)
+            self.db.import_event(event)
+
+    def receive_file_record(self, import_request):
+        file_record = import_request.entity
+        if not self.db.has_file_id(file_record.file_id):
+            if not self.db.has_camera_status_id(file_record.status_id):
+                return import_request.response_need_status()
+            if not path.isfile(self.db.file_path_for_id(file_record.file_id)):
+                return import_request.response_need_file_data(file_id=file_record.file_id)
+            self.db.import_file_record(file_record)
+
+    def receive_status(self, import_request):
+        if not self.db.has_camera_status_id(import_request.entity.status_id):
+            self.db.import_camera_status(import_request.entity)
+
+    def receive_file_data(self, file_id, file_data):
+        file_path = self.db.file_path_for_id(file_id)
+        if not path.isfile(file_path):
+            file_data.save(file_path)
+
+
 class ImportRequest(object):
     """
     Helper used when importing, makes use of the 'cached_request' request transparent to the importing party.
@@ -195,13 +307,17 @@ class ImportRequest(object):
             return None
 
 
-def add_routes(meteor_app, url_path='/import'):
+def add_routes(meteor_app, handler=None, url_path='/import'):
     """
     Add two routes to the specified instance of :class:`meteorpi_server.MeteorApp` to implement the import API and allow
     for replication of data to this server.
 
     :param meteorpi_server.MeteorApp meteor_app:
         The :class:`meteorpi_server.MeteorApp` to which import routes should be added
+    :param meteorpi_server.importer_api.BaseImportReceiver handler:
+        A subclass of :class:`meteorpi_server.importer_api.BaseImportReceiver` which is used to handle the import. If
+        not specified this defaults to an instance of :class:`meteorpi_server.importer_api.MeteorDatabaseImportReceiver`
+        which will replicate any missing information from the import into the database attached to the meteor_app.
     :param string url_path:
         The base of the import routes for this application. Defaults to '/import' - routes will be created at this path
         and as import_path/data/<id> for binary data reception. Both paths only respond to POST requests and require
@@ -209,42 +325,41 @@ def add_routes(meteor_app, url_path='/import'):
     """
     db = meteor_app.db
     app = meteor_app.app
+    if handler is None:
+        handler = MeteorDatabaseImportReceiver(db=db)
 
     @app.route(url_path, methods=['POST'])
     @meteor_app.requires_auth(roles=['import'])
     def import_entities():
         """
         Receive an entity import request, using :class:`meteorpi_server.import_api.ImportRequest` to parse it, then
-        writing entities into the database and responding with requests for additional information if required.
+        passing the parsed request on to an instance of :class:`meteorpi_server.import_api.BaseImportReceiver` to deal
+        with the possible import types.
 
         :return:
             A response, generally using one of the response_xxx methods in ImportRequest
         """
         import_request = ImportRequest.process_request()
-        entity = import_request.entity
         if import_request.entity is None:
             return import_request.response_continue()
         if import_request.entity_type == 'file':
-            if not db.has_file_id(entity.file_id):
-                if not db.has_camera_status_id(entity.status_id):
-                    return import_request.response_need_status()
-                if not path.isfile(db.file_path_for_id(entity.file_id)):
-                    return import_request.response_need_file_data(file_id=entity.file_id)
-                db.import_file_record(entity)
-            return import_request.response_complete()
+            response = handler.receive_file_record(import_request)
+            if response is not None:
+                return response
+            else:
+                return import_request.response_complete()
         elif import_request.entity_type == 'event':
-            if not db.has_event_id(entity.event_id):
-                if not db.has_camera_status_id(entity.status_id):
-                    return import_request.response_need_status()
-                for file_record in entity.file_records:
-                    if not path.isfile(db.file_path_for_id(file_record.file_id)):
-                        return import_request.response_need_file_data(file_id=file_record.file_id)
-                db.import_event(entity)
-            return import_request.response_complete()
+            response = handler.receive_event(import_request)
+            if response is not None:
+                return response
+            else:
+                return import_request.response_complete()
         elif import_request.entity_type == 'status':
-            if not db.has_camera_status_id(entity.status_id):
-                db.import_camera_status(entity)
-            return import_request.response_continue()
+            response = handler.receive_status(import_request)
+            if response is not None:
+                return response
+            else:
+                return import_request.response_continue()
         else:
             return import_request.response_failed("Unknown import request")
 
@@ -252,15 +367,13 @@ def add_routes(meteor_app, url_path='/import'):
     @meteor_app.requires_auth(roles=['import'])
     def import_file_data(file_id_hex):
         """
-        Receive a file upload, saving it to the file store. Note that no checks are currently made that the file is
-        intact.
+        Receive a file upload, passing it to the handler if it contains the appropriate information
 
         :param string file_id_hex:
             The hex representation of the :class:`meteorpi_model.FileRecord` to which this data belongs.
         """
         file_id = uuid.UUID(hex=file_id_hex)
-        if not path.isfile(db.file_path_for_id(file_id)):
-            file_data = request.files['file']
-            if file_data:
-                file_data.save(db.file_path_for_id(file_id))
+        file_data = request.files['file']
+        if file_data:
+            handler.receive_file_data(file_id=file_id, file_data=file_data)
         return ImportRequest.response_continue_after_file()

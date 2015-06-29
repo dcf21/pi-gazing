@@ -1017,6 +1017,31 @@ class MeteorDatabase(object):
             raise ValueError("Unknown search type")
         return rows_created
 
+    def defer_export_tasks(self, config_id, seconds):
+        """
+        Increment the export time of all events for a given config such that the earliest is `seconds` into the future
+
+        :param config_id:
+        :param seconds:
+        :return:
+        """
+        later = mp.utc_datetime_to_milliseconds(mp.now()) + 1000 * seconds
+        with closing(self.con.cursor()) as cursor:
+            cursor.execute('SELECT c.internalID FROM t_exportConfig c WHERE c.exportConfigID=(?)', (config_id.bytes,))
+            row = cursor.fetchone()
+            if row is None:
+                raise ValueError("No configuration with id {0} found!".format(config_id))
+            config_internal_id = row[0]
+            cursor.execute('UPDATE t_eventExport ex SET ex.exportTime = (?) '
+                           'WHERE ex.exportTime < (?) '
+                           'AND ex.exportConfig = (?) ',
+                           (later, later, config_internal_id))
+            cursor.execute('UPDATE t_fileExport fx SET fx.exportTime = (?) '
+                           'WHERE fx.exportTime < (?) '
+                           'AND fx.exportConfig = (?) ',
+                           (later, later, config_internal_id))
+        self.con.commit()
+
     def get_next_entity_to_export(self):
         """
         Examines the t_fileExport and t_eventExport tables, finds the earliest incomplete export task and builds
