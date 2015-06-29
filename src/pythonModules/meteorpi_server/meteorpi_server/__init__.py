@@ -1,28 +1,41 @@
-import threading
-import uuid
 from functools import wraps
-import urllib
+from threading import Thread
 
-from yaml import safe_load
-import os.path as path
-import flask
+from os.path import expanduser
+from flask import Flask, request, g
 from tornado.ioloop import IOLoop
 from tornado.wsgi import WSGIContainer
 from tornado.web import FallbackHandler, Application
-import tornado.httpserver
-import meteorpi_fdb
-import meteorpi_model as model
+from tornado.httpserver import HTTPServer
+from meteorpi_fdb import MeteorDatabase
 from flask.ext.jsonpify import jsonify
-from flask import request
 from flask.ext.cors import CORS
+from meteorpi_server import admin_api, importer_api, query_api
 
 
-def build_app(db):
-    """Create and return a WSGI app to respond to API requests"""
-    app = flask.Flask(__name__)
+class MeteorApp(object):
+    """
+    Common functionality for MeteorPi WSGI apps. This won't contain any routes by default, these must be added using the
+    functionality in admin_api, importer_api, query_api etc. This allows you to customise your application to suit,
+    rather than forcing all the functionality into every instance. It might be sensible, for example, to only import
+    the query API for a node which will never need external administration or configuration.
 
-    CORS(app=app, resources='/*', allow_headers=['authorization', 'content-type'])
+    :ivar app:
+        A WSGI compliant application, this can be referenced from e.g. a fastcgi WSGI container and used to connect an
+        external server such as LigHTTPD or Apache to the application logic.
+    """
 
+    def __init__(self, db):
+        """
+        Create a new MeteorApp, setting up the internal DB
+        :param MeteorDatabase db:
+            An instance of :class:`meteorpi_fdb.MeteorDatabase` to use when accessing the data and file stores.
+        """
+        self.db = db
+        self.app = Flask(__name__)
+        CORS(app=self.app, resources='/*', allow_headers=['authorization', 'content-type'])
+
+    @staticmethod
     def success(message='Okay'):
         """
         Build a response with an object containing a single field 'message' with the supplied content
@@ -30,13 +43,47 @@ def build_app(db):
         :param string message:
             message, defaults to 'Okay'
         :return:
-            flask Response object
+            A flask Response object, can be used as a return type from service methods
         """
         resp = jsonify({'message': message})
         resp.status_code = 200
         return resp
 
-    def requires_auth(roles=None):
+    @staticmethod
+    def not_found(entity_id=None, message='Entity not found'):
+        """
+        Build a response to indicate that the requested entity was not found.
+
+        :param string message:
+            An optional message, defaults to 'Entity not found'
+        :param string entity_id:
+            An option ID of the entity requested and which was not found
+        :return:
+            A flask Response object, can be used as a return type from service methods
+        """
+        resp = jsonify({'message': message, 'entity_id': entity_id})
+        resp.status_code = 404
+        return resp
+
+    @staticmethod
+    def authentication_failure(message='Authorization required'):
+        """
+        Returns an authentication required response, including an optional message.
+
+        :param string message:
+            An optional message, can be used to specify additional information
+        :return:
+            flask error code, can be used as a return type from service methods
+        """
+        resp = jsonify({'message': message})
+        resp.status_code = 403
+        return resp
+
+    @staticmethod
+    def get_user():
+        return getattr(g, 'user', None)
+
+    def requires_auth(self, roles=None):
         """
         Used to impose auth constraints on requests which require a logged in user with particular roles.
 
@@ -51,246 +98,54 @@ def build_app(db):
             role or roles.
         """
 
-        def authentication_failure():
-            return flask.abort(403)
-
         def requires_auth_inner(f):
             @wraps(f)
             def decorated(*args, **kwargs):
                 auth = request.authorization
                 if not auth:
-                    return authentication_failure()
+                    return MeteorApp.authentication_failure(message='No authorization header supplied')
                 user_id = auth.username
                 password = auth.password
                 try:
-                    user = db.get_user(user_id=user_id, password=password)
+                    user = self.db.get_user(user_id=user_id, password=password)
                     if user is None:
-                        return authentication_failure()
+                        return MeteorApp.authentication_failure(message='Username and / or password incorrect')
                     if roles is not None:
                         for role in roles:
                             if not user.has_role(role):
-                                return authentication_failure()
-                    flask.g.user = user
+                                return MeteorApp.authentication_failure(message='Missing role {0}'.format(role))
+                    g.user = user
                 except ValueError:
-                    return authentication_failure()
+                    return MeteorApp.authentication_failure(message='Unrecognized role encountered')
                 return f(*args, **kwargs)
 
             return decorated
 
         return requires_auth_inner
 
-    def get_user():
-        return getattr(flask.g, 'user', None)
-
-    @app.route('/import', methods=['POST'])
-    @requires_auth(roles=['import'])
-    def import_entities():
-        import_request = safe_load(request.get_data())
-        type = import_request['type']
-        if type == 'file':
-            print "import : received file record with id {0}".format(import_request['file']['file_id'])
-            status_id = uuid.UUID(hex=import_request['file']['status_id'])
-            # Check whether we have an appropriate status block
-            camera_status = db.get_camera_status_by_id(status_id)
-            if camera_status is None:
-                print "import : requesting camera status id {0}".format(status_id)
-                return jsonify({'state': 'need_status', 'status_id': status_id.hex})
-            # Check whether the file exists on disk
-            file_id = uuid.UUID(hex=import_request['file']['file_id'])
-            file_path = db.file_path_for_id(file_id)
-            if path.isfile(file_path):
-                file_record = model.FileRecord.from_dict(import_request['file'])
-                db.import_file_record(file_record)
-                print "import : completed reception of file with id {0}".format(file_id.hex)
-                return jsonify({'state': 'complete'})
-            else:
-                print "import : requesting data for file with id {0}".format(file_id.hex)
-                return jsonify({'state': 'need_file_data', 'file_id': file_id.hex})
-        elif type == 'status':
-            camera_status = model.CameraStatus.from_dict(import_request['status'])
-            print "import : received camera status with id {0}".format(camera_status.status_id.hex)
-            if db.get_camera_status_by_id(camera_status.status_id) is None:
-                db.import_camera_status(camera_status)
-            return jsonify({'state': 'continue'})
-        elif type == 'event':
-            print "import : received event with id {0}".format(import_request['event']['event_id'])
-            status_id = uuid.UUID(hex=import_request['event']['status_id'])
-            # Check whether we have an appropriate status block
-            camera_status = db.get_camera_status_by_id(status_id)
-            if camera_status is None:
-                print "import : requesting camera status id {0}".format(status_id)
-                return jsonify({'state': 'need_status', 'status_id': status_id.hex})
-            event = model.Event.from_dict(import_request['event'])
-            for file_record in event.file_records:
-                file_path = db.file_path_for_id(file_record.file_id)
-                if not path.isfile(file_path):
-                    print "import : requesting data for file with id {0} in event {1}".format(file_record.file_id.hex,
-                                                                                              event.event_id.hex)
-                    return jsonify({'state': 'need_file_data', 'file_id': file_record.file_id.hex})
-            # Have all the data, import the event along with its files
-            db.import_event(event)
-            return jsonify({'state': 'complete'})
-        else:
-            print "import: failing, unrecognized request"
-            return jsonify({'state': 'failed'})
-
-    @app.route('/import/data/<file_id_hex>', methods=['POST'])
-    @requires_auth(roles=['import'])
-    def import_file_data(file_id_hex):
-        file_id = uuid.UUID(hex=file_id_hex)
-        file = request.files['file']
-        if file:
-            file.save(db.file_path_for_id(file_id))
-        return jsonify({'state': 'continue'})
-
-    @app.route('/export', methods=['GET'])
-    @requires_auth(roles=['camera_admin'])
-    def get_export_configurations():
-        return jsonify({'configs': list(x.as_dict() for x in db.get_export_configurations())})
-
-    @app.route('/export/<config_id>', methods=['GET'])
-    @requires_auth(roles=['camera_admin'])
-    def get_export_configuration(config_id):
-        config = db.get_export_configuration(config_id=uuid.UUID(hex=config_id))
-        if config is None:
-            return 'No export configuration with ID {0}'.format(config_id), 404
-        return jsonify({'config': config.as_dict()})
-
-    @app.route('/export/<config_id>', methods=['DELETE'])
-    @requires_auth(roles=['camera_admin'])
-    def delete_export_configuration(config_id):
-        db.delete_export_configuration(config_id=uuid.UUID(hex=config_id))
-        return success()
-
-    @app.route('/export/<config_id>', methods=['PUT'])
-    @requires_auth(roles=['camera_admin'])
-    def update_export_configuration(config_id):
-        config = model.ExportConfiguration.from_dict(safe_load(request.get_data()))
-        db.create_or_update_export_configuration(export_config=config)
-        return success()
-
-    @app.route('/export', methods=['POST'])
-    @requires_auth(roles=['camera_admin'])
-    def create_export_configuration():
-        spec = safe_load(request.get_data())
-        export_type = spec['type']
-        if export_type == 'file':
-            search = model.FileRecordSearch(limit=0)
-        elif export_type == 'event':
-            search = model.EventSearch(limit=0)
-        else:
-            raise ValueError("Search 'type' must be either 'file' or 'event'")
-        config = model.ExportConfiguration(target_url=spec['target_url'],
-                                           user_id=spec['user_id'],
-                                           password=spec['password'],
-                                           search=search,
-                                           name=spec['name'],
-                                           description=spec['description'])
-        db.create_or_update_export_configuration(config)
-        return jsonify({'config': config.as_dict()})
-
-    @app.route('/login', methods=['GET'])
-    @requires_auth(roles=['user'])
-    def login():
-        return jsonify({'user': get_user().as_dict()})
-
-    @app.route('/users/<user_id>', methods=['DELETE'])
-    @requires_auth(roles=['camera_admin'])
-    def delete_user(user_id):
-        user_id = urllib.unquote(user_id)
-        db.delete_user(user_id)
-        return jsonify({'users': list(u.as_dict() for u in db.get_users())})
-
-    @app.route('/users', methods=['POST'])
-    @requires_auth(roles=['camera_admin'])
-    def create_user_or_change_password():
-        new_user = safe_load(request.get_data())
-        db.create_or_update_user(new_user['user_id'], new_user['password'], None)
-        return jsonify({'users': list(u.as_dict() for u in db.get_users())})
-
-    @app.route('/users/roles', methods=['PUT'])
-    @requires_auth(roles=['camera_admin'])
-    def update_user_roles():
-        new_roles = safe_load(request.get_data())['new_roles']
-        for user in new_roles:
-            db.create_or_update_user(user_id=user['user_id'], password=None, roles=user['roles'])
-        return jsonify({'users': list(u.as_dict() for u in db.get_users())})
-
-    @app.route('/users', methods=['GET'])
-    @requires_auth(roles=['camera_admin'])
-    def get_users():
-        return jsonify({'users': list(u.as_dict() for u in db.get_users())})
-
-    @app.route('/cameras/<camera_id>/status', methods=['POST'])
-    @requires_auth(roles=['camera_admin'])
-    def update_camera_status(camera_id):
-        update = safe_load(request.get_data())
-        status = db.get_camera_status(camera_id=camera_id)
-        if status is None:
-            return 'No active camera with ID {0}'.format(camera_id), 404
-        else:
-            status.inst_name = update["inst_name"]
-            status.inst_url = update["inst_url"]
-            status.regions = update["regions"]
-            db.update_camera_status(ns=status, camera_id=camera_id)
-            # Update status and push changes to DB
-            new_status = db.get_camera_status(camera_id=camera_id)
-            return jsonify({'status': new_status.as_dict()})
-
-    @app.route('/cameras', methods=['GET'])
-    def get_active_cameras():
-        cameras = db.get_cameras()
-        return jsonify({'cameras': cameras})
-
-    @app.route('/cameras/<camera_id>/status', methods=['GET'])
-    def get_current_camera_status(camera_id):
-        status = db.get_camera_status(camera_id=camera_id)
-        if status is None:
-            return 'No active camera with ID {0}'.format(camera_id), 404
-        else:
-            return jsonify({'status': status.as_dict()})
-
-    @app.route('/cameras/<camera_id>/status/<time_string>', methods=['GET'])
-    def get_camera_status(camera_id, time_string):
-        status = db.get_camera_status(camera_id=camera_id, time=model.milliseconds_to_utc_datetime(int(time_string)))
-        if status is None:
-            return 'No active camera with ID {0}'.format(camera_id), 404
-        else:
-            return jsonify({'status': status.as_dict()})
-
-    @app.route('/events/<search_string>', methods=['GET'], strict_slashes=True)
-    def search_events(search_string):
-        search = model.EventSearch.from_dict(safe_load(urllib.unquote(search_string)))
-        events = db.search_events(search)
-        return jsonify({'events': list(x.as_dict() for x in events['events']), 'count': events['count']})
-
-    @app.route('/files/<search_string>', methods=['GET'])
-    def search_files(search_string):
-        # print search_string
-        search = model.FileRecordSearch.from_dict(safe_load(urllib.unquote(search_string)))
-        files = db.search_files(search)
-        return jsonify({'files': list(x.as_dict() for x in files['files']), 'count': files['count']})
-
-    @app.route('/files/content/<file_id>/<file_name>', methods=['GET'])
-    @app.route('/files/content/<file_id>', methods=['GET'])
-    def get_file_content(file_id, file_name=None):
-        record = db.get_file(file_id=uuid.UUID(hex=file_id))
-        if record is not None:
-            return flask.send_file(filename_or_fp=record.get_path(), mimetype=record.mime_type)
-        else:
-            return flask.abort(404)
-
-    return app
-
 
 class MeteorServer(object):
-    """HTTP server which responds to API requests and returns JSON formatted domain objects"""
+    """
+    Tornado based server, exposes an instance of :class:`meteorpi_server.MeteorApp` on localhost, can either be
+    configured to expose all available APIs or can have such APIs added individually.
 
-    class IOLoopThread(threading.Thread):
+    The database and application are exposed as instance properties to aid testing.
+
+    :ivar MeteorDatabase db:
+        The db used for this server
+    :ivar MeteorApp meteor_app:
+        The application this server exposes
+    :ivar HTTPServer server:
+        The tornado HTTPServer instance
+    :ivar int port:
+        The port on which we're listening for HTTP requests
+    """
+
+    class IOLoopThread(Thread):
         """A thread used to run the Tornado IOLoop in a non-blocking fashion, mostly for testing"""
 
         def __init__(self):
-            threading.Thread.__init__(self, name='IOLoopThread')
+            Thread.__init__(self, name='IOLoopThread')
             self.loop = IOLoop.instance()
 
         def run(self):
@@ -299,22 +154,57 @@ class MeteorServer(object):
         def stop(self):
             self.loop.stop()
 
-    def __init__(self, db_path, file_store_path, port):
-        self.db = meteorpi_fdb.MeteorDatabase(db_path=db_path, file_store_path=file_store_path)
-        app = build_app(self.db)
-        tornado_application = Application([(r'.*', FallbackHandler, dict(fallback=WSGIContainer(app)))])
-        self.server = tornado.httpserver.HTTPServer(tornado_application)
+    def __init__(self, db_path, file_store_path, port, add_routes=True):
+        """
+        Create a new instance, does not start the server.
+        :param string db_path:
+            Path to the database, i.e. 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb'
+        :param string file_store_path:
+            File path to a directory on disk where the data store can store and retrieve its file data, i.e.
+            path.expanduser("~/meteorpi_files")
+        :param int port:
+            Port on which the HTTP server should run
+        :param boolean add_routes:
+            Optional, defaults to True. If True then all routes from admin_api, importer_api and query_api will be
+            added to the application, otherwise no routes will be added and you'll have to do so explicitly.
+        """
+        self.db = MeteorDatabase(db_path=db_path, file_store_path=file_store_path)
+        self.meteor_app = MeteorApp(db=self.db)
+        if add_routes:
+            MeteorServer.add_all_routes(self.meteor_app)
+        tornado_application = Application([(r'.*', FallbackHandler, dict(fallback=WSGIContainer(self.meteor_app.app)))])
+        self.server = HTTPServer(tornado_application)
         self.port = port
+
+    @staticmethod
+    def add_all_routes(meteor_app):
+        """
+        Add routes from admin_api, importer_api and query_api to the specified application
+        :param MeteorApp meteor_app:
+            The application to which routes should be added
+        """
+        admin_api.add_routes(meteor_app=meteor_app)
+        importer_api.add_routes(meteor_app=meteor_app)
+        query_api.add_routes(meteor_app=meteor_app)
 
     def __str__(self):
         return 'MeteorServer(port={0}, db_path={1}, file_path={2})'.format(self.port, self.db.db_path,
                                                                            self.db.file_store_path)
 
     def base_url(self):
+        """
+        :return:
+            The full URL of this server
+        """
         return 'http://localhost:{0}/'.format(self.port)
 
     def start_non_blocking(self):
-        """Start an IOLoop in a new thread, returning a function which will stop the new thread and join it"""
+        """
+        Start a non-blocking server, returning a function which can be called to stop the server.
+
+        :return:
+            A zero-argument function which, when called, will stop the server.
+        """
         loop = self.IOLoopThread()
         self.server.listen(self.port)
         loop.start()
@@ -327,7 +217,9 @@ class MeteorServer(object):
         return stop_function
 
     def start(self):
-        """Start an IOLoop and server in the current thread, this will block until killed"""
+        """
+        Start an IOLoop and server in the current thread, this will block until killed
+        """
         self.server.listen(self.port)
         IOLoop.instance().start()
 
@@ -335,6 +227,7 @@ class MeteorServer(object):
 """Start a blocking server if run as a script"""
 if __name__ == "__main__":
     server = MeteorServer(db_path='localhost:/var/lib/firebird/2.5/data/meteorpi.fdb',
-                          file_store_path=path.expanduser("~/meteorpi_files"), port=12345)
+                          file_store_path=expanduser("~/meteorpi_files"),
+                          port=12345)
     print 'Running blocking server (meteorpi) on port {0}'.format(server.port)
     server.start()
