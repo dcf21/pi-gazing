@@ -839,7 +839,7 @@ int main(int argc, char **argv)
 
     vmd.nframe = frame_in;
     vmd.tstop  = time(NULL) + utcoffset;
-    writeMetadata(vmd);
+    writeRawVidMetaData(vmd);
     say("Exit!");
 
     return 0;
