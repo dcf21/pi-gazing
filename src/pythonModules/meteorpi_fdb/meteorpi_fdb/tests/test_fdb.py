@@ -37,7 +37,7 @@ class TestFdb(TestCase):
 
     def test_get_installation_id(self):
         m = db.MeteorDatabase(db_path=DB_PATH_1, file_store_path=FILE_PATH_1)
-        installation_id = db.get_installation_id()
+        installation_id = m.installation_id
         self.assertTrue(len(installation_id) == 12)
 
     def test_insert_camera(self):
@@ -109,7 +109,7 @@ class TestFdb(TestCase):
                 model.Meta(key=model.NSString('meta4'),
                            value=0.4)])
         event = m.register_event(
-            camera_id=db.get_installation_id(),
+            camera_id=m.installation_id,
             event_time=datetime.now(),
             event_type=model.NSString("omgmeteors"),
             file_records=[file1, file2])

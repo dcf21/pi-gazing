@@ -99,6 +99,7 @@ CREATE TABLE t_file (
   fileOffset   INTEGER                           NOT NULL,
   fileSize     INTEGER                           NOT NULL,
   statusID     INTEGER                           NOT NULL,
+  md5Hex       CHAR(32)                          NOT NULL,
   FOREIGN KEY (statusID) REFERENCES t_cameraStatus (internalID) ON DELETE CASCADE,
   PRIMARY KEY (internalId)
 );
@@ -153,7 +154,6 @@ CREATE TABLE t_eventImport (
   eventID        INTEGER      NOT NULL,
   importUser     VARCHAR(255) NOT NULL, /* User ID of the user performing the import */
   importTime     BIGINT       NOT NULL, /* Time since epoch in milliseconds */
-  importState    INTEGER      NOT NULL, /* 0 is complete, non-zero is incomplete */
   FOREIGN KEY (eventID) REFERENCES t_event (internalID) ON DELETE CASCADE
 );
 
@@ -170,7 +170,6 @@ CREATE TABLE t_fileImport (
   fileID         INTEGER      NOT NULL,
   importUser     VARCHAR(255) NOT NULL, /* User ID of the user performing the import */
   importTime     BIGINT       NOT NULL, /* Time since epoch in milliseconds */
-  importState    INTEGER      NOT NULL, /* 0 is complete, non-zero is incomplete */
   FOREIGN KEY (fileID) REFERENCES t_file (internalID) ON DELETE CASCADE
 );
 

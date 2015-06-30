@@ -53,7 +53,7 @@ class TestImportExport(TestCase):
         Clear the target database, populate the source one with dummy data. Starts up the server for the target database
         and set a function which can be used to stop it in the teardown.
         """
-        dummy.setup_dummy_data(self.source_db, clear=True)
+        self.dummy_helper = dummy.setup_dummy_data(self.source_db, clear=True)
         self.target_db.clear_database()
         # Set up a user for import on the target
         self.target_db.create_or_update_user(user_id="import_user", password="import_password", roles=["import"])
@@ -68,6 +68,18 @@ class TestImportExport(TestCase):
         # self.target_db.clear_database()
         # self.source_db.clear_database()
 
+    def events_in_db(self, db=None):
+        if db is None:
+            db = self.target_db
+        return self.dummy_helper.seq_to_string(
+            db.search_events(search=model.EventSearch())['events'])
+
+    def files_in_db(self, db=None):
+        if db is None:
+            db = self.target_db
+        return self.dummy_helper.seq_to_string(
+            db.search_files(search=model.FileRecordSearch())['files'])
+
     def test_send_files(self):
         config = self.source_db.create_or_update_export_configuration(
             model.ExportConfiguration(target_url="http://localhost:12345/import",
@@ -75,11 +87,11 @@ class TestImportExport(TestCase):
                                       password="import_password",
                                       search=model.FileRecordSearch(),
                                       name="file_search",
-                                      description="file_search_desc"))
-        config.enabled = True
-        self.source_db.create_or_update_export_configuration(config)
+                                      description="file_search_desc",
+                                      enabled=True))
         self.source_db.mark_entities_to_export(config)
         export_all_the_things(self.exporter)
+        self.assertEqual(self.files_in_db(), 'f10,f11,f6,f7,f8,f9')
 
     def test_send_events(self):
         config = self.source_db.create_or_update_export_configuration(
@@ -88,11 +100,15 @@ class TestImportExport(TestCase):
                                       password="import_password",
                                       search=model.EventSearch(),
                                       name="event_search",
-                                      description="event_search_desc"))
-        config.enabled = True
-        self.source_db.create_or_update_export_configuration(config)
+                                      description="event_search_desc",
+                                      enabled=True))
         self.source_db.mark_entities_to_export(config)
         export_all_the_things(self.exporter)
+        self.assertEqual(self.events_in_db(db=self.source_db), self.events_in_db(db=self.target_db))
+        self.assertEqual(self.files_in_db(), 'e0:f0,e0:f1,e1:f0,e1:f1,e1:f2,'
+                                             'e1:f3,e2:f0,e2:f1,e3:f0,e3:f1,'
+                                             'e3:f2,e4:f0,e4:f1,e4:f2,e4:f3,'
+                                             'e4:f4,e4:f5')
 
     def test_send_everything(self):
         event_config = self.source_db.create_or_update_export_configuration(
@@ -101,9 +117,8 @@ class TestImportExport(TestCase):
                                       password="import_password",
                                       search=model.EventSearch(),
                                       name="event_search",
-                                      description="event_search_desc"))
-        event_config.enabled = True
-        self.source_db.create_or_update_export_configuration(event_config)
+                                      description="event_search_desc",
+                                      enabled=True))
         self.source_db.mark_entities_to_export(event_config)
         file_config = self.source_db.create_or_update_export_configuration(
             model.ExportConfiguration(target_url="http://localhost:12345/import",
@@ -111,32 +126,38 @@ class TestImportExport(TestCase):
                                       password="import_password",
                                       search=model.FileRecordSearch(),
                                       name="file_search",
-                                      description="file_search_desc"))
-        file_config.enabled = True
-        self.source_db.create_or_update_export_configuration(file_config)
+                                      description="file_search_desc",
+                                      enabled=True))
         self.source_db.mark_entities_to_export(file_config)
         export_all_the_things(self.exporter)
+        self.assertEqual(self.events_in_db(db=self.source_db), self.events_in_db(db=self.target_db))
+        self.assertEqual(self.files_in_db(db=self.source_db), self.files_in_db(db=self.target_db))
 
     def test_send_on_schedule(self):
         self.exporter.scheduler.start()
-        event_config = self.source_db.create_or_update_export_configuration(
+        self.source_db.create_or_update_export_configuration(
             model.ExportConfiguration(target_url="http://localhost:12345/import",
                                       user_id="import_user",
                                       password="import_password",
                                       search=model.EventSearch(),
                                       name="event_search",
-                                      description="event_search_desc"))
-        event_config.enabled = True
-        self.source_db.create_or_update_export_configuration(event_config)
+                                      description="event_search_desc",
+                                      enabled=True))
         time.sleep(6)
-        file_config = self.source_db.create_or_update_export_configuration(
+        self.assertEqual(self.events_in_db(db=self.source_db), self.events_in_db(db=self.target_db))
+        self.assertEqual(self.files_in_db(), 'e0:f0,e0:f1,e1:f0,e1:f1,e1:f2,'
+                                             'e1:f3,e2:f0,e2:f1,e3:f0,e3:f1,'
+                                             'e3:f2,e4:f0,e4:f1,e4:f2,e4:f3,'
+                                             'e4:f4,e4:f5')
+        self.source_db.create_or_update_export_configuration(
             model.ExportConfiguration(target_url="http://localhost:12345/import",
                                       user_id="import_user",
                                       password="import_password",
                                       search=model.FileRecordSearch(),
                                       name="file_search",
-                                      description="file_search_desc"))
-        file_config.enabled = True
-        self.source_db.create_or_update_export_configuration(file_config)
+                                      description="file_search_desc",
+                                      enabled=True))
         time.sleep(10)
+        self.assertEqual(self.events_in_db(db=self.source_db), self.events_in_db(db=self.target_db))
+        self.assertEqual(self.files_in_db(db=self.source_db), self.files_in_db(db=self.target_db))
         self.exporter.scheduler.shutdown()

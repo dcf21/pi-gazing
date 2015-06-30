@@ -94,9 +94,9 @@ class MeteorDatabaseGenerators(object):
         with closing(self.con.cursor()) as cursor:
             cursor.execute(sql, sql_args)
             for (internalID, cameraID, mimeType, semanticType, fileTime, fileSize, fileID, fileName,
-                 statusID) in cursor:
+                 statusID, md5Hex) in cursor:
                 yield self._get_file_with_cache(internalID, cameraID, mimeType, semanticType, fileTime, fileSize,
-                                                fileID, fileName, statusID)
+                                                fileID, fileName, statusID, md5Hex)
 
     def event_generator(self, sql, sql_args):
         """Generator for Event
@@ -166,12 +166,13 @@ class MeteorDatabaseGenerators(object):
 
     @lru_cache(maxsize=128)
     def _get_file_with_cache(self, internalID, cameraID, mimeType, semanticType, fileTime, fileSize, fileID, fileName,
-                             statusID):
+                             statusID, md5Hex):
         fr = mp.FileRecord(
             camera_id=cameraID,
             mime_type=mimeType,
             semantic_type=mp.NSString.from_string(semanticType),
-            status_id=uuid.UUID(bytes=statusID))
+            status_id=uuid.UUID(bytes=statusID),
+            md5=md5Hex)
         fr.file_id = uuid.UUID(bytes=fileID)
         fr.file_size = fileSize
         fr.file_time = mp.milliseconds_to_utc_datetime(fileTime)
@@ -200,7 +201,7 @@ class MeteorDatabaseGenerators(object):
             event_type=mp.NSString.from_string(eventType),
             status_id=uuid.UUID(bytes=statusID))
         fr_sql = 'SELECT f.internalID, f.cameraID, f.mimeType, ' \
-                 'f.semanticType, f.fileTime, f.fileSize, f.fileID, f.fileName, s.statusID ' \
+                 'f.semanticType, f.fileTime, f.fileSize, f.fileID, f.fileName, s.statusID, f.MD5HEX ' \
                  'FROM t_file f, t_cameraStatus s, t_event_to_file ef ' \
                  'WHERE f.statusID = s.internalID AND ef.fileID = f.internalID AND ef.eventID = (?)'
         event.file_records = list(self.file_generator(fr_sql, (internalID,)))

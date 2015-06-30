@@ -31,9 +31,6 @@ def search_events_sql_builder(search):
     b.add_metadata_query_properties(meta_constraints=search.meta_constraints, meta_table_name='t_eventMeta')
 
     # Check for import / export filters
-    if search.exclude_incomplete:
-        b.where_clauses.append(
-            'NOT EXISTS (SELECT * FROM t_eventImport i WHERE i.eventID = e.internalID AND i.importState > 0)')
     if search.exclude_imported:
         b.where_clauses.append('NOT EXISTS (SELECT * FROM t_eventImport i WHERE i.eventID = e.internalID')
     if search.exclude_export_to is not None:
@@ -75,9 +72,6 @@ def search_files_sql_builder(search):
         b.where_clauses.append(
             'NOT EXISTS (SELECT * FROM t_event_to_file ef WHERE ef.fileID = f.internalID)')
     # Check for import / export filters
-    if search.exclude_incomplete:
-        b.where_clauses.append(
-            'NOT EXISTS (SELECT * FROM t_fileImport i WHERE i.fileID = f.internalID AND i.importState > 0)')
     if search.exclude_imported:
         b.where_clauses.append('NOT EXISTS (SELECT * FROM t_fileImport i WHERE i.fileID = f.internalID')
     if search.exclude_export_to is not None:

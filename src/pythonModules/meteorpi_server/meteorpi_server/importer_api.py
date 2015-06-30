@@ -3,7 +3,7 @@ from uuid import UUID
 from logging import getLogger
 
 from yaml import safe_load
-import os.path as path
+from os import path, remove
 import meteorpi_model as model
 from flask.ext.jsonpify import jsonify
 from flask import request, g
@@ -16,6 +16,17 @@ class BaseImportReceiver(object):
     replication or otherwise. This base implementation is functional, but simply replies to both event and file record
     imports with 'complete' messages, thus never triggering either status imports or binary data.
     """
+
+    @staticmethod
+    def get_importing_user_id():
+        """
+        Retrieve the importing user ID from the request context, this user will have already authenticated correctly
+        by the point the import receiver is called.
+
+        :return:
+            The string user_id for the importing user
+        """
+        return g.user.user_id
 
     def receive_event(self, import_request):
         """
@@ -65,7 +76,7 @@ class BaseImportReceiver(object):
         """
         pass
 
-    def receive_file_data(self, file_id, file_data):
+    def receive_file_data(self, file_id, file_data, md5_hex):
         """
         Handle the reception of uploaded file data for a given ID. There is no return mechanism for this method, as the
         import protocol specifies that after a binary file is uploaded the corresponding file record or event should be
@@ -77,6 +88,10 @@ class BaseImportReceiver(object):
             The ID of the FileRecord for this file data
         :param file_data:
             A file upload response from Flask's upload handler, acquired with `file_data = request.files['file']`
+        :param md5_hex:
+            The hex representation of the MD5 hash of this file from the exporting party. This should be checked against
+            the result of meteorpi_model.get_md5_hash(path) to ensure integrity of the file reception, and the file
+            discarded or otherwise ignored if it does not match.
         :returns:
             None, continues the import irrespective of whether the file was received or not.
         """
@@ -96,30 +111,32 @@ class MeteorDatabaseImportReceiver(BaseImportReceiver):
     def receive_event(self, import_request):
         event = import_request.entity
         if not self.db.has_event_id(event.event_id):
-            if not self.db.has_camera_status_id(event.status_id):
+            if not self.db.has_status_id(event.status_id):
                 return import_request.response_need_status()
             for file_record in event.file_records:
                 if not path.isfile(self.db.file_path_for_id(file_record.file_id)):
                     return import_request.response_need_file_data(file_id=file_record.file_id)
-            self.db.import_event(event)
+            self.db.import_event(event=event, user_id=BaseImportReceiver.get_importing_user_id())
 
     def receive_file_record(self, import_request):
         file_record = import_request.entity
         if not self.db.has_file_id(file_record.file_id):
-            if not self.db.has_camera_status_id(file_record.status_id):
+            if not self.db.has_status_id(file_record.status_id):
                 return import_request.response_need_status()
             if not path.isfile(self.db.file_path_for_id(file_record.file_id)):
                 return import_request.response_need_file_data(file_id=file_record.file_id)
-            self.db.import_file_record(file_record)
+            self.db.import_file_record(file_record=file_record, user_id=BaseImportReceiver.get_importing_user_id())
 
     def receive_status(self, import_request):
-        if not self.db.has_camera_status_id(import_request.entity.status_id):
+        if not self.db.has_status_id(import_request.entity.status_id):
             self.db.import_camera_status(import_request.entity)
 
-    def receive_file_data(self, file_id, file_data):
+    def receive_file_data(self, file_id, file_data, md5_hex):
         file_path = self.db.file_path_for_id(file_id)
         if not path.isfile(file_path):
             file_data.save(file_path)
+            if md5_hex != model.get_md5_hash(file_path):
+                remove(file_path)
 
 
 class ImportRequest(object):
@@ -363,9 +380,9 @@ def add_routes(meteor_app, handler=None, url_path='/import'):
         else:
             return import_request.response_failed("Unknown import request")
 
-    @app.route('{0}/data/<file_id_hex>'.format(url_path), methods=['POST'])
+    @app.route('{0}/data/<file_id_hex>/<md5_hex>'.format(url_path), methods=['POST'])
     @meteor_app.requires_auth(roles=['import'])
-    def import_file_data(file_id_hex):
+    def import_file_data(file_id_hex, md5_hex):
         """
         Receive a file upload, passing it to the handler if it contains the appropriate information
 
@@ -375,5 +392,5 @@ def add_routes(meteor_app, handler=None, url_path='/import'):
         file_id = uuid.UUID(hex=file_id_hex)
         file_data = request.files['file']
         if file_data:
-            handler.receive_file_data(file_id=file_id, file_data=file_data)
+            handler.receive_file_data(file_id=file_id, file_data=file_data, md5_hex=md5_hex)
         return ImportRequest.response_continue_after_file()

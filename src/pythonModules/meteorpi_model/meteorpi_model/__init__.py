@@ -5,6 +5,7 @@ from itertools import izip
 import numbers
 import math
 import calendar
+from hashlib import md5
 
 
 def _nsstring_from_dict(d, key, default=None):
@@ -111,6 +112,23 @@ def milliseconds_to_utc_datetime(milliseconds):
         return None
     split = math.modf(milliseconds / 1000.0)
     return datetime.datetime.utcfromtimestamp(int(split[1])) + datetime.timedelta(microseconds=int(split[0] * 1000.0))
+
+
+def get_md5_hash(file_path):
+    """
+    Calculate the MD5 checksum for a file. Tested on workstation, runs at around 300MB/s but will be much slower on the
+    Pi. Still probably acceptable, and having the integrity check is necessary.
+
+    :param string file_path:
+        Path to the file
+    :return:
+        MD5 checksum
+    """
+    checksum = md5()
+    with open(file_path, 'rb') as f:
+        for chunk in iter(lambda: f.read(128 * checksum.block_size), b''):
+            checksum.update(chunk)
+    return checksum.hexdigest()
 
 
 class ModelEqualityMixin(object):
@@ -296,7 +314,7 @@ class FileRecordSearch(ModelEqualityMixin):
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
                  before=None, mime_type=None, semantic_type=None, exclude_events=False, after_offset=None,
                  before_offset=None, meta_constraints=None, limit=100, skip=0, exclude_export_to=None,
-                 exclude_incomplete=False, exclude_imported=False):
+                 exclude_imported=False):
         """
         Create a new FileRecordSearch. All parameters are optional, a default search will be created which returns
         at most the first 100 FileRecord instances. All parameters specify restrictions on these results.
@@ -351,10 +369,6 @@ class FileRecordSearch(ModelEqualityMixin):
             Optional, if specified excludes FileRecords with an entry in t_fileExport for the specified file export
             configuration. Note that this only applies to files which are not part of an event, so it only makes sense
             to set this flag if you also set exclude_events to True.
-        :param Boolean exclude_incomplete:
-            Optional, if True excludes any FileRecords which don't have a complete import. Note that this only
-            applies to files which are not part of an event, so it only makes sense to set this flag if you also set
-            exclude_events to True.
         :param Boolean exclude_imported:
             Optional, if True excludes any FileRecords which were imported from another node. Note that this only
             applies to files which are not part of an event, so it only makes sense to set this flag if you also set
@@ -391,7 +405,6 @@ class FileRecordSearch(ModelEqualityMixin):
         # Import / export related functions
         self.exclude_imported = exclude_imported
         self.exclude_export_to = exclude_export_to
-        self.exclude_incomplete = exclude_incomplete
         # FileMeta constraints
         if meta_constraints is None:
             self.meta_constraints = []
@@ -429,7 +442,6 @@ class FileRecordSearch(ModelEqualityMixin):
         _add_nsstring(d, 'semantic_type', self.semantic_type)
         _add_boolean(d, 'exclude_events', self.exclude_events)
         _add_boolean(d, 'exclude_imported', self.exclude_imported)
-        _add_boolean(d, 'exclude_incomplete', self.exclude_incomplete)
         _add_uuid(d, 'exclude_export_to', self.exclude_export_to)
         d['meta'] = list((x.as_dict() for x in self.meta_constraints))
         return d
@@ -457,7 +469,6 @@ class FileRecordSearch(ModelEqualityMixin):
         semantic_type = _nsstring_from_dict(d, 'semantic_type')
         exclude_events = _boolean_from_dict(d, 'exclude_events')
         exclude_imported = _boolean_from_dict(d, 'exclude_imported')
-        exclude_incomplete = _boolean_from_dict(d, 'exclude_incomplete')
         exclude_export_to = _uuid_from_dict(d, 'exclude_export_to')
         if 'meta' in d:
             meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta']))
@@ -469,7 +480,7 @@ class FileRecordSearch(ModelEqualityMixin):
                                 semantic_type=semantic_type,
                                 exclude_events=exclude_events,
                                 meta_constraints=meta_constraints, limit=limit, skip=skip,
-                                exclude_imported=exclude_imported, exclude_incomplete=exclude_incomplete,
+                                exclude_imported=exclude_imported,
                                 exclude_export_to=exclude_export_to)
 
 
@@ -528,7 +539,7 @@ class EventSearch(ModelEqualityMixin):
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, after=None,
                  before=None, after_offset=None, before_offset=None, event_type=None, meta_constraints=None, limit=100,
-                 skip=0, exclude_export_to=None, exclude_incomplete=False, exclude_imported=False):
+                 skip=0, exclude_export_to=None, exclude_imported=False):
         """
         Create a new EventSearch. All parameters are optional, a default search will be created which returns
         at most the first 100 :class:`Event` instances. All parameters specify restrictions on these results.
@@ -576,10 +587,6 @@ class EventSearch(ModelEqualityMixin):
             Optional, if specified excludes Events with an entry in t_eventExport for the specified event export
             configuration. Note that this only applies to files which are not part of an event, so it only makes sense
             to set this flag if you also set exclude_events to True.
-        :param Boolean exclude_incomplete:
-            Optional, if True excludes any Events which don't have a complete import. An Event is incomplete if any of
-            its associated FileRecords haven't received binary data yet, setting this flag ensures that you'll only
-            see Events where all their supporting data are present.
         :param Boolean exclude_imported:
             Optional, if True excludes any Events which were imported from another node.
         """
@@ -610,7 +617,6 @@ class EventSearch(ModelEqualityMixin):
         # Import / export related functions
         self.exclude_imported = exclude_imported
         self.exclude_export_to = exclude_export_to
-        self.exclude_incomplete = exclude_incomplete
         if meta_constraints is None:
             self.meta_constraints = []
         else:
@@ -639,7 +645,6 @@ class EventSearch(ModelEqualityMixin):
         _add_value(d, 'limit', self.limit)
         _add_value(d, 'skip', self.skip)
         _add_boolean(d, 'exclude_imported', self.exclude_imported)
-        _add_boolean(d, 'exclude_incomplete', self.exclude_incomplete)
         _add_uuid(d, 'exclude_export_to', self.exclude_export_to)
         d['meta'] = list((x.as_dict() for x in self.meta_constraints))
         return d
@@ -669,7 +674,6 @@ class EventSearch(ModelEqualityMixin):
                            long_max=long_max, after=after, before=before, after_offset=after_offset,
                            before_offset=before_offset, meta_constraints=meta_constraints, event_type=event_type,
                            limit=limit, skip=skip, exclude_imported=exclude_imported,
-                           exclude_incomplete=exclude_incomplete,
                            exclude_export_to=exclude_export_to)
 
 
@@ -812,9 +816,11 @@ class FileRecord(ModelEqualityMixin):
     :ivar list[Meta] meta:
         List of zero or more :class:`meteorpi_model.Meta` objects. Meta objects are used to provide arbitrary extra,
         searchable, information about the file and its contents.
+    :ivar string md5:
+        The hex representation of the MD5 sum for the data held by this FileRecord, as computed by model.get_md5_hash()
     """
 
-    def __init__(self, camera_id, mime_type, semantic_type, status_id, file_name=None):
+    def __init__(self, camera_id, mime_type, semantic_type, status_id, file_name=None, md5=None):
         self.camera_id = camera_id
         self.mime_type = mime_type
         # NSString value
@@ -825,11 +831,12 @@ class FileRecord(ModelEqualityMixin):
         self.file_size = 0
         self.status_id = status_id
         self.file_name = file_name
+        self.md5 = md5
 
     def __str__(self):
         return (
             'FileRecord(file_id={0} camera_id={1} mime={2} '
-            'stype={3} time={4} size={5} meta={6}, name={7}, status_id={8}'.format(
+            'stype={3} time={4} size={5} meta={6}, name={7}, status_id={8}, md5={9}'.format(
                 self.file_id.hex,
                 self.camera_id,
                 self.mime_type,
@@ -838,7 +845,8 @@ class FileRecord(ModelEqualityMixin):
                 self.file_size,
                 str([str(obj) for obj in self.meta]),
                 self.file_name,
-                self.status_id))
+                self.status_id,
+                self.md5))
 
     def as_dict(self):
         d = {}
@@ -850,6 +858,7 @@ class FileRecord(ModelEqualityMixin):
         _add_datetime(d, 'file_time', self.file_time)
         _add_value(d, 'file_size', self.file_size)
         _add_uuid(d, 'status_id', self.status_id)
+        _add_string(d, 'md5', self.md5)
         d['meta'] = list(fm.as_dict() for fm in self.meta)
         return d
 
@@ -859,7 +868,8 @@ class FileRecord(ModelEqualityMixin):
             camera_id=_string_from_dict(d, 'camera_id'),
             mime_type=_string_from_dict(d, 'mime_type'),
             semantic_type=_nsstring_from_dict(d, 'semantic_type'),
-            status_id=_uuid_from_dict(d, 'status_id')
+            status_id=_uuid_from_dict(d, 'status_id'),
+            md5=_string_from_dict(d, 'md5')
         )
         fr.file_size = int(_value_from_dict(d, 'file_size'))
         fr.file_time = _datetime_from_dict(d, 'file_time')

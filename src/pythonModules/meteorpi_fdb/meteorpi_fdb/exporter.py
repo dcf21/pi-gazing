@@ -181,7 +181,7 @@ class MeteorExporter(object):
                     return export_state.failed()
                 with open(self.db.file_path_for_id(file_id), 'rb') as file_content:
                     multi = MultipartEncoder(fields={'file': ('file', file_content, file_record.mime_type)})
-                    post(url="{0}/data/{1}".format(target_url, file_id.hex),
+                    post(url="{0}/data/{1}/{2}".format(target_url, file_id.hex, file_record.md5),
                          data=multi,
                          headers={'Content-Type': multi.content_type},
                          auth=auth)
@@ -274,12 +274,13 @@ class EventExportTask(object):
         return self.event_id
 
     def set_status(self, status):
-        with closing(self.db.con.cursor()) as cur:
-            cur.execute('UPDATE t_eventExport x '
-                        'SET x.exportState = (?) '
-                        'WHERE x.eventID = (?) AND x.exportConfig = (?)',
-                        (status, self.event_internal_id, self.config_internal_id))
-        self.db.con.commit()
+        with closing(self.db.con.trans()) as transaction:
+            with closing(transaction.cursor()) as cur:
+                cur.execute('UPDATE t_eventExport x '
+                            'SET x.exportState = (?) '
+                            'WHERE x.eventID = (?) AND x.exportConfig = (?)',
+                            (status, self.event_internal_id, self.config_internal_id))
+            transaction.commit()
 
 
 class FileExportTask(object):
@@ -318,9 +319,10 @@ class FileExportTask(object):
         }
 
     def set_status(self, status):
-        with closing(self.db.con.cursor()) as cur:
-            cur.execute('UPDATE t_fileExport x '
-                        'SET x.exportState = (?) '
-                        'WHERE x.fileID = (?) AND x.exportConfig = (?)',
-                        (status, self.file_internal_id, self.config_internal_id))
-        self.db.con.commit()
+        with closing(self.db.con.trans()) as transaction:
+            with closing(transaction.cursor()) as cur:
+                cur.execute('UPDATE t_fileExport x '
+                            'SET x.exportState = (?) '
+                            'WHERE x.fileID = (?) AND x.exportConfig = (?)',
+                            (status, self.file_internal_id, self.config_internal_id))
+            transaction.commit()
