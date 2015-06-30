@@ -28,6 +28,7 @@ class MeteorApp(object):
     def __init__(self, db):
         """
         Create a new MeteorApp, setting up the internal DB
+
         :param MeteorDatabase db:
             An instance of :class:`meteorpi_fdb.MeteorDatabase` to use when accessing the data and file stores.
         """
@@ -157,6 +158,7 @@ class MeteorServer(object):
     def __init__(self, db_path, file_store_path, port, add_routes=True):
         """
         Create a new instance, does not start the server.
+
         :param string db_path:
             Path to the database, i.e. 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb'
         :param string file_store_path:
@@ -180,6 +182,7 @@ class MeteorServer(object):
     def add_all_routes(meteor_app):
         """
         Add routes from admin_api, importer_api and query_api to the specified application
+
         :param MeteorApp meteor_app:
             The application to which routes should be added
         """

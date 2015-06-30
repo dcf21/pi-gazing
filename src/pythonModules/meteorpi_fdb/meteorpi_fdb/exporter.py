@@ -1,5 +1,6 @@
 from uuid import UUID
 from logging import getLogger
+from contextlib import closing
 
 from requests import post
 from requests.exceptions import HTTPError, ConnectionError
@@ -236,3 +237,90 @@ class MeteorExporter(object):
             self.export_task = None
             self.entity_dict = None
             return self
+
+
+class EventExportTask(object):
+    """
+    Represents a single active Event export, providing methods to get the underlying :class:`meteorpi_model.Event`,
+    the :class:`meteorpi_model.ExportConfiguration` and to update the completion state in the database.
+    """
+
+    def __init__(self, db, config_id, config_internal_id, event_id, event_internal_id, timestamp, status, target_url,
+                 target_user, target_password):
+        self.db = db
+        self.config_id = config_id
+        self.config_internal_id = config_internal_id
+        self.event_id = event_id
+        self.event_internal_id = event_internal_id
+        self.timestamp = timestamp
+        self.status = status
+        self.target_url = target_url
+        self.target_user = target_user
+        self.target_password = target_password
+
+    def get_event(self):
+        return self.db.get_event(self.event_id)
+
+    def get_export_config(self):
+        return self.db.get_export_configuartion(self.config_id)
+
+    def as_dict(self):
+        return {
+            'type': 'event',
+            'event': self.get_event().as_dict()
+        }
+
+    def get_entity_id(self):
+        return self.event_id
+
+    def set_status(self, status):
+        with closing(self.db.con.cursor()) as cur:
+            cur.execute('UPDATE t_eventExport x '
+                        'SET x.exportState = (?) '
+                        'WHERE x.eventID = (?) AND x.exportConfig = (?)',
+                        (status, self.event_internal_id, self.config_internal_id))
+        self.db.con.commit()
+
+
+class FileExportTask(object):
+    """
+    Represents a single active FileRecord export, providing methods to get the underlying
+    :class:`meteorpi_model.FileRecord`, the :class:`meteorpi_model.ExportConfiguration` and to update the completion
+    state in the database.
+    """
+
+    def __init__(self, db, config_id, config_internal_id, file_id, file_internal_id, timestamp, status, target_url,
+                 target_user, target_password):
+        self.db = db
+        self.config_id = config_id
+        self.config_internal_id = config_internal_id
+        self.file_id = file_id
+        self.file_internal_id = file_internal_id
+        self.timestamp = timestamp
+        self.status = status
+        self.target_url = target_url
+        self.target_user = target_user
+        self.target_password = target_password
+
+    def get_file(self):
+        return self.db.get_file(self.file_id)
+
+    def get_export_config(self):
+        return self.db.get_export_configuartion(self.config_id)
+
+    def get_entity_id(self):
+        return self.file_id
+
+    def as_dict(self):
+        return {
+            'type': 'file',
+            'file': self.get_file().as_dict()
+        }
+
+    def set_status(self, status):
+        with closing(self.db.con.cursor()) as cur:
+            cur.execute('UPDATE t_fileExport x '
+                        'SET x.exportState = (?) '
+                        'WHERE x.fileID = (?) AND x.exportConfig = (?)',
+                        (status, self.file_internal_id, self.config_internal_id))
+        self.db.con.commit()

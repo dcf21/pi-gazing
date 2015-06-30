@@ -130,8 +130,8 @@ class ImportRequest(object):
         LRU cache used to stash entities being imported.
     :cvar logger:
         Logs to 'meteorpi.server.import'
-     :ivar entity_type:
-            The type of the ID being imported, which will be one of 'file', 'status', 'event' or 'none'.
+    :ivar entity_type:
+        The type of the ID being imported, which will be one of 'file', 'status', 'event' or 'none'.
     """
     entity_cache = lru_cache(maxsize=128, typed=False)
 
