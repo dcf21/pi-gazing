@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # mod_time.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford

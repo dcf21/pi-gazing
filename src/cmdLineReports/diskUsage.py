@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!../../pythonenv/bin/python
 # diskUsage.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford

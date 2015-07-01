@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!../../pythonenv/bin/python
 # listCameras.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford

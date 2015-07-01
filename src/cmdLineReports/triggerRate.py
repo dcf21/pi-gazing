@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!../../pythonenv/bin/python
 # triggerRate.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
@@ -27,7 +27,7 @@ os.chdir(DATA_PATH)
 
 utcMin   = 0
 utcMax   = time.time()
-cameraId = meteorpi_fdb.get_installation_id()
+cameraId = mod_settings.my_installation_id()
 label    = ""
 
 if len(sys.argv)>1: utcMin   = float(sys.argv[1])

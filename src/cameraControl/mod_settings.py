@@ -2,10 +2,23 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-import os
+import os,uuid
 import meteorpi_fdb
 
 # The settings below control how the camera controller works
+
+def my_installation_id():
+    def _to_array(number):
+        result = ''
+        n = number
+        while n > 0:
+            (div, mod) = divmod(n, 256)
+            n = (n - mod) / 256
+            result = ('%0.2x' % mod) + result
+        return result
+
+    return _to_array(uuid.getnode())
+
 
 # The path to python scripts in the cameraControl directory
 PYTHON_PATH = os.path.split( os.path.abspath(__file__) )[0]
@@ -46,6 +59,6 @@ LONGITUDE_DEFAULT = 0.12
 LATITUDE_DEFAULT  = 52.2
 
 # Video settings. THESE SHOULD BE READ FROM THE DATABASE!
-CAMERA_ID         = meteorpi_fdb.get_installation_id()
+CAMERA_ID         = my_installation_id()
 VIDEO_DEV         = "/dev/video0"
 

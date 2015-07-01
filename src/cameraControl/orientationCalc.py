@@ -1,11 +1,11 @@
-#!/usr/bin/python
+#!../../pythonenv/bin/python
 # orientationCalc.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
 # Use astrometry.net to calculate the orientation of the camera based on recent images
 
-import os,time,sys,re,glob,datetime,operator
+import os,time,sys,re,glob,datetime,operator,subprocess
 from math import *
 
 from mod_settings import *
@@ -58,14 +58,16 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
   lensName = cameraStatus.lens
 
   # Search for background-subtracted timelapse photography within this range
-  search = mp.FileRecordSearch(camera_ids=[cameraId],semantic_type=mp.NSString("timelapse/frame/bgrdSub/lensCorr"),exclude_events=True,before=UTC2datetime(utcMax),after=UTC2datetime(utcMin))
+  search = mp.FileRecordSearch(camera_ids=[cameraId],semantic_type=mp.NSString("timelapse/frame/bgrdSub/lensCorr"),exclude_events=True,before=UTC2datetime(utcMax),after=UTC2datetime(utcMin),limit=1000000)
   files  = fdb_handle.search_files(search)
+  files  = [i for i in files['files']]
+  logTxt("%d candidate time-lapse images in past 24 hours"%len(files))
 
   # Filter out files where the sky clariy is good and the Sun is well below horizon
   acceptableFiles = []
   for f in files:
     if (getMetaItem(f,'skyClarity') < 0.6): continue
-    if (getMetaItem(f,'sunAlt')     > -10): continue
+    if (getMetaItem(f,'sunAlt')     >  -3): continue
     acceptableFiles.append(f)
 
   logTxt("%d acceptable images found for alignment"%len(acceptableFiles))
@@ -78,7 +80,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
   # We can't afford to run astrometry.net on too many images, so pick the 20 best ones
   acceptableFiles.sort(key=lambda f: getMetaItem(f,'skyClarity') )
   acceptableFiles = acceptableFiles[0:20]
-  logTxt("Using files with timestamps: %s"%([f.file_time for f in acceptableFiles]))
+  logTxt("Using files with timestamps: %s"%([datetime2UTC(f.file_time) for f in acceptableFiles]))
 
   # Make a temporary directory to store files in. This is necessary as astrometry.net spams the cwd with lots of temporary junk
   cwd = os.getcwd()
@@ -144,7 +146,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
 
   # Update camera status
   cameraStatus.orientation = Orientation( altitude=altAzBest[1]*rad, azimuth=altAzBest[0]*rad, error=altAzError*rad, rotation=paBest*rad, width_of_field=scalexBest*rad )
-  fdb_handle.update_camera_status(cameraStatus, time=UTC2datetime(utcNow), camera_id=cameraId)
+  # fdb_handle.update_camera_status(cameraStatus, time=UTC2datetime(utcNow), camera_id=cameraId)
 
   # Clean up and exit
   os.chdir(cwd)

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!../../pythonenv/bin/python
 # daytimeJobs.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
@@ -112,7 +112,7 @@ try:
                         'cameraId':CAMERA_ID ,
                         'pid':pid ,
                         'triggermask': maskFile ,
-                        'produceFilesWithoutLC': int(produceFilesWithoutLC) ,
+                        'produceFilesWithoutLC': floor(utc % 900)==0 , # Produce non-lens-corrected images once every 15 mins
                         'opm': ('_openmax' if I_AM_A_RPI else '') ,
                        }
               params['filename_out'] = "%(outdir)s/%(date)s/%(filename)s"%params

@@ -1,3 +1,4 @@
+#!../../pythonenv/bin/python
 # timelapse.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford

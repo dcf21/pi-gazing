@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!../../pythonenv/bin/python
 # timelapseMovie.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
@@ -19,7 +19,7 @@ os.chdir(DATA_PATH)
 
 utcMin   = 0
 utcMax   = time.time()
-cameraId = meteorpi_fdb.get_installation_id()
+cameraId = my_installation_id()
 label    = ""
 
 if len(sys.argv)>1: utcMin   = float(sys.argv[1])
@@ -31,14 +31,16 @@ if (utcMax==0): utcMax = time.time()
 
 fdb_handle = meteorpi_fdb.MeteorDatabase( DBPATH , FDBFILESTORE )
 
-search = mp.FileRecordSearch(camera_ids=[cameraId],semantic_type=mp.NSString("timelapse/frame/lensCorr"),exclude_events=True,before=UTC2datetime(utcMax),after=UTC2datetime(utcMin))
+search = mp.FileRecordSearch(camera_ids=[cameraId],semantic_type=mp.NSString("timelapse/frame/bgrdSub/lensCorr"),exclude_events=True,before=UTC2datetime(utcMax),after=UTC2datetime(utcMin),limit=1000000)
 files  = fdb_handle.search_files(search)
 files  = [i for i in files['files']]
 files.sort(key=lambda x: x.file_time)
 
+print "Found %d images between time <%s> and <%s> from camera <%s>"%( len(files) , UTC2datetime(utcMin) , UTC2datetime(utcMax) , cameraId )
+
 filestub="/tmp/frame_%d_%%08d.jpg"%pid
 
-useEveryNthImage=2
+useEveryNthImage=1
 
 imgNo=1
 count=1

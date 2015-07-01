@@ -231,7 +231,6 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
     // Read the next second of video
     int status = readFrameGroup(os, bufferPos, os->stack[ os->frameCounter % (STACK_COMPARISON_INTERVAL+1) ], (os->timelapseCount>=0)?os->stackT:NULL);
     if (status) break; // We've run out of video
-    os->frameCounter++;
 
     // If we've stacked enough frames since we last made a median map, make a new median map
     os->medianCount++;
@@ -275,6 +274,7 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
     int *imageOld = os->stack[ (os->frameCounter + STACK_COMPARISON_INTERVAL) % (STACK_COMPARISON_INTERVAL+1) ];
     checkForTriggers(  os, imageNew, imageOld, TRIGGER_FRAMEGROUP );
 
+    os->frameCounter++;
     os->groupNum=!os->groupNum;
    }
 
