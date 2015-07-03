@@ -1,4 +1,4 @@
-#!../../pythonenv/bin/python
+#!../../virtual-env/bin/python
 # orientationCalc.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
@@ -66,7 +66,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
   # Filter out files where the sky clariy is good and the Sun is well below horizon
   acceptableFiles = []
   for f in files:
-    if (getMetaItem(f,'skyClarity') < 0.6): continue
+    if (getMetaItem(f,'skyClarity') <  60): continue
     if (getMetaItem(f,'sunAlt')     >  -3): continue
     acceptableFiles.append(f)
 
@@ -79,8 +79,8 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
 
   # We can't afford to run astrometry.net on too many images, so pick the 20 best ones
   acceptableFiles.sort(key=lambda f: getMetaItem(f,'skyClarity') )
+  acceptableFiles.reverse()
   acceptableFiles = acceptableFiles[0:20]
-  logTxt("Using files with timestamps: %s"%([datetime2UTC(f.file_time) for f in acceptableFiles]))
 
   # Make a temporary directory to store files in. This is necessary as astrometry.net spams the cwd with lots of temporary junk
   cwd = os.getcwd()
@@ -91,15 +91,29 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
 
   # Loop over selected images and use astrometry.net to find their orientation
   fits = []
+  count = 0
   for f in acceptableFiles:
+    logTxt("Determining orientation of image with timestamp <%s> (unix time %d) -- skyClarity=%.1f"%(f.file_time, datetime2UTC(f.file_time), getMetaItem(f,'skyClarity')))
     fname = f.get_path()
-    os.system("%s %s %s tmp.png"%(barrelCorrect,fname,os.path.join(STACKER_PATH,"../cameras",lensName))) # Barrel-correct image
-    d = ImageDimensions("tmp.png")
-    fractionX = 0.5 # Pass only central 50% of image to astrometry.net. It's not very reliable with wide-field images
+
+    # 1. Barrel-correct image
+    # os.system("%s %s %s tmp.png"%(barrelCorrect,fname,os.path.join(STACKER_PATH,"../cameras",lensName)))
+    os.system("cp %s tmp_%d.png"%(fname,count)) # This is already done in images with /lensCorr semantic type
+
+    # 2. Pass only central 50% of image to astrometry.net. It's not very reliable with wide-field images
+    d = ImageDimensions("tmp_%d.png"%(count))
+    fractionX = 0.5
     fractionY = 0.5
-    os.system("convert tmp.png -crop %dx%d+%d+%d +repage tmp2.png"%( fractionX*d[0] , fractionY*d[1] , (1-fractionX)*d[0]/2 , (1-fractionY)*d[1]/2 ))
+    os.system("convert tmp_%d.png -colorspace sRGB -crop %dx%d+%d+%d +repage tmp2_%d.png"%( count , fractionX*d[0] , fractionY*d[1] , (1-fractionX)*d[0]/2 , (1-fractionY)*d[1]/2 , count ))
+
+    # 3. Slightly blur image to remove grain
+    os.system("convert tmp2_%d.png -colorspace sRGB -blur 1x8 tmp3_%d.png"%(count,count))
+    count+=1
+
+  # Now pass processed image to astrometry.net for alignment
+  for i in range(len(acceptableFiles)):
     astrometryStartTime = time.time()
-    os.system("timeout 5m solve-field --no-plots --crpix-center --overwrite tmp2.png > txt") # Insert --no-plots to speed things up
+    os.system("timeout 5m solve-field --no-plots --crpix-center --overwrite tmp3_%d.png > txt"%(i)) # Insert --no-plots to speed things up
     astrometryTimeTaken = time.time() - astrometryStartTime
     logTxt("Astrometry.net took %d seconds to analyse image at time <%s>"%(astrometryTimeTaken,f.file_time))
     fittxt = open("txt").read()
@@ -155,7 +169,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
 
 # If we're called as a script, run the method orientationCalc()
 if __name__ == "__main__":
-  cameraId = meteorpi_fdb.get_installation_id()
+  cameraId = my_installation_id()
   utcNow   = time.time()
   if len(sys.argv)>1: cameraId = sys.argv[1]
   if len(sys.argv)>2: utcNow   = float(sys.argv[2])

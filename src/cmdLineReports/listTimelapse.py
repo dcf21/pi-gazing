@@ -1,4 +1,4 @@
-#!../../pythonenv/bin/python
+#!../../virtual-env/bin/python
 # listTimelapse.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford

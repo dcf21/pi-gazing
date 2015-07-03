@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
    }
 
   // Calculate median map
-  medianCalculate(width, height, Nchannels, medianWorkspace, medianMap);
+  medianCalculate(width, height, Nchannels, 0, 1, medianWorkspace, medianMap);
   dumpFrame(width, height, Nchannels, medianMap, rawfname);
 
   // Make a PNG version for diagnostic use

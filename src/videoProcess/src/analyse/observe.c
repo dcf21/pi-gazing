@@ -23,8 +23,12 @@
 
 #include "settings.h"
 
-#define medianMapUseEveryNthStack     1
-#define medianMapUseNImages        2400
+// medianMap is a structure used to keep track of the average brightness of each pixel in the frame. This is subtracted from stacked image to remove the sky background and hot pixels
+// A histogram is constructed of the brightnesses of each pixel in successive groups of frames.
+
+#define medianMapUseEveryNthStack     1 /* Add every Nth stacked group of frames of histogram. Increase this to reduce CPU load */
+#define medianMapUseNImages        3600 /* Stack this many groups of frames before generating a sky brightness map from histograms. */
+#define medianMapReductionCycles     32 /* Reducing histograms to brightness map is time consuming, so we'll miss frames if we do it all at once. Do it in this many chunks after successive frames. */
 
 #define YUV420  3/2 /* Each pixel is 1.5 bytes in YUV420 stream */
 
@@ -105,7 +109,7 @@ int readFrameGroup(observeStatus *os, unsigned char *buffer, int *stack1, int *s
    }
 
   // Add the pixel values in this stack into the histogram in medianWorkspace
-  const int includeInMedianHistograms = ((os->medianCount%medianMapUseEveryNthStack)==0);
+  const int includeInMedianHistograms = ((os->medianCount%medianMapUseEveryNthStack)==0) && (os->medianCount<medianMapUseNImages*medianMapUseEveryNthStack);
   if (includeInMedianHistograms)
    {
 #pragma omp parallel for private(j)
@@ -200,7 +204,7 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
   os->medianCount    = 0; // Count how many frames we've fed into the brightness histograms in medianWorkspace
   os->timelapseCount =-1; // Count how many frames have been stacked into the timelapse buffer (stackT)
   os->frameCounter   = 0;
-  os->runInCountdown = 8 + medianMapUseEveryNthStack*medianMapUseNImages; // Let the camera run for a period before triggering, as it takes this long to make first median map
+  os->runInCountdown = 8 + medianMapReductionCycles + medianMapUseEveryNthStack*medianMapUseNImages; // Let the camera run for a period before triggering, as it takes this long to make first median map
   os->noiseLevel     = 128;
 
   // Trigger throttling
@@ -234,10 +238,11 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
 
     // If we've stacked enough frames since we last made a median map, make a new median map
     os->medianCount++;
-    if (os->medianCount==medianMapUseNImages*medianMapUseEveryNthStack)
+    if (os->medianCount>=medianMapUseNImages*medianMapUseEveryNthStack)
      {
-      medianCalculate(os->width, os->height, Nchannels, os->medianWorkspace, os->medianMap);
-      os->medianCount=0;
+      const int reductionCycle = os->medianCount - medianMapUseNImages*medianMapUseEveryNthStack;
+      medianCalculate(os->width, os->height, Nchannels, reductionCycle, medianMapReductionCycles, os->medianWorkspace, os->medianMap);
+      if (reductionCycle>=medianMapReductionCycles) { os->medianCount=0; memset(os->medianWorkspace, 0, os->frameSize*Nchannels*256*sizeof(int)); }
      }
 
     // Periodically, dump a stacked timelapse exposure lasting for <secondsTimelapseBuff> seconds
@@ -258,6 +263,12 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
       sprintf(fname, "%s%s",fstub,"BS1.rgb");
       dumpFrameFromISub(os->width, os->height, Nchannels, os->stackT, os->framesTimelapse, STACK_GAIN, os->medianMap, fname);
       writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(os->framesTimelapse)*STACK_GAIN, "stackedFrames", os->framesTimelapse);
+      if (floor(fmod(os->timelapseUTCStart,900))==0) // Every 15 minutes, dump an image of the sky background map for diagnostic purposes
+       {
+        sprintf(fname, "%s%s",fstub,"skyBackground.rgb");
+        dumpFrame(os->width, os->height, Nchannels, os->medianMap, fname);
+        writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel, "stackedFrames", ((int)medianMapUseNImages));
+       }
       os->timelapseUTCStart+=TIMELAPSE_INTERVAL;
       os->timelapseCount=-1;
      }
@@ -279,7 +290,7 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
    }
 
   for (i=0; i<=STACK_COMPARISON_INTERVAL; i++) free(os->stack[i]);
-  for (i=0; i<=MAX_EVENTS; i++) { free(os->eventList[i].stackedImage); free(os->eventList[i].maxStack); }
+  for (i=0; i<MAX_EVENTS; i++) { free(os->eventList[i].stackedImage); free(os->eventList[i].maxStack); }
   free(os->triggerMap); free(os->triggerBlock_N); free(os->triggerBlock_sumx); free(os->triggerBlock_sumy); free(os->triggerBlock_suml); free(os->triggerBlock_redirect); free(os->triggerRGB);
   free(os->buffer); free(os->stackT); free(os->medianMap); free(os->medianWorkspace); free(os->pastTriggerMap); free(os);
   return 0;
@@ -369,13 +380,13 @@ void registerTrigger(observeStatus *os, const int blockId, const int xpos, const
   fNameGenerate(os->eventList[i].filenameStub,os->cameraId,os->utc,"event","triggers_raw",os->label);
   sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_mapDifference.rgb");
   dumpFrame(os->width, os->height, 1, os->triggerRGB+0*os->frameSize, fname);
-  writeMetaData(fname, "sd", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel);
+  writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel, "stackedFrames", 1);
   sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_mapExcludedPixels.rgb");
   dumpFrame(os->width, os->height, 1, os->triggerRGB+1*os->frameSize, fname);
-  writeMetaData(fname, "sd", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel);
+  writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel, "stackedFrames", 1);
   sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_mapTrigger.rgb");
   dumpFrame(os->width, os->height, 1, os->triggerRGB+2*os->frameSize, fname);
-  writeMetaData(fname, "sd", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel);
+  writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel, "stackedFrames", 1);
 
   sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_triggerFrame.rgb");
   dumpFrameFromInts(os->width, os->height, Nchannels, image1, coAddedFrames, 1, fname);

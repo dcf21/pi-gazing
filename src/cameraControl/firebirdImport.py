@@ -1,4 +1,4 @@
-#!../../pythonenv/bin/python
+#!../../virtual-env/bin/python
 # firebirdImport.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford

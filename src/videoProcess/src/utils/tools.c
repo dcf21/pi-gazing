@@ -14,6 +14,9 @@
 
 #include "settings.h"
 
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
+
 void writeRawVidMetaData(videoMetadata v)
  {
   char fname[FNAME_BUFFER];
@@ -108,10 +111,11 @@ void snapshot(struct vdIn *videoIn, int nfr, int zero, double expComp, char *fna
   return;
  }
 
-double calculateSkyClarity(image_ptr *img)
+double calculateSkyClarity(image_ptr *img, double noiseLevel)
  {
   int       i,j,score=0;
   const int gridsize = 9;
+  const int threshold= MAX(12 , noiseLevel*10); // To be counted as a star-like source, must be this much brighter than surroundings
   const int stride   = img->xsize;
   for (i=1;i<gridsize;i++) for (j=1;j<gridsize;j++)
    {
@@ -122,16 +126,24 @@ double calculateSkyClarity(image_ptr *img)
     int x,y,count=0;
     for (y=ymin;y<ymax;y++) for (x=xmin;x<xmax;x++)
      {
-      if ( (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x+4)]+8) &&
-           (img->data_red[y*stride+x] > img->data_red[(y+4)*stride+(x+4)]+8) &&
-           (img->data_red[y*stride+x] > img->data_red[(y+4)*stride+(x  )]+8) &&
-           (img->data_red[y*stride+x] > img->data_red[(y+4)*stride+(x-4)]+8) &&
-           (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x-4)]+8) &&
-           (img->data_red[y*stride+x] > img->data_red[(y-4)*stride+(x-4)]+8) &&
-           (img->data_red[y*stride+x] > img->data_red[(y-4)*stride+(x  )]+8) &&
-           (img->data_red[y*stride+x] > img->data_red[(y-4)*stride+(x+4)]+8) ) count++;
+      if ( (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x+6)]+threshold) &&
+           (img->data_red[y*stride+x] > img->data_red[(y+6)*stride+(x+6)]+threshold) &&
+           (img->data_red[y*stride+x] > img->data_red[(y+6)*stride+(x  )]+threshold) &&
+           (img->data_red[y*stride+x] > img->data_red[(y+6)*stride+(x-6)]+threshold) &&
+           (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x-6)]+threshold) &&
+           (img->data_red[y*stride+x] > img->data_red[(y-6)*stride+(x-6)]+threshold) &&
+           (img->data_red[y*stride+x] > img->data_red[(y-6)*stride+(x  )]+threshold) &&
+           (img->data_red[y*stride+x] > img->data_red[(y-6)*stride+(x+6)]+threshold) &&
+           (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x+8)]+threshold) &&
+           (img->data_red[y*stride+x] > img->data_red[(y+8)*stride+(x+8)]+threshold) &&
+           (img->data_red[y*stride+x] > img->data_red[(y+8)*stride+(x  )]+threshold) &&
+           (img->data_red[y*stride+x] > img->data_red[(y+8)*stride+(x-8)]+threshold) &&
+           (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x-8)]+threshold) &&
+           (img->data_red[y*stride+x] > img->data_red[(y-8)*stride+(x-8)]+threshold) &&
+           (img->data_red[y*stride+x] > img->data_red[(y-8)*stride+(x  )]+threshold) &&
+           (img->data_red[y*stride+x] > img->data_red[(y-8)*stride+(x+8)]+threshold)    ) count++;
      }
-    if (count>=2) score++;
+    if (count>=5) score++;
    }
   return (100. * score) / pow(gridsize-1,2);
  }
@@ -169,22 +181,30 @@ double estimateNoiseLevel (int width, int height, unsigned char *buffer, int Nfr
   return sd_sum / NStudyPixels; // Average standard deviation of the studied pixels
  }
 
-void medianCalculate(const int width, const int height, const int channels, int *medianWorkspace, unsigned char *medianMap)
+void medianCalculate(const int width, const int height, const int channels, const int reductionCycle, const int NreductionCycles, int *medianWorkspace, unsigned char *medianMap)
  {
   const int frameSize = width*height;
   int i;
 
+  const int i_max   = frameSize*channels;
+  const int i_step  = i_max / NreductionCycles + 1;
+  const int i_start = i_step * reductionCycle;
+  const int i_stop  = MIN(i_max , i_start + i_step);
+
   // Find the modal value of each cell in the median grid
 #pragma omp parallel for private(i)
-  for (i=0; i<frameSize*channels; i++)
+  for (i=i_start; i<i_stop; i++)
    {
     int f,d;
     const int offset = i*256;
     int mode=0, modeSamples=0;
-    for (f=0; f<256; f++) if (medianWorkspace[offset+f]>modeSamples) { mode=f; modeSamples=medianWorkspace[offset+f]; }
-    medianMap[i] = CLIP256(mode-2);
+    for (f=4; f<256; f++)
+     {
+      const int v = 4*medianWorkspace[offset+f-4] + 8*medianWorkspace[offset+f-3] + 10*medianWorkspace[offset+f-2] + 8*medianWorkspace[offset+f-1] + 4*medianWorkspace[offset+f-0];
+      if (v>modeSamples) { mode=f; modeSamples=v; }
+     }
+    medianMap[i] = CLIP256(mode-3);
    }
-  memset(medianWorkspace, 0, frameSize*channels*256*sizeof(int));
   return;
  }
 

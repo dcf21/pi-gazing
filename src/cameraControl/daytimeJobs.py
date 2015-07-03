@@ -1,4 +1,4 @@
-#!../../pythonenv/bin/python
+#!../../virtual-env/bin/python
 # daytimeJobs.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
@@ -10,6 +10,7 @@
 # performed is defined in <mod_daytimejobs>.
 
 import os,time,sys,glob,datetime,operator
+from math import *
 
 import mod_log
 from mod_log import logTxt,getUTC
@@ -112,7 +113,7 @@ try:
                         'cameraId':CAMERA_ID ,
                         'pid':pid ,
                         'triggermask': maskFile ,
-                        'produceFilesWithoutLC': floor(utc % 900)==0 , # Produce non-lens-corrected images once every 15 mins
+                        'produceFilesWithoutLC': int(floor(utc % 900)==0) , # Produce non-lens-corrected images once every 15 mins
                         'opm': ('_openmax' if I_AM_A_RPI else '') ,
                        }
               params['filename_out'] = "%(outdir)s/%(date)s/%(filename)s"%params
