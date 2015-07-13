@@ -93,5 +93,5 @@ for i in range(len(fits)):
  for j in range(len(fits[i])):
   [add, filename, weight, expcomp, sizex, sizey, ra, dec, pa, scalex, scaley, utc] = fits[i][j]
   # Filename, weight, expcomp, Central RA, Central Dec, position angle, scalex, scaley
-  print "ADD %-82s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"%(filename, weight, expcomp, sizex, sizey, ra, dec, pa, scalex, scaley)
+  print "ADD %-93s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"%(filename, weight, expcomp, sizex, sizey, ra, dec, pa, scalex, scaley)
 

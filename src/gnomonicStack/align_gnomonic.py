@@ -80,10 +80,10 @@ print "SET longitude 0"
 print "SET utc %10d"%(ImageTime(fits[i][0]))
 
 # Exposure compensation, xsize, ysize, Central RA, Central Dec, position angle, scalex, scaley
-print "%-97s %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"%("GNOMONIC",1,fits[i][6][0],fits[i][6][1],fits[i][1],fits[i][2],fits[i][3],fits[i][4],fits[i][5])
+print "%-102s %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"%("GNOMONIC",1,fits[i][6][0],fits[i][6][1],fits[i][1],fits[i][2],fits[i][3],fits[i][4],fits[i][5])
 for i in range(len(fits)):
   d = ImageDimensions(fits[i][0])
   # Filename, weight, exposure compensation, Central RA, Central Dec, position angle, scalex, scaley
-  print "ADD %-82s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"%(fits[i][0],1,1,d[0],d[1],fits[i][1],fits[i][2],fits[i][3],fits[i][4],fits[i][5])
+  print "ADD %-93s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"%(fits[i][0],1,1,d[0],d[1],fits[i][1],fits[i][2],fits[i][3],fits[i][4],fits[i][5])
 
 os.system("rm -Rf %s"%tmp)

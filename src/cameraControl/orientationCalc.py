@@ -11,9 +11,12 @@ from math import *
 from mod_settings import *
 from mod_time import *
 from mod_log import logTxt,getUTC
+import mod_astro
 
 import meteorpi_model as mp
 import meteorpi_fdb
+
+STACKER_PATH = "%s/../gnomonicStack"%PYTHON_PATH
 
 # Return the dimensions of an image
 def ImageDimensions(f):
@@ -33,10 +36,6 @@ def getMetaItem(fileRec,key):
   for item in fileRec.meta:
     if item.key==NSkey: output=item.value
   return output
-
-pid = os.getpid()
-os.chdir(DATA_PATH)
-
 
 def orientationCalc(cameraId,utcNow,utcMustStop=0):
   logTxt("Starting calculation of camera alignment")
@@ -58,7 +57,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
   lensName = cameraStatus.lens
 
   # Search for background-subtracted timelapse photography within this range
-  search = mp.FileRecordSearch(camera_ids=[cameraId],semantic_type=mp.NSString("timelapse/frame/bgrdSub/lensCorr"),exclude_events=True,before=UTC2datetime(utcMax),after=UTC2datetime(utcMin),limit=1000000)
+  search = mp.FileRecordSearch(camera_ids=[cameraId],semantic_type=mp.NSString("timelapse/frame/bgrdSub"),exclude_events=True,before=UTC2datetime(utcMax),after=UTC2datetime(utcMin),limit=1000000)
   files  = fdb_handle.search_files(search)
   files  = [i for i in files['files']]
   logTxt("%d candidate time-lapse images in past 24 hours"%len(files))
@@ -66,7 +65,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
   # Filter out files where the sky clariy is good and the Sun is well below horizon
   acceptableFiles = []
   for f in files:
-    if (getMetaItem(f,'skyClarity') <  60): continue
+    if (getMetaItem(f,'skyClarity') <  10): continue
     if (getMetaItem(f,'sunAlt')     >  -3): continue
     acceptableFiles.append(f)
 
@@ -80,40 +79,54 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
   # We can't afford to run astrometry.net on too many images, so pick the 20 best ones
   acceptableFiles.sort(key=lambda f: getMetaItem(f,'skyClarity') )
   acceptableFiles.reverse()
-  acceptableFiles = acceptableFiles[0:20]
+  acceptableFiles = acceptableFiles[0:70]
 
   # Make a temporary directory to store files in. This is necessary as astrometry.net spams the cwd with lots of temporary junk
   cwd = os.getcwd()
   pid = os.getpid()
   tmp = "/tmp/dcf21_orientationCalc_%d"%pid
+  logTxt("Created temporary directory <%s>"%tmp)
   os.system("mkdir %s"%tmp)
   os.chdir(tmp)
 
   # Loop over selected images and use astrometry.net to find their orientation
-  fits = []
-  count = 0
+  fits    = []
+  fitlist = []
+  count   = 0
   for f in acceptableFiles:
+    imgname = f.file_name
+    fitObj = {'f':f,'i':count,'fit':False}
+    fits.append(fitObj)
     logTxt("Determining orientation of image with timestamp <%s> (unix time %d) -- skyClarity=%.1f"%(f.file_time, datetime2UTC(f.file_time), getMetaItem(f,'skyClarity')))
     fname = f.get_path()
 
-    # 1. Barrel-correct image
-    # os.system("%s %s %s tmp.png"%(barrelCorrect,fname,os.path.join(STACKER_PATH,"../cameras",lensName)))
-    os.system("cp %s tmp_%d.png"%(fname,count)) # This is already done in images with /lensCorr semantic type
+    # 1. Copy image into working directory
+    os.system("cp %s %s_tmp.png"%(fname,imgname))
 
-    # 2. Pass only central 50% of image to astrometry.net. It's not very reliable with wide-field images
-    d = ImageDimensions("tmp_%d.png"%(count))
-    fractionX = 0.5
-    fractionY = 0.5
-    os.system("convert tmp_%d.png -colorspace sRGB -crop %dx%d+%d+%d +repage tmp2_%d.png"%( count , fractionX*d[0] , fractionY*d[1] , (1-fractionX)*d[0]/2 , (1-fractionY)*d[1]/2 , count ))
+    # 2. Barrel-correct image
+    os.system("%s %s %s %s_tmp2.png"%(barrelCorrect,fname,os.path.join(STACKER_PATH,"../cameras",lensName,imgname)))
 
-    # 3. Slightly blur image to remove grain
-    os.system("convert tmp2_%d.png -colorspace sRGB -blur 1x8 tmp3_%d.png"%(count,count))
+    # 3. Pass only central 50% of image to astrometry.net. It's not very reliable with wide-field images
+    d = ImageDimensions("%s_tmp2.png"%(imgname))
+    fractionX = 0.4
+    fractionY = 0.4
+    os.system("convert %s_tmp2.png -colorspace sRGB -crop %dx%d+%d+%d +repage %s_tmp3.png"%( imgname , fractionX*d[0] , fractionY*d[1] , (1-fractionX)*d[0]/2 , (1-fractionY)*d[1]/2 , imgname ))
+
+    # 4. Slightly blur image to remove grain
+    os.system("convert %s_tmp3.png -colorspace sRGB -blur 2x8 %s_tmp4.png"%(imgname,imgname))
+
+    fitObj['fname_processed'] = '%s_tmp3.png'%(imgname)
+    fitObj['fname_original']  = '%s_tmp.png'%(imgname)
+    fitObj['dims']            = d # Dimensions of *original* image
+
     count+=1
 
   # Now pass processed image to astrometry.net for alignment
-  for i in range(len(acceptableFiles)):
+  for fit in fits:
+    f = fit['f']
+    i = fit['i']
     astrometryStartTime = time.time()
-    os.system("timeout 5m solve-field --no-plots --crpix-center --overwrite tmp3_%d.png > txt"%(i)) # Insert --no-plots to speed things up
+    os.system("timeout 8m solve-field --no-plots --crpix-center --overwrite %s > txt"%(fit['fname_processed'])) # Insert --no-plots to speed things up
     astrometryTimeTaken = time.time() - astrometryStartTime
     logTxt("Astrometry.net took %d seconds to analyse image at time <%s>"%(astrometryTimeTaken,f.file_time))
     fittxt = open("txt").read()
@@ -140,31 +153,52 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
       continue
     scalex= 2 * atan( tan( float(test.group(1)) / 2 * deg ) * (1/fractionX) ) * rad # Expand size of image to whole image, not just the central tile we sent to astrometry.net
     scaley= 2 * atan( tan( float(test.group(2)) / 2 * deg ) * (1/fractionY) ) * rad
-    d = ImageDimensions(fname)
-    fits.append( {'f':f,'ra':ra,'dec':dec,'pa':posang,'sx':scalex,'sy':scaley,'dims':d} )
+    fit.update( {'fit':True,'ra':ra,'dec':dec,'pa':posang,'sx':scalex,'sy':scaley} )
+    fitlist.append(fit);
 
   # Average the resulting fits
-  if len(fits)<10:
-    logTxt("Giving up: astrometry.net only managed to fit %d images"%len(fits))
+  if len(fitlist)<1:
+    logTxt("Giving up: astrometry.net only managed to fit %d images"%len(fitlist))
     return
 
-  paList     = [ i['pa']*deg for i in fits ] ; paBest     = mod_astro.meanAngle(paList)[0]
-  scalexList = [ i['sx']*deg for i in fits ] ; scalexBest = mod_astro.meanAngle(scalex)[0]
-  scaleyList = [ i['sy']*deg for i in fits ] ; scaleyBest = mod_astro.meanAngle(scalex)[0]
+  paList     = [ i['pa']*deg for i in fits if i['fit'] ] ; paBest     = mod_astro.meanAngle(paList    )[0]
+  scalexList = [ i['sx']*deg for i in fits if i['fit'] ] ; scalexBest = mod_astro.meanAngle(scalexList)[0]
+  scaleyList = [ i['sy']*deg for i in fits if i['fit'] ] ; scaleyBest = mod_astro.meanAngle(scaleyList)[0]
 
-  altAzList  = [ mod_astro.altAz( i['ra']*hr , i['dec']*deg , datetime2UTC(i['f'].file_time) , cameraStatus.orientation.latitude , cameraStatus.orientation.longitude ) for i in fits ]
+  altAzList  = [ mod_astro.altAz( i['ra']*hr , i['dec']*deg , datetime2UTC(i['f'].file_time) , cameraStatus.location.latitude , cameraStatus.location.longitude ) for i in fits if i['fit'] ]
   [ altAzBest , altAzError ] = mod_astro.meanAngle2D(altAzList)
 
   # Print fit information
   logTxt("Orientation fit. Alt: %.2f deg. Az: %.2f deg. PA: %.2f deg. ScaleX: %.2f deg. ScaleY: %.2f deg. Uncertainty: %.2f deg."%(altAzBest[1]*rad,altAzBest[0]*rad,paBest*rad,scalexBest*rad,scaleyBest*rad,altAzError*rad))
 
   # Update camera status
-  cameraStatus.orientation = Orientation( altitude=altAzBest[1]*rad, azimuth=altAzBest[0]*rad, error=altAzError*rad, rotation=paBest*rad, width_of_field=scalexBest*rad )
+  cameraStatus.orientation = mp.Orientation( altitude=altAzBest[1]*rad, azimuth=altAzBest[0]*rad, error=altAzError*rad, rotation=paBest*rad, width_of_field=scalexBest*rad )
   # fdb_handle.update_camera_status(cameraStatus, time=UTC2datetime(utcNow), camera_id=cameraId)
+
+  # Output catalogue of image fits -- this is to be fed into the lens-fitting code
+  f = open("imageFits.gnom","w")
+  f.write("SET output /tmp/output.png\n")
+  f.write("SET camera %s/lenses/%s\n"%(STACKER_PATH,lensName))
+  f.write("SET latitude %s\n"%cameraStatus.location.latitude)
+  f.write("SET longitude %s\n"%cameraStatus.location.longitude)
+
+  # Exposure compensation, xsize, ysize, Central RA, Central Dec, position angle, scalex, scaley
+  fit = fitlist[int(floor(len(fitlist)/2))]
+  f.write("%-102s %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f\n"%("GNOMONIC",1,fit['dims'][0],fit['dims'][1],fit['ra'],fit['dec'],fit['pa'],fit['sx'],fit['sy']))
+  for fit in fits:
+    if fit['fit']:
+      d = fit['dims']
+      f.write("ADD %-93s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f\n"%(fit['fname_original'],1,1,d[0],d[1],fit['ra'],fit['dec'],fit['pa'],fit['sx'],fit['sy']))
+    else:
+      f.write("# Cannot read central RA and Dec from %s\n"%(fit['fname_original']))
+  f.close()
+
+  # Run <gnomonicStack/align_regularise.py> which uses the fact that we know camera's pointing is fixed to fix in central RA and Dec for image astrometry.net failed on
+  os.system("%s/align_regularise.py %s > %s"%(STACKER_PATH,"imageFits.gnom","imageFits_2.gnom"))
 
   # Clean up and exit
   os.chdir(cwd)
-  os.system("rm -Rf %s"%tmp)
+  #os.system("rm -Rf %s"%tmp)
   return
 
 # If we're called as a script, run the method orientationCalc()
