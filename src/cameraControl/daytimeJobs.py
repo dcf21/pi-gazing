@@ -185,6 +185,15 @@ if (not quitTime) or (quitTime - getUTC() > 300):
   logTxt("Importing events into firebird db")
   # firebirdImport.firebirdImport()
 
+# Figure out orientation of camera -- this may take 5 hours!
+if (not quitTime) or (quitTime - getUTC() > 3600*5):
+  logTxt("Trying to determine orientation of camera")
+  # orientationCalc.orientationCalc( CAMERA_ID , getUTC() , quitTime )
+
+# Clean up temporary files
+os.system("rm -Rf /tmp/tmp.* /tmp/dcf21_orientationCalc_*")
+# os.system("rm -Rf %s/t*"%(DATA_PATH)) # This deletes all data not imported into firebird. Should be uncommented on production systems where unattended operation needed.
+
 # Twiddle our thumbs
 if quitTime:
   logTxt("Finished daytimeJobs. Now twiddling our thumbs for a bit.")

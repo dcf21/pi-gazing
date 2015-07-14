@@ -45,7 +45,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
   hr  = pi/12
 
   # Path the binaries in <gnomonicStack>
-  barrelCorrect = os.path.join(STACKER_PATH,"barrel");
+  barrelCorrect = os.path.join(STACKER_PATH,"bin","barrel");
 
   # Calculate time span to use images from
   utcMax   = utcNow
@@ -65,7 +65,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
   # Filter out files where the sky clariy is good and the Sun is well below horizon
   acceptableFiles = []
   for f in files:
-    if (getMetaItem(f,'skyClarity') <  10): continue
+    if (getMetaItem(f,'skyClarity') <   8): continue
     if (getMetaItem(f,'sunAlt')     >  -3): continue
     acceptableFiles.append(f)
 
@@ -104,16 +104,16 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
     os.system("cp %s %s_tmp.png"%(fname,imgname))
 
     # 2. Barrel-correct image
-    os.system("%s %s %s %s_tmp2.png"%(barrelCorrect,fname,os.path.join(STACKER_PATH,"../cameras",lensName,imgname)))
+    os.system("%s %s_tmp.png %s %s_tmp2.png"%(barrelCorrect,imgname,os.path.join(STACKER_PATH,"lenses",lensName),imgname))
 
     # 3. Pass only central 50% of image to astrometry.net. It's not very reliable with wide-field images
     d = ImageDimensions("%s_tmp2.png"%(imgname))
-    fractionX = 0.4
-    fractionY = 0.4
-    os.system("convert %s_tmp2.png -colorspace sRGB -crop %dx%d+%d+%d +repage %s_tmp3.png"%( imgname , fractionX*d[0] , fractionY*d[1] , (1-fractionX)*d[0]/2 , (1-fractionY)*d[1]/2 , imgname ))
+    fractionX = 0.35
+    fractionY = 0.35
+    os.system("convert %s_tmp2.png -colorspace sRGB -define png:format=png24 -crop %dx%d+%d+%d +repage %s_tmp3.png"%( imgname , fractionX*d[0] , fractionY*d[1] , (1-fractionX)*d[0]/2 , (1-fractionY)*d[1]/2 , imgname ))
 
     # 4. Slightly blur image to remove grain
-    os.system("convert %s_tmp3.png -colorspace sRGB -blur 2x8 %s_tmp4.png"%(imgname,imgname))
+    os.system("convert %s_tmp3.png -colorspace sRGB -define png:format=png24 -gaussian-blur 8x2.5 %s_tmp4.png"%(imgname,imgname))
 
     fitObj['fname_processed'] = '%s_tmp3.png'%(imgname)
     fitObj['fname_original']  = '%s_tmp.png'%(imgname)
@@ -158,8 +158,10 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
 
   # Average the resulting fits
   if len(fitlist)<1:
-    logTxt("Giving up: astrometry.net only managed to fit %d images"%len(fitlist))
-    return
+    logTxt("Giving up: astrometry.net only managed to fit %d images."%len(fitlist))
+    return None
+  else:
+    logTxt("astrometry.net managed to fit %d images out of %d."%(len(fitlist),len(fits)))
 
   paList     = [ i['pa']*deg for i in fits if i['fit'] ] ; paBest     = mod_astro.meanAngle(paList    )[0]
   scalexList = [ i['sx']*deg for i in fits if i['fit'] ] ; scalexBest = mod_astro.meanAngle(scalexList)[0]
@@ -198,8 +200,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
 
   # Clean up and exit
   os.chdir(cwd)
-  #os.system("rm -Rf %s"%tmp)
-  return
+  return os.path.join(tmp,"imageFits_2.gnom")
 
 # If we're called as a script, run the method orientationCalc()
 if __name__ == "__main__":

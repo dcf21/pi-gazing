@@ -148,7 +148,7 @@ Usage: camfit.bin <filename>\n\
    }
 
   {
-   int iter=0, sizelast=0, size=0, i=0, status=0;
+   int iter=0, i=0, j=0, status=0;
    gsl_vector *x=gsl_vector_alloc(3), *ss=gsl_vector_alloc(3);
 
    const gsl_multimin_fminimizer_type *T = gsl_multimin_fminimizer_nmsimplex;
@@ -166,7 +166,7 @@ Usage: camfit.bin <filename>\n\
    s = gsl_multimin_fminimizer_alloc(T,fn.n);
    gsl_multimin_fminimizer_set(s,&fn,x,ss);
 
-   do
+   for (j=0; j<10; j++)
     {
      iter++;
      for (i=0; i<10; i++)
@@ -174,10 +174,7 @@ Usage: camfit.bin <filename>\n\
        status = gsl_multimin_fminimizer_iterate(s);
        if (status) break;
       }
-     sizelast=size;
-     size=gsl_multimin_fminimizer_minimum(s);
     }
-   while ( (iter<10) || (size<sizelast) );
   }
 
   // Free images
