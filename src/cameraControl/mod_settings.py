@@ -4,21 +4,12 @@
 
 import os,uuid
 import meteorpi_fdb
+import installation_info
 
 # The settings below control how the camera controller works
 
 def my_installation_id():
-    def _to_array(number):
-        result = ''
-        n = number
-        while n > 0:
-            (div, mod) = divmod(n, 256)
-            n = (n - mod) / 256
-            result = ('%0.2x' % mod) + result
-        return result
-
-    return _to_array(uuid.getnode())
-
+    return installation_info.CAMERA_NAME
 
 # The path to python scripts in the cameraControl directory
 PYTHON_PATH = os.path.split( os.path.abspath(__file__) )[0]
@@ -45,9 +36,6 @@ DBPATH = "localhost:/var/lib/firebird/2.5/data/meteorpi.fdb"
 # Flag telling us whether to hunt for meteors in real time, or record H264 video for subsequent analysis
 REAL_TIME   = True
 
-# Flag telling us whether to produce images which are not lens-corrected. Almost always not worth doing, but switch on when callibrating the lens corrections...
-produceFilesWithoutLC = False
-
 # How many second before/after sun is above horizon do we wait before bothering observing
 sunMargin   = 1200 # 20 minutes
 
@@ -55,8 +43,8 @@ sunMargin   = 1200 # 20 minutes
 VIDEO_MAXRECTIME = 7200
 
 # Position to assume when we don't have any GPS data available
-LONGITUDE_DEFAULT = 0.12
-LATITUDE_DEFAULT  = 52.2
+LONGITUDE_DEFAULT = installation_info.LONGITUDE
+LATITUDE_DEFAULT  = installation_info.LATITUDE
 
 # Video settings. THESE SHOULD BE READ FROM THE DATABASE!
 CAMERA_ID         = my_installation_id()

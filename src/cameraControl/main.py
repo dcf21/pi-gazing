@@ -47,11 +47,15 @@ logTxt("Longitude = %.2f ; Latitude = %.2f ; Clock offset is %.1f"%(longitude,la
 
 # Update camera status with GPS position
 timenow = UTC2datetime(getUTC())
+logTxt("Fetching camera status")
 cameraStatus = fdb_handle.get_camera_status(time=timenow,camera_id=CAMERA_ID)
+logTxt("Updating camera status with new position")
 cameraStatus.location = mp.Location(latitude,longitude,(flagGPS!=0))
+logTxt("Storing camera status")
 fdb_handle.update_camera_status(cameraStatus, time=timenow, camera_id=CAMERA_ID)
 
 # Create clipping region mask file
+logTxt("Creating clipping region mask")
 maskFile = "/tmp/triggermask_%d.txt"%os.getpid()
 open(maskFile,"w").write( "\n\n".join(["\n".join(["%(x)d %(y)d"%p for p in pointList]) for pointList in cameraStatus.regions]) )
 

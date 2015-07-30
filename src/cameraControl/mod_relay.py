@@ -12,12 +12,12 @@ def cameraOn():
  GPIO.setwarnings(False)
  GPIO.setmode(GPIO.BOARD)
  GPIO.setup(12, GPIO.OUT)
- GPIO.output(12 ,False)
+ GPIO.output(12 ,True)
 
 def cameraOff():
  logTxt("Turning camera off.")
  GPIO.setwarnings(False)
  GPIO.setmode(GPIO.BOARD)
  GPIO.setup(12, GPIO.OUT)
- GPIO.output(12 ,True)
+ GPIO.output(12 ,False)
 
