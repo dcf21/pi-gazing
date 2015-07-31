@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='meteorpi_fdb',
-    version='0.1.4',
+    version='0.1.5',
     description='Data access layer, uses FireBird to persist and retrieve MeteorPi classes',
     classifiers=['Programming Language :: Python :: 2.7'],
     url='https://github.com/camsci/meteor-pi/',
@@ -17,7 +17,8 @@ setup(
         'pyyaml',
         'requests',
         'requests-toolbelt',
-        'apscheduler'],
+        'apscheduler',
+        'backports.functools_lru_cache'],
     include_package_data=True,
     test_suite='nose.collector',
     tests_require=['nose'],

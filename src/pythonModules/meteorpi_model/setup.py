@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='meteorpi_model',
-      version='0.1.4',
+      version='0.1.5',
       description='Model classes used across the MeteorPi project',
       url='https://github.com/camsci/meteor-pi/',
       author='Tom Oinn',

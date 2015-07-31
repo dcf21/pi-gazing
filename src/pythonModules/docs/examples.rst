@@ -98,3 +98,13 @@ disk.
     'http://localhost:12345//files/content/a3949199e2df41a0bff500985dc2c93e/None'
     >>> result["files"][0].download_to("my_file_on_disk.txt")
     'my_file_on_disk.txt'
+
+Searching for Events
+--------------------
+
+In MeteorPi, the :class:`meteorpi_model.Event` object represents an observation - perhaps a meteor, a satellite or some
+other interesting piece of information. It can, and usually does, have a set of associated
+:class:`meteorpi_model.FileRecord`, and other properties such as event time, semantic type, and a set of metadata.
+Searching for these objects is almost identical to searching for and retrieving :class:`meteorpi_model.FileRecord`,
+except that instead of a :class:`meteorpi_model.FileRecordSearch` we use a :class:`meteorpi_model.EventSearch` to
+specify the search, and we apply that to the **search_events** method of the client instead of using **search_files**.

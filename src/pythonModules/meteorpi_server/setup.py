@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='meteorpi_server',
-    version='0.1.4',
+    version='0.1.5',
     description='HTTP server based on Flask providing a remote API',
     classifiers=['Programming Language :: Python :: 2.7'],
     url='https://github.com/camsci/meteor-pi/',
