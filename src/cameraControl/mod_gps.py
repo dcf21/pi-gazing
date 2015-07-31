@@ -2,7 +2,7 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-from gps import *
+from gpsd.gps import *
 import threading,os,time
 import dateutil.parser
 

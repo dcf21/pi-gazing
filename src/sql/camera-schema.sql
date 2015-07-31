@@ -25,14 +25,14 @@ CREATE TABLE t_user (
 /* Camera status tables */
 
 CREATE TABLE t_highWaterMark (
-  cameraID CHAR(12)  NOT NULL,
+  cameraID CHAR(64)  NOT NULL,
   mark BIGINT NOT NULL /* Time since epoch in milliseconds */
 );
 
 CREATE TABLE t_cameraStatus (
   internalID          INTEGER           NOT NULL,
   statusID            CHAR(16) CHARACTER SET OCTETS NOT NULL, /* Always use literal byte values */
-  cameraID            CHAR(12)          NOT NULL,
+  cameraID            CHAR(64)          NOT NULL,
   validFrom BIGINT NOT NULL, /* Time since epoch in milliseconds */
   softwareVersion     INTEGER DEFAULT 0 NOT NULL,
   orientationAltitude FLOAT             NOT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE t_visibleRegions (
 CREATE TABLE t_event (
   internalID  INTEGER      NOT NULL,
   eventID     CHAR(16) CHARACTER SET OCTETS NOT NULL, /* Always use literal byte values */
-  cameraID    CHAR(12)     NOT NULL,
+  cameraID    CHAR(64)     NOT NULL,
   eventTime BIGINT NOT NULL, /* Time since epoch in milliseconds */
   eventOffset INTEGER      NOT NULL,
   eventType   VARCHAR(255) NOT NULL,
@@ -90,7 +90,7 @@ CREATE TABLE t_eventMeta (
 /* Links to files in whatever external store we use */
 CREATE TABLE t_file (
   internalID   INTEGER                           NOT NULL,
-  cameraID     CHAR(12)                          NOT NULL,
+  cameraID     CHAR(64)                          NOT NULL,
   fileID       CHAR(16) CHARACTER SET OCTETS NOT NULL, /* Always use literal byte values */
   mimeType     VARCHAR(100) DEFAULT 'text/plain' NOT NULL,
   fileName     VARCHAR(255),

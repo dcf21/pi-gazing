@@ -49,6 +49,11 @@ logTxt("Longitude = %.2f ; Latitude = %.2f ; Clock offset is %.1f"%(longitude,la
 timenow = UTC2datetime(getUTC())
 logTxt("Fetching camera status")
 cameraStatus = fdb_handle.get_camera_status(time=timenow,camera_id=CAMERA_ID)
+
+if not cameraStatus:
+  logTxt("No camera status found for id '%s': using a default"%CAMERA_ID)
+  cameraStatus = mp.CameraStatus( "VF-DCD-AI-3.5-18-C-2MP" , "watec_902h2_ultimate" , "https://meteorpi.cambridgesciencecentre.org" , CAMERA_ID , mp.Orientation( 0,0,360,0,0 ),mp.Location(latitude,longitude,(flagGPS!=0)), CAMERA_ID )
+
 logTxt("Updating camera status with new position")
 cameraStatus.location = mp.Location(latitude,longitude,(flagGPS!=0))
 logTxt("Storing camera status")
@@ -79,7 +84,7 @@ while True:
         time.sleep(10)
         logTxt("Camera has been turned on.")
         timekey = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
-        cmd = "%s/debug/realtimeObserve %.1f %.1f %.1f %s %s %d %d %s %s %s %s %d %d %s/rawvideo/%s_%s"%(BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,sensorData.width,sensorData.height,sensorData.fps,maskFile,latitude,longitude,flagGPS,sensorData.upsideDown,DATA_PATH,timekey,CAMERA_ID)
+        cmd = "%s/debug/realtimeObserve %.1f %.1f %.1f \"%s\" \"%s\" %d %d %s %s %s %s %d %d %s/rawvideo/%s_%s"%(BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,sensorData.width,sensorData.height,sensorData.fps,maskFile,latitude,longitude,flagGPS,sensorData.upsideDown,DATA_PATH,timekey,CAMERA_ID)
         logTxt("Running command: %s"%cmd)
         os.system(cmd)
         mod_relay.cameraOff()
@@ -94,7 +99,7 @@ while True:
         time.sleep(10)
         logTxt("Camera has been turned on.")
         timekey = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
-        cmd = "timeout %d %s/debug/recordH264 %.1f %.1f %.1f %s %s %d %d %s %s %s %d %d %s/rawvideo/%s_%s"%(secondsTillSunrise+30,BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,sensorData.width,sensorData.height,sensorData.fps,latitude,longitude,flagGPS,sensorData.upsideDown,DATA_PATH,timekey,CAMERA_ID)
+        cmd = "timeout %d %s/debug/recordH264 %.1f %.1f %.1f \"%s\" \"%s\" %d %d %s %s %s %d %d %s/rawvideo/%s_%s"%(secondsTillSunrise+30,BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,sensorData.width,sensorData.height,sensorData.fps,latitude,longitude,flagGPS,sensorData.upsideDown,DATA_PATH,timekey,CAMERA_ID)
         logTxt("Running command: %s"%cmd) # Use timeout here, because sometime the RPi's openmax encoder hangs...
         os.system(cmd)
         mod_relay.cameraOff()

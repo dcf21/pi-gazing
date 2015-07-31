@@ -183,12 +183,12 @@ mod_hwm.writeHWM(highWaterMarks)
 os.chdir(cwd)
 if (not quitTime) or (quitTime - getUTC() > 300):
   logTxt("Importing events into firebird db")
-  # firebirdImport.firebirdImport()
+  firebirdImport.firebirdImport()
 
 # Figure out orientation of camera -- this may take 5 hours!
 if (not quitTime) or (quitTime - getUTC() > 3600*5):
   logTxt("Trying to determine orientation of camera")
-  # orientationCalc.orientationCalc( CAMERA_ID , getUTC() , quitTime )
+  orientationCalc.orientationCalc( CAMERA_ID , getUTC() , quitTime )
 
 # Clean up temporary files
 os.system("rm -Rf /tmp/tmp.* /tmp/dcf21_orientationCalc_*")

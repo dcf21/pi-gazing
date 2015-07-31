@@ -79,7 +79,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
   # We can't afford to run astrometry.net on too many images, so pick the 20 best ones
   acceptableFiles.sort(key=lambda f: getMetaItem(f,'skyClarity') )
   acceptableFiles.reverse()
-  acceptableFiles = acceptableFiles[0:70]
+  acceptableFiles = acceptableFiles[0:24]
 
   # Make a temporary directory to store files in. This is necessary as astrometry.net spams the cwd with lots of temporary junk
   cwd = os.getcwd()
@@ -126,7 +126,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
     f = fit['f']
     i = fit['i']
     astrometryStartTime = time.time()
-    os.system("timeout 8m solve-field --no-plots --crpix-center --overwrite %s > txt"%(fit['fname_processed'])) # Insert --no-plots to speed things up
+    os.system("timeout 10m solve-field --no-plots --crpix-center --overwrite %s > txt"%(fit['fname_processed'])) # Insert --no-plots to speed things up
     astrometryTimeTaken = time.time() - astrometryStartTime
     logTxt("Astrometry.net took %d seconds to analyse image at time <%s>"%(astrometryTimeTaken,f.file_time))
     fittxt = open("txt").read()
@@ -157,7 +157,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
     fitlist.append(fit);
 
   # Average the resulting fits
-  if len(fitlist)<1:
+  if len(fitlist)<6:
     logTxt("Giving up: astrometry.net only managed to fit %d images."%len(fitlist))
     return None
   else:

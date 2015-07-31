@@ -30,7 +30,7 @@ if not cameraId: cameraId = defaultCameraId
 cameraStatus = fdb_handle.get_camera_status(camera_id=cameraId)
 
 if not cameraStatus:
-  cameraStatus = mp.CameraStatus( "null" , "watec_902h" , "" , "default" , mp.Orientation( 0,0,360,0,0 ), mp.Location( LATITUDE_DEFAULT , LONGITUDE_DEFAULT , False ), cameraId )
+  cameraStatus = mp.CameraStatus( "VF-DCD-AI-3.5-18-C-2MP" , "watec_902h2_ultimate" , "https://meteorpi.cambridgesciencecentre.org" , cameraId , mp.Orientation( 0,0,360,0,0 ), mp.Location( LATITUDE_DEFAULT , LONGITUDE_DEFAULT , False ), cameraId )
 
 # Offer user option to update sensor
 if len(sys.argv)>2: sensor = sys.argv[2]
