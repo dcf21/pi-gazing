@@ -24,11 +24,11 @@ class GpsPoller(threading.Thread):
       while True:
         self.current_value = self.session.next()
         if ('mode' in self.current_value) and (self.current_value.mode==3):
-          dt = dateutil.parser.parse(self.current_value.time)
+          dt = dateutil.parser.parse(self.current_value['time'])
           utc = time.mktime(dt.timetuple())
           self.clockoffset = time.time() - utc
-          self.latitude    = self.current_value.latitude
-          self.longitude   = self.current_value.longitude
+          self.latitude    = self.current_value['lat']
+          self.longitude   = self.current_value['lon']
         time.sleep(0.2) # tune this, you might not get values that quickly
     except StopIteration:
       pass
@@ -37,7 +37,7 @@ gpsp = GpsPoller()
 gpsp.start()
 # gpsp now polls every .2 seconds for new data, storing it in self.current_value
 
-def fetchTimeOffset():
+def fetchGPSfix():
   tstart = time.time()
   while 1:
     x = gpsp.get_current_value()

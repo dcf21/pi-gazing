@@ -33,7 +33,7 @@ if I_AM_A_RPI:
   logTxt("Waiting for GPS link")
   os.system("killall gpsd ; gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock")
   import mod_gps
-  gpsFix = mod_gps.fetchTimeOffset()
+  gpsFix = mod_gps.fetchGPSfix()
   if gpsFix:
     [toffset,latitude,longitude] = gpsFix
     flagGPS = 1
@@ -43,7 +43,7 @@ if I_AM_A_RPI:
 else:
   logTxt("We are not running on a RPi; so not bothering to try to get GPS link")
 
-logTxt("Longitude = %.2f ; Latitude = %.2f ; Clock offset is %.1f"%(longitude,latitude,toffset))
+logTxt("Longitude = %.6f ; Latitude = %.6f ; Clock offset is %.2f sec."%(longitude,latitude,toffset))
 
 # Update camera status with GPS position
 timenow = UTC2datetime(getUTC())
