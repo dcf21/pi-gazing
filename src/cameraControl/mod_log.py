@@ -10,9 +10,11 @@ pid = os.getpid()
 toffset = 0
 
 def getUTC():
+  global toffset
   return time.time()-toffset
 
 def getUTCoffset():
+  global toffset
   return -toffset
 
 logfile = open( os.path.join(mod_settings.DATA_PATH,"meteorPi.log") , "a" )

@@ -43,6 +43,7 @@ if I_AM_A_RPI:
 else:
   logTxt("We are not running on a RPi; so not bothering to try to get GPS link")
 
+mod_log.toffset = toffset
 logTxt("Longitude = %.6f ; Latitude = %.6f ; Clock offset is %.2f sec."%(longitude,latitude,toffset))
 
 # Update camera status with GPS position
@@ -112,7 +113,7 @@ while True:
   if (nextObservingTime > 600) and (REAL_TIME or not I_AM_A_RPI): # Do daytimejobs on a RPi only if we are doing real-time observation
     tstop = timeNow+nextObservingTime
     logTxt("Starting daytime jobs until %s (running for %d seconds)."%(datetime.datetime.fromtimestamp(tstop).strftime('%Y-%m-%d %H:%M:%S'),nextObservingTime))
-    os.system("cd %s ; python daytimeJobs.py %d %d"%(PYTHON_PATH,getUTCoffset(),tstop))
+    os.system("cd %s ; ./daytimeJobs.py %d %d"%(PYTHON_PATH,getUTCoffset(),tstop))
   else:
     logTxt("Not quite time to start observing yet, so let's sleep for %d seconds."%nextObservingTime)
     time.sleep(nextObservingTime)
