@@ -17,6 +17,10 @@ def getUTCoffset():
   global toffset
   return -toffset
 
+def setUTCoffset(x):
+  global toffset
+  toffset=x
+
 logfile = open( os.path.join(mod_settings.DATA_PATH,"meteorPi.log") , "a" )
 
 def logTxt(txt):

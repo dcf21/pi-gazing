@@ -208,5 +208,6 @@ if __name__ == "__main__":
   utcNow   = time.time()
   if len(sys.argv)>1: cameraId = sys.argv[1]
   if len(sys.argv)>2: utcNow   = float(sys.argv[2])
+  mod_log.setUTCoffset( time.time() - utcNow )
   orientationCalc(cameraId,utcNow,0)
 

@@ -37,7 +37,7 @@ if len(sys.argv)!=3:
 
 utcOffset = float(sys.argv[1])
 quitTime  = float(sys.argv[2])
-mod_log.toffset = utcOffset
+mod_log.setUTCoffset(utcOffset)
 
 logTxt("Running daytimeJobs. Need to quit at %s."%(datetime.datetime.fromtimestamp(quitTime).strftime('%Y-%m-%d %H:%M:%S')))
 
@@ -196,8 +196,9 @@ os.system("rm -Rf /tmp/tmp.* /tmp/dcf21_orientationCalc_*")
 
 # Twiddle our thumbs
 if quitTime:
-  logTxt("Finished daytimeJobs. Now twiddling our thumbs for a bit.")
   timeLeft = quitTime - getUTC()
-  if (timeLeft>0): time.sleep(timeLeft)
+  if (timeLeft>0):
+    logTxt("Finished daytimeJobs. Now twiddling our thumbs for %d seconds."%timeLeft)
+    time.sleep(timeLeft)
   logTxt("Finished daytimeJobs and also finished twiddling thumbs.")
 

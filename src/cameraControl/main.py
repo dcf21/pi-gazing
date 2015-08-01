@@ -8,7 +8,7 @@ import os,time,datetime
 import mod_astro
 import mod_relay
 
-from mod_log import logTxt,getUTC,getUTCoffset
+from mod_log import logTxt,getUTC,getUTCoffset,setUTCoffset
 from mod_time import *
 from mod_settings import *
 
@@ -43,7 +43,7 @@ if I_AM_A_RPI:
 else:
   logTxt("We are not running on a RPi; so not bothering to try to get GPS link")
 
-mod_log.toffset = toffset
+setUTCoffset(toffset)
 logTxt("Longitude = %.6f ; Latitude = %.6f ; Clock offset is %.2f sec."%(longitude,latitude,toffset))
 
 # Update camera status with GPS position
