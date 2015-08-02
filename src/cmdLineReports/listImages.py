@@ -1,9 +1,7 @@
 #!../../virtual-env/bin/python
-# timelapseMovie.py
+# listImages.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
-
-# Make a timelapse video of images recording between specified start and end times
 
 import os,time,sys,glob,datetime,operator
 from math import *
@@ -33,6 +31,8 @@ if len(sys.argv)>6: stride   = int  (sys.argv[6])
 
 if (utcMax==0): utcMax = time.time()
 
+print "./listImages.py %f %f \"%s\" \"%s\" \"%s\" %d"%(utcMin,utcMax,cameraId,label,imgType,stride)
+
 fdb_handle = meteorpi_fdb.MeteorDatabase( DBPATH , FDBFILESTORE )
 
 search = mp.FileRecordSearch(camera_ids=[cameraId],semantic_type=mp.NSString(imgType),exclude_events=True,before=UTC2datetime(utcMax),after=UTC2datetime(utcMin),limit=1000000)
@@ -40,18 +40,21 @@ files  = fdb_handle.search_files(search)
 files  = [i for i in files['files']]
 files.sort(key=lambda x: x.file_time)
 
-print "Found %d images between time <%s> and <%s> from camera <%s>"%( len(files) , UTC2datetime(utcMin) , UTC2datetime(utcMax) , cameraId )
+def metadata2dict(metadata):
+  output={}
+  for i in metadata:
+    if (i.key.ns=="meteorpi"):
+      output[i.key.s] = i.value
+  return output
 
-filestub="/tmp/frame_%d_%%08d.jpg"%pid
-
-imgNo=1
+title = "Camera <%s>"%cameraId
+print "\n\n%s\n%s"%(title,"-"*len(title))
+print "%s\n  * %s\n  * High water mark: %s"%(cameraId,fdb_handle.get_camera_status(camera_id=cameraId),fdb_handle.get_high_water_mark(camera_id=cameraId))
+print "  * %d matching files in time range %s --> %s"%(len(files),utcMin,utcMax)
 count=1
-for f in files:
+for fileObj in files:
   count+=1
   if not (count%stride==0): continue
-  utc = datetime2UTC(f.file_time)
-  os.system("""convert %s -gravity SouthEast -fill ForestGreen -pointsize 20 -font Ubuntu-Bold -annotate +16+10 '%s %s' %s"""%(f.get_path(), label, time.strftime("%d %b %Y %H:%M", time.gmtime(utc)), filestub%imgNo))
-  imgNo+=1
-
-os.system("""avconv -r 40 -i %s -codec:v libx264 /tmp/timelapse.mp4"""%filestub)
+  metadata = metadata2dict(fileObj.meta)
+  print "  * UTC %12.1f   date %-30s   sky clarity %8.1f   filename <%s>"%(datetime2UTC(fileObj.file_time) , fileObj.file_time , float(metadata['skyClarity']) , fileObj.get_path())
 
