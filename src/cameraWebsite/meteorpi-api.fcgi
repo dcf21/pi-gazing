@@ -1,17 +1,30 @@
-#!/home/pi/v_env/bin/python
-
+#!/home/meteorpi/meteor-env/bin/python
 from flup.server.fcgi import WSGIServer
-import meteorpi_server
-import meteorpi_fdb
 
+from meteorpi_fdb import MeteorDatabase
+from meteorpi_fdb.exporter import MeteorExporter
+from meteorpi_server import MeteorApp, admin_api, importer_api, query_api
+
+# Configure and create database and server objects
 db_path = 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb'
-file_store_path = '/home/pi/meteorpi_files'
+file_store_path = '/home/meteorpi/meteorpi_files'
+db = MeteorDatabase(db_path=db_path, file_store_path=file_store_path)
+meteor_app = MeteorApp(db=db)
 
-db = meteorpi_fdb.MeteorDatabase(db_path=db_path, file_store_path=file_store_path)
-app = meteorpi_server.build_app(db)
+# Add all routes
+admin_api.add_routes(meteor_app=meteor_app)
+importer_api.add_routes(meteor_app=meteor_app)
+query_api.add_routes(meteor_app=meteor_app)
 
-print app
+# Configure overly eager exporter - change these times!
+exporter = MeteorExporter(db=db,
+                          mark_interval_seconds=1,
+                          max_failures_before_disable=4,
+                          defer_on_failure_seconds=3)
+exporter.scheduler.start()
 
+# Start the WSGI server
 if __name__ == '__main__':
-    WSGIServer(app).run()
+    WSGIServer(meteor_app.app).run()
+
 

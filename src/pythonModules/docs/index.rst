@@ -26,6 +26,7 @@ Contents:
     api
     examples
     api-internal
+    server
 
 Indices and tables
 ==================
