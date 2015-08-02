@@ -7,6 +7,10 @@
 
 #include <stdio.h>
 
+#ifndef _ASCIIDOUBLE_C
+extern int UTC_OFFSET;
+#endif
+
 double GetFloat                 (const char *str, int *Nchars);
 int    ValidFloat               (const char *str, int *end);
 char  *NumericDisplay           (double in, int N, int SigFig, int latex);

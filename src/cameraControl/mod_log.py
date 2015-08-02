@@ -11,11 +11,11 @@ toffset = 0
 
 def getUTC():
   global toffset
-  return time.time()-toffset
+  return time.time()+toffset
 
 def getUTCoffset():
   global toffset
-  return -toffset
+  return toffset
 
 def setUTCoffset(x):
   global toffset

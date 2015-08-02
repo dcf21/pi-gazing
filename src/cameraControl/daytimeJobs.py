@@ -19,6 +19,7 @@ from mod_time import *
 from mod_daytimejobs import *
 import mod_astro
 import mod_hwm
+import orientationCalc
 
 import meteorpi_fdb
 fdb_handle = meteorpi_fdb.MeteorDatabase( DBPATH , FDBFILESTORE )

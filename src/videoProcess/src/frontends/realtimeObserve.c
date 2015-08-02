@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
 
   videoMetadata vmd;
 
-  const double utcoffset  = GetFloat(argv[1],NULL);
+  const double utcoffset  = GetFloat(argv[1],NULL); UTC_OFFSET=utcoffset;
   vmd.tstart              = GetFloat(argv[2],NULL);
   vmd.tstop               = GetFloat(argv[3],NULL);
   vmd.nframe              = 0;

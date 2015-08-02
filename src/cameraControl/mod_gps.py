@@ -41,7 +41,7 @@ def fetchGPSfix():
   tstart = time.time()
   while 1:
     x = gpsp.get_current_value()
-    if x and ('mode' in x) and (x.mode==3): return [ gpsp.clockoffset , gpsp.latitude , gpsp.longitude ]
+    if x and ('mode' in x) and (x.mode==3): return [ -gpsp.clockoffset , gpsp.latitude , gpsp.longitude ]
     if (time.time() > tstart+30): return False # Give up after 30 seconds
     time.sleep(2)
 

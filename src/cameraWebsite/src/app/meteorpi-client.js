@@ -1,7 +1,7 @@
 define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
 
     return new MeteorPiClient({
-        urlPrefix: "http://localhost:12345/"
+        urlPrefix: "/api/"
     });
 
     /**

@@ -44,7 +44,7 @@ else:
   logTxt("We are not running on a RPi; so not bothering to try to get GPS link")
 
 setUTCoffset(toffset)
-logTxt("Longitude = %.6f ; Latitude = %.6f ; Clock offset is %.2f sec."%(longitude,latitude,toffset))
+logTxt("Longitude = %.6f ; Latitude = %.6f ; Clock offset: %.2f sec behind."%(longitude,latitude,toffset))
 
 # Update camera status with GPS position
 timenow = UTC2datetime(getUTC())
@@ -110,8 +110,9 @@ while True:
 
   nextObservingTime = secondsTillSunset + sunMargin
   if (nextObservingTime<0): nextObservingTime += 3600*24 - 300
-  if (nextObservingTime > 600) and (REAL_TIME or not I_AM_A_RPI): # Do daytimejobs on a RPi only if we are doing real-time observation
+  if (nextObservingTime > 3600) and (REAL_TIME or not I_AM_A_RPI): # Do daytimejobs on a RPi only if we are doing real-time observation
     tstop = timeNow+nextObservingTime
+    time.sleep(300)
     logTxt("Starting daytime jobs until %s (running for %d seconds)."%(datetime.datetime.fromtimestamp(tstop).strftime('%Y-%m-%d %H:%M:%S'),nextObservingTime))
     os.system("cd %s ; ./daytimeJobs.py %d %d"%(PYTHON_PATH,getUTCoffset(),tstop))
   else:

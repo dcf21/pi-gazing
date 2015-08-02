@@ -2,6 +2,8 @@
 // Meteor Pi, Cambridge Science Centre
 // Dominic Ford
 
+#define _ASCIIDOUBLE_C 1
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -204,12 +206,14 @@ char *NextWord(char *in)
 
 /* FriendlyTimestring(): Returns pointer to time string */
 
+int UTC_OFFSET=0;
+
 char *FriendlyTimestring(int t)
  {
   static char output[256];
 
   time_t timenow;
-  if (!t) timenow = time(NULL);
+  if (!t) timenow = time(NULL) + UTC_OFFSET;
   else    timenow = (time_t)t;
 
   const double JD = timenow / 86400.0 + 2440587.5;

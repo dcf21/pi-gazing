@@ -1,4 +1,4 @@
-activate_this = '/home/meteorpi/meteor-env/bin/activate_this.py'
+activate_this = '/home/pi/meteor-pi/virtual-env/bin/activate_this.py'
 execfile(activate_this, dict(__file__=activate_this))
 
 from meteorpi_fdb import MeteorDatabase
@@ -6,7 +6,7 @@ from meteorpi_server import MeteorApp, admin_api, importer_api, query_api
 
 # Configure and create database and server objects
 db_path = 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb'
-file_store_path = '/home/dcf21/camsci/meteor-pi/datadir'
+file_store_path = '/home/pi/meteor-pi/datadir/firebird_files'
 db = MeteorDatabase(db_path=db_path, file_store_path=file_store_path)
 meteor_app = MeteorApp(db=db)
 

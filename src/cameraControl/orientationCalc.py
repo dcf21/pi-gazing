@@ -69,7 +69,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
     if (getMetaItem(f,'sunAlt')     >  -3): continue
     acceptableFiles.append(f)
 
-  logTxt("%d acceptable images found for alignment"%len(acceptableFiles))
+  logTxt("%d acceptable images found for alignment (others do not have good sky quality)"%len(acceptableFiles))
 
   # If we don't have enough images, we can't proceed to get a secure orientation fit
   if (len(acceptableFiles)<20):
@@ -208,6 +208,6 @@ if __name__ == "__main__":
   utcNow   = time.time()
   if len(sys.argv)>1: cameraId = sys.argv[1]
   if len(sys.argv)>2: utcNow   = float(sys.argv[2])
-  mod_log.setUTCoffset( time.time() - utcNow )
+  mod_log.setUTCoffset( utcNow - time.time() )
   orientationCalc(cameraId,utcNow,0)
 

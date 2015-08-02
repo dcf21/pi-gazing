@@ -7,30 +7,36 @@
 
 import os,time
 from math import *
-import RPi.GPIO as GPIO
 
 import mod_settings
 
-GPIO.setwarnings(False)
-GPIO.setmode(GPIO.BOARD)
-GPIO.setup(18, GPIO.OUT)
-GPIO.setup(22, GPIO.OUT)
-GPIO.output(18, True)
-GPIO.output(22, True)
+if mod_settings.I_AM_A_RPI:
+  import RPi.GPIO as GPIO
+  GPIO.setwarnings(False)
+  GPIO.setmode(GPIO.BOARD)
+  GPIO.setup(18, GPIO.OUT)
+  GPIO.setup(22, GPIO.OUT)
+  GPIO.output(18, True)
+  GPIO.output(22, True)
+
+def setLights(x,y):
+  if mod_settings.I_AM_A_RPI:
+    GPIO.output(18,x)
+    GPIO.output(22,y)
+  else:
+    print "%10s %10s"%(x,y)
 
 loadCount   = 0
 logFilename = os.path.join(mod_settings.DATA_PATH,"meteorPi.log")
 lastLogTime = 0
 
-loadDivisor = 1.2
+loadDivisor = 300
 
 while 1:
-  loadCount += float(open("/proc/loadavg").readline().split(" ")[0]) / loadDivisor
-  GPIO.output(18, floor(loadCount/loadDivisor)%2==0)
+  loadCount = float(open("/proc/stat").readline().split()[1]) / loadDivisor
+  led1 = (floor(loadCount)%2==0)
   if os.path.exists(logFilename): lastLogTime = os.path.getmtime(logFilename)
-  if (time.time() - lastLogTime) < 10:
-    GPIO.output(22, True)
-  else:
-    GPIO.output(22, False)
-  time.sleep(0.5)
+  led2 = ((time.time() - lastLogTime) < 10)
+  setLights(led1,led2)
+  time.sleep(0.25)
 
