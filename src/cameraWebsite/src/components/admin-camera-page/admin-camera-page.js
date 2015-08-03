@@ -29,11 +29,20 @@ define(['knockout', 'text!./admin-camera-page.html', 'client'], function (ko, te
             self.status.inst_url(status.inst_url);
             self.status_id(status.status_id);
             self.status.regions(status.regions);
-            /**
-             * TODO
-             * Use the status.camera_id and the client to get the most recent image and
-             * set it as the image for the polygon editor.
-             */
+            var nonKitten = {
+                semantic_type: 'meteorpi:timelapse/frame',
+                limit: 1,
+                camera_ids: self.status.camera_id
+            };
+            client.searchFiles(nonKitten, function (error, results) {
+                if (results.files.length == 0) {
+                    self.imageURL("https://placekitten.com/g/600/500")
+                }
+                else {
+                    fileRecord = results.files[0];
+                    self.imageURL(client.urlForFile(fileRecord));
+                }
+            });
         } else {
             self.status_id(null);
             self.status.inst_name(null);
