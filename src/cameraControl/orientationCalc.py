@@ -54,6 +54,9 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
 
   # Fetch camera status
   cameraStatus = fdb_handle.get_camera_status(camera_id=cameraId,time=UTC2datetime(utcNow))
+  if not cameraStatus:
+    logTxt("Aborting -- no camera status set for camera <%s>"%cameraId)
+    return
   lensName = cameraStatus.lens
 
   # Search for background-subtracted timelapse photography within this range
