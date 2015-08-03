@@ -14,7 +14,8 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'utils'], func
             semantic_type: ko.observable(),
             limit: ko.observable(20),
             skip: ko.observable(),
-            meta: ko.observableArray()
+            meta: ko.observableArray(),
+            camera_ids: ko.observable()
         };
 
         self.results = ko.observableArray();

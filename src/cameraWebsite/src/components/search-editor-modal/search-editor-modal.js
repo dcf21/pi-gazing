@@ -10,7 +10,8 @@ define(['knockout', 'text!./search-editor-modal.html', 'utils'], function (ko, t
                 after_offset: ko.observable(),
                 before_offset: ko.observable(),
                 semantic_type: ko.observable(),
-                meta: ko.observableArray()
+                meta: ko.observableArray(),
+                camera_ids: ko.observable()
             };
         }
         else if (exportConfig.type === 'event') {
@@ -20,7 +21,8 @@ define(['knockout', 'text!./search-editor-modal.html', 'utils'], function (ko, t
                 after_offset: ko.observable(),
                 before_offset: ko.observable(),
                 event_type: ko.observable(),
-                meta: ko.observableArray()
+                meta: ko.observableArray(),
+                camera_ids: ko.observable()
             };
         }
 
