@@ -32,7 +32,7 @@ define(['knockout', 'text!./admin-camera-page.html', 'client'], function (ko, te
             var nonKitten = {
                 semantic_type: 'meteorpi:timelapse/frame',
                 limit: 1,
-                camera_ids: self.status.camera_id
+                camera_ids: status.camera_id
             };
             client.searchFiles(nonKitten, function (error, results) {
                 if (results.files.length == 0) {
