@@ -123,6 +123,7 @@ def firebirdImport():
 
   # Update firebird hwm
   for cameraId,utc in hwm_new.iteritems():
+    logTxt("Updating high water mark of camera <%s> to UTC %d (%s)"%(cameraId,utc,UTC2datetime(utc)))
     fdb_handle.set_high_water_mark( UTC2datetime(utc) , cameraId )
 
   os.chdir(cwd)

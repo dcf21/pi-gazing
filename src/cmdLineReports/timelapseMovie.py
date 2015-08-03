@@ -33,7 +33,14 @@ if len(sys.argv)>6: stride   = int  (sys.argv[6])
 
 if (utcMax==0): utcMax = time.time()
 
+print "./timelapseMovie.py %f %f \"%s\" \"%s\" \"%s\" %d"%(utcMin,utcMax,cameraId,label,imgType,stride)
+
 fdb_handle = meteorpi_fdb.MeteorDatabase( DBPATH , FDBFILESTORE )
+
+s = fdb_handle.get_camera_status(camera_id=cameraId)
+if not s:
+  print "Unknown camera <%s>. Run ./listCameras.py to see a list of available cameras."%cameraId
+  sys.exit(0)
 
 search = mp.FileRecordSearch(camera_ids=[cameraId],semantic_type=mp.NSString(imgType),exclude_events=True,before=UTC2datetime(utcMax),after=UTC2datetime(utcMin),limit=1000000)
 files  = fdb_handle.search_files(search)

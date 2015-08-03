@@ -8,6 +8,7 @@ from math import *
 
 from mod_settings import *
 from mod_time import *
+from mod_astro import *
 
 import meteorpi_model as mp
 import meteorpi_fdb
@@ -20,7 +21,7 @@ utcMax   = time.time()
 cameraId = my_installation_id()
 label    = ""
 imgType  = "timelapse/frame/bgrdSub/lensCorr"
-stride   = 1
+stride   = 5
 
 if len(sys.argv)>1: utcMin   = float(sys.argv[1])
 if len(sys.argv)>2: utcMax   = float(sys.argv[2])
@@ -31,7 +32,7 @@ if len(sys.argv)>6: stride   = int  (sys.argv[6])
 
 if (utcMax==0): utcMax = time.time()
 
-print "./listImages.py %f %f \"%s\" \"%s\" \"%s\" %d"%(utcMin,utcMax,cameraId,label,imgType,stride)
+print "# ./listImages.py %f %f \"%s\" \"%s\" \"%s\" %d\n"%(utcMin,utcMax,cameraId,label,imgType,stride)
 
 fdb_handle = meteorpi_fdb.MeteorDatabase( DBPATH , FDBFILESTORE )
 
@@ -47,14 +48,26 @@ def metadata2dict(metadata):
       output[i.key.s] = i.value
   return output
 
-title = "Camera <%s>"%cameraId
-print "\n\n%s\n%s"%(title,"-"*len(title))
-print "%s\n  * %s\n  * High water mark: %s"%(cameraId,fdb_handle.get_camera_status(camera_id=cameraId),fdb_handle.get_high_water_mark(camera_id=cameraId))
-print "  * %d matching files in time range %s --> %s"%(len(files),utcMin,utcMax)
+s = fdb_handle.get_camera_status(camera_id=cameraId)
+if not s:
+  print "Unknown camera <%s>. Run ./listCameras.py to see a list of available cameras."%cameraId
+  sys.exit(0)
+
+print "Camera <%s>"%cameraId
+print "  * High water mark: %s"%fdb_handle.get_high_water_mark(camera_id=cameraId)
+print "  * Software: %s"%s.software_version
+print "  * Lens: %s"%s.lens
+print "  * Sensor: %s"%s.sensor
+print "  * Validity of this status: %s -> %s"%(s.valid_from,s.valid_to)
+print "  * Location: %s"%s.location
+print "  * Orientation: %s"%s.orientation
+print "  * Regions: %s"%s.regions
+print "  * %d matching files in time range %s --> %s"%(len(files),UTC2datetime(utcMin),UTC2datetime(utcMax))
 count=1
 for fileObj in files:
   count+=1
   if not (count%stride==0): continue
   metadata = metadata2dict(fileObj.meta)
-  print "  * UTC %12.1f   date %-30s   sky clarity %8.1f   filename <%s>"%(datetime2UTC(fileObj.file_time) , fileObj.file_time , float(metadata['skyClarity']) , fileObj.get_path())
+  [year,month,day,h,m,s] = InvJulianDay(JDfromUTC(datetime2UTC(fileObj.file_time)))
+  print "  * Unix %12.1f   date %04d/%02d/%02d %02d:%02d:%02d UTC   sky clarity %8.1f   filename <%s>"%(datetime2UTC(fileObj.file_time) , year,month,day,h,m,s , float(metadata['skyClarity']) , fileObj.get_path())
 

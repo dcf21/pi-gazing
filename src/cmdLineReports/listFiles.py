@@ -22,6 +22,8 @@ if (argc>2): tmax=float(sys.argv[2])
 tmin=UTC2datetime(tmin)
 tmax=UTC2datetime(tmax)
 
+print "# ./listFiles.py %s %s\n"%(tmin,tmax)
+
 cameraList = fdb_handle.get_cameras()
 for cameraId in cameraList:
   title = "Camera <%s>"%cameraId
