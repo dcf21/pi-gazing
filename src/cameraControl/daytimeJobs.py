@@ -191,6 +191,11 @@ if (not quitTime) or (quitTime - getUTC() > 3600*5):
   logTxt("Trying to determine orientation of camera")
   orientationCalc.orientationCalc( CAMERA_ID , getUTC() , quitTime )
 
+# Export data to remote server(s)
+if (not quitTime) or (quitTime - getUTC() > 3600):
+  logTxt("Exporting data to remote servers")
+  exportData.exportData( getUTC() , quitTime )
+
 # Clean up temporary files
 os.system("rm -Rf /tmp/tmp.* /tmp/dcf21_orientationCalc_*")
 # os.system("rm -Rf %s/t*"%(DATA_PATH)) # This deletes all data not imported into firebird. Should be uncommented on production systems where unattended operation needed.

@@ -10,6 +10,7 @@ from math import *
 
 from mod_settings import *
 from mod_time import *
+import mod_log
 from mod_log import logTxt,getUTC
 import mod_astro
 
@@ -75,7 +76,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
   logTxt("%d acceptable images found for alignment (others do not have good sky quality)"%len(acceptableFiles))
 
   # If we don't have enough images, we can't proceed to get a secure orientation fit
-  if (len(acceptableFiles)<20):
+  if (len(acceptableFiles)<10):
     logTxt("Giving up: not enough suitable images")
     return
 

@@ -1,5 +1,5 @@
 #!../../virtual-env/bin/python
-# updateUserList.py
+# updateUser.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
