@@ -142,6 +142,9 @@ try:
               params['metadata']['sunAlt']  = sunAltAz[0];
               params['metadata']['sunAz']   = sunAltAz[1];
 
+              # Select some images to be shown in the highlights-only view
+              params['metadata']['highlight'] = int((floor(utc % 600)==0) or ('outExt'=='mp4'))
+
               for outDir in outDirs: os.system("mkdir -p %s"%(os.path.join(outDir,params['date'])))
               jobList.append( {'utc':utc, 'cmd':cmd, 'params':params} )
 
@@ -198,7 +201,7 @@ if (not quitTime) or (quitTime - getUTC() > 3600):
 
 # Clean up temporary files
 os.system("rm -Rf /tmp/tmp.* /tmp/dcf21_orientationCalc_*")
-# os.system("rm -Rf %s/t*"%(DATA_PATH)) # This deletes all data not imported into firebird. Should be uncommented on production systems where unattended operation needed.
+os.system("rm -Rf %s/t*"%(DATA_PATH)) # This deletes all data not imported into firebird. Should be uncommented on production systems where unattended operation needed.
 
 # Twiddle our thumbs
 if quitTime:
