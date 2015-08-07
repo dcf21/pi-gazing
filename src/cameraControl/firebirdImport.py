@@ -88,7 +88,8 @@ def firebirdImport():
       metadict = mod_hwm.fileToDB(metafile) # Dictionary of image metadata
       assert "cameraId" in metadict, "Timelapse photograph <%s> does not have a cameraId set."%fname
       cameraId = metadict["cameraId"]
-      if cameraId not in hwm_old: hwm_old[cameraId] = datetime2UTC( fdb_handle.get_high_water_mark(cameraId) )
+      if cameraId not in hwm_old:
+        hwm_new[cameraId] = hwm_old[cameraId] = datetime2UTC( fdb_handle.get_high_water_mark(cameraId) )
       if utc < hwm_old[cameraId]: continue
       file_name = os.path.split(fname)[1]
       [metadataObjs,metadataFiles] = metadataToFDB(fdb_handle,UTC2datetime(utc),cameraId,file_name,metadict) # List of metadata objects
@@ -97,7 +98,7 @@ def firebirdImport():
       fileObj = fdb_handle.register_file(file_path=fname, mime_type="image/png", semantic_type=mp.NSString(semanticType,"meteorpi"), file_time=UTC2datetime(utc), file_metas=metadataObjs, camera_id=cameraId, file_name=file_name)
       if (os.path.exists(metafile)): os.remove(metafile) # Clean up metadata files that we've finished with
       dictTreeAppend(imgs, [dirname,utc], fileObj)
-      hwm_new[cameraId] = max(hwm_old[cameraId] , utc)
+      hwm_new[cameraId] = max( hwm_new[cameraId] , utc )
 
   # Import trigger events
   for fname in triggerList:
@@ -107,7 +108,8 @@ def firebirdImport():
       metadict = mod_hwm.fileToDB(metafile) # Dictionary of image metadata
       assert "cameraId" in metadict, "Trigger video <%s> does not have a cameraId set."%fname
       cameraId = metadict["cameraId"]
-      if cameraId not in hwm_old: hwm_old[cameraId] = datetime2UTC( fdb_handle.get_high_water_mark(cameraId) )
+      if cameraId not in hwm_old:
+        hwm_new[cameraId] = hwm_old[cameraId] = datetime2UTC( fdb_handle.get_high_water_mark(cameraId) )
       if utc < hwm_old[cameraId]: continue
       file_name = os.path.split(fname)[1]
       [metadataObjs,metadataFiles] = metadataToFDB(fdb_handle,UTC2datetime(utc),cameraId,file_name,metadict) # List of metadata objects
@@ -119,7 +121,7 @@ def firebirdImport():
       logTxt("Registering event <%s>, with cameraId <%s> and %d files"%(fname,cameraId,len(fileObjs)))
       eventObj = fdb_handle.register_event(camera_id=cameraId, event_time=UTC2datetime(utc), event_type=mp.NSString("meteorpi","meteorpi"), file_records=fileObjs, event_meta=metadataObjs)
       if (os.path.exists(metafile)): os.remove(metafile) # Clean up metadata files that we've finished with
-      hwm_new[cameraId] = max(hwm_new[cameraId] , utc)
+      hwm_new[cameraId] = max( hwm_new[cameraId] , utc )
 
   # Update firebird hwm
   for cameraId,utc in hwm_new.iteritems():
