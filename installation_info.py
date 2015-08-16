@@ -4,6 +4,10 @@ LATITUDE    = 52.194317 # Degrees north
 LONGITUDE   = 0.147193 # Degrees east
 CAMERA_NAME = "Cambridge-Ford"
 
+# This flag sets the polarity of the relay used to turn the camera on
+# GPIO line 12 is set to this state to turn the camera ON
+relayOnGPIOState = True
+
 # Configure export of data to a remote server
 EXPORT_URL      = "https://meteorpi.cambridgesciencecentre.org/api/import"
 EXPORT_USERNAME = "" # The username used to log in to the remote server
