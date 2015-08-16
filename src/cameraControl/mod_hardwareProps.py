@@ -10,15 +10,16 @@ from mod_time import *
 
 class sensor:
 
-  def __init__(self, name, width, height, fps, upsideDown):
+  def __init__(self, name, width, height, fps, upsideDown, cameraType):
     self.name       = name
     self.width      = width
     self.height     = height
     self.fps        = fps
     self.upsideDown = upsideDown
+    self.cameraType = cameraType
 
   def __str__(self):
-    print "sensor(%s,%s,%s,%s,%s)"%(self.name,self.width,self.height,self.fps,self.upsideDown)
+    print "sensor(%s,%s,%s,%s,%s,%s)"%(self.name,self.width,self.height,self.fps,self.upsideDown,self.cameraType)
 
 class lens:
 
@@ -46,7 +47,7 @@ class hardwareProps:
 
     self.sensorData = {}
     for d in sensorXml:
-      self.sensorData[ d['name'] ] = sensor( d['name'] , int(d['width']) , int(d['height']) , float(d['fps']) , int(d['upsidedown']) )
+      self.sensorData[ d['name'] ] = sensor( d['name'] , int(d['width']) , int(d['height']) , float(d['fps']) , int(d['upsidedown']) , d['type'] )
 
     tree = ElementTree.parse(lensDataPath)
     root = tree.getroot()

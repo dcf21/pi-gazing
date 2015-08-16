@@ -18,8 +18,6 @@
 #include "utils/JulianDate.h"
 #include "vidtools/color.h"
 
-#include "settings.h"
-
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 

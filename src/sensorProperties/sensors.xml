@@ -6,6 +6,7 @@
   <height>480</height>
   <fps>24.71</fps>
   <upsidedown>1</upsidedown>
+  <type>webcam</type>
  </sensor>
  <sensor>
   <name>watec_902h2_ultimate</name>
@@ -13,6 +14,7 @@
   <height>480</height>
   <fps>24.71</fps>
   <upsidedown>1</upsidedown>
+  <type>webcam</type>
  </sensor>
  <sensor>
   <name>watec_902h2_supreme</name>
@@ -20,6 +22,7 @@
   <height>480</height>
   <fps>24.71</fps>
   <upsidedown>1</upsidedown>
+  <type>webcam</type>
  </sensor>
  <sensor>
   <name>pl1399</name>
@@ -27,6 +30,15 @@
   <height>480</height>
   <fps>24.71</fps>
   <upsidedown>0</upsidedown>
+  <type>webcam</type>
+ </sensor>
+ <sensor>
+  <name>eos1000d</name>
+  <width>1024</width>
+  <height>768</height>
+  <fps>0.125</fps>
+  <upsidedown>0</upsidedown>
+  <type>gphoto2</type>
  </sensor>
 </sensors>
 

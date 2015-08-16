@@ -14,6 +14,7 @@
 #include "utils/error.h"
 
 #include "settings.h"
+#include "settings_webcam.h"
 
 #define medianMapUseEveryNthStack     1
 #define medianMapUseNImages         100

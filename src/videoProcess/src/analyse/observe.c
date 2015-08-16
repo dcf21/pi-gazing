@@ -23,13 +23,6 @@
 
 #include "settings.h"
 
-// medianMap is a structure used to keep track of the average brightness of each pixel in the frame. This is subtracted from stacked image to remove the sky background and hot pixels
-// A histogram is constructed of the brightnesses of each pixel in successive groups of frames.
-
-#define medianMapUseEveryNthStack     1 /* Add every Nth stacked group of frames of histogram. Increase this to reduce CPU load */
-#define medianMapUseNImages        3600 /* Stack this many groups of frames before generating a sky brightness map from histograms. */
-#define medianMapReductionCycles     32 /* Reducing histograms to brightness map is time consuming, so we'll miss frames if we do it all at once. Do it in this many chunks after successive frames. */
-
 #define YUV420  3/2 /* Each pixel is 1.5 bytes in YUV420 stream */
 
 // Generate a filename stub with a timestamp
@@ -87,36 +80,36 @@ void writeMetaData(char *fname, char *itemTypes, ...)
 int readFrameGroup(observeStatus *os, unsigned char *buffer, int *stack1, int *stack2)
  {
   int i,j;
-  memset(stack1, 0, os->frameSize*Nchannels*sizeof(int)); // Stack1 is wiped prior to each call to this function
+  memset(stack1, 0, os->frameSize*os->Nchannels*sizeof(int)); // Stack1 is wiped prior to each call to this function
 
   unsigned char *tmprgb;
-  if (!ALLDATAMONO) tmprgb = malloc(Nchannels*os->frameSize);
+  if (!ALLDATAMONO) tmprgb = malloc(os->Nchannels*os->frameSize);
 
-  for (j=0;j<TRIGGER_FRAMEGROUP;j++)
+  for (j=0;j<os->TRIGGER_FRAMEGROUP;j++)
    {
     unsigned char *tmpc = buffer+j*os->frameSize*YUV420;
     if (ALLDATAMONO) tmprgb = tmpc;
     if ((*os->fetchFrame)(os->videoHandle,tmpc,&os->utc) != 0) { if (DEBUG) gnom_log("Error grabbing"); return 1; }
     if (!ALLDATAMONO) Pyuv420torgb(tmpc,tmpc+os->frameSize,tmpc+os->frameSize*5/4,tmprgb,tmprgb+os->frameSize,tmprgb+os->frameSize*2,os->width,os->height);
 #pragma omp parallel for private(i)
-    for (i=0; i<os->frameSize*Nchannels; i++) stack1[i]+=tmprgb[i];
+    for (i=0; i<os->frameSize*os->Nchannels; i++) stack1[i]+=tmprgb[i];
    }
 
   if (stack2)
    {
 #pragma omp parallel for private(i)
-    for (i=0; i<os->frameSize*Nchannels; i++) stack2[i]+=stack1[i]; // Stack2 can stack output of many calls to this function
+    for (i=0; i<os->frameSize*os->Nchannels; i++) stack2[i]+=stack1[i]; // Stack2 can stack output of many calls to this function
    }
 
   // Add the pixel values in this stack into the histogram in medianWorkspace
-  const int includeInMedianHistograms = ((os->medianCount%medianMapUseEveryNthStack)==0) && (os->medianCount<medianMapUseNImages*medianMapUseEveryNthStack);
+  const int includeInMedianHistograms = ((os->medianCount%os->medianMapUseEveryNthStack)==0) && (os->medianCount<os->medianMapUseNImages*os->medianMapUseEveryNthStack);
   if (includeInMedianHistograms)
    {
 #pragma omp parallel for private(j)
-    for (j=0; j<os->frameSize*Nchannels; j++)
+    for (j=0; j<os->frameSize*os->Nchannels; j++)
      {
       int d;
-      int pixelVal = CLIP256(stack1[j]/TRIGGER_FRAMEGROUP);
+      int pixelVal = CLIP256(stack1[j]/os->TRIGGER_FRAMEGROUP);
       os->medianWorkspace[j*256 + pixelVal]++;
      }
    }
@@ -124,7 +117,7 @@ int readFrameGroup(observeStatus *os, unsigned char *buffer, int *stack1, int *s
   return 0;
  }
 
-int observe(void *videoHandle, const char *cameraId, const int utcoffset, const int tstart, const int tstop, const int width, const int height, const char *label, const unsigned char *mask, int (*fetchFrame)(void *,unsigned char *,double *), int (*rewindVideo)(void *, double *))
+int observe(void *videoHandle, const char *cameraId, const int utcoffset, const int tstart, const int tstop, const int width, const int height, const double fps, const char *label, const unsigned char *mask, const int Nchannels, const int STACK_COMPARISON_INTERVAL, const int TRIGGER_PREFIX_TIME, const int TRIGGER_SUFFIX_TIME, const int TRIGGER_FRAMEGROUP, const int TRIGGER_MAXRECORDLEN, const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT, const int TIMELAPSE_EXPOSURE, const int TIMELAPSE_INTERVAL, const int STACK_GAIN, const int medianMapUseEveryNthStack, const int medianMapUseNImages, const int medianMapReductionCycles, int (*fetchFrame)(void *,unsigned char *,double *), int (*rewindVideo)(void *, double *))
  {
   int i;
   char line[FNAME_LENGTH],line2[FNAME_LENGTH],line3[FNAME_LENGTH];
@@ -141,34 +134,49 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
   os->cameraId = cameraId;
   os->mask = mask;
   os->fetchFrame = fetchFrame;
-  os->fps = VIDEO_FPS;       // Requested frame rate
+  os->fps = fps;       // Requested frame rate
   os->frameSize = width * height;
+  os->Nchannels = Nchannels;
 
+  os->STACK_COMPARISON_INTERVAL = STACK_COMPARISON_INTERVAL;
+  os->TRIGGER_PREFIX_TIME = TRIGGER_PREFIX_TIME;
+  os->TRIGGER_SUFFIX_TIME = TRIGGER_SUFFIX_TIME;
+  os->TRIGGER_FRAMEGROUP = TRIGGER_FRAMEGROUP;
+  os->TRIGGER_MAXRECORDLEN = TRIGGER_MAXRECORDLEN;
+  os->TRIGGER_THROTTLE_PERIOD = TRIGGER_THROTTLE_PERIOD;
+  os->TRIGGER_THROTTLE_MAXEVT = TRIGGER_THROTTLE_MAXEVT;
+  os->TIMELAPSE_EXPOSURE = TIMELAPSE_EXPOSURE;
+  os->TIMELAPSE_INTERVAL = TIMELAPSE_INTERVAL;
+  os->STACK_GAIN = STACK_GAIN;
+
+  os->medianMapUseEveryNthStack = medianMapUseEveryNthStack;
+  os->medianMapUseNImages = medianMapUseNImages;
+  os->medianMapReductionCycles = medianMapReductionCycles;
 
   // Trigger buffers. These are used to store 1 second of video for comparison with the next
-  os->buffNGroups    = os->fps * TRIGGER_MAXRECORDLEN / TRIGGER_FRAMEGROUP;
-  os->buffGroupBytes = TRIGGER_FRAMEGROUP*os->frameSize*YUV420;
-  os->buffNFrames    = os->buffNGroups * TRIGGER_FRAMEGROUP;
+  os->buffNGroups    = os->fps * os->TRIGGER_MAXRECORDLEN / os->TRIGGER_FRAMEGROUP;
+  os->buffGroupBytes = os->TRIGGER_FRAMEGROUP*os->frameSize*YUV420;
+  os->buffNFrames    = os->buffNGroups * os->TRIGGER_FRAMEGROUP;
   os->bufflen        = os->buffNGroups * os->buffGroupBytes;
   os->buffer         = malloc(os->bufflen);
-  for (i=0; i<=STACK_COMPARISON_INTERVAL; i++)
+  for (i=0; i<=os->STACK_COMPARISON_INTERVAL; i++)
    {
-    os->stack[i] = malloc(os->frameSize*sizeof(int)*Nchannels); // A stacked version of the current and preceding frame group; used to form a difference image
+    os->stack[i] = malloc(os->frameSize*sizeof(int)*os->Nchannels); // A stacked version of the current and preceding frame group; used to form a difference image
     if (!os->stack[i]) { sprintf(temp_err_string, "ERROR: malloc fail in observe."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
    }
 
-  os->triggerPrefixNGroups = TRIGGER_PREFIX_TIME * os->fps / TRIGGER_FRAMEGROUP;
-  os->triggerSuffixNGroups = TRIGGER_SUFFIX_TIME * os->fps / TRIGGER_FRAMEGROUP;
+  os->triggerPrefixNGroups = os->TRIGGER_PREFIX_TIME * os->fps / os->TRIGGER_FRAMEGROUP;
+  os->triggerSuffixNGroups = os->TRIGGER_SUFFIX_TIME * os->fps / os->TRIGGER_FRAMEGROUP;
 
   // Timelapse buffers
   os->utc                 = 0;
   os->timelapseUTCStart   = 1e40; // Store timelapse exposures at set intervals. This is UTC of next frame, but we don't start until we've done a run-in period
-  os->framesTimelapse     = os->fps * TIMELAPSE_EXPOSURE;
-  os->stackT              = malloc(os->frameSize*sizeof(int)*Nchannels);
+  os->framesTimelapse     = os->fps * os->TIMELAPSE_EXPOSURE;
+  os->stackT              = malloc(os->frameSize*sizeof(int)*os->Nchannels);
 
   // Median maps are used for background subtraction. Maps A and B are used alternately and contain the median value of each pixel.
-  os->medianMap       = calloc(1,os->frameSize*Nchannels); // The median value of each pixel, sampled over 255 stacked images
-  os->medianWorkspace = calloc(1,os->frameSize*Nchannels*256*sizeof(int)); // Workspace which counts the number of times any given pixel has a particular value
+  os->medianMap       = calloc(1,os->frameSize*os->Nchannels); // The median value of each pixel, sampled over 255 stacked images
+  os->medianWorkspace = calloc(1,os->frameSize*os->Nchannels*256*sizeof(int)); // Workspace which counts the number of times any given pixel has a particular value
 
   // Map of past triggers, used to weight against pixels that trigger too often (they're probably trees...)
   os->pastTriggerMap  = calloc(1,os->frameSize*sizeof(int));
@@ -195,8 +203,8 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
 
   for (i=0; i<MAX_EVENTS; i++)
    {
-    os->eventList[i].stackedImage = malloc(os->frameSize*Nchannels*sizeof(int));
-    os->eventList[i].maxStack     = malloc(os->frameSize*Nchannels*sizeof(int));
+    os->eventList[i].stackedImage = malloc(os->frameSize*os->Nchannels*sizeof(int));
+    os->eventList[i].maxStack     = malloc(os->frameSize*os->Nchannels*sizeof(int));
     if ((!os->eventList[i].stackedImage) || (!os->eventList[i].maxStack)) { sprintf(temp_err_string, "ERROR: malloc fail in observe."); gnom_fatal(__FILE__,__LINE__,temp_err_string); }
    }
 
@@ -204,11 +212,11 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
   os->medianCount    = 0; // Count how many frames we've fed into the brightness histograms in medianWorkspace
   os->timelapseCount =-1; // Count how many frames have been stacked into the timelapse buffer (stackT)
   os->frameCounter   = 0;
-  os->runInCountdown = 8 + medianMapReductionCycles + medianMapUseEveryNthStack*medianMapUseNImages; // Let the camera run for a period before triggering, as it takes this long to make first median map
+  os->runInCountdown = 8 + os->medianMapReductionCycles + os->medianMapUseEveryNthStack*os->medianMapUseNImages; // Let the camera run for a period before triggering, as it takes this long to make first median map
   os->noiseLevel     = 128;
 
   // Trigger throttling
-  os->triggerThrottlePeriod = (TRIGGER_THROTTLE_PERIOD * 60. * os->fps / TRIGGER_FRAMEGROUP); // Reset trigger throttle counter after this many frame groups have been processed
+  os->triggerThrottlePeriod = (os->TRIGGER_THROTTLE_PERIOD * 60. * os->fps / os->TRIGGER_FRAMEGROUP); // Reset trigger throttle counter after this many frame groups have been processed
   os->triggerThrottleTimer  = 0;
   os->triggerThrottleCounter= 0;
 
@@ -233,63 +241,63 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
     if (bufferPos==os->buffer) os->noiseLevel = estimateNoiseLevel(os->width,os->height,os->buffer,16);
 
     // Read the next second of video
-    int status = readFrameGroup(os, bufferPos, os->stack[ os->frameCounter % (STACK_COMPARISON_INTERVAL+1) ], (os->timelapseCount>=0)?os->stackT:NULL);
+    int status = readFrameGroup(os, bufferPos, os->stack[ os->frameCounter % (os->STACK_COMPARISON_INTERVAL+1) ], (os->timelapseCount>=0)?os->stackT:NULL);
     if (status) break; // We've run out of video
 
     // If we've stacked enough frames since we last made a median map, make a new median map
     os->medianCount++;
-    if (os->medianCount>=medianMapUseNImages*medianMapUseEveryNthStack)
+    if (os->medianCount>=os->medianMapUseNImages*os->medianMapUseEveryNthStack)
      {
-      const int reductionCycle = os->medianCount - medianMapUseNImages*medianMapUseEveryNthStack;
-      medianCalculate(os->width, os->height, Nchannels, reductionCycle, medianMapReductionCycles, os->medianWorkspace, os->medianMap);
-      if (reductionCycle>=medianMapReductionCycles) { os->medianCount=0; memset(os->medianWorkspace, 0, os->frameSize*Nchannels*256*sizeof(int)); }
+      const int reductionCycle = os->medianCount - os->medianMapUseNImages*os->medianMapUseEveryNthStack;
+      medianCalculate(os->width, os->height, os->Nchannels, reductionCycle, os->medianMapReductionCycles, os->medianWorkspace, os->medianMap);
+      if (reductionCycle>=os->medianMapReductionCycles) { os->medianCount=0; memset(os->medianWorkspace, 0, os->frameSize*os->Nchannels*256*sizeof(int)); }
      }
 
     // Periodically, dump a stacked timelapse exposure lasting for <secondsTimelapseBuff> seconds
     if (os->timelapseCount>=0) { os->timelapseCount++; }
     else if (os->utc > os->timelapseUTCStart)
       {
-       memset(os->stackT, 0, os->frameSize*Nchannels*sizeof(int));
+       memset(os->stackT, 0, os->frameSize*os->Nchannels*sizeof(int));
        os->timelapseCount=0;
       }
 
     // If timelapse exposure is finished, dump it
-    if (os->timelapseCount>=os->framesTimelapse/TRIGGER_FRAMEGROUP)
+    if (os->timelapseCount>=os->framesTimelapse/os->TRIGGER_FRAMEGROUP)
      {
       char fstub[FNAME_LENGTH], fname[FNAME_LENGTH]; fNameGenerate(fstub,os->cameraId,os->timelapseUTCStart,"frame_","timelapse_raw",os->label);
       sprintf(fname, "%s%s",fstub,"BS0.rgb");
-      dumpFrameFromInts(os->width, os->height, Nchannels, os->stackT, os->framesTimelapse, 1, fname);
+      dumpFrameFromInts(os->width, os->height, os->Nchannels, os->stackT, os->framesTimelapse, 1, fname);
       writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(os->framesTimelapse), "stackedFrames", os->framesTimelapse);
       sprintf(fname, "%s%s",fstub,"BS1.rgb");
-      dumpFrameFromISub(os->width, os->height, Nchannels, os->stackT, os->framesTimelapse, STACK_GAIN, os->medianMap, fname);
-      writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(os->framesTimelapse)*STACK_GAIN, "stackedFrames", os->framesTimelapse);
+      dumpFrameFromISub(os->width, os->height, os->Nchannels, os->stackT, os->framesTimelapse, os->STACK_GAIN, os->medianMap, fname);
+      writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(os->framesTimelapse)*os->STACK_GAIN, "stackedFrames", os->framesTimelapse);
       if (floor(fmod(os->timelapseUTCStart,900))==0) // Every 15 minutes, dump an image of the sky background map for diagnostic purposes
        {
         sprintf(fname, "%s%s",fstub,"skyBackground.rgb");
-        dumpFrame(os->width, os->height, Nchannels, os->medianMap, fname);
-        writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel, "stackedFrames", ((int)medianMapUseNImages));
+        dumpFrame(os->width, os->height, os->Nchannels, os->medianMap, fname);
+        writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel, "stackedFrames", ((int)os->medianMapUseNImages));
        }
-      os->timelapseUTCStart+=TIMELAPSE_INTERVAL;
+      os->timelapseUTCStart+=os->TIMELAPSE_INTERVAL;
       os->timelapseCount=-1;
      }
 
     // Update counters for trigger throttling
     os->triggerThrottleTimer++;
-    const int triggerThrottleCycles = TRIGGER_THROTTLE_PERIOD * 60 * os->fps / TRIGGER_FRAMEGROUP;
+    const int triggerThrottleCycles = os->TRIGGER_THROTTLE_PERIOD * 60 * os->fps / os->TRIGGER_FRAMEGROUP;
     if (os->triggerThrottleTimer >= triggerThrottleCycles) { os->triggerThrottleTimer=0; os->triggerThrottleCounter=0; }
 
     // Test whether motion sensor has triggered
-    os->triggeringAllowed = ((!os->runInCountdown) && (os->triggerThrottleCounter<TRIGGER_THROTTLE_MAXEVT) );
+    os->triggeringAllowed = ((!os->runInCountdown) && (os->triggerThrottleCounter<os->TRIGGER_THROTTLE_MAXEVT) );
     registerTriggerEnds(os);
-    int *imageNew = os->stack[  os->frameCounter                              % (STACK_COMPARISON_INTERVAL+1) ];
-    int *imageOld = os->stack[ (os->frameCounter + STACK_COMPARISON_INTERVAL) % (STACK_COMPARISON_INTERVAL+1) ];
-    checkForTriggers(  os, imageNew, imageOld, TRIGGER_FRAMEGROUP );
+    int *imageNew = os->stack[  os->frameCounter                                  % (os->STACK_COMPARISON_INTERVAL+1) ];
+    int *imageOld = os->stack[ (os->frameCounter + os->STACK_COMPARISON_INTERVAL) % (os->STACK_COMPARISON_INTERVAL+1) ];
+    checkForTriggers(  os, imageNew, imageOld, os->TRIGGER_FRAMEGROUP );
 
     os->frameCounter++;
     os->groupNum=!os->groupNum;
    }
 
-  for (i=0; i<=STACK_COMPARISON_INTERVAL; i++) free(os->stack[i]);
+  for (i=0; i<=os->STACK_COMPARISON_INTERVAL; i++) free(os->stack[i]);
   for (i=0; i<MAX_EVENTS; i++) { free(os->eventList[i].stackedImage); free(os->eventList[i].maxStack); }
   free(os->triggerMap); free(os->triggerBlock_N); free(os->triggerBlock_sumx); free(os->triggerBlock_sumy); free(os->triggerBlock_suml); free(os->triggerBlock_redirect); free(os->triggerRGB);
   free(os->buffer); free(os->stackT); free(os->medianMap); free(os->medianWorkspace); free(os->pastTriggerMap); free(os);
@@ -389,22 +397,22 @@ void registerTrigger(observeStatus *os, const int blockId, const int xpos, const
   writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel, "stackedFrames", 1);
 
   sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_triggerFrame.rgb");
-  dumpFrameFromInts(os->width, os->height, Nchannels, image1, coAddedFrames, 1, fname);
+  dumpFrameFromInts(os->width, os->height, os->Nchannels, image1, coAddedFrames, 1, fname);
   writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
   sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_previousFrame.rgb");
-  dumpFrameFromInts(os->width, os->height, Nchannels, image2, coAddedFrames, 1, fname);
+  dumpFrameFromInts(os->width, os->height, os->Nchannels, image2, coAddedFrames, 1, fname);
   writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
-  memcpy(os->eventList[i].stackedImage, image1, os->frameSize*Nchannels*sizeof(int));
+  memcpy(os->eventList[i].stackedImage, image1, os->frameSize*os->Nchannels*sizeof(int));
   int j;
   #pragma omp parallel for private(j)
-  for (j=0; j<os->frameSize*Nchannels; j++) os->eventList[i].maxStack[j]=image1[j];
+  for (j=0; j<os->frameSize*os->Nchannels; j++) os->eventList[i].maxStack[j]=image1[j];
  }
 
 // Check through list of events we are currently tracking. Weed out any which haven't been seen for a long time, or are exceeding maximum allowed recording time.
 void registerTriggerEnds(observeStatus *os)
  {
   int i;
-  int *stackbuf = os->stack[ os->frameCounter % (STACK_COMPARISON_INTERVAL+1) ];
+  int *stackbuf = os->stack[ os->frameCounter % (os->STACK_COMPARISON_INTERVAL+1) ];
   for (i=0; i<MAX_EVENTS; i++)
    if (os->eventList[i].active)
     {
@@ -413,9 +421,9 @@ void registerTriggerEnds(observeStatus *os)
      const int N1 = os->eventList[i].Ndetections/2;
      const int N2 = os->eventList[i].Ndetections-1;
 #pragma omp parallel for private(j)
-     for (j=0; j<os->frameSize*Nchannels; j++) os->eventList[i].stackedImage[j]+=stackbuf[j];
+     for (j=0; j<os->frameSize*os->Nchannels; j++) os->eventList[i].stackedImage[j]+=stackbuf[j];
 #pragma omp parallel for private(j)
-     for (j=0; j<os->frameSize*Nchannels; j++) { const int x=stackbuf[j]; if (x>os->eventList[i].maxStack[j]) os->eventList[i].maxStack[j]=x; }
+     for (j=0; j<os->frameSize*os->Nchannels; j++) { const int x=stackbuf[j]; if (x>os->eventList[i].maxStack[j]) os->eventList[i].maxStack[j]=x; }
 
      if ( ( os->eventList[i].detections[N0].frameCount < (os->frameCounter-(os->buffNGroups-os->triggerPrefixNGroups)) ) || // Event is exceeding TRIGGER_MAXRECORDLEN?
           ( os->eventList[i].detections[N2].frameCount < (os->frameCounter-os->triggerSuffixNGroups)) ) // ... or event hasn't been seen for TRIGGER_SUFFIXTIME?
@@ -429,17 +437,17 @@ void registerTriggerEnds(observeStatus *os)
         os->triggerThrottleCounter++;
 
         // Dump stacked images of entire duration of event
-        int coAddedFrames = (os->frameCounter - os->eventList[i].detections[0].frameCount) * TRIGGER_FRAMEGROUP;
+        int coAddedFrames = (os->frameCounter - os->eventList[i].detections[0].frameCount) * os->TRIGGER_FRAMEGROUP;
         char fname[FNAME_LENGTH], pathJSON[LSTR_LENGTH], pathBezier[FNAME_LENGTH];
         sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_timeAverage.rgb");
-        dumpFrameFromInts(os->width, os->height, Nchannels, os->eventList[i].stackedImage, coAddedFrames, 1, fname);
+        dumpFrameFromInts(os->width, os->height, os->Nchannels, os->eventList[i].stackedImage, coAddedFrames, 1, fname);
         writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
         sprintf(fname, "%s%s",os->eventList[i].filenameStub,"_maxBrightness.rgb");
-        dumpFrameFromInts(os->width, os->height, Nchannels, os->eventList[i].maxStack, TRIGGER_FRAMEGROUP, 1, fname);
+        dumpFrameFromInts(os->width, os->height, os->Nchannels, os->eventList[i].maxStack, os->TRIGGER_FRAMEGROUP, 1, fname);
         writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
 
         // Dump a video of the meteor from our video buffer
-        int            videoFrames  = (os->frameCounter - os->eventList[i].detections[N0].frameCount + os->triggerPrefixNGroups) * TRIGGER_FRAMEGROUP;
+        int            videoFrames  = (os->frameCounter - os->eventList[i].detections[N0].frameCount + os->triggerPrefixNGroups) * os->TRIGGER_FRAMEGROUP;
         unsigned char *bufferPos    = os->buffer + (os->frameCounter % os->buffNGroups)*os->buffGroupBytes;
         unsigned char *video1       = NULL;
         int            video1frs    = 0;

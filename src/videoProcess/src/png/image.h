@@ -16,14 +16,6 @@ typedef struct {
                 double *data_blu;
                } image_ptr;
 
-/* Variable format used to image pixels */
-
-typedef struct {
-                double red;
-                double grn;
-                double blu;
-               } pixel;
-
 /* Functions defined in image_in.c */
 void image_alloc(image_ptr *out, int x, int y);
 void image_dealloc(image_ptr *in);

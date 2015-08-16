@@ -31,4 +31,12 @@
   <barrel_b>0</barrel_b>
   <barrel_c>0</barrel_c>
  </lens>
+ <lens>
+  <name>eos1000d</name>
+  <comment>Canon 1000D DSLR kit lens</comment>
+  <fov>53</fov>
+  <barrel_a>0.01262</barrel_a>
+  <barrel_b>-0.03922</barrel_b>
+  <barrel_c>0.00259</barrel_c>
+ </lens>
 </lenses>

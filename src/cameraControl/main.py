@@ -6,7 +6,6 @@
 import os,time,datetime
 
 import mod_astro
-import mod_relay
 
 from mod_log import logTxt,getUTC,getUTCoffset,setUTCoffset
 from mod_time import *
@@ -30,6 +29,7 @@ longitude   = LONGITUDE_DEFAULT
 flagGPS     = 0
 
 if I_AM_A_RPI:
+  import mod_relay
   logTxt("Waiting for GPS link")
   os.system("killall gpsd ; gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock")
   import mod_gps
@@ -81,14 +81,16 @@ while True:
       if (REAL_TIME):
         tstop = timeNow+secondsTillSunrise
         logTxt("Starting observing run until %s (running for %d seconds)."%(datetime.datetime.fromtimestamp(tstop).strftime('%Y-%m-%d %H:%M:%S'),secondsTillSunrise))
-        mod_relay.cameraOn()
+        if I_AM_A_RPI: mod_relay.cameraOn()
         time.sleep(10)
         logTxt("Camera has been turned on.")
         timekey = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
-        cmd = "%s/debug/realtimeObserve %.1f %.1f %.1f \"%s\" \"%s\" %d %d %s %s %s %s %d %d %s/rawvideo/%s_%s"%(BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,sensorData.width,sensorData.height,sensorData.fps,maskFile,latitude,longitude,flagGPS,sensorData.upsideDown,DATA_PATH,timekey,CAMERA_ID)
+        binary = "%s/debug/realtimeObserve"%(BINARY_PATH)
+        if sensorData.cameraType=="gphoto2": binary+="_dslr"
+        cmd = "%s %.1f %.1f %.1f \"%s\" \"%s\" %d %d %s %s %s %s %d %d %s/rawvideo/%s_%s"%(binary,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,sensorData.width,sensorData.height,sensorData.fps,maskFile,latitude,longitude,flagGPS,sensorData.upsideDown,DATA_PATH,timekey,CAMERA_ID)
         logTxt("Running command: %s"%cmd)
         os.system(cmd)
-        mod_relay.cameraOff()
+        if I_AM_A_RPI: mod_relay.cameraOff()
         logTxt("Camera has been turned off.")
         time.sleep(10)
         continue
@@ -96,14 +98,14 @@ while True:
         if (secondsTillSunrise>VIDEO_MAXRECTIME): secondsTillSunrise=VIDEO_MAXRECTIME # Do not record more than an hour of video in one file
         tstop = timeNow+secondsTillSunrise
         logTxt("Starting video recording until %s (running for %d seconds)."%(datetime.datetime.fromtimestamp(tstop).strftime('%Y-%m-%d %H:%M:%S'),secondsTillSunrise))
-        mod_relay.cameraOn()
+        if I_AM_A_RPI: mod_relay.cameraOn()
         time.sleep(10)
         logTxt("Camera has been turned on.")
         timekey = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
         cmd = "timeout %d %s/debug/recordH264 %.1f %.1f %.1f \"%s\" \"%s\" %d %d %s %s %s %d %d %s/rawvideo/%s_%s"%(secondsTillSunrise+30,BINARY_PATH,getUTCoffset(),timeNow,tstop,CAMERA_ID,VIDEO_DEV,sensorData.width,sensorData.height,sensorData.fps,latitude,longitude,flagGPS,sensorData.upsideDown,DATA_PATH,timekey,CAMERA_ID)
         logTxt("Running command: %s"%cmd) # Use timeout here, because sometime the RPi's openmax encoder hangs...
         os.system(cmd)
-        mod_relay.cameraOff()
+        if I_AM_A_RPI: mod_relay.cameraOff()
         logTxt("Camera has been turned off.")
         time.sleep(10)
         continue

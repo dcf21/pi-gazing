@@ -14,6 +14,7 @@
 #include "utils/error.h"
 
 #include "settings.h"
+#include "settings_webcam.h"
 
 int main(int argc, char *argv[])
  {

@@ -23,7 +23,9 @@
 #include "utils/error.h"
 #include "utils/filledPoly.h"
 #include "vidtools/color.h"
+
 #include "settings.h"
+#include "settings_webcam.h"
 
 void sigint_handler(int signal) { printf("\n"); exit(0); }
 
@@ -135,11 +137,13 @@ int main(int argc, char **argv)
   ctx.maskFile = argv[4];
   initLut();
 
+  const int medianMapUseEveryNthStack=1, medianMapUseNImages=3600, medianMapReductionCycles=32;
+
   // Register all the codecs
   av_register_all();
   avcodec_register_all();
   decoder_init(&ctx);
-  observe((void *)&ctx, argv[5], ctx.utcoffset, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, "nonlive", ctx.mask, &fetchFrame, &rewindVideo);
+  observe((void *)&ctx, argv[5], ctx.utcoffset, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, ctx.FPS, "nonlive", ctx.mask, Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP, TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_GAIN, medianMapUseEveryNthStack, medianMapUseNImages, medianMapReductionCycles, &fetchFrame, &rewindVideo);
   decoder_shutdown(&ctx);
   printf("\n");
   return 0;

@@ -130,7 +130,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
     f = fit['f']
     i = fit['i']
     astrometryStartTime = time.time()
-    os.system("timeout 10m solve-field --no-plots --crpix-center --overwrite %s > txt"%(fit['fname_processed'])) # Insert --no-plots to speed things up
+    os.system("timeout 10m /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --overwrite %s > txt"%(fit['fname_processed'])) # Insert --no-plots to speed things up
     astrometryTimeTaken = time.time() - astrometryStartTime
     logTxt("Astrometry.net took %d seconds to analyse image at time <%s>"%(astrometryTimeTaken,f.file_time))
     fittxt = open("txt").read()

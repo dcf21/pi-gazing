@@ -18,6 +18,7 @@
 #include "analyse/observe.h"
 
 #include "settings.h"
+#include "settings_webcam.h"
 
 extern char *analysisCameraId;
 
@@ -64,6 +65,8 @@ int main(int argc, char *argv[])
   vmd.flagUpsideDown      = GetFloat(argv[13],NULL) ? 1 : 0;
   vmd.filename            = argv[14];
 
+  const int medianMapUseEveryNthStack=1, medianMapUseNImages=3600, medianMapReductionCycles=32;
+
   struct vdIn *videoIn;
 
   const char *videodevice=vmd.videoDevice;
@@ -99,7 +102,7 @@ int main(int argc, char *argv[])
   fillPolygonsFromFile(maskfile, mask, width, height);
   fclose(maskfile);
 
-  observe((void *)videoIn, vmd.cameraId, utcoffset, vmd.tstart, vmd.tstop, width, height, "live", mask, &fetchFrame, &rewindVideo);
+  observe((void *)videoIn, vmd.cameraId, utcoffset, vmd.tstart, vmd.tstop, width, height, vmd.fps, "live", mask, Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP, TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_GAIN, medianMapUseEveryNthStack, medianMapUseNImages, medianMapReductionCycles, &fetchFrame, &rewindVideo);
 
   return 0;
  }

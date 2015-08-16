@@ -13,6 +13,7 @@
 #include "utils/tools.h"
 
 #include "settings.h"
+#include "settings_webcam.h"
 
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))

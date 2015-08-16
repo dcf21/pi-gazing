@@ -21,6 +21,8 @@
 #include <libavutil/mathematics.h>
 #include <x264.h>
 
+#include "settings_webcam.h"
+
 int main(int argc, char **argv)
  {
   // Read commandline switches
