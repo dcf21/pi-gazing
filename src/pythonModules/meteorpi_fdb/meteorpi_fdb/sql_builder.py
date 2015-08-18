@@ -28,7 +28,7 @@ def search_events_sql_builder(search):
     b.add_sql(search.before_offset, 'e.eventOffset < (?)')
     b.add_sql(search.after_offset, 'e.eventOffset > (?)')
     b.add_sql(search.event_type, 'e.eventType = (?)')
-    b.add_metadata_query_properties(meta_constraints=search.meta_constraints, meta_table_name='t_eventMeta')
+    b.add_metadata_query_properties(meta_constraints=search.meta_constraints, search_type='event')
 
     # Check for import / export filters
     if search.exclude_imported:
@@ -66,7 +66,7 @@ def search_files_sql_builder(search):
     b.add_sql(search.after_offset, 'f.fileOffset > (?)')
     b.add_sql(search.mime_type, 'f.mimeType = (?)')
     b.add_sql(search.semantic_type, 'f.semanticType = (?)')
-    b.add_metadata_query_properties(meta_constraints=search.meta_constraints, meta_table_name='t_fileMeta')
+    b.add_metadata_query_properties(meta_constraints=search.meta_constraints, search_type='file')
     # Check for avoiding event files
     if search.exclude_events:
         b.where_clauses.append(
@@ -175,14 +175,14 @@ class SQLBuilder(object):
             for value in values:
                 self.sql_args.append(SQLBuilder.map_value(value))
 
-    def add_metadata_query_properties(self, meta_constraints, meta_table_name):
+    def add_metadata_query_properties(self, meta_constraints, search_type):
         """
         Construct WHERE clauses from a list of MetaConstraint objects, adding them to the query state.
 
         :param meta_constraints:
             A list of MetaConstraint objects, each of which defines a condition over metadata which must be satisfied
             for results to be included in the overall query.
-        :param meta_table_name:
+        :param search_type:
             The name of the link table between the queried entity and metadata, i.e. t_eventMeta or t_fileMeta in the
             current code.
         :raises:
@@ -191,25 +191,25 @@ class SQLBuilder(object):
         for mc in meta_constraints:
             meta_key = str(mc.key)
             ct = mc.constraint_type
-            sql_template = 'f.internalID IN (' \
-                           'SELECT fm.fileID FROM {0} fm WHERE fm.{1} {2} (?) AND fm.metaKey = (?))'
+            sql_template = '{0[0]}.internalID IN (' \
+                           'SELECT fm.{0}ID FROM t_{0}Meta fm WHERE fm.{1} {2} (?) AND fm.metaKey = (?))'
             # Meta value, mapping to the correct type as appropriate
             self.sql_args.append(SQLBuilder.map_value(mc.value))
             # Put the meta key
             self.sql_args.append(str(mc.key))
             # Put an appropriate WHERE clause
             if ct == 'after':
-                self.where_clauses.append(sql_template.format(meta_table_name, 'dateValue', '>', meta_key))
+                self.where_clauses.append(sql_template.format(search_type, 'dateValue', '>=', meta_key))
             elif ct == 'before':
-                self.where_clauses.append(sql_template.format(meta_table_name, 'dateValue', '<', meta_key))
+                self.where_clauses.append(sql_template.format(search_type, 'dateValue', '<=', meta_key))
             elif ct == 'less':
-                self.where_clauses.append(sql_template.format(meta_table_name, 'floatValue', '<', meta_key))
+                self.where_clauses.append(sql_template.format(search_type, 'floatValue', '<=', meta_key))
             elif ct == 'greater':
-                self.where_clauses.append(sql_template.format(meta_table_name, 'floatValue', '>', meta_key))
+                self.where_clauses.append(sql_template.format(search_type, 'floatValue', '>=', meta_key))
             elif ct == 'number_equals':
-                self.where_clauses.append(sql_template.format(meta_table_name, 'floatValue', '=', meta_key))
+                self.where_clauses.append(sql_template.format(search_type, 'floatValue', '=', meta_key))
             elif ct == 'string_equals':
-                self.where_clauses.append(sql_template.format(meta_table_name, 'stringValue', '=', meta_key))
+                self.where_clauses.append(sql_template.format(search_type, 'stringValue', '=', meta_key))
             else:
                 raise ValueError("Unknown meta constraint type!")
 

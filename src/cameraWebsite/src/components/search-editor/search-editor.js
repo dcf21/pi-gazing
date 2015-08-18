@@ -1,7 +1,13 @@
-define(['knockout', 'text!./search-editor.html', 'utils', 'jquery'], function (ko, templateMarkup, utils, jquery) {
+define(['knockout', 'text!./search-editor.html', 'utils', 'jquery', 'client'], function (ko, templateMarkup, utils, jquery, client) {
 
     function SearchEditor(params) {
         var self = this;
+        // Available cameras
+        self.cameras = ko.observableArray(["Any"]);
+        // Get the cameras
+        client.listCameras(function (err, cameras) { self.cameras(["Any"].concat(cameras)); });
+
+        self.searchTypes = ["Timelapse images","Moving objects"];
 
         self.search = params.search;
         if (params.hasOwnProperty('onSearch')) {
@@ -11,21 +17,12 @@ define(['knockout', 'text!./search-editor.html', 'utils', 'jquery'], function (k
         }
 
         /**
-         * Computed value, maps between the numeric value actually held in the search observable
-         * and the date model required by the various UI components.
-         */
-        if (self.search.hasOwnProperty("after_offset")) {
-            self.afterOffsetDate = utils.wrapTimeOffsetObservable(self.search.after_offset);
-        }
-        if (self.search.hasOwnProperty("before_offset")) {
-            self.beforeOffsetDate = utils.wrapTimeOffsetObservable(self.search.before_offset);
-        }
-        /**
          * Used to set up the range shown by the time picker
          */
         self.minTime = new Date(2000, 0, 1, 15, 0, 0);
         self.maxTime = new Date(2000, 0, 1, 10, 0, 0);
 
+        /**
         self.removeMeta = function (meta) {
             console.log(self);
             self.search.meta.remove(meta);
@@ -40,7 +37,7 @@ define(['knockout', 'text!./search-editor.html', 'utils', 'jquery'], function (k
                 number_value: ko.observable(0)
             });
         };
-
+         */
     }
 
     // This runs when the component is torn down. Put here any logic necessary to clean up,

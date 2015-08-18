@@ -13,9 +13,11 @@ define(['jquery', 'knockout', 'router', 'client', 'bootstrap', 'knockout-project
 
     ko.components.register('status-page', {require: 'components/status-page/status-page'});
 
-    ko.components.register('files-page', {require: 'components/files-page/files-page'});
+    ko.components.register('search-page', {require: 'components/search-page/search-page'});
 
-    ko.components.register('events-page', {require: 'components/events-page/events-page'});
+    ko.components.register('files-viewer', {require: 'components/files-viewer/files-viewer'});
+
+    ko.components.register('events-viewer', {require: 'components/events-viewer/events-viewer'});
 
     ko.components.register('region-editor', {require: 'components/region-editor/region-editor'});
 

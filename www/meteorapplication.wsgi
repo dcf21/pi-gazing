@@ -1,6 +1,9 @@
 activate_this = '/home/pi/meteor-pi/virtual-env/bin/activate_this.py'
 execfile(activate_this, dict(__file__=activate_this))
 
+import logging, sys
+logging.basicConfig(stream=sys.stderr)
+
 from meteorpi_fdb import MeteorDatabase
 from meteorpi_server import MeteorApp, admin_api, importer_api, query_api
 

@@ -1,17 +1,14 @@
-define(['knockout', 'text!./files-page.html', 'client', 'router', 'utils'], function (ko, templateMarkup, client, router, utils) {
+define(['knockout', 'text!./events-viewer.html', 'client', 'router', 'jquery', 'utils'], function (ko, templateMarkup, client, router, jquery, utils) {
 
-
-    function FilesPage(params) {
-
+    function EventsPage(params) {
         var self = this;
 
         self.search = {
             after: ko.observable(),
             before: ko.observable(),
-            exclude_events: ko.observable(false),
             after_offset: ko.observable(),
             before_offset: ko.observable(),
-            semantic_type: ko.observable(),
+            event_type: ko.observable(),
             limit: ko.observable(20),
             skip: ko.observable(),
             meta: ko.observableArray(),
@@ -27,17 +24,18 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'utils'], func
         self.urlForFile = client.urlForFile;
         self.filenameForFile = client.filenameForFile;
 
+
         if (params.search) {
             utils.updateSearchObject(self.search, params.search);
             // Get the search object and use it to retrieve results
             var search = utils.getSearchObject(self.search, {skip: 0});
             // Reset the skip parameter, if any
             self.search.skip(0);
-            client.searchFiles(search, function (error, results) {
-                self.results(results.files);
+            client.searchEvents(search, function (error, results) {
+                self.results(results.events);
                 self.resultCount(results.count);
                 self.firstResultIndex(search.hasOwnProperty("skip") ? search.skip : 0);
-                self.pages(utils.getSearchPages(search, results.files.length, results.count));
+                self.pages(utils.getSearchPages(search, results.events.length, results.count));
                 self.hasQuery(true);
             });
         } else {
@@ -47,15 +45,14 @@ define(['knockout', 'text!./files-page.html', 'client', 'router', 'utils'], func
         self.changePage = function () {
             // 'this' is bound to the page object clicked on, the search property of this
             // object contains the search corresponding to that page of results.
-            router.goTo("files", {"search": utils.encodeString(this.search)});
+            router.goTo("events", {"search": utils.encodeString(this.search)});
         };
 
-        self.searchFiles = function () {
-            router.goTo("files", {"search": utils.encodeString(utils.getSearchObject(self.search))})
+        self.searchEvents = function () {
+            router.goTo("events", {"search": utils.encodeString(utils.getSearchObject(self.search))})
         };
-
     }
 
-    return {viewModel: FilesPage, template: templateMarkup};
+    return {viewModel: EventsPage, template: templateMarkup};
 
 });

@@ -1,0 +1,69 @@
+<search-editor params="search: search, onSearch: searchEvents"></search-editor>
+
+<div data-bind="if: results().length==0 && hasQuery()==true">
+    <div class="alert alert-success">
+        <p><b>No results found</b></p>
+
+        <p>The query completed, but no events were found matching the constraints you specified. Try altering values in
+            the form above and re-running the query.</p>
+    </div>
+</div>
+
+<div data-bind="if: results().length>0 && pages().length==0">
+    <div class="alert alert-success">
+        <p data-bind="text: 'Showing all '+results().length+' events.'"></p>
+    </div>
+</div>
+<nav data-bind="if: pages().length>0">
+    <ul class="pagination" data-bind="foreach: pages">
+        <li data-bind="css:{active: current}"><a href="#"
+                                                 data-bind="click: $parent.changePage, text:from+'-'+(to-1), css:{ disabled: current }"></a>
+        </li>
+    </ul>
+</nav>
+
+<table data-bind="if: results().length>0" class="table table-condensed">
+    <thead>
+    <tr>
+        <th>Camera ID</th>
+        <th>Event Type</th>
+        <th>Event Time &amp; Metadata</th>
+        <th>Files</th>
+    </tr>
+    </thead>
+    <tbody data-bind="foreach: results">
+    <tr>
+        <td>
+            <span data-bind="text: camera_id"></span>
+        </td>
+        <td data-bind="text: event_type"></td>
+        <td>
+            <p data-bind="text: new Date(event_time)"></p>
+            <table class="table table-condensed">
+                <tbody data-bind="foreach: meta">
+                <tr>
+                    <td data-bind="text: key"></td>
+                    <td>=</td>
+                    <td data-bind="text: type==='date'?new Date(value):value"></td>
+                </tr>
+                </tbody>
+            </table>
+        </td>
+
+        <td>
+            <table class="table table-condensed">
+                <tbody data-bind="foreach: files">
+                <tr>
+                    <td data-bind="text: mime_type"></td>
+                    <td data-bind="text: semantic_type"></td>
+                    <td>
+                        <a target="_blank"
+                           data-bind="text: $parents[1].filenameForFile($data), attr : {href : $parents[1].urlForFile($data)}"></a>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </td>
+    </tr>
+    </tbody>
+</table>

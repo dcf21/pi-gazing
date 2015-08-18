@@ -88,3 +88,5 @@ table.table table.table {
     margin-bottom: 30px;
     margin-left: auto;
 }
+
+.form-inline-number { width:60px; display:inline-block; }
