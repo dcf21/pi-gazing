@@ -1,6 +1,6 @@
 define(['knockout', 'text!./status-page.html', 'client'], function (ko, templateMarkup, client) {
 
-    function StatusPage(route) {
+    function StatusPage(params) {
         var self = this;
         // Available cameras
         self.cameras = ko.observableArray();
@@ -11,6 +11,7 @@ define(['knockout', 'text!./status-page.html', 'client'], function (ko, template
         // Get the cameras
         client.listCameras(function (err, cameras) {
             self.cameras(cameras);
+            if (params.camera && (params.camera in cameras)) self.setCamera(params.camera);
         });
     }
 

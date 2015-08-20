@@ -90,3 +90,14 @@ table.table table.table {
 }
 
 .form-inline-number { width:60px; display:inline-block; }
+
+.file-info { width: auto; }
+.file-info td:first-child { font-weight: bold; padding-right:16px; }
+ h4 { padding-top: 30px; }
+
+/* Tweak navbar colours and spacing */
+.paging-holder { margin:0 auto; text-align: center; padding-top:25px; }
+.paging-header { vertical-align:middle; display:inline-block; font-size:18px; padding:15px; }
+.paging-nav { vertical-align:middle; display:inline-block; float:none; } /* Fix to make navbar centred */
+
+.paging-nav .active { font-weight: bold; display:inline-block;background-color: #eee; }

@@ -1,11 +1,11 @@
-define(['knockout', 'text!./search-page.html', 'client', 'router', 'utils'], function (ko, templateMarkup, client, router, utils) {
+define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'utils'], function ($, ko, templateMarkup, client, router, utils) {
 
 
     function FilesPage(params) {
 
         var self = this;
 
-        self.searchTypes = ["Timelapse images","Moving objects"];
+        self.searchTypes = ["Timelapse images", "Moving objects"];
 
         self.inputs = {
             after: ko.observable(),
@@ -13,39 +13,58 @@ define(['knockout', 'text!./search-page.html', 'client', 'router', 'utils'], fun
             camera: ko.observable("Any"),
             flag_bgsub: ko.observable(false),
             flag_highlights: ko.observable(true),
-            flag_lenscorr: ko.observable(false),
+            flag_lenscorr: ko.observable(true),
             searchtype: ko.observable(self.searchTypes[0]),
             skyclarity: ko.observable(0),
             duration_min: ko.observable(0),
             duration_max: ko.observable(60),
             limit: ko.observable(20),
-            skip: ko.observable()
-        }
+            skip: ko.observable(0)
+        };
 
         self.search = {
-            after: ko.computed( function() { return self.inputs.after; } ),
-            before: ko.computed( function() { return self.inputs.before; } ),
-            exclude_events: ko.computed( function() { return self.inputs.searchtype()==self.searchTypes[0]; } ),
-            camera_ids: ko.computed( function() { return (self.inputs.camera()=="Any")?"":self.inputs.camera; } ),
-            limit: ko.computed( function() { return self.inputs.limit; } ),
-            skip: ko.computed( function() { return self.inputs.skip; } ),
-            meta: ko.computed( function() {
-                constraints = [];
-                if (self.inputs.searchtype()!=self.searchTypes[0] && self.inputs.duration_min()>0) constraints.push({
+            after: ko.computed(function () {
+                return self.inputs.after;
+            }),
+            before: ko.computed(function () {
+                return self.inputs.before;
+            }),
+            exclude_events: ko.computed(function () {
+                return self.inputs.searchtype() == self.searchTypes[0];
+            }),
+            camera_ids: ko.computed(function () {
+                return (self.inputs.camera() == "Any") ? "" : self.inputs.camera;
+            }),
+            limit: ko.computed(function () {
+                return self.inputs.limit;
+            }),
+            skip: ko.computed(function () {
+                return self.inputs.skip;
+            }),
+            meta: ko.computed(function () {
+                var constraints = [];
+                if (self.inputs.searchtype() == self.searchTypes[0] && self.inputs.flag_highlights()) constraints.push({
+                    type: ko.observable('greater'),
+                    key: ko.observable('meteorpi:highlight'),
+                    number_value: 0.5,
+                    string_value: ko.observable(''),
+                    date_value: ko.observable(new Date(Date.now()))
+                });
+                if (self.inputs.searchtype() != self.searchTypes[0] && self.inputs.duration_min() > 0) constraints.push({
                     type: ko.observable('greater'),
                     key: ko.observable('meteorpi:duration'),
                     number_value: self.inputs.duration_min,
                     string_value: ko.observable(''),
                     date_value: ko.observable(new Date(Date.now()))
                 });
-                if (self.inputs.searchtype()!=self.searchTypes[0] && self.inputs.duration_max()>0) constraints.push({
+                if (self.inputs.searchtype() != self.searchTypes[0] && self.inputs.duration_max() > 0) constraints.push({
                     type: ko.observable('less'),
                     key: ko.observable('meteorpi:duration'),
                     number_value: self.inputs.duration_max,
                     string_value: ko.observable(''),
                     date_value: ko.observable(new Date(Date.now()))
                 });
-                if (self.inputs.searchtype()==self.searchTypes[0] && self.inputs.skyclarity()>0) constraints.push({
+                if (self.inputs.searchtype() == self.searchTypes[0] && self.inputs.skyclarity() > 0) constraints.push({
                     type: ko.observable('greater'),
                     key: ko.observable('meteorpi:skyClarity'),
                     number_value: self.inputs.skyclarity,
@@ -54,12 +73,12 @@ define(['knockout', 'text!./search-page.html', 'client', 'router', 'utils'], fun
                 });
                 return constraints;
             }),
-            semantic_type: ko.computed( function() {
-                imgType = "meteorpi:timelapse/frame";
-                if (self.inputs.flag_bgsub) imgType+="/bgrdSub";
-                if (self.inputs.flag_lenscorr) imgType+="/lensCorr";
+            semantic_type: ko.computed(function () {
+                var imgType = "meteorpi:timelapse/frame";
+                if (self.inputs.flag_bgsub()) imgType += "/bgrdSub";
+                if (self.inputs.flag_lenscorr()) imgType += "/lensCorr";
                 return imgType;
-            } ),
+            })
         };
 
         self.results = ko.observableArray();
@@ -75,22 +94,51 @@ define(['knockout', 'text!./search-page.html', 'client', 'router', 'utils'], fun
             utils.updateSearchObject(self.inputs, params.search);
             // Get the search object and use it to retrieve results
             var search = utils.getSearchObject(self.search, {skip: 0});
-            // Reset the skip parameter, if any
-            self.inputs.skip(0);
-            if (self.inputs.searchtype()==self.searchTypes[0]) {
+            if (self.inputs.searchtype() == self.searchTypes[0]) {
                 client.searchFiles(search, function (error, results) {
+                    self.pages(utils.getSearchPages(self.inputs, results.files.length, results.count));
+                    $.each(results.files, function (index, item) {
+                        item.linkurl = '#' + router.routes['file'].interpolate({
+                                "search": utils.encodeString(utils.getSearchObject(
+                                    {
+                                        'camera_ids': item.camera_id,
+                                        'searchtype': self.searchTypes[0],
+                                        'semantic_type': item.semantic_type,
+                                        'before': item.file_time + 1000,
+                                        'after': item.file_time - 1000
+                                    }))
+                            });
+                    });
                     self.results(results.files);
                     self.resultCount(results.count);
-                    self.firstResultIndex(search.hasOwnProperty("skip") ? search.skip : 0);
-                    self.pages(utils.getSearchPages(search, results.files.length, results.count));
+                    self.firstResultIndex(self.inputs.skip());
                     self.hasQuery(true);
                 });
             } else {
                 client.searchEvents(search, function (error, results) {
+                    self.pages(utils.getSearchPages(self.inputs, results.events.length, results.count));
+                    $.each(results.events, function (index, item) {
+                        item.imgURL = '';
+                        item.imgFname = '';
+                        item.linkurl = '#' + router.routes['file'].interpolate({
+                                "search": utils.encodeString(utils.getSearchObject(
+                                    {
+                                        'camera_ids': item.camera_id,
+                                        'searchtype': self.searchTypes[1],
+                                        'before': item.event_time + 1000,
+                                        'after': item.event_time - 1000
+                                    }))
+                            });
+                        $.each(item.files, function (index, f) {
+                            if (f.semantic_type == 'meteorpi:triggers/event/maxBrightness/lensCorr') {
+                                item.imgURL = self.urlForFile(f);
+                                item.imgfname = self.filenameForFile(f);
+                            }
+                        });
+                    });
                     self.results(results.events);
                     self.resultCount(results.count);
-                    self.firstResultIndex(search.hasOwnProperty("skip") ? search.skip : 0);
-                    self.pages(utils.getSearchPages(search, results.events.length, results.count));
+                    self.firstResultIndex(self.inputs.skip());
                     self.hasQuery(true);
                 });
             }
@@ -101,10 +149,11 @@ define(['knockout', 'text!./search-page.html', 'client', 'router', 'utils'], fun
         self.changePage = function () {
             // 'this' is bound to the page object clicked on, the search property of this
             // object contains the search corresponding to that page of results.
-            router.goTo("skysearch", {"search": utils.encodeString(this.inputs)});
+            router.goTo("skysearch", {"search": utils.encodeString(this.search)});
         };
 
         self.searchFiles = function () {
+            self.inputs.skip(0);
             router.goTo("skysearch", {"search": utils.encodeString(utils.getSearchObject(self.inputs))})
         };
 

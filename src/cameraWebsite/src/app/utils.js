@@ -112,21 +112,23 @@ define(["jquery", "knockout"], function (jquery, ko) {
          */
         getSearchPages: function (searchObject, returnedResultCount, totalResultCount) {
             var pages = [];
-            var skip = searchObject.hasOwnProperty("skip") ? searchObject.skip : 0;
+            var skip  = searchObject.skip();
+            var perpage = searchObject.limit();
             // Only do pagination if we have a search limit
-            if (searchObject.limit > 0 && (skip > 0 || returnedResultCount < totalResultCount)) {
-                var i = 0;
-                while (i < totalResultCount) {
+            if (perpage>0 && (skip>0 || returnedResultCount<totalResultCount)) {
+                var Npages = Math.ceil(totalResultCount/perpage);
+                var pageCurrent = Math.floor(skip/perpage);
+                var pageMin = Math.max(pageCurrent-5,0);
+                var pageMax = Math.min(pageMin+9,Npages);
+                for (var i=pageMin; i<=pageMax; i++) {
                     var newSearch = jquery.extend(true, {}, searchObject);
-                    newSearch.skip = i;
+                    newSearch.skip = i*perpage;
                     var page = {
-                        from: i + 1,
-                        to: Math.min(i + searchObject.limit, totalResultCount) + 1,
+                        pageNo: i+1,
                         search: newSearch,
                         current: (skip == newSearch.skip)
                     };
                     pages.push(page);
-                    i += searchObject.limit;
                 }
             }
             return pages;

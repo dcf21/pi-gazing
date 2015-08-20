@@ -99,10 +99,9 @@ define(["knockout", "crossroads", "hasher", "client"], function (ko, crossroads,
         routes: [
             {name: 'home', url: '', params: {page: 'home-page'}},
             {name: 'about', url: 'about', params: {page: 'about-page'}},
-            {name: 'status', url: 'status', params: {page: 'status-page'}},
+            {name: 'status', url: 'status/:camera:', params: {page: 'status-page'}},
             {name: 'skysearch', url: 'skysearch/:search:', params: {page: 'search-page'}},
             {name: 'file', url: 'file/:search:', params: {page: 'files-viewer'}},
-            {name: 'event', url: 'event/:search:', params: {page: 'events-viewer'}},
             {name: 'admin-camera', url: 'admin/camera', params: {page: 'admin-camera-page', role: 'camera_admin'}},
             {name: 'admin-users', url: 'admin/users', params: {page: 'admin-users-page', role: 'camera_admin'}},
             {name: 'admin-exports', url: 'admin/exports', params: {page: 'admin-exports-page', role: 'camera_admin'}}

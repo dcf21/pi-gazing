@@ -17,8 +17,6 @@ define(['jquery', 'knockout', 'router', 'client', 'bootstrap', 'knockout-project
 
     ko.components.register('files-viewer', {require: 'components/files-viewer/files-viewer'});
 
-    ko.components.register('events-viewer', {require: 'components/events-viewer/events-viewer'});
-
     ko.components.register('region-editor', {require: 'components/region-editor/region-editor'});
 
     ko.components.register('login-modal', {require: 'components/login-modal/login-modal'});

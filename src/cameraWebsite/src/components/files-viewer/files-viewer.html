@@ -1,58 +1,96 @@
-<search-editor params="search: search, onSearch: searchFiles"></search-editor>
-
 <div data-bind="if: results().length==0 && hasQuery()==true">
     <div class="alert alert-success">
         <p><b>No results found</b></p>
 
-        <p>The query completed, but no files were found matching the constraints you specified. Try altering values in
-            the form above and re-running the query.</p>
+        <p>The query completed, but no files were found matching the constraints you specified.</p>
     </div>
 </div>
 
-<div data-bind="if: results().length>0 && pages().length==0">
-    <div class="alert alert-success">
-        <p data-bind="text: 'Showing all '+results().length+' files.'"></p>
+<div data-bind="if: search.searchtype()==searchTypes[0] && results().length>0">
+    <div data-bind="foreach: results">
+        <img data-bind="attr : {alt: $parent.filenameForFile($data), src: $parent.urlForFile($data)}"
+             style="display:block;max-width:800px;padding:4px;margin:4px auto;"/>
+
+        <h4>Image information</h4>
+        <table class="table table-condensed file-info">
+            <tr>
+                <td>Camera:</td>
+                <td data-bind="text: camera_id"></td>
+            </tr>
+            <tr>
+                <td>Time:</td>
+                <td data-bind="text: new Date(file_time)"></td>
+            </tr>
+            <tr>
+                <td>Image type:</td>
+                <td data-bind="text: mime_type"></td>
+            </tr>
+            <tr>
+                <td>Image class:</td>
+                <td data-bind="text: semantic_type"></td>
+            </tr>
+        </table>
+
+        <h4>Additional metadata</h4>
+        <table class="table table-condensed file-info">
+            <tbody data-bind="foreach: meta">
+            <tr>
+                <td data-bind="text: key"></td>
+                <td data-bind="text: type==='date'?new Date(value):value"></td>
+            </tr>
+            </tbody>
+        </table>
     </div>
 </div>
-<nav data-bind="if: pages().length>0">
-    <ul class="pagination" data-bind="foreach: pages">
-        <li data-bind="css:{active: current}"><a href="#"
-                                                 data-bind="click: $parent.changePage, text:from+'-'+(to-1), css:{ disabled: current }"></a>
-        </li>
-    </ul>
-</nav>
-<table data-bind="if: results().length>0" class="table table-condensed">
-    <thead>
-    <tr>
-        <th>Camera ID</th>
-        <th>File Time</th>
-        <th>MIME Type</th>
-        <th>Semantic Type</th>
-        <th>ID (click to download)</th>
-    </tr>
-    </thead>
-    <tbody data-bind="foreach: results">
-    <tr>
-        <td data-bind="text: camera_id"></td>
-        <td data-bind="text: new Date(file_time)"></td>
-        <td data-bind="text: mime_type"></td>
-        <td data-bind="text: semantic_type"></td>
-        <td><a target="_blank" data-bind="text: $parent.filenameForFile($data), attr : {href : $parent.urlForFile($data)}"></a>
-            <table class="table table-condensed">
-                <thead>
-                <tr>
-                    <th>Meta Key</th>
-                    <th>Meta Value</th>
-                </tr>
-                </thead>
-                <tbody data-bind="foreach: meta">
-                <tr>
-                    <td data-bind="text: key"></td>
-                    <td data-bind="text: type==='date'?new Date(value):value"></td>
-                </tr>
-                </tbody>
-            </table>
-        </td>
-    </tr>
-    </tbody>
-</table>
+
+<div data-bind="if: search.searchtype()!=searchTypes[0] && results().length>0">
+    <div data-bind="foreach: results">
+        <div style="display:block;max-width:800px;padding:4px;margin:4px auto;">
+            <video controls>
+                <source data-bind="attr : {src: imgURL}" type="video/mp4" />
+                Your browser does not support the video tag.
+            </video>
+        </div>
+
+        <h4>Event information</h4>
+        <table class="table table-condensed file-info">
+            <tr>
+                <td>Camera:</td>
+                <td data-bind="text: camera_id"></td>
+            </tr>
+            <tr>
+                <td>Time:</td>
+                <td data-bind="text: new Date(event_time)"></td>
+            </tr>
+            <tr>
+                <td>Event type:</td>
+                <td data-bind="text: event_type"></td>
+            </tr>
+        </table>
+
+        <h4>Additional metadata</h4>
+        <table class="table table-condensed file-info">
+            <tbody data-bind="foreach: meta">
+            <tr>
+                <td data-bind="text: key"></td>
+                <td data-bind="text: type==='date'?new Date(value):value"></td>
+            </tr>
+            </tbody>
+        </table>
+
+        <h4>Available files</h4>
+        <table class="table table-condensed file-info">
+            <tbody data-bind="foreach: files">
+            <tr>
+                <td data-bind="text: semantic_type"></td>
+                <td>
+                    <a target="_blank"
+                       data-bind="text: $parents[1].filenameForFile($data), attr : {href : $parents[1].urlForFile($data)}"></a>
+                </td>
+                <td data-bind="text: mime_type"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+

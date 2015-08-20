@@ -1,22 +1,21 @@
 define(['knockout', 'text!./files-viewer.html', 'client', 'router', 'utils'], function (ko, templateMarkup, client, router, utils) {
 
 
-    function FilesPage(params) {
+    function FilesViewer(params) {
 
         var self = this;
 
+        self.searchTypes = ["Timelapse images", "Moving objects"];
+
         self.search = {
-            after: ko.observable(),
-            before: ko.observable(),
-            exclude_events: ko.observable(false),
-            after_offset: ko.observable(),
-            before_offset: ko.observable(),
-            semantic_type: ko.observable(),
-            limit: ko.observable(20),
-            skip: ko.observable(),
-            meta: ko.observableArray(),
-            camera_ids: ko.observable()
-        };
+            after: ko.observable(0),
+            before: ko.observable(0),
+            camera_ids: ko.observable("Any"),
+            searchtype: ko.observable(self.searchTypes[0]),
+            semantic_type: ko.observable("meteorpi:timelapse/frame"),
+            limit: ko.observable(1),
+            skip: ko.observable(0)
+        }
 
         self.results = ko.observableArray();
         self.resultCount = ko.observable(0);
@@ -29,33 +28,48 @@ define(['knockout', 'text!./files-viewer.html', 'client', 'router', 'utils'], fu
 
         if (params.search) {
             utils.updateSearchObject(self.search, params.search);
+            self.search.limit(1);
             // Get the search object and use it to retrieve results
             var search = utils.getSearchObject(self.search, {skip: 0});
-            // Reset the skip parameter, if any
-            self.search.skip(0);
-            client.searchFiles(search, function (error, results) {
-                self.results(results.files);
-                self.resultCount(results.count);
-                self.firstResultIndex(search.hasOwnProperty("skip") ? search.skip : 0);
-                self.pages(utils.getSearchPages(search, results.files.length, results.count));
-                self.hasQuery(true);
-            });
+            if (self.search.searchtype() == self.searchTypes[0]) {
+                client.searchFiles(search, function (error, results) {
+                    self.results(results.files);
+                    self.resultCount(results.count);
+                    self.firstResultIndex(0);
+                    self.hasQuery(true);
+                });
+            } else {
+                client.searchEvents(search, function (error, results) {
+                    $.each(results.events, function (index, item) {
+                        item.imgURL = '';
+                        item.imgFname = '';
+                        $.each(item.files, function (index, f) {
+                            if (f.semantic_type == 'meteorpi:triggers/event') {
+                                item.imgURL = self.urlForFile(f);
+                                item.imgfname = self.filenameForFile(f);
+                            }
+                        });
+                    });
+                    self.results(results.events);
+                    self.resultCount(results.count);
+                    self.firstResultIndex(0);
+                    self.hasQuery(true);
+                });
+            }
         } else {
             self.hasQuery(false);
         }
 
-        self.changePage = function () {
-            // 'this' is bound to the page object clicked on, the search property of this
-            // object contains the search corresponding to that page of results.
-            router.goTo("files", {"search": utils.encodeString(this.search)});
+        self.searchFiles = function () {
+            router.goTo("skysearch", {"search": utils.encodeString(utils.getSearchObject({"camera": self.search.camera_ids}))});
         };
 
-        self.searchFiles = function () {
-            router.goTo("files", {"search": utils.encodeString(utils.getSearchObject(self.search))})
+        self.cameraInfo = function () {
+            router.goTo("status", {"camera": utils.encodeString(self.search.camera_ids)});
         };
 
     }
 
-    return {viewModel: FilesPage, template: templateMarkup};
+    return {viewModel: FilesViewer, template: templateMarkup};
 
 });

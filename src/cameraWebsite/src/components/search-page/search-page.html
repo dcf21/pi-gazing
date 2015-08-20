@@ -11,96 +11,56 @@
 
 <div data-bind="if: results().length>0 && pages().length==0">
     <div class="alert alert-success">
-        <p data-bind="text: 'Showing all '+results().length+' files.'"></p>
+        <p data-bind="text: 'Showing all '+results().length+' results.'"></p>
     </div>
 </div>
 
-<table data-bind="if: inputs.searchtype()==searchTypes[0] && results().length>0" class="table table-condensed">
-    <thead>
-    <tr>
-        <th>Camera ID</th>
-        <th>File Time</th>
-        <th>MIME Type</th>
-        <th>Semantic Type</th>
-        <th>ID (click to download)</th>
-    </tr>
-    </thead>
-    <tbody data-bind="foreach: results">
-    <tr>
-        <td data-bind="text: camera_id"></td>
-        <td data-bind="text: new Date(file_time)"></td>
-        <td data-bind="text: mime_type"></td>
-        <td data-bind="text: semantic_type"></td>
-        <td><a target="_blank" data-bind="text: $parent.filenameForFile($data), attr : {href : $parent.urlForFile($data)}"></a>
-            <table class="table table-condensed">
-                <thead>
-                <tr>
-                    <th>Meta Key</th>
-                    <th>Meta Value</th>
-                </tr>
-                </thead>
-                <tbody data-bind="foreach: meta">
-                <tr>
-                    <td data-bind="text: key"></td>
-                    <td data-bind="text: type==='date'?new Date(value):value"></td>
-                </tr>
-                </tbody>
-            </table>
-        </td>
-    </tr>
-    </tbody>
-</table>
+<div data-bind="if: results().length>0 && pages().length!=0">
+    <div class="alert alert-success">
+        <p data-bind="text: 'Showing results '+(firstResultIndex()+1)+' to '+(firstResultIndex()+inputs.limit())+' of '+resultCount()+'.'"></p>
+    </div>
+</div>
 
-<table data-bind="if: (!inputs.searchtype()==searchTypes[0]) && results().length>0" class="table table-condensed">
-    <thead>
-    <tr>
-        <th>Camera ID</th>
-        <th>Event Type</th>
-        <th>Event Time &amp; Metadata</th>
-        <th>Files</th>
-    </tr>
-    </thead>
-    <tbody data-bind="foreach: results">
-    <tr>
-        <td>
-            <span data-bind="text: camera_id"></span>
-        </td>
-        <td data-bind="text: event_type"></td>
-        <td>
-            <p data-bind="text: new Date(event_time)"></p>
-            <table class="table table-condensed">
-                <tbody data-bind="foreach: meta">
-                <tr>
-                    <td data-bind="text: key"></td>
-                    <td>=</td>
-                    <td data-bind="text: type==='date'?new Date(value):value"></td>
-                </tr>
-                </tbody>
-            </table>
-        </td>
+<div style="display:inline-block;margin:0 auto;">
 
-        <td>
-            <table class="table table-condensed">
-                <tbody data-bind="foreach: files">
-                <tr>
-                    <td data-bind="text: mime_type"></td>
-                    <td data-bind="text: semantic_type"></td>
-                    <td>
-                        <a target="_blank"
-                           data-bind="text: $parents[1].filenameForFile($data), attr : {href : $parents[1].urlForFile($data)}"></a>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </td>
-    </tr>
-    </tbody>
-</table>
+    <div data-bind="if: inputs.searchtype()==searchTypes[0] && results().length>0">
+        <div data-bind="foreach: results">
+            <div style="float:left;text-align:center;padding:8px;">
+                <a target="_blank" data-bind="attr : {href : linkurl }">
+                <img data-bind="attr: {alt: $parent.filenameForFile($data), src : $parent.urlForFile($data)}"
+                     style="width:300px;padding:4px;"/>
 
-<nav data-bind="if: pages().length>0">
-    <ul class="pagination" data-bind="foreach: pages">
-        <li data-bind="css:{active: current}"><a href="#"
-                                                 data-bind="click: $parent.changePage, text:from+'-'+(to-1), css:{ disabled: current }"></a>
-        </li>
-    </ul>
-</nav>
+                <div data-bind="text: camera_id"></div>
+                <div data-bind="text: new Date(file_time)"></div>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div data-bind="if: (inputs.searchtype()!=searchTypes[0]) && results().length>0">
+        <div data-bind="foreach: results">
+            <div style="float:left;text-align:center;">
+                <a target="_blank" data-bind="attr : {href : linkurl }">
+                <img data-bind="attr : {alt: imgfname, src : imgURL}"
+                     style="width:300px;padding:4px;"/>
+                <div data-bind="text: camera_id"></div>
+                <div data-bind="text: new Date(event_time)"></div>
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="navbar paging-holder" data-bind="if: pages().length>1">
+    <div class="container paging-nav">
+        <div class="navbar">
+            <div class="paging-header">Page</div>
+            <ul class="nav navbar-nav paging-nav" data-bind="foreach: pages">
+                <li data-bind="css:{active: current}"><a href="#"
+                                                         data-bind="click: $parent.changePage, text:pageNo, css:{ disabled: current }"></a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
