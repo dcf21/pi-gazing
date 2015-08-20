@@ -30,7 +30,10 @@ int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc)
   int status = uvcGrab(videoIn);
   if (status) return status;
   Pyuv422to420(videoIn->framebuffer, tmpc, videoIn->width, videoIn->height, videoIn->upsideDown);
-  *utc = time(NULL) + utcoffset;
+
+  struct timespec spec;
+  clock_gettime(CLOCK_REALTIME, &spec);
+  *utc = spec.tv_sec + ((double)spec.tv_nsec)/1e9 + utcoffset;
   return 0;
  }
 

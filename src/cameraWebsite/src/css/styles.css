@@ -95,6 +95,8 @@ table.table table.table {
 .file-info td:first-child { font-weight: bold; padding-right:16px; }
  h4 { padding-top: 30px; }
 
+.results-grid-item { display:inline-block; margin: 12px auto; text-align:center; padding:4px; }
+
 /* Tweak navbar colours and spacing */
 .paging-holder { margin:0 auto; text-align: center; padding-top:25px; }
 .paging-header { vertical-align:middle; display:inline-block; font-size:18px; padding:15px; }

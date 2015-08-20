@@ -57,4 +57,7 @@ print "  * Orientation: %s"%s.orientation
 print "  * Regions: %s"%s.regions
 print "  * %d matching triggers in time range %s --> %s"%(len(triggers),UTC2datetime(utcMin),UTC2datetime(utcMax))
 for event in triggers:
-    print "  * %s"%event
+    print
+    print "  * Event at <%s>"%event.event_time
+    print "  * Metadata: [%s]"%(",".join("'%s':%s"%(i.key,i.value) for i in event.meta))
+

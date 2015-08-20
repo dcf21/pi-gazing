@@ -120,6 +120,7 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
                     $.each(results.events, function (index, item) {
                         item.imgURL = '';
                         item.imgFname = '';
+                        item.duration = 0;
                         item.linkurl = '#' + router.routes['file'].interpolate({
                                 "search": utils.encodeString(utils.getSearchObject(
                                     {
@@ -134,6 +135,9 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
                                 item.imgURL = self.urlForFile(f);
                                 item.imgfname = self.filenameForFile(f);
                             }
+                        });
+                        $.each(item.meta, function (index, m) {
+                            if (m.key == 'meteorpi:duration') item.duration = "Duration: "+m.value.toFixed(2)+" sec";
                         });
                     });
                     self.results(results.events);
