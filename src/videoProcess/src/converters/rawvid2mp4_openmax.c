@@ -10,6 +10,7 @@
 #include "utils/error.h"
 
 #include "settings.h"
+#include "settings_webcam.h"
 
 /*
  * Parts of this code are borrowed from <https://github.com/tjormola/rpi-openmax-demos>
