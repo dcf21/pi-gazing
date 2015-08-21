@@ -1,102 +1,112 @@
 <div class="col-md-3">
-    <p>Available Cameras</p>
-    <select class="form-control"
-            data-bind="options: cameras, value: selectedCamera, event: { change:setCamera }"></select>
+    <h4 style="padding-bottom:20px;">Select camera</h4>
+
+    <p class="select-list"><a data-bind="event: {click:setCamera(null)}, css: {active: selectedCamera()==null}">Show
+        all</a></p>
+
+    <div data-bind="foreach:cameras">
+        <p class="select-list"><a
+                data-bind="text:$data, event: {click:$parent.setCamera($data)}, css: {active: $parent.selectedCamera()==$data}"></a>
+        </p>
+    </div>
 </div>
-<div data-bind="if: status" class="col-md-9">
-    <p>Status for selected camera</p>
-    <table class="table table-bordered">
-        <tbody>
-        <tr>
-            <th>Installation</th>
-            <td>
-                <table class="table table-condensed">
-                    <tr>
-                        <td data-bind="text: status().inst_name"></td>
-                    </tr>
-                    <tr>
-                        <td><a data-bind="text: status().inst_url, attr : { href: status().inst_url }"></a></td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-        <tr>
-            <th>Camera ID</th>
-            <td><span data-bind="text: status().camera_id"></span></td>
-        </tr>
-        <tr>
-            <th>Status UUID</th>
-            <td><span data-bind="text: status().status_id"></span></td>
-        </tr>
-        <tr>
-            <th>Sensor</th>
-            <td><span data-bind="text: status().sensor"></span></td>
-        </tr>
-        <tr>
-            <th>Lens</th>
-            <td><span data-bind="text: status().lens"></span></td>
-        </tr>
-        <tr>
-            <th>Location</th>
-            <td>
-                <table class="table table-condensed">
-                    <tr>
-                        <th>Lat</th>
-                        <td><span data-bind="text: status().location.lat"></span></td>
-                    </tr>
-                    <tr>
-                        <th>Long</th>
-                        <td><span data-bind="text: status().location.long"></span></td>
-                    </tr>
-                    <tr>
-                        <th>Error</th>
-                        <td><span
-                                data-bind="text: status().location.error"></span> m
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>GPS</th>
-                        <td><span
-                                data-bind="text: status().location.gps"></span></td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-        <tr>
-            <th>Orientation</th>
-            <td>
-                <table class="table table-condensed">
-                    <tr>
-                        <th>Altitude</th>
-                        <td><span data-bind="text: status().orientation.alt"></span></td>
-                    </tr>
-                    <tr>
-                        <th>Azimuth</th>
-                        <td><span data-bind="text: status().orientation.az"></span></td>
-                    </tr>
-                    <tr>
-                        <th>Error</th>
-                        <td><span data-bind="text: status().orientation.error"></span></td>
-                    </tr>
-                    <tr>
-                        <th>Rotation</th>
-                        <td><span data-bind="text: status().orientation.rot"></span></td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-        <tr>
-            <th>Field of view width</th>
-            <td><span data-bind="text: status().orientation.width"></span> degrees</td>
-        </tr>
-        <tr>
-            <th>Software version</th>
-            <td><span data-bind="text: status().software_version"></span></td>
-        </tr>
-        <tr>
-            <th>Status valid from</th>
-            <td><span data-bind="text: new Date(status().valid_from)"></span></td>
-        </tr>
-        </tbody>
-    </table>
+<div class="col-md-9">
+    <h4 style="text-align:center;">
+        <span data-bind="if: selectedCamera()">Camera <span data-bind="text:selectedCamera()"></span></span>
+        <span data-bind="if: !selectedCamera()">Map of camera locations</span>
+    </h4>
+    <div id="map_holder" style="width:100%; background-color:#eee; display:inline-block; margin: 12px auto;" data-bind="style: {height: (selectedCamera()?300:450)+'px'}">
+        <div id="map_canvas" style="width:100%; height:100%;"></div>
+    </div>
+    <div data-bind="if: selectedCamera() && status">
+        <h4 style="padding:16px 0;">Status of camera <span data-bind="text:selectedCamera()"></span></h4>
+        <table class="table table-bordered">
+            <tbody>
+            <tr>
+                <th>Installation</th>
+                <td>
+                    <table class="table table-condensed">
+                        <tr>
+                            <td data-bind="text: status().inst_name"></td>
+                        </tr>
+                        <tr>
+                            <td><a data-bind="text: status().inst_url, attr : { href: status().inst_url }"></a></td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+                <th>Camera type</th>
+                <td><span data-bind="text: status().sensor"></span></td>
+            </tr>
+            <tr>
+                <th>Lens</th>
+                <td><span data-bind="text: status().lens"></span></td>
+            </tr>
+            <tr>
+                <th>Location</th>
+                <td>
+                    <table class="table table-condensed">
+                        <tr>
+                            <th>Latitude</th>
+                            <td><span data-bind="text: status().location.lat.toFixed(3)"></span>&deg;N</td>
+                        </tr>
+                        <tr>
+                            <th>Longitude</th>
+                            <td><span data-bind="text: status().location.long.toFixed(3)"></span>&deg;E</td>
+                        </tr>
+                        <tr>
+                            <th>Positional error</th>
+                            <td><span
+                                    data-bind="text: status().location.error"></span> metres
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Source</th>
+                            <td><span
+                                    data-bind="if: status().location.gps">Attached GPS unit</span>
+                                <span
+                                    data-bind="if: !status().location.gps">Manually entered</span></td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+                <th>Pointing</th>
+                <td>
+                    <table class="table table-condensed">
+                        <tr>
+                            <th>Altitude</th>
+                            <td><span data-bind="text: status().orientation.alt.toFixed(3)"></span>&deg; above horizon</td>
+                        </tr>
+                        <tr>
+                            <th>Azimuth</th>
+                            <td><span data-bind="text: status().orientation.az.toFixed(3)"></span>&deg; east of north</td>
+                        </tr>
+                        <tr>
+                            <th>Error</th>
+                            <td><span data-bind="text: status().orientation.error.toFixed(3)"></span>&deg;</td>
+                        </tr>
+                        <tr>
+                            <th>Position angle</th>
+                            <td><span data-bind="text: status().orientation.rot.toFixed(3)"></span>&deg;</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+                <th>Field of view width</th>
+                <td><span data-bind="text: status().orientation.width"></span>&deg;</td>
+            </tr>
+            <tr>
+                <th>Software version</th>
+                <td><span data-bind="text: status().software_version"></span></td>
+            </tr>
+            <tr>
+                <th>Last updated</th>
+                <td><span data-bind="text: new Date(status().valid_from)"></span></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
 </div>

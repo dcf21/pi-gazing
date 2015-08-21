@@ -16,7 +16,8 @@
     "knockout-postbox": "~0.5.1",
     "knockout-mapping": "~2.4.1",
     "jquery": "~2.1.4",
-    "leaflet": "~0.7.3"
+    "leaflet": "~0.7.3",
+    "requirejs-plugins": "~1.0.3"
   },
   "resolutions": {
     "knockout": "~3.3.0",
