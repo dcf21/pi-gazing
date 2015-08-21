@@ -40,7 +40,7 @@ targets = [ [0, 0, commonFiles + ['frontends/vidRec.c']              , 'vidRec']
 
 subDirs      = ['','analyse','converters','frontends','png','utils','vidtools']
 includePaths = [ os.path.join('src',i) for i in subDirs ]
-libraries    = ['gsl','gslcblas','v4l2','jpeg','png','m']
+libraries    = ['gsl','gslcblas','v4l2','jpeg','png','m','rt']
 libraryPaths = ['/usr/lib']
 
 includePaths_openmax = ['/opt/vc/include','/opt/vc/include/interface/vcos/pthreads','/opt/vc/include/interface/vmcs_host/linux/']
