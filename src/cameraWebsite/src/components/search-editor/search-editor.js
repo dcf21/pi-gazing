@@ -3,11 +3,8 @@ define(['knockout', 'text!./search-editor.html', 'utils', 'jquery', 'client'], f
     function SearchEditor(params) {
         var self = this;
         // Available cameras
-        self.cameras = ko.observableArray(["Any"]);
-        // Get the cameras
-        client.listCameras(function (err, cameras) { self.cameras(["Any"].concat(cameras)); });
-
-        self.searchTypes = ["Timelapse images","Moving objects"];
+        self.cameras = params.cameras;
+        self.searchTypes = params.searchTypes;
 
         self.search = params.search;
         if (params.hasOwnProperty('onSearch')) {

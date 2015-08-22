@@ -231,7 +231,7 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
      {
       if (DEBUG) { sprintf(line, "Run-in period completed."); gnom_log(line); }
       (*rewindVideo)(os->videoHandle,&os->utc);
-      os->timelapseUTCStart = ceil(os->utc/60)*60 + 0.001; // Start making timelapse video
+      os->timelapseUTCStart = ceil(os->utc/60)*60 + 0.5; // Start making timelapse video
      }
 
     // Work out where we're going to read next second of video to. Either bufferA / bufferB, or the long buffer if we're recording

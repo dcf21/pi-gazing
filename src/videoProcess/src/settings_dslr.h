@@ -10,8 +10,8 @@
 // Define the device from which to capture video, and the resolution and frame-rate we expect from it
 // These parameters affect test bench routines such as vidRec and snapshot. Main observe process overrides these with data passed on the command line
 
-#define VIDEO_WIDTH  1024
-#define VIDEO_HEIGHT 768
+#define VIDEO_WIDTH  800
+#define VIDEO_HEIGHT 600
 #define VIDEO_FPS    0.125
 #define VIDEO_UPSIDE_DOWN 0 /* If this flag is set, we assume the camera is mounted upside down. Video is flipped before analysis. */
 

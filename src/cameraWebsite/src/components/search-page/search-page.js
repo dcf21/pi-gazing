@@ -7,6 +7,12 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
 
         self.searchTypes = ["Timelapse images", "Moving objects"];
 
+        // Available cameras
+        self.cameras = ko.observableArray(["Any"]);
+        if (params.search && params.search.camera) self.cameras.concat([params.search.camera])
+        // Get the cameras
+        client.listCameras(function (err, cameras) { cameras.sort(); self.cameras(["Any"].concat(cameras)); });
+
         self.inputs = {
             after: ko.observable(),
             before: ko.observable(),
@@ -33,7 +39,7 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
                 return self.inputs.searchtype() == self.searchTypes[0];
             }),
             camera_ids: ko.computed(function () {
-                return (self.inputs.camera() == "Any") ? "" : self.inputs.camera;
+                return (self.inputs.camera() == "Any") ? null : self.inputs.camera;
             }),
             limit: ko.computed(function () {
                 return self.inputs.limit;

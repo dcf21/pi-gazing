@@ -156,16 +156,13 @@ define(["jquery", "knockout"], function (jquery, ko) {
         encodeString: function (ob) {
             var jsonString = JSON.stringify(ob, function (key, ob_value) {
                     var value = ko.unwrap(this.hasOwnProperty(key) ? this[key] : ob_value);
-                    if (value == null || value == false) {
+                    if (value == null) {
                         return undefined;
                     }
                     if (jquery.type(value) == "date") {
                         // Ignore timezone information
                         return Date.UTC(value.getFullYear(), value.getMonth(), value.getDate(),
                             value.getHours(), value.getMinutes(), value.getSeconds());
-                    }
-                    if (typeof value === "boolean") {
-                        return value ? true : undefined;
                     }
                     return value;
                 }
