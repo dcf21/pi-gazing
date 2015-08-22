@@ -188,17 +188,28 @@ mod_hwm.writeHWM(highWaterMarks)
 os.chdir(cwd)
 if (not quitTime) or (quitTime - getUTC() > 300):
   logTxt("Importing events into firebird db")
-  firebirdImport.firebirdImport()
+  hwm_new = firebirdImport.firebirdImport()
 
 # Figure out orientation of camera -- this may take 5 hours!
-if (not quitTime) or (quitTime - getUTC() > 3600*5):
-  logTxt("Trying to determine orientation of camera")
-  orientationCalc.orientationCalc( CAMERA_ID , getUTC() , quitTime )
+try:
+  if (not quitTime) or (quitTime - getUTC() > 3600*5):
+    logTxt("Trying to determine orientation of camera")
+    orientationCalc.orientationCalc( CAMERA_ID , getUTC() , quitTime )
+except:
+  logTxt("Unexpected error while determining camera orientation")
+
+# Update firebird hwm
+for cameraId,utc in hwm_new.iteritems():
+  logTxt("Updating high water mark of camera <%s> to UTC %d (%s)"%(cameraId,utc,UTC2datetime(utc)))
+  fdb_handle.set_high_water_mark( UTC2datetime(utc) , cameraId )
 
 # Export data to remote server(s)
-if (not quitTime) or (quitTime - getUTC() > 3600):
-  logTxt("Exporting data to remote servers")
-  exportData.exportData( getUTC() , quitTime )
+try:
+  if (not quitTime) or (quitTime - getUTC() > 3600):
+    logTxt("Exporting data to remote servers")
+    exportData.exportData( getUTC() , quitTime )
+except:
+  logTxt("Unexpected error while trying to export data")
 
 # Clean up temporary files
 os.system("rm -Rf /tmp/tmp.* /tmp/dcf21_orientationCalc_*")

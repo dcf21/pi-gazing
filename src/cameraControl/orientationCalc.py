@@ -177,9 +177,9 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
   # Print fit information
   logTxt("Orientation fit. Alt: %.2f deg. Az: %.2f deg. PA: %.2f deg. ScaleX: %.2f deg. ScaleY: %.2f deg. Uncertainty: %.2f deg."%(altAzBest[1]*rad,altAzBest[0]*rad,paBest*rad,scalexBest*rad,scaleyBest*rad,altAzError*rad))
 
-  # Update camera status
-  cameraStatus.orientation = mp.Orientation( altitude=altAzBest[1]*rad, azimuth=altAzBest[0]*rad, error=altAzError*rad, rotation=paBest*rad, width_of_field=scalexBest*rad )
-  # fdb_handle.update_camera_status(cameraStatus, time=UTC2datetime(utcNow), camera_id=cameraId)
+  # Update camera status (effective from previous high-water mark)
+  cameraStatus.orientation = mp.Orientation( altitude=altAzBest[1]*rad, azimuth=altAzBest[0]*rad, error=altAzError*rad, rotation=paBest*rad, width_of_field=scalexBest*rad ) 
+  fdb_handle.update_camera_status(cameraStatus, time=fdb_handle.get_high_water_mark(cameraId)+datetime.timedelta(0,1), camera_id=cameraId)
 
   # Output catalogue of image fits -- this is to be fed into the lens-fitting code
   f = open("imageFits.gnom","w")

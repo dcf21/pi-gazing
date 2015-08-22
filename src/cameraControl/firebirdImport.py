@@ -123,12 +123,8 @@ def firebirdImport():
       if (os.path.exists(metafile)): os.remove(metafile) # Clean up metadata files that we've finished with
       hwm_new[cameraId] = max( hwm_new[cameraId] , utc )
 
-  # Update firebird hwm
-  for cameraId,utc in hwm_new.iteritems():
-    logTxt("Updating high water mark of camera <%s> to UTC %d (%s)"%(cameraId,utc,UTC2datetime(utc)))
-    fdb_handle.set_high_water_mark( UTC2datetime(utc) , cameraId )
-
   os.chdir(cwd)
+  return hwm_new
 
 # Do import into firebird right away if we're run as a script
 if __name__ == "__main__":
