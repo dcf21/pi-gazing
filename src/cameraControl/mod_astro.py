@@ -106,6 +106,7 @@ def sunTimes(unixtime=0,longitude=0.12,latitude=52.2):
   return r
 
 # Converts an RA and Dec into an altitude and an azimuth
+# RA should be in hours; all other angles should be in degrees.
 def altAz(ra,dec,utc,latitude,longitude):
   ra *= pi/12;
   dec*= pi/180;
@@ -190,14 +191,14 @@ def meanAngle(angleList):
 
 # Average of multiple polar coordinate positions
 def meanAngle2D(posList):
- xlist = [ sin(a[0])*sin(a[1]) for a in posList ] # Project angles onto a circle
- ylist = [ cos(a[0])*sin(a[1]) for a in posList ]
- zlist = [ cos(a[1])           for a in posList ]
+ xlist = [ sin(a[1])*sin(a[0]) for a in posList ] # Project angles onto a circle
+ ylist = [ cos(a[1])*sin(a[0]) for a in posList ]
+ zlist = [ cos(a[0])           for a in posList ]
  xmean = sum(xlist) / len(posList) # Find centroid
  ymean = sum(ylist) / len(posList)
- zmean = sum(ylist) / len(posList)
- pmean = [ acos(zmean) , atan2(xmean,ymean) ]
- sd    = sqrt( sum( [ (xlist[i]-xmean)**2 + (ylist[i]-ymean)**2 + (zlist[i]-ymean)**2 for i in range(len(xlist)) ] ))
+ zmean = sum(zlist) / len(posList)
+ pmean = [ atan2(hypot(xmean,ymean),zmean) , atan2(xmean,ymean) ]
+ sd    = sqrt( sum( [ (xlist[i]-xmean)**2 + (ylist[i]-ymean)**2 + (zlist[i]-zmean)**2 for i in range(len(xlist)) ] ) / len(posList) )
  asd   = atan(sd) # Find angular spread of points as seen from centre
  return [pmean,asd] # [Mean,SD] in radians
 

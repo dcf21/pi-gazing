@@ -69,8 +69,8 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
   # Filter out files where the sky clariy is good and the Sun is well below horizon
   acceptableFiles = []
   for f in files:
-    if (getMetaItem(f,'skyClarity') <   8): continue
-    if (getMetaItem(f,'sunAlt')     >  -3): continue
+    if (getMetaItem(f,'skyClarity') <  15): continue
+    if (getMetaItem(f,'sunAlt')     >  -4): continue
     acceptableFiles.append(f)
 
   logTxt("%d acceptable images found for alignment (others do not have good sky quality)"%len(acceptableFiles))
@@ -94,9 +94,10 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
   os.chdir(tmp)
 
   # Loop over selected images and use astrometry.net to find their orientation
-  fits    = []
+  fits = []
   fitlist = []
-  count   = 0
+  altAzList = []
+  count = 0
   for f in acceptableFiles:
     imgname = f.file_name
     fitObj = {'f':f,'i':count,'fit':False}
@@ -112,8 +113,8 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
 
     # 3. Pass only central 50% of image to astrometry.net. It's not very reliable with wide-field images
     d = ImageDimensions("%s_tmp2.png"%(imgname))
-    fractionX = 0.35
-    fractionY = 0.35
+    fractionX = 0.6
+    fractionY = 0.6
     os.system("convert %s_tmp2.png -colorspace sRGB -define png:format=png24 -crop %dx%d+%d+%d +repage %s_tmp3.png"%( imgname , fractionX*d[0] , fractionY*d[1] , (1-fractionX)*d[0]/2 , (1-fractionY)*d[1]/2 , imgname ))
 
     # 4. Slightly blur image to remove grain
@@ -136,7 +137,7 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
     fittxt = open("txt").read()
     test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",fittxt)
     if not test:
-      logTxt("Cannot read central RA and Dec from image at <%s>"%f.file_time)
+      logTxt("Failed. Cannot read central RA and Dec from image at <%s>"%f.file_time)
       continue
     rasgn = sgn(float(test.group(1)))
     ra    = abs(float(test.group(1))) + float(test.group(2))/60 + float(test.group(3))/3600
@@ -146,22 +147,28 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
     if (decsgn<0): dec*=-1
     test = re.search(r"up is [+]?([-\d\.]*) degrees (.) of N",fittxt)
     if not test:
-      logTxt("Cannot read position angle from image at <%s>"%f.file_time)
+      logTxt("Failed. Cannot read position angle from image at <%s>"%f.file_time)
       continue
     posang = float(test.group(1)) + 180 # This 180 degree rotation appears to be a bug in astrometry.net (pos angles relative to south, not north)
     while (posang>180): posang-=360
     if test.group(2)=="W": posang*=-1
     test = re.search(r"Field size: ([\d\.]*) x ([\d\.]*) deg",fittxt)
     if not test:
-      logTxt("Cannot read field size from image at <%s>"%f.file_time)
+      logTxt("Failed. Cannot read field size from image at <%s>"%f.file_time)
       continue
     scalex= 2 * atan( tan( float(test.group(1)) / 2 * deg ) * (1/fractionX) ) * rad # Expand size of image to whole image, not just the central tile we sent to astrometry.net
     scaley= 2 * atan( tan( float(test.group(2)) / 2 * deg ) * (1/fractionY) ) * rad
     fit.update( {'fit':True,'ra':ra,'dec':dec,'pa':posang,'sx':scalex,'sy':scaley} )
+    logTxt("Success. RA: %7.2fh. Dec %7.2f deg. PA %6.1f deg. ScaleX %6.1f. ScaleY %6.1f."%(ra,dec,posang,scalex,scaley))
     fitlist.append(fit);
 
+    # Work out alt-az of each fitted position from known location of camera. Fits returned in degrees.
+    altAz = mod_astro.altAz( fit['ra'] , fit['dec'] , datetime2UTC(fit['f'].file_time) , cameraStatus.location.latitude , cameraStatus.location.longitude )
+    logTxt("Alt: %7.2f deg. Az: %7.2f deg."%(altAz[0],altAz[1]))
+    altAzList.append(altAz)
+
   # Average the resulting fits
-  if len(fitlist)<6:
+  if len(fitlist)<3:
     logTxt("Giving up: astrometry.net only managed to fit %d images."%len(fitlist))
     return None
   else:
@@ -171,14 +178,15 @@ def orientationCalc(cameraId,utcNow,utcMustStop=0):
   scalexList = [ i['sx']*deg for i in fits if i['fit'] ] ; scalexBest = mod_astro.meanAngle(scalexList)[0]
   scaleyList = [ i['sy']*deg for i in fits if i['fit'] ] ; scaleyBest = mod_astro.meanAngle(scaleyList)[0]
 
-  altAzList  = [ mod_astro.altAz( i['ra']*hr , i['dec']*deg , datetime2UTC(i['f'].file_time) , cameraStatus.location.latitude , cameraStatus.location.longitude ) for i in fits if i['fit'] ]
-  [ altAzBest , altAzError ] = mod_astro.meanAngle2D(altAzList)
+  # Convert alt-az fits into radians
+  altAzList_r= [ [ i*deg for i in j ] for j in altAzList ]
+  [ altAzBest , altAzError ] = mod_astro.meanAngle2D(altAzList_r)
 
   # Print fit information
-  logTxt("Orientation fit. Alt: %.2f deg. Az: %.2f deg. PA: %.2f deg. ScaleX: %.2f deg. ScaleY: %.2f deg. Uncertainty: %.2f deg."%(altAzBest[1]*rad,altAzBest[0]*rad,paBest*rad,scalexBest*rad,scaleyBest*rad,altAzError*rad))
+  logTxt("Orientation fit. Alt: %.2f deg. Az: %.2f deg. PA: %.2f deg. ScaleX: %.2f deg. ScaleY: %.2f deg. Uncertainty: %.2f deg."%(altAzBest[0]*rad,altAzBest[1]*rad,paBest*rad,scalexBest*rad,scaleyBest*rad,altAzError*rad))
 
   # Update camera status (effective from previous high-water mark)
-  cameraStatus.orientation = mp.Orientation( altitude=altAzBest[1]*rad, azimuth=altAzBest[0]*rad, error=altAzError*rad, rotation=paBest*rad, width_of_field=scalexBest*rad ) 
+  cameraStatus.orientation = mp.Orientation( altitude=altAzBest[0]*rad, azimuth=altAzBest[1]*rad, error=altAzError*rad, rotation=paBest*rad, width_of_field=scalexBest*rad ) 
   fdb_handle.update_camera_status(cameraStatus, time=fdb_handle.get_high_water_mark(cameraId)+datetime.timedelta(0,1), camera_id=cameraId)
 
   # Output catalogue of image fits -- this is to be fed into the lens-fitting code

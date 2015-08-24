@@ -262,15 +262,16 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
       }
 
     // If timelapse exposure is finished, dump it
-    if (os->timelapseCount>=os->framesTimelapse/os->TRIGGER_FRAMEGROUP)
+    if ( (os->timelapseCount>=os->framesTimelapse/os->TRIGGER_FRAMEGROUP) || (os->utc > os->timelapseUTCStart+os->TIMELAPSE_INTERVAL-1) )
      {
+      const int Nframes = os->timelapseCount*os->TRIGGER_FRAMEGROUP;
       char fstub[FNAME_LENGTH], fname[FNAME_LENGTH]; fNameGenerate(fstub,os->cameraId,os->timelapseUTCStart,"frame_","timelapse_raw",os->label);
       sprintf(fname, "%s%s",fstub,"BS0.rgb");
-      dumpFrameFromInts(os->width, os->height, os->Nchannels, os->stackT, os->framesTimelapse, 1, fname);
-      writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(os->framesTimelapse), "stackedFrames", os->framesTimelapse);
+      dumpFrameFromInts(os->width, os->height, os->Nchannels, os->stackT, Nframes, 1, fname);
+      writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(Nframes), "stackedFrames", Nframes);
       sprintf(fname, "%s%s",fstub,"BS1.rgb");
-      dumpFrameFromISub(os->width, os->height, os->Nchannels, os->stackT, os->framesTimelapse, os->STACK_GAIN, os->medianMap, fname);
-      writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(os->framesTimelapse)*os->STACK_GAIN, "stackedFrames", os->framesTimelapse);
+      dumpFrameFromISub(os->width, os->height, os->Nchannels, os->stackT, Nframes, os->STACK_GAIN, os->medianMap, fname);
+      writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(Nframes)*os->STACK_GAIN, "stackedFrames", Nframes);
       if (floor(fmod(os->timelapseUTCStart,900))==0) // Every 15 minutes, dump an image of the sky background map for diagnostic purposes
        {
         sprintf(fname, "%s%s",fstub,"skyBackground.rgb");

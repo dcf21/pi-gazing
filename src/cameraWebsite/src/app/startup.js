@@ -11,6 +11,18 @@ define(['jquery', 'knockout', 'router', 'client', 'bootstrap', 'knockout-project
 
     ko.components.register('chart-test', {require: 'components/chart-test/chart-test'});
 
+    ko.components.register('chart-skyclarity', {require: 'components/chart-skyclarity/chart-skyclarity'});
+
+    ko.components.register('chart-triggerrate', {require: 'components/chart-triggerrate/chart-triggerrate'});
+
+    ko.components.register('faqs', {
+        template: {require: 'text!components/faqs/faqs.html'}
+    });
+
+    ko.components.register('projects', {
+        template: {require: 'text!components/projects/projects.html'}
+    });
+
     ko.components.register('status-page', {require: 'components/status-page/status-page'});
 
     ko.components.register('search-page', {require: 'components/search-page/search-page'});
@@ -34,6 +46,10 @@ define(['jquery', 'knockout', 'router', 'client', 'bootstrap', 'knockout-project
     ko.components.register('new-export-modal', { require: 'components/new-export-modal/new-export-modal' });
 
     ko.components.register('search-editor-modal', { require: 'components/search-editor-modal/search-editor-modal' });
+
+    ko.components.register('what-to-do', {
+        template: {require: 'text!components/what-to-do/what-to-do.html'}
+    });
 
     // [Scaffolded component registrations will be inserted here. To retain this feature, don't remove this comment.]
 

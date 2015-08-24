@@ -56,8 +56,8 @@ int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc)
   for (i=0; i<nPixels; i+=skip) { sum+=img.data_red[i]; N++; }
   double brightness = sum/N;
 
-  // Work out gain to apply to put sky brightness at 48, but don't allow gains outside 1-10.
-  double gain = 48 / brightness;
+  // Work out gain to apply to put sky brightness at 64, but don't allow gains outside 1-10.
+  double gain = 64 / brightness;
   if (gain< 1) gain=1;
   if (gain>10) gain=10;
 

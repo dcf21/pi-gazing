@@ -68,20 +68,22 @@ def firebirdImport():
   imgs = {}
   for dirname in dirs:
     files[dirname] = glob.glob(os.path.join(dirname,"*/*.png"))
+    files[dirname].sort()
 
   triggerList = glob.glob("triggers_vid_processed/*/*.mp4")
+  triggerList.sort()
 
   # Make list of trigger times
   triggerTimes = []
   for fname in triggerList:
-    utc = mod_hwm.filenameToUTC(fname)
+    utc = mod_hwm.filenameToUTC(fname)+0.01
     triggerTimes.append(utc)
 
   # Import still images
   for dirname in dirs:
     for fname in files[dirname]:
       fstub    = fname[:-4]
-      utc      = mod_hwm.filenameToUTC(fname)
+      utc      = mod_hwm.filenameToUTC(fname)+0.01
       if (dirname=="triggers_img_processed") and (utc not in triggerTimes): # Video analysis may veto an object after producing trigger maps. Do not import these orphan files into the database.
         continue
       metafile = "%s.txt"%fstub # File containing metadata
@@ -103,7 +105,7 @@ def firebirdImport():
   # Import trigger events
   for fname in triggerList:
       fstub    = fname[:-4]
-      utc      = mod_hwm.filenameToUTC(fname)
+      utc      = mod_hwm.filenameToUTC(fname)+0.01
       metafile = "%s.txt"%fstub # File containing metadata
       metadict = mod_hwm.fileToDB(metafile) # Dictionary of image metadata
       assert "cameraId" in metadict, "Trigger video <%s> does not have a cameraId set."%fname
@@ -116,7 +118,9 @@ def firebirdImport():
       semanticType = localFilenameToSemanticType(fname)
       fileObjs = [ fdb_handle.register_file(file_path=fname, mime_type="video/mp4", semantic_type=mp.NSString(semanticType,"meteorpi"), file_time=UTC2datetime(utc), file_metas=metadataObjs, camera_id=cameraId, file_name=file_name) ]
 
-      fileObjs.extend( imgs["triggers_img_processed"][utc] )
+      if "triggers_img_processed" in imgs:
+        if utc in imgs["triggers_img_processed"]:
+          fileObjs.extend( imgs["triggers_img_processed"][utc] )
       fileObjs.extend( metadataFiles )
       logTxt("Registering event <%s>, with cameraId <%s> and %d files"%(fname,cameraId,len(fileObjs)))
       eventObj = fdb_handle.register_event(camera_id=cameraId, event_time=UTC2datetime(utc), event_type=mp.NSString("meteorpi","meteorpi"), file_records=fileObjs, event_meta=metadataObjs)

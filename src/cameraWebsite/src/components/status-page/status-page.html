@@ -1,5 +1,14 @@
 <div class="col-md-3">
-    <h4 style="padding-bottom:20px;">Select camera</h4>
+    <h4 style="padding:20px 0;">Date</h4>
+
+    <form class="form-horizontal">
+        <div class="form-group">
+            <input class="form-control"
+                   data-bind="kendoDateTimePicker: { format: 'dd/MM/yyyy', value: time }, , event: { change:refreshCamera }"
+                   id="statustime"/>
+        </div>
+    </form>
+    <h4 style="padding:20px 0;">Select camera</h4>
 
     <p class="select-list"><a data-bind="event: {click:setCamera(null)}, css: {active: selectedCamera()==null}">Show
         all</a></p>
@@ -11,21 +20,33 @@
     </div>
 </div>
 <div class="col-md-9">
-    <h4 style="text-align:center;">
+    <h3 style="text-align:center;">
         <span data-bind="if: selectedCamera()">Camera <span data-bind="text:selectedCamera()"></span></span>
         <span data-bind="if: !selectedCamera()">Map of camera locations</span>
-    </h4>
-    <div id="map_holder" style="width:100%; background-color:#eee; display:inline-block; margin: 12px auto;" data-bind="style: {height: (selectedCamera()?300:450)+'px'}">
+    </h3>
+
+    <div id="map_holder" style="width:100%; background-color:#eee; display:inline-block; margin: 12px auto;"
+         data-bind="style: {height: (selectedCamera()?300:450)+'px'}">
         <div id="map_canvas" style="width:100%; height:100%;"></div>
     </div>
     <div data-bind="if: selectedCamera() && status">
+        <div class="row">
+            <div class="col-sm-6">
+                <h4 style="padding:16px 0;">Recent sky clarity</h4>
+                <chart-skyclarity params="camera:selectedCamera, time:time"></chart-skyclarity>
+            </div>
+            <div class="col-sm-6">
+                <h4 style="padding:16px 0;">Trigger rate</h4>
+                <chart-triggerrate params="camera:selectedCamera, time:time"></chart-triggerrate>
+            </div>
+        </div>
         <h4 style="padding:16px 0;">Status of camera <span data-bind="text:selectedCamera()"></span></h4>
         <table class="table table-bordered">
             <tbody>
             <tr>
                 <th>Installation</th>
                 <td>
-                    <table class="table table-condensed">
+                    <table class="table">
                         <tr>
                             <td data-bind="text: status().inst_name"></td>
                         </tr>
@@ -46,7 +67,7 @@
             <tr>
                 <th>Location</th>
                 <td>
-                    <table class="table table-condensed">
+                    <table class="table">
                         <tr>
                             <th>Latitude</th>
                             <td><span data-bind="text: status().location.lat.toFixed(3)"></span>&deg;N</td>
@@ -58,7 +79,7 @@
                         <tr>
                             <th>Positional error</th>
                             <td><span
-                                    data-bind="text: status().location.error"></span> metres
+                                    data-bind="text: status().location.error.toFixed(1)"></span> metres
                             </td>
                         </tr>
                         <tr>
@@ -66,7 +87,7 @@
                             <td><span
                                     data-bind="if: status().location.gps">Attached GPS unit</span>
                                 <span
-                                    data-bind="if: !status().location.gps">Manually entered</span></td>
+                                        data-bind="if: !status().location.gps">Manually entered</span></td>
                         </tr>
                     </table>
                 </td>
@@ -74,14 +95,16 @@
             <tr>
                 <th>Pointing</th>
                 <td>
-                    <table class="table table-condensed">
+                    <table class="table">
                         <tr>
                             <th>Altitude</th>
-                            <td><span data-bind="text: status().orientation.alt.toFixed(3)"></span>&deg; above horizon</td>
+                            <td><span data-bind="text: status().orientation.alt.toFixed(3)"></span>&deg; above horizon
+                            </td>
                         </tr>
                         <tr>
                             <th>Azimuth</th>
-                            <td><span data-bind="text: status().orientation.az.toFixed(3)"></span>&deg; east of north</td>
+                            <td><span data-bind="text: status().orientation.az.toFixed(3)"></span>&deg; east of north
+                            </td>
                         </tr>
                         <tr>
                             <th>Error</th>
@@ -95,8 +118,8 @@
                 </td>
             </tr>
             <tr>
-                <th>Field of view width</th>
-                <td><span data-bind="text: status().orientation.width"></span>&deg;</td>
+                <th>Field of view</th>
+                <td><span data-bind="text: status().orientation.width.toFixed(2)"></span>&deg; across</td>
             </tr>
             <tr>
                 <th>Software version</th>
@@ -104,7 +127,24 @@
             </tr>
             <tr>
                 <th>Last updated</th>
-                <td><span data-bind="text: new Date(status().valid_from)"></span></td>
+                <td>
+                    <span data-bind="text: new Date(status().valid_from)"></span>
+                    <span data-bind="if: status().valid_from">
+                        (<a class="pointer" data-bind="event: {click: function(){setTime(status().valid_from-100);}}">See previous status</a>)
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <th>Status superseded</th>
+                <td>
+                    <span data-bind="if: status().valid_to">
+                        <span data-bind="text: new Date(status().valid_to)"></span>
+                        (<a class="pointer" data-bind="event: {click: function(){setTime(status().valid_to+100);}}">See next status</a>)
+                    </span>
+                    <span data-bind="ifnot: status().valid_to">
+                        <span>Never</span>
+                    </span>
+                </td>
             </tr>
             </tbody>
         </table>

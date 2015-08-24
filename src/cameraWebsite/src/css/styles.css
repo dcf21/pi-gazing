@@ -89,6 +89,8 @@ table.table table.table {
     margin-left: auto;
 }
 
+.pointer { cursor:pointer;}
+
 .form-inline-number { width:60px; display:inline-block; }
 
 .file-info { width: auto; }

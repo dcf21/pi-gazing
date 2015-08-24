@@ -1,4 +1,4 @@
-define(["dcftime"], function (dcftime) {
+define(["jquery","dcftime"], function (jQuery,dcftime) {
 
     var dcfplot = {};
 
@@ -32,7 +32,7 @@ define(["dcftime"], function (dcftime) {
         this.xsettings = xsettings;
         this.ysettings = ysettings;
         this.settings = {
-            'aspectRatio': 0.5,
+            'aspectRatio': 0.618,
             'axisCol': '#222',
             'axisWidth': 1,
             'gridShow': 1,
@@ -50,7 +50,7 @@ define(["dcftime"], function (dcftime) {
         // Draw graph
         this.draw = function () {
             var i, x, y;
-            var canvas = document.getElementById(this.canvas);
+            var canvas = this.canvas[0];
             var c = canvas.getContext('2d');
             var w = this.width;
             var h = this.height;
@@ -62,9 +62,9 @@ define(["dcftime"], function (dcftime) {
 
             // Plot region has margin around it
             var x0 = m[3];
-            var x1 = w - m[1] - m[3];
+            var x1 = w - m[1];
             var y0 = m[0];
-            var y1 = h - m[0] - m[2];
+            var y1 = h - m[2];
 
             // Assign axes
             var xdata = this.datasets.map(function (a) {
@@ -78,7 +78,7 @@ define(["dcftime"], function (dcftime) {
                 return a.concat(b);
             });
             this.xaxis = new dcfplot.axis(x0, x1, xdata, this.xsettings);
-            this.yaxis = new dcfplot.axis(y0, y1, ydata, this.ysettings);
+            this.yaxis = new dcfplot.axis(y1, y0, ydata, this.ysettings);
 
             // Draw grid
             if (this.settings['gridShow'])
@@ -173,9 +173,9 @@ define(["dcftime"], function (dcftime) {
             c.stroke();
         };
 
-        // Make graph canvas reponsive to size of holder
+        // Make graph canvas responsive to size of holder
         this.resizeCanvas = function () {
-            var el = $("#" + this.holder);
+            var el = this.holder;
             var width = el.width();
             var height = el.height();
             var aspect = this.settings['aspectRatio'];
@@ -195,10 +195,12 @@ define(["dcftime"], function (dcftime) {
         this.x1 = x1;
         this.datasets = datasets;
         this.settings = {
+            'min': null,
+            'max': null,
             'log': 0,
             'logBase': 10,
             'factorMultiply': 2, // Factorise logBase**2, so that 0.00,0.25,0.50,0.75,1.00 is a valid factorisation
-            'ticksMax': 100,
+            'ticksMax': 25,
             'ticksMin': 2,
             'ticksTargetSep': [80, 30]
         };
@@ -214,6 +216,9 @@ define(["dcftime"], function (dcftime) {
             // Round the limits of the axis outwards to nearest round number
             this.axismin = Math.floor(this.datamin / OoM) * OoM;
             this.axismax = Math.ceil(this.datamax / OoM) * OoM;
+
+            if (this.settings.min!=null) this.axismin=this.settings.min;
+            if (this.settings.max!=null) this.axismax=this.settings.max;
         };
 
         this.generateLogTickSchemes = function () {

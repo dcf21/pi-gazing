@@ -102,6 +102,7 @@ try:
 
               jobCounter+=1;
               maskFile = "/tmp/triggermask_%d_%d.txt"%(os.getpid(),jobCounter)
+              utc+=0.1 # Fix to stop floating point jitter creating lots of files with timestamps like 23:59:59
 
               # Make dictionary of information about this job
               params = {'binary_path':BINARY_PATH ,
@@ -115,7 +116,7 @@ try:
                         'cameraId':CAMERA_ID ,
                         'pid':pid ,
                         'triggermask': maskFile ,
-                        'produceFilesWithoutLC': int(floor(utc % 120)==0) , # Produce non-lens-corrected images once every 2 mins
+                        'produceFilesWithoutLC': int(floor(utc % 120)<24) , # Produce non-lens-corrected images once every 2 mins
                         'opm': ('_openmax' if I_AM_A_RPI else '') ,
                        }
               params['filename_out'] = "%(outdir)s/%(date)s/%(filename)s"%params
@@ -144,7 +145,7 @@ try:
               params['metadata']['sunAz']   = sunAltAz[1];
 
               # Select some images to be shown in the highlights-only view
-              params['metadata']['highlight'] = int((floor(utc % 600)==0) or ('outExt'=='mp4'))
+              params['metadata']['highlight'] = int((floor(utc % 600)<24) or ('outExt'=='mp4'))
 
               for outDir in outDirs: os.system("mkdir -p %s"%(os.path.join(outDir,params['date'])))
               jobList.append( {'utc':utc, 'cmd':cmd, 'params':params} )
