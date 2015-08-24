@@ -44,8 +44,8 @@ define([], function () {
     dcftime.JDtoCalendar = function (JD) {
         var dayFraction = (JD + 0.5) - Math.floor(JD + 0.5);
         var hour = Math.floor(24 * dayFraction);
-        var min = Math.floor(Math.mod(1440 * dayFraction, 60));
-        var sec = Math.mod(86400 * dayFraction, 60);
+        var min = Math.floor((1440 * dayFraction)%60);
+        var sec = (86400 * dayFraction)%60;
 
         // Number of whole Julian days. b = Number of centuries since the Council of Nicaea. c = Julian Day number as if century leap years happened.
         var a, b, c, d, e, f, day, month, year;

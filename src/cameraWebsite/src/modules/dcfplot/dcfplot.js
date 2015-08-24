@@ -1,4 +1,4 @@
-define(["jquery","dcftime"], function (jQuery,dcftime) {
+define(["jquery", "dcftime"], function (jQuery, dcftime) {
 
     var dcfplot = {};
 
@@ -39,6 +39,8 @@ define(["jquery","dcftime"], function (jQuery,dcftime) {
             'gridCol': ["#c0c0c0", "#e0e0e0"],
             'gridWidth': [1, 1],
             'margins': [20, 20, 60, 60],
+            'axisLabelCol': '#000',
+            'axisLabelFont': '14px Arial,Helvetica,sans-serif',
             'tickCol': '#222',
             'tickLength': [12, 6],
             'tickTextCol': '#222',
@@ -153,24 +155,52 @@ define(["jquery","dcftime"], function (jQuery,dcftime) {
                 c.fillText(this.yaxis.tickText(this.yaxis.ticks[0][i]), x0 - 8, y);
             }
 
-            // Plot datasets
-            for (i = 0; i < this.datasets.length; i++) {
-                var d = this.datasets[i];
-                var settings = {'color': '#ff0000', 'linewidth': 2};
-                jQuery.extend(settings, d['settings']);
-                c.strokeStyle = settings['color'];
-                c.lineWidth = settings['linewidth'];
+            // Plot datasets with lines
+            var j;
+            for (i=0; i<this.datasets.length; i++) {
+                var ld = this.datasets[i];
+                var lsettings = {color: '#ff0000', linewidth: 2, styles: ['lines', 'points']};
+                jQuery.extend(lsettings, ld['settings']);
+                if (jQuery.inArray('lines', lsettings.styles)==-1) continue;
+                c.strokeStyle = lsettings['color'];
+                c.lineWidth = lsettings['linewidth'];
                 c.beginPath();
-                c.moveTo(this.xaxis.project(d['xdata'][0]), this.yaxis.project(d['ydata'][0]));
-                for (var j = 0; j < d['xdata'].length; j++) c.lineTo(this.xaxis.project(d['xdata'][j]), this.yaxis.project(d['ydata'][j]));
+                c.moveTo(this.xaxis.project(ld['xdata'][0]), this.yaxis.project(ld['ydata'][0]));
+                for (j = 0; j < ld['xdata'].length; j++) c.lineTo(this.xaxis.project(ld['xdata'][j]), this.yaxis.project(ld['ydata'][j]));
                 c.stroke();
+            }
+
+            // Plot datasets with points
+            for (i=0; i<this.datasets.length; i++) {
+                var pd = this.datasets[i];
+                var psettings = {color: '#ff0000', pointsize: 1, styles: ['lines', 'points']};
+                jQuery.extend(psettings, pd['settings']);
+                if (jQuery.inArray('points', psettings.styles)==-1) continue;
+                c.fillStyle = psettings['color'];
+                for (j = 0; j < pd['xdata'].length; j++) {
+                    c.beginPath();
+                    c.arc(this.xaxis.project(pd['xdata'][j]), this.yaxis.project(pd['ydata'][j]), 3 * psettings['pointsize'], 0, 360);
+                    c.fill();
+                }
             }
 
             // Draw edge of plot
             c.strokeStyle = this.settings['axisCol'];
             c.lineWidth = this.settings['axisWidth'];
+            c.beginPath();
             c.rect(x0, y0, x1 - x0, y1 - y0);
             c.stroke();
+
+            // Label axes
+            c.fillStyle = this.settings['axisLabelCol'];
+            c.font = this.settings['axisLabelFont'];
+            c.textBaseline = 'middle';
+            c.textAlign = 'center';
+            c.fillText(this.xaxis.settings.label, (x0+x1)/2, h-m[2]*0.3);
+            c.save();
+            c.translate(m[3]*0.3, (y0+y1)/2); c.rotate(-Math.PI/2);
+            c.fillText(this.yaxis.settings.label, 0, 0);
+            c.restore();
         };
 
         // Make graph canvas responsive to size of holder
@@ -183,9 +213,9 @@ define(["jquery","dcftime"], function (jQuery,dcftime) {
             this.height = aspect ? (width * aspect) : height;
             this.draw();
         };
-        var this_ = this; // Because Javascript is awesomely elegant...
+        var self = this;
         window.addEventListener('resize', function () {
-            this_.resizeCanvas();
+            self.resizeCanvas();
         }, false);
         this.resizeCanvas();
     };
@@ -197,12 +227,14 @@ define(["jquery","dcftime"], function (jQuery,dcftime) {
         this.settings = {
             'min': null,
             'max': null,
+            'label': '',
+            'date': 0,
             'log': 0,
             'logBase': 10,
             'factorMultiply': 2, // Factorise logBase**2, so that 0.00,0.25,0.50,0.75,1.00 is a valid factorisation
             'ticksMax': 25,
             'ticksMin': 2,
-            'ticksTargetSep': [80, 30]
+            'ticksTargetSep': [80, 25]
         };
         jQuery.extend(this.settings, settings);
 
@@ -217,8 +249,8 @@ define(["jquery","dcftime"], function (jQuery,dcftime) {
             this.axismin = Math.floor(this.datamin / OoM) * OoM;
             this.axismax = Math.ceil(this.datamax / OoM) * OoM;
 
-            if (this.settings.min!=null) this.axismin=this.settings.min;
-            if (this.settings.max!=null) this.axismax=this.settings.max;
+            if (this.settings.min != null) this.axismin = this.settings.min;
+            if (this.settings.max != null) this.axismax = this.settings.max;
         };
 
         this.generateLogTickSchemes = function () {
@@ -311,7 +343,7 @@ define(["jquery","dcftime"], function (jQuery,dcftime) {
             for (var major = 1; major >= 0; major--) {
                 var tickLevel = 1 - major;
                 // How many ticks can we fit onto this axis?
-                var number_ticks = Math.floor((x1 - x0) / this.settings['ticksTargetSep'][tickLevel]) + 1;
+                var number_ticks = Math.floor(Math.abs(x1 - x0) / this.settings['ticksTargetSep'][tickLevel]) + 1;
                 if (number_ticks > this.settings['ticksMax']) number_ticks = this.settings['ticksMax']; // Maximum number of ticks along any given axis
                 if (number_ticks < this.settings['ticksMin']) number_ticks = this.settings['ticksMin']; // Minimum of two ticks along any given axis
 
@@ -374,7 +406,9 @@ define(["jquery","dcftime"], function (jQuery,dcftime) {
         };
 
         this.tickText = function (x) {
-            return x.toString();
+            if (!this.settings.date) return x.toString();
+            var cal = dcftime.unixToCalendar(x);
+            return cal[2]+"/"+cal[1]+"/"+cal[0];
         };
 
         // Convert axis value into a pixel position

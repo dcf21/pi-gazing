@@ -32,11 +32,11 @@
     <div data-bind="if: selectedCamera() && status">
         <div class="row">
             <div class="col-sm-6">
-                <h4 style="padding:16px 0;">Recent sky clarity</h4>
+                <h4 style="padding:16px 0 0 0;">Recent sky clarity</h4>
                 <chart-skyclarity params="camera:selectedCamera, time:time"></chart-skyclarity>
             </div>
             <div class="col-sm-6">
-                <h4 style="padding:16px 0;">Trigger rate</h4>
+                <h4 style="padding:16px 0 0 0;">Trigger rate</h4>
                 <chart-triggerrate params="camera:selectedCamera, time:time"></chart-triggerrate>
             </div>
         </div>

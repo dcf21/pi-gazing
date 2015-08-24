@@ -51,12 +51,13 @@ define(['knockout', 'text!./chart-skyclarity.html', 'utils', 'jquery', 'client',
                 });
 
                 self.datasets = [];
-                var i, dataset = {xdata: [], ydata: []};
+                var emptyDataset = {xdata: [], ydata: [], settings: {styles:['points'],pointsize:0.85}};
+                var i, dataset = jQuery.extend(true, [], emptyDataset);
                 for (i = self.tmin; i <= self.tmax; i += self.binsize) {
                     if (!(i in self.histogram)) {
                         if (dataset.xdata.length) {
                             self.datasets.push(dataset);
-                            dataset = {xdata: [], ydata: []};
+                            dataset = jQuery.extend(true, [], emptyDataset);
                         }
                     } else {
                         dataset.xdata.push(i);
@@ -65,7 +66,8 @@ define(['knockout', 'text!./chart-skyclarity.html', 'utils', 'jquery', 'client',
                 }
                 self.datasets.push(dataset);
                 self.haveData(self.tmax > self.tmin);
-                return new dcfplot.graph(self.holder, self.canvas, self.datasets, {}, {}, {'min': 0, 'max': 100});
+                return new dcfplot.graph(self.holder, self.canvas, self.datasets, {},
+                    {label:'Date',date:1}, {label:'Sky clarity (%)', min: 0, max: 100});
             });
         });
     }
