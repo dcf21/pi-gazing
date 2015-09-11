@@ -205,9 +205,9 @@ void Pyuv422to420(unsigned char * input_ptr, unsigned char * output_ptr, const u
      for(j=0;j<width/2;j++)
       {
        unsigned char  Y  = b[0];
-       unsigned char  U  = b[1];
+       unsigned char  U  = ALLDATAMONO ? 128 : b[1];
        unsigned char  Y1 = b[2];
-       unsigned char  V  = b[3];
+       unsigned char  V  = ALLDATAMONO ? 128 : b[3];
 
        if (!upsideDown) { *(outY++)=Y ; *(outY++)=Y1; b+=4; } else { *(outY++)=Y1; *(outY++)=Y; b-=4; }
        *(outU++)=U; *(outV++)=V;

@@ -143,7 +143,7 @@ int main(int argc, char **argv)
   av_register_all();
   avcodec_register_all();
   decoder_init(&ctx);
-  observe((void *)&ctx, argv[5], ctx.utcoffset, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, ctx.FPS, "nonlive", ctx.mask, Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP, TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_GAIN, medianMapUseEveryNthStack, medianMapUseNImages, medianMapReductionCycles, &fetchFrame, &rewindVideo);
+  observe((void *)&ctx, argv[5], ctx.utcoffset, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, ctx.FPS, "nonlive", ctx.mask, Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP, TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_GAIN_BGSUB, STACK_GAIN_NOBGSUB, medianMapUseEveryNthStack, medianMapUseNImages, medianMapReductionCycles, &fetchFrame, &rewindVideo);
   decoder_shutdown(&ctx);
   printf("\n");
   return 0;

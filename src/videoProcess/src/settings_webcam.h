@@ -20,10 +20,11 @@
 
 // This is the gain that we apply to background-subtracted images taken as a time-lapse sequence through the night
 
-#define STACK_GAIN 5
+#define STACK_GAIN_NOBGSUB  2
+#define STACK_GAIN_BGSUB    8
 
 // Throttle the number of triggers which are allowed
-#define TRIGGER_THROTTLE_PERIOD 10 /* number of minutes */
+#define TRIGGER_THROTTLE_PERIOD 30 /* number of minutes */
 #define TRIGGER_THROTTLE_MAXEVT  5 /* number of triggers allowed in that time */
 
 // Trigger parameters

@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
   fillPolygonsFromFile(maskfile, mask, vmd.width, vmd.height);
   fclose(maskfile);
 
-  observe((void *)&vmd, vmd.cameraId, utcoffset, vmd.tstart, vmd.tstop, vmd.width, vmd.height, vmd.fps, "live", mask, Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP, TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_GAIN, medianMapUseEveryNthStack, medianMapUseNImages, medianMapReductionCycles, &fetchFrame, &rewindVideo);
+  observe((void *)&vmd, vmd.cameraId, utcoffset, vmd.tstart, vmd.tstop, vmd.width, vmd.height, vmd.fps, "live", mask, Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP, TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_GAIN_BGSUB, STACK_GAIN_NOBGSUB, medianMapUseEveryNthStack, medianMapUseNImages, medianMapReductionCycles, &fetchFrame, &rewindVideo);
 
   return 0;
  }

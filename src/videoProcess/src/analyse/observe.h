@@ -42,7 +42,7 @@ typedef struct observeStatus
   int TRIGGER_THROTTLE_MAXEVT;
   int TIMELAPSE_EXPOSURE;
   int TIMELAPSE_INTERVAL;
-  int STACK_GAIN;
+  int STACK_GAIN_BGSUB, STACK_GAIN_NOBGSUB;
 
   // medianMap is a structure used to keep track of the average brightness of each pixel in the frame. This is subtracted from stacked image to remove the sky background and hot pixels
   // A histogram is constructed of the brightnesses of each pixel in successive groups of frames.
@@ -107,7 +107,7 @@ typedef struct observeStatus
 
 char *fNameGenerate  (char *output, const char *cameraId, double utc, char *tag, const char *dirname, const char *label);
 int   readFrameGroup (observeStatus *os, unsigned char *buffer, int *stack1, int *stack2);
-int   observe        (void *videoHandle, const char *cameraId, const int utcoffset, const int tstart, const int tstop, const int width, const int height, const double fps, const char *label, const unsigned char *mask, const int Nchannels, const int STACK_COMPARISON_INTERVAL, const int TRIGGER_PREFIX_TIME, const int TRIGGER_SUFFIX_TIME, const int TRIGGER_FRAMEGROUP, const int TRIGGER_MAXRECORDLEN, const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT, const int TIMELAPSE_EXPOSURE, const int TIMELAPSE_INTERVAL, const int STACK_GAIN, const int medianMapUseEveryNthStack, const int medianMapUseNImages, const int medianMapReductionCycles, int (*fetchFrame)(void *,unsigned char *,double *), int (*rewindVideo)(void *, double *));
+int   observe        (void *videoHandle, const char *cameraId, const int utcoffset, const int tstart, const int tstop, const int width, const int height, const double fps, const char *label, const unsigned char *mask, const int Nchannels, const int STACK_COMPARISON_INTERVAL, const int TRIGGER_PREFIX_TIME, const int TRIGGER_SUFFIX_TIME, const int TRIGGER_FRAMEGROUP, const int TRIGGER_MAXRECORDLEN, const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT, const int TIMELAPSE_EXPOSURE, const int TIMELAPSE_INTERVAL, const int STACK_GAIN_BGSUB, const int STACK_GAIN_NOBGSUB, const int medianMapUseEveryNthStack, const int medianMapUseNImages, const int medianMapReductionCycles, int (*fetchFrame)(void *,unsigned char *,double *), int (*rewindVideo)(void *, double *));
 void registerTrigger(observeStatus *os, const int blockId, const int xpos, const int ypos, const int npixels, const int amplitude, const int *image1, const int *image2, const int coAddedFrames);
 void registerTriggerEnds(observeStatus *os);
 
