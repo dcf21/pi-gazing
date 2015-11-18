@@ -13,40 +13,36 @@
 
 # It tries different barrel distortion coefficients to maximise the degree to which the images overlay one another.
 
-import os,time,sys,re,glob,datetime,operator,subprocess
 from math import *
 
+import orientationCalc
 from mod_settings import *
 from mod_time import *
-from mod_log import logTxt,getUTC
-import mod_astro
 
-import meteorpi_model as mp
-import meteorpi_fdb
-
-import orientationCalc
-
-STACKER_PATH = "%s/../gnomonicStack"%PYTHON_PATH
+STACKER_PATH = "%s/../gnomonicStack" % PYTHON_PATH
 
 cameraId = my_installation_id()
-utcNow   = time.time()
-if len(sys.argv)>1: cameraId = sys.argv[1]
-if len(sys.argv)>2: utcNow   = float(sys.argv[2])
-imgListFpath = orientationCalc.orientationCalc(cameraId,utcNow,0)
+utcNow = time.time()
+if len(sys.argv) > 1:
+    cameraId = sys.argv[1]
+if len(sys.argv) > 2:
+    utcNow = float(sys.argv[2])
+imgListFpath = orientationCalc.orientationCalc(cameraId, utcNow, 0)
 
-if not imgListFpath: sys.exit(0)
+if not imgListFpath:
+    sys.exit(0)
 
-[tmpDir,imgListFname] = os.path.split(imgListFpath)
+[tmpDir, imgListFname] = os.path.split(imgListFpath)
 
 cwd = os.getcwd()
 pid = os.getpid()
 os.chdir(tmpDir)
 
-os.system("%s/bin/camfit %s > camFitOutput"%(STACKER_PATH,imgListFname))
+os.system("%s/bin/camfit %s > camFitOutput" % (STACKER_PATH, imgListFname))
 
-camFitOutput   = open("camFitOutput").readlines()
+camFitOutput = open("camFitOutput").readlines()
 camFitLastLine = camFitOutput[-1]
 
-print "Best fitting barrel distortion parameters were:\n%s\n\n"%camFitLastLine
+print "Best fitting barrel distortion parameters were:\n%s\n\n" % camFitLastLine
 
 os.chdir(cwd)

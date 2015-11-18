@@ -5,7 +5,7 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
 
         var self = this;
 
-        self.searchTypes = ["Timelapse images", "Moving objects"];
+        self.searchTypes = ["Moving objects", "Timelapse images"];
 
         self.inputs = {
             after: ko.observable(),
@@ -94,7 +94,7 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
             utils.updateSearchObject(self.inputs, params.search);
             // Get the search object and use it to retrieve results
             var search = utils.getSearchObject(self.search, {skip: 0});
-            if (self.inputs.searchtype() == self.searchTypes[0]) {
+            if (self.inputs.searchtype() == self.searchTypes[1]) {
                 client.searchFiles(search, function (error, results) {
                     self.pages(utils.getSearchPages(self.inputs, results.files.length, results.count));
                     $.each(results.files, function (index, item) {
@@ -103,6 +103,7 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
                                     {
                                         'camera_ids': item.camera_id,
                                         'searchtype': self.searchTypes[0],
+                                        'mime_type': 'image/png',
                                         'semantic_type': item.semantic_type,
                                         'before': item.file_time + 1000,
                                         'after': item.file_time - 1000

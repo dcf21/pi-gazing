@@ -7,7 +7,7 @@ define(['knockout', 'text!./search-editor.html', 'utils', 'jquery', 'client'], f
         // Get the cameras
         client.listCameras(function (err, cameras) { self.cameras(["Any"].concat(cameras)); });
 
-        self.searchTypes = ["Timelapse images","Moving objects"];
+        self.searchTypes = ["Moving objects", "Timelapse images"];
 
         self.search = params.search;
         if (params.hasOwnProperty('onSearch')) {
