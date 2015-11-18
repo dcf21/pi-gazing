@@ -10,8 +10,8 @@
 // Define the device from which to capture video, and the resolution and frame-rate we expect from it
 // These parameters affect test bench routines such as vidRec and snapshot. Main observe process overrides these with data passed on the command line
 
-#define VIDEO_WIDTH  1024
-#define VIDEO_HEIGHT 768
+#define VIDEO_WIDTH  800
+#define VIDEO_HEIGHT 600
 #define VIDEO_FPS    0.125
 #define VIDEO_UPSIDE_DOWN 0 /* If this flag is set, we assume the camera is mounted upside down. Video is flipped before analysis. */
 
@@ -19,10 +19,11 @@
 
 // This is the gain that we apply to background-subtracted images taken as a time-lapse sequence through the night
 
-#define STACK_GAIN 5
+#define STACK_GAIN_NOBGSUB  1
+#define STACK_GAIN_BGSUB    5
 
 // Throttle the number of triggers which are allowed
-#define TRIGGER_THROTTLE_PERIOD 10 /* number of minutes */
+#define TRIGGER_THROTTLE_PERIOD 30 /* number of minutes */
 #define TRIGGER_THROTTLE_MAXEVT  4 /* number of triggers allowed in that time */
 
 // Trigger parameters

@@ -19,7 +19,9 @@ var require = {
         "chart": "bower_modules/chartjs/Chart.min",
         "knockout-postbox": "bower_modules/knockout-postbox/build/knockout-postbox.min",
         "modal": "app/modal",
-        "utils": "app/utils"
+        "utils": "app/utils",
+        "dcftime": "modules/dcftime/dcftime",
+        "dcfplot": "modules/dcfplot/dcfplot"
     },
     shim: {
         "bootstrap": {deps: ["jquery"]},

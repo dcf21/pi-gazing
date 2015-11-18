@@ -98,6 +98,9 @@ define(["knockout", "crossroads", "hasher", "client"], function (ko, crossroads,
     return new Router({
         routes: [
             {name: 'home', url: '', params: {page: 'home-page'}},
+            {name: 'what-to-do', url: 'whattodo', params: {page: 'what-to-do'}},
+            {name: 'faqs', url: 'faqs', params: {page: 'faqs'}},
+            {name: 'projects', url: 'projects', params: {page: 'projects'}},
             {name: 'about', url: 'about', params: {page: 'about-page'}},
             {name: 'status', url: 'status/:camera:', params: {page: 'status-page'}},
             {name: 'skysearch', url: 'skysearch/:search:', params: {page: 'search-page'}},

@@ -1,4 +1,4 @@
-define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'utils'], function ($, ko, templateMarkup, client, router, utils) {
+define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'utils'], function (jQuery, ko, templateMarkup, client, router, utils) {
 
 
     function FilesPage(params) {
@@ -6,6 +6,11 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
         var self = this;
 
         self.searchTypes = ["Moving objects", "Timelapse images"];
+
+        var cameraDefault = "Any";
+        var searchTerms = [];
+        if (params.search) searchTerms = utils.decodeString(params.search);
+        if (searchTerms.camera) cameraDefault = searchTerms.camera;
 
         self.inputs = {
             after: ko.observable(),
@@ -22,6 +27,17 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
             skip: ko.observable(0)
         };
 
+        // Available cameras
+        self.cameras = ko.observableArray(["Any"]);
+        // Get the cameras
+        client.listCameras(function (err, cameras) {
+            var camerasTrimmed = ["Any"];
+            jQuery.each(cameras, function(index,item){camerasTrimmed.push(item.trim())});
+            camerasTrimmed.sort();
+            self.cameras(camerasTrimmed);
+            self.inputs.camera(cameraDefault);
+        });
+
         self.search = {
             after: ko.computed(function () {
                 return self.inputs.after;
@@ -33,7 +49,7 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
                 return self.inputs.searchtype() == self.searchTypes[0];
             }),
             camera_ids: ko.computed(function () {
-                return (self.inputs.camera() == "Any") ? "" : self.inputs.camera;
+                return (self.inputs.camera() == "Any") ? null : self.inputs.camera;
             }),
             limit: ko.computed(function () {
                 return self.inputs.limit;
@@ -97,7 +113,7 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
             if (self.inputs.searchtype() == self.searchTypes[1]) {
                 client.searchFiles(search, function (error, results) {
                     self.pages(utils.getSearchPages(self.inputs, results.files.length, results.count));
-                    $.each(results.files, function (index, item) {
+                    jQuery.each(results.files, function (index, item) {
                         item.linkurl = '#' + router.routes['file'].interpolate({
                                 "search": utils.encodeString(utils.getSearchObject(
                                     {
@@ -118,7 +134,7 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
             } else {
                 client.searchEvents(search, function (error, results) {
                     self.pages(utils.getSearchPages(self.inputs, results.events.length, results.count));
-                    $.each(results.events, function (index, item) {
+                    jQuery.each(results.events, function (index, item) {
                         item.imgURL = '';
                         item.imgFname = '';
                         item.duration = 0;
@@ -131,13 +147,13 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
                                         'after': item.event_time - 1000
                                     }))
                             });
-                        $.each(item.files, function (index, f) {
+                        jQuery.each(item.files, function (index, f) {
                             if (f.semantic_type == 'meteorpi:triggers/event/maxBrightness/lensCorr') {
                                 item.imgURL = self.urlForFile(f);
                                 item.imgfname = self.filenameForFile(f);
                             }
                         });
-                        $.each(item.meta, function (index, m) {
+                        jQuery.each(item.meta, function (index, m) {
                             if (m.key == 'meteorpi:duration') item.duration = "Duration: "+m.value.toFixed(2)+" sec";
                         });
                     });

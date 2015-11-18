@@ -151,12 +151,12 @@ class MeteorExporter(object):
                     export_state.export_task.target_password)
             target_url = export_state.export_task.target_url
             if export_state.use_cache:
-                response = post(url=target_url,
+                response = post(url=target_url, verify=False,
                                 json={'type': 'cached_entity',
                                       'cached_entity_id': export_state.entity_id},
                                 auth=auth)
             else:
-                response = post(url=target_url,
+                response = post(url=target_url, verify=False,
                                 json=export_state.entity_dict,
                                 auth=auth)
             response.raise_for_status()
@@ -169,7 +169,7 @@ class MeteorExporter(object):
                 camera_status = self.db.get_camera_status_by_id(status_id)
                 if camera_status is None:
                     return export_state.failed()
-                post(url=target_url,
+                post(url=target_url, verify=False,
                      json={'type': 'status',
                            'status': camera_status.as_dict()},
                      auth=auth)
@@ -182,7 +182,7 @@ class MeteorExporter(object):
                 with open(self.db.file_path_for_id(file_id), 'rb') as file_content:
                     multi = MultipartEncoder(fields={'file': ('file', file_content, file_record.mime_type)})
                     post(url="{0}/data/{1}/{2}".format(target_url, file_id.hex, file_record.md5),
-                         data=multi,
+                         data=multi, verify=False,
                          headers={'Content-Type': multi.content_type},
                          auth=auth)
                 return export_state.partially_processed()

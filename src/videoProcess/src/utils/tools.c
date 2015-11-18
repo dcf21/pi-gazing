@@ -116,7 +116,7 @@ double calculateSkyClarity(image_ptr *img, double noiseLevel)
  {
   int       i,j,score=0;
   const int gridsize = 9;
-  const int threshold= MAX(12 , noiseLevel*10); // To be counted as a star-like source, must be this much brighter than surroundings
+  const int threshold= MAX(12 , noiseLevel*6); // To be counted as a star-like source, must be this much brighter than surroundings
   const int stride   = img->xsize;
   for (i=1;i<gridsize;i++) for (j=1;j<gridsize;j++)
    {
@@ -127,22 +127,24 @@ double calculateSkyClarity(image_ptr *img, double noiseLevel)
     int x,y,count=0;
     for (y=ymin;y<ymax;y++) for (x=xmin;x<xmax;x++)
      {
-      if ( (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x+6)]+threshold) &&
-           (img->data_red[y*stride+x] > img->data_red[(y+6)*stride+(x+6)]+threshold) &&
-           (img->data_red[y*stride+x] > img->data_red[(y+6)*stride+(x  )]+threshold) &&
-           (img->data_red[y*stride+x] > img->data_red[(y+6)*stride+(x-6)]+threshold) &&
-           (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x-6)]+threshold) &&
-           (img->data_red[y*stride+x] > img->data_red[(y-6)*stride+(x-6)]+threshold) &&
-           (img->data_red[y*stride+x] > img->data_red[(y-6)*stride+(x  )]+threshold) &&
-           (img->data_red[y*stride+x] > img->data_red[(y-6)*stride+(x+6)]+threshold) &&
-           (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x+8)]+threshold) &&
-           (img->data_red[y*stride+x] > img->data_red[(y+8)*stride+(x+8)]+threshold) &&
-           (img->data_red[y*stride+x] > img->data_red[(y+8)*stride+(x  )]+threshold) &&
-           (img->data_red[y*stride+x] > img->data_red[(y+8)*stride+(x-8)]+threshold) &&
-           (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x-8)]+threshold) &&
-           (img->data_red[y*stride+x] > img->data_red[(y-8)*stride+(x-8)]+threshold) &&
-           (img->data_red[y*stride+x] > img->data_red[(y-8)*stride+(x  )]+threshold) &&
-           (img->data_red[y*stride+x] > img->data_red[(y-8)*stride+(x+8)]+threshold)    ) count++;
+      int counter=0;
+      if (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x+6)]+threshold) counter++;
+      if (img->data_red[y*stride+x] > img->data_red[(y+6)*stride+(x+6)]+threshold) counter++;
+      if (img->data_red[y*stride+x] > img->data_red[(y+6)*stride+(x  )]+threshold) counter++;
+      if (img->data_red[y*stride+x] > img->data_red[(y+6)*stride+(x-6)]+threshold) counter++;
+      if (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x-6)]+threshold) counter++;
+      if (img->data_red[y*stride+x] > img->data_red[(y-6)*stride+(x-6)]+threshold) counter++;
+      if (img->data_red[y*stride+x] > img->data_red[(y-6)*stride+(x  )]+threshold) counter++;
+      if (img->data_red[y*stride+x] > img->data_red[(y-6)*stride+(x+6)]+threshold) counter++;
+      if (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x+8)]+threshold) counter++;
+      if (img->data_red[y*stride+x] > img->data_red[(y+8)*stride+(x+8)]+threshold) counter++;
+      if (img->data_red[y*stride+x] > img->data_red[(y+8)*stride+(x  )]+threshold) counter++;
+      if (img->data_red[y*stride+x] > img->data_red[(y+8)*stride+(x-8)]+threshold) counter++;
+      if (img->data_red[y*stride+x] > img->data_red[(y  )*stride+(x-8)]+threshold) counter++;
+      if (img->data_red[y*stride+x] > img->data_red[(y-8)*stride+(x-8)]+threshold) counter++;
+      if (img->data_red[y*stride+x] > img->data_red[(y-8)*stride+(x  )]+threshold) counter++;
+      if (img->data_red[y*stride+x] > img->data_red[(y-8)*stride+(x+8)]+threshold) counter++;
+      if (counter>12) count++;
      }
     if (count>=5) score++;
    }

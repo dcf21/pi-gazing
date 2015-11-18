@@ -43,8 +43,13 @@ if I_AM_A_RPI:
 else:
   logTxt("We are not running on a RPi; so not bothering to try to get GPS link")
 
-setUTCoffset(toffset)
 logTxt("Longitude = %.6f ; Latitude = %.6f ; Clock offset: %.2f sec behind."%(longitude,latitude,toffset))
+setUTCoffset(toffset)
+timeNow = getUTC()
+os.system("date -s @%d"%timeNow)
+toffset = time.time()-timeNow
+logTxt("Revised clock offset after trying to set the system clock: %.2f sec behind."%(toffset))
+setUTCoffset(toffset)
 
 # Update camera status with GPS position
 timenow = UTC2datetime(getUTC())

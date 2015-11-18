@@ -56,8 +56,8 @@ int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc)
   for (i=0; i<nPixels; i+=skip) { sum+=img.data_red[i]; N++; }
   double brightness = sum/N;
 
-  // Work out gain to apply to put sky brightness at 48, but don't allow gains outside 1-10.
-  double gain = 48 / brightness;
+  // Work out gain to apply to put sky brightness at 64, but don't allow gains outside 1-10.
+  double gain = 64 / brightness;
   if (gain< 1) gain=1;
   if (gain>10) gain=10;
 
@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
   fillPolygonsFromFile(maskfile, mask, vmd.width, vmd.height);
   fclose(maskfile);
 
-  observe((void *)&vmd, vmd.cameraId, utcoffset, vmd.tstart, vmd.tstop, vmd.width, vmd.height, vmd.fps, "live", mask, Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP, TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_GAIN, medianMapUseEveryNthStack, medianMapUseNImages, medianMapReductionCycles, &fetchFrame, &rewindVideo);
+  observe((void *)&vmd, vmd.cameraId, utcoffset, vmd.tstart, vmd.tstop, vmd.width, vmd.height, vmd.fps, "live", mask, Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP, TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_GAIN_BGSUB, STACK_GAIN_NOBGSUB, medianMapUseEveryNthStack, medianMapUseNImages, medianMapReductionCycles, &fetchFrame, &rewindVideo);
 
   return 0;
  }

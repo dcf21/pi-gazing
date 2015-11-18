@@ -117,7 +117,7 @@ int readFrameGroup(observeStatus *os, unsigned char *buffer, int *stack1, int *s
   return 0;
  }
 
-int observe(void *videoHandle, const char *cameraId, const int utcoffset, const int tstart, const int tstop, const int width, const int height, const double fps, const char *label, const unsigned char *mask, const int Nchannels, const int STACK_COMPARISON_INTERVAL, const int TRIGGER_PREFIX_TIME, const int TRIGGER_SUFFIX_TIME, const int TRIGGER_FRAMEGROUP, const int TRIGGER_MAXRECORDLEN, const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT, const int TIMELAPSE_EXPOSURE, const int TIMELAPSE_INTERVAL, const int STACK_GAIN, const int medianMapUseEveryNthStack, const int medianMapUseNImages, const int medianMapReductionCycles, int (*fetchFrame)(void *,unsigned char *,double *), int (*rewindVideo)(void *, double *))
+int observe(void *videoHandle, const char *cameraId, const int utcoffset, const int tstart, const int tstop, const int width, const int height, const double fps, const char *label, const unsigned char *mask, const int Nchannels, const int STACK_COMPARISON_INTERVAL, const int TRIGGER_PREFIX_TIME, const int TRIGGER_SUFFIX_TIME, const int TRIGGER_FRAMEGROUP, const int TRIGGER_MAXRECORDLEN, const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT, const int TIMELAPSE_EXPOSURE, const int TIMELAPSE_INTERVAL, const int STACK_GAIN_BGSUB, const int STACK_GAIN_NOBGSUB, const int medianMapUseEveryNthStack, const int medianMapUseNImages, const int medianMapReductionCycles, int (*fetchFrame)(void *,unsigned char *,double *), int (*rewindVideo)(void *, double *))
  {
   int i;
   char line[FNAME_LENGTH],line2[FNAME_LENGTH],line3[FNAME_LENGTH];
@@ -147,7 +147,8 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
   os->TRIGGER_THROTTLE_MAXEVT = TRIGGER_THROTTLE_MAXEVT;
   os->TIMELAPSE_EXPOSURE = TIMELAPSE_EXPOSURE;
   os->TIMELAPSE_INTERVAL = TIMELAPSE_INTERVAL;
-  os->STACK_GAIN = STACK_GAIN;
+  os->STACK_GAIN_BGSUB = STACK_GAIN_BGSUB;
+  os->STACK_GAIN_NOBGSUB = STACK_GAIN_NOBGSUB;
 
   os->medianMapUseEveryNthStack = medianMapUseEveryNthStack;
   os->medianMapUseNImages = medianMapUseNImages;
@@ -231,7 +232,7 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
      {
       if (DEBUG) { sprintf(line, "Run-in period completed."); gnom_log(line); }
       (*rewindVideo)(os->videoHandle,&os->utc);
-      os->timelapseUTCStart = ceil(os->utc/60)*60 + 0.001; // Start making timelapse video
+      os->timelapseUTCStart = ceil(os->utc/60)*60 + 0.5; // Start making timelapse video
      }
 
     // Work out where we're going to read next second of video to. Either bufferA / bufferB, or the long buffer if we're recording
@@ -262,15 +263,16 @@ int observe(void *videoHandle, const char *cameraId, const int utcoffset, const 
       }
 
     // If timelapse exposure is finished, dump it
-    if (os->timelapseCount>=os->framesTimelapse/os->TRIGGER_FRAMEGROUP)
+    if ( (os->timelapseCount>=os->framesTimelapse/os->TRIGGER_FRAMEGROUP) || (os->utc > os->timelapseUTCStart+os->TIMELAPSE_INTERVAL-1) )
      {
+      const int Nframes = os->timelapseCount*os->TRIGGER_FRAMEGROUP;
       char fstub[FNAME_LENGTH], fname[FNAME_LENGTH]; fNameGenerate(fstub,os->cameraId,os->timelapseUTCStart,"frame_","timelapse_raw",os->label);
       sprintf(fname, "%s%s",fstub,"BS0.rgb");
-      dumpFrameFromInts(os->width, os->height, os->Nchannels, os->stackT, os->framesTimelapse, 1, fname);
-      writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(os->framesTimelapse), "stackedFrames", os->framesTimelapse);
+      dumpFrameFromInts(os->width, os->height, os->Nchannels, os->stackT, Nframes, os->STACK_GAIN_NOBGSUB, fname);
+      writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(Nframes)*os->STACK_GAIN_NOBGSUB, "stackedFrames", Nframes);
       sprintf(fname, "%s%s",fstub,"BS1.rgb");
-      dumpFrameFromISub(os->width, os->height, os->Nchannels, os->stackT, os->framesTimelapse, os->STACK_GAIN, os->medianMap, fname);
-      writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(os->framesTimelapse)*os->STACK_GAIN, "stackedFrames", os->framesTimelapse);
+      dumpFrameFromISub(os->width, os->height, os->Nchannels, os->stackT, Nframes, os->STACK_GAIN_BGSUB, os->medianMap, fname);
+      writeMetaData(fname, "sddi", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel", os->noiseLevel/sqrt(Nframes)*os->STACK_GAIN_BGSUB, "stackedFrames", Nframes);
       if (floor(fmod(os->timelapseUTCStart,900))==0) // Every 15 minutes, dump an image of the sky background map for diagnostic purposes
        {
         sprintf(fname, "%s%s",fstub,"skyBackground.rgb");
@@ -433,6 +435,13 @@ void registerTriggerEnds(observeStatus *os)
         // If event was seen in fewer than two frames, reject it
         if (os->eventList[i].Ndetections < 2) continue;
 
+        // Work out duration of event
+        double duration = os->eventList[i].detections[N2].utc-os->eventList[i].detections[N0].utc;
+        double pixel_tracklen = hypot( os->eventList[i].detections[N0].x - os->eventList[i].detections[N2].x,
+                                       os->eventList[i].detections[N0].y - os->eventList[i].detections[N2].y );
+
+        if ((duration>0.8)&&(pixel_tracklen<3)) continue; // Reject events that last a long time and don't move -- probably a twinkling star
+
         // Update counter for trigger rate throttling
         os->triggerThrottleCounter++;
 
@@ -490,8 +499,7 @@ void registerTriggerEnds(observeStatus *os)
 
         sprintf(fname, "%s%s",os->eventList[i].filenameStub,".vid");
         dumpVideo(os->width, os->height, video1, video1frs, video2, video2frs, fname);
-        writeMetaData(fname, "sdsdiiis", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "path", pathJSON,
-                                 "duration", os->eventList[i].detections[N2].utc-os->eventList[i].detections[N0].utc,
+        writeMetaData(fname, "sdsdiiis", "cameraId", os->cameraId, "inputNoiseLevel", os->noiseLevel, "path", pathJSON, "duration", duration,
                                  "detectionCount", os->eventList[i].Ndetections,
                                  "amplitudeTimeIntegrated", amplitudeTimeIntegrated, "amplitudePeak", amplitudePeak,
                                  "pathBezier", pathBezier
