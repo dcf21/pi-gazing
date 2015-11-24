@@ -5,16 +5,18 @@
 
 # Attempt to calculate the barrel distortion of the lens, to produce a better model for correcting recorded images.
 
-# First we run orientationCalc.py. This uses astrometry.net to calculate the orientation of the camera based on recent images.
+# First we run orientationCalc.py. This uses astrometry.net to calculate the orientation of the camera based on recent
+# images.
 
-# It also produces a data file listing the 20-50 images used to calculate the orientation, together with the position of each image on the sky.
+# It also produces a data file listing the 20-50 images used to calculate the orientation, together with the position
+# of each image on the sky.
 
-# We then call the program gnomonicStack/bin/camfit. This attempts to stack the 20-50 images, measuring the degree of mismatch between the images.
+# We then call the program gnomonicStack/bin/camfit. This attempts to stack the 20-50 images, measuring the degree of
+# mismatch between the images.
 
 # It tries different barrel distortion coefficients to maximise the degree to which the images overlay one another.
 
 from math import *
-
 import orientationCalc
 from mod_settings import *
 from mod_time import *

@@ -3,5 +3,5 @@
 # Dominic Ford
 
 import mod_relay
-mod_relay.cameraOn()
 
+mod_relay.cameraOn()

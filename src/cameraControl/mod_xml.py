@@ -32,6 +32,7 @@ class XmlDictConfig(dict):
 
     And then use xmldict for what it is... a dict.
     '''
+
     def __init__(self, parent_element):
         if parent_element.items():
             self.update(dict(parent_element.items()))
@@ -62,4 +63,3 @@ class XmlDictConfig(dict):
             # the text
             else:
                 self.update({element.tag: element.text})
-

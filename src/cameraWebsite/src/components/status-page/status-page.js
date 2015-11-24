@@ -2,6 +2,7 @@ define(['jquery', 'knockout', 'text!./status-page.html', 'client'], function ($,
 
     function StatusPage(params) {
         var self = this;
+        self.user = client.user;
         self.time = ko.observable(new Date(Date.now()));
         // Available cameras
         self.cameras = ko.observableArray();
@@ -32,7 +33,9 @@ define(['jquery', 'knockout', 'text!./status-page.html', 'client'], function ($,
                         map: self.map,
                         title: camera
                     });
-                    marker.addListener('click', function() { self.setCamera(camera); });
+                    marker.addListener('click', function () {
+                        self.setCamera(camera);
+                    });
                     self.markers[camera] = marker;
                 });
             });
@@ -53,30 +56,54 @@ define(['jquery', 'knockout', 'text!./status-page.html', 'client'], function ($,
         if (selected != null) {
             if (!selected in self.statuses) {
                 self.status(self.statuses[selected]);
-                $.each(self.markers, function (index, marker) { marker.setMap((index==selected)?self.map:null); });
-                self.map.setCenter( new google.maps.LatLng(self.status().location.lat, self.status().location.long) );
+                $.each(self.markers, function (index, marker) {
+                    marker.setMap((index == selected) ? self.map : null);
+                });
+                self.map.setCenter(new google.maps.LatLng(self.status().location.lat, self.status().location.long));
             }
             else {
                 client.getStatus(selected, self.time(), function (err, status) {
                     self.status(status);
-                    $.each(self.markers, function (index, marker) { marker.setMap((index==selected)?self.map:null); });
-                    self.map.setCenter( new google.maps.LatLng(self.status().location.lat, self.status().location.long) );
-                 });
+                    $.each(self.markers, function (index, marker) {
+                        marker.setMap((index == selected) ? self.map : null);
+                    });
+                    self.map.setCenter(new google.maps.LatLng(self.status().location.lat, self.status().location.long));
+                });
             }
+
+            // Update list of log files
+            self.logSearch = {
+                after: null,
+                before: null,
+                exclude_events: true,
+                mime_type: "text/plain",
+                camera_ids: [selected],
+                limit: 20,
+                skip: 0,
+                semantic_type: "meteorpi:logfile"
+            };
+            var search = utils.getSearchObject(self.logSearch, {skip: 0});
+            client.searchFiles(search, function (error, results) {
+                jQuery.each(results.files, function (index, item) {
+                    item.url = client.filenameForFile(item);
+                    item.title = new Date(item.file_time);
+                });
+            });
         }
-       else
-        {
-         $.each(self.markers, function (index, marker) { marker.setMap(self.map); });
+        else {
+            $.each(self.markers, function (index, marker) {
+                marker.setMap(self.map);
+            });
         }
-       google.maps.event.trigger(self.map, "resize");
+        google.maps.event.trigger(self.map, "resize");
     };
 
-    StatusPage.prototype.refreshCamera = function() {
+    StatusPage.prototype.refreshCamera = function () {
         var self = this;
         self.setCamera(self.selectedCamera());
     };
 
-    StatusPage.prototype.setTime = function(ut) {
+    StatusPage.prototype.setTime = function (ut) {
         var self = this;
         self.time(new Date(ut));
         self.refreshCamera();

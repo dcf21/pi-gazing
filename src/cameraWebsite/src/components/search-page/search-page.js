@@ -48,6 +48,9 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
             exclude_events: ko.computed(function () {
                 return self.inputs.searchtype() == self.searchTypes[0];
             }),
+            mime_type: ko.computed(function () {
+                return (self.inputs.searchtype() == self.searchTypes[0]) ? 'image/png' : '';
+            }),
             camera_ids: ko.computed(function () {
                 return (self.inputs.camera() == "Any") ? null : self.inputs.camera;
             }),
@@ -59,28 +62,28 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
             }),
             meta: ko.computed(function () {
                 var constraints = [];
-                if (self.inputs.searchtype() == self.searchTypes[0] && self.inputs.flag_highlights()) constraints.push({
+                if (self.inputs.searchtype() == self.searchTypes[1] && self.inputs.flag_highlights()) constraints.push({
                     type: ko.observable('greater'),
                     key: ko.observable('meteorpi:highlight'),
                     number_value: 0.5,
                     string_value: ko.observable(''),
                     date_value: ko.observable(new Date(Date.now()))
                 });
-                if (self.inputs.searchtype() != self.searchTypes[0] && self.inputs.duration_min() > 0) constraints.push({
+                if (self.inputs.searchtype() != self.searchTypes[1] && self.inputs.duration_min() > 0) constraints.push({
                     type: ko.observable('greater'),
                     key: ko.observable('meteorpi:duration'),
                     number_value: self.inputs.duration_min,
                     string_value: ko.observable(''),
                     date_value: ko.observable(new Date(Date.now()))
                 });
-                if (self.inputs.searchtype() != self.searchTypes[0] && self.inputs.duration_max() > 0) constraints.push({
+                if (self.inputs.searchtype() != self.searchTypes[1] && self.inputs.duration_max() > 0) constraints.push({
                     type: ko.observable('less'),
                     key: ko.observable('meteorpi:duration'),
                     number_value: self.inputs.duration_max,
                     string_value: ko.observable(''),
                     date_value: ko.observable(new Date(Date.now()))
                 });
-                if (self.inputs.searchtype() == self.searchTypes[0] && self.inputs.skyclarity() > 0) constraints.push({
+                if (self.inputs.searchtype() == self.searchTypes[1] && self.inputs.skyclarity() > 0) constraints.push({
                     type: ko.observable('greater'),
                     key: ko.observable('meteorpi:skyClarity'),
                     number_value: self.inputs.skyclarity,
@@ -118,8 +121,7 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
                                 "search": utils.encodeString(utils.getSearchObject(
                                     {
                                         'camera_ids': item.camera_id,
-                                        'searchtype': self.searchTypes[0],
-                                        'mime_type': 'image/png',
+                                        'searchtype': self.searchTypes[1],
                                         'semantic_type': item.semantic_type,
                                         'before': item.file_time + 1000,
                                         'after': item.file_time - 1000
@@ -142,7 +144,7 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
                                 "search": utils.encodeString(utils.getSearchObject(
                                     {
                                         'camera_ids': item.camera_id,
-                                        'searchtype': self.searchTypes[1],
+                                        'searchtype': self.searchTypes[0],
                                         'before': item.event_time + 1000,
                                         'after': item.event_time - 1000
                                     }))

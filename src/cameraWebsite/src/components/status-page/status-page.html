@@ -130,7 +130,8 @@
                 <td>
                     <span data-bind="text: new Date(status().valid_from)"></span>
                     <span data-bind="if: status().valid_from">
-                        (<a class="pointer" data-bind="event: {click: function(){setTime(status().valid_from-100);}}">See previous status</a>)
+                        (<a class="pointer" data-bind="event: {click: function(){setTime(status().valid_from-100);}}">See
+                        previous status</a>)
                     </span>
                 </td>
             </tr>
@@ -139,7 +140,8 @@
                 <td>
                     <span data-bind="if: status().valid_to">
                         <span data-bind="text: new Date(status().valid_to)"></span>
-                        (<a class="pointer" data-bind="event: {click: function(){setTime(status().valid_to+100);}}">See next status</a>)
+                        (<a class="pointer" data-bind="event: {click: function(){setTime(status().valid_to+100);}}">See
+                        next status</a>)
                     </span>
                     <span data-bind="ifnot: status().valid_to">
                         <span>Never</span>
@@ -148,5 +150,12 @@
             </tr>
             </tbody>
         </table>
+        <div data-bind="if: user()!=null && user().roles.indexOf('camera_admin')>=0">
+            <h4 style="padding:16px 0;">Camera logs</h4>
+
+            <div data-bind="foreach:logFiles">
+                <p class="select-list"><a data-bind="text:title, href:url"></a></p>
+            </div>
+        </div>
     </div>
 </div>

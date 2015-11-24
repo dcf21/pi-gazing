@@ -189,7 +189,7 @@ mod_hwm.writeHWM(highWaterMarks)
 os.chdir(cwd)
 if (not quitTime) or (quitTime - getUTC() > 300):
   logTxt("Importing events into firebird db")
-  hwm_new = firebirdImport.firebirdImport()
+  hwm_new = firebirdImport.firebird_import()
 
 # Figure out orientation of camera -- this may take 5 hours!
 try:
