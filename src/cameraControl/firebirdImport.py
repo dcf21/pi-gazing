@@ -4,9 +4,12 @@
 # Dominic Ford
 
 import glob
+import uuid
+import time
 import meteorpi_fdb
 import meteorpi_model as mp
 import mod_hwm
+import mod_deleteOldData
 from mod_log import logTxt
 from mod_settings import *
 from mod_time import *
@@ -155,6 +158,17 @@ def firebird_import():
         hwm_new[camera_id] = max(hwm_new[camera_id], utc)
 
     os.chdir(cwd)
+    # Create a camera status log file
+    os.system("./cameraStatusLog.sh > /tmp/cameraStatus.log")
+    file_obj = fdb_handle.register_file(file_path="/tmp/cameraStatus.log", mime_type="text/plain",
+                                        semantic_type=mp.NSString("logfile", "meteorpi"),
+                                        file_time=UTC2datetime(time.time()), file_metas=[],
+                                        camera_id=my_installation_id(),
+                                        file_name="cameraStatus_" + time.strftime("%Y%m%d" + ".log"))
+
+    # Remove old data from the database
+    mod_deleteOldData.delete_old_data(my_installation_id(), 0,
+                                      time.time() - 24 * 2400 * installation_info.dataLocalLifetime)
     return hwm_new
 
 
