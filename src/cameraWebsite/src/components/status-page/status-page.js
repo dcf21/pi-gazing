@@ -1,4 +1,4 @@
-define(['jquery', 'knockout', 'text!./status-page.html', 'client'], function ($, ko, templateMarkup, client) {
+define(['jquery', 'knockout', 'text!./status-page.html', 'client', 'utils'], function ($, ko, templateMarkup, client, utils) {
 
     function StatusPage(params) {
         var self = this;
@@ -11,6 +11,7 @@ define(['jquery', 'knockout', 'text!./status-page.html', 'client'], function ($,
         // The status for this current camera
         self.status = ko.observable();
         self.statuses = [];
+        self.logFiles = [];
         self.markers = [];
         // Set up Google Map
         self.mapOptions = {
@@ -73,7 +74,7 @@ define(['jquery', 'knockout', 'text!./status-page.html', 'client'], function ($,
 
             // Update list of log files
             self.logSearch = {
-                after: null,
+                after: 0,
                 before: null,
                 exclude_events: true,
                 mime_type: "text/plain",
@@ -85,9 +86,10 @@ define(['jquery', 'knockout', 'text!./status-page.html', 'client'], function ($,
             var search = utils.getSearchObject(self.logSearch, {skip: 0});
             client.searchFiles(search, function (error, results) {
                 jQuery.each(results.files, function (index, item) {
-                    item.url = client.filenameForFile(item);
+                    item.url = client.urlForFile(item);
                     item.title = new Date(item.file_time);
                 });
+                self.logFiles = results.files;
             });
         }
         else {
