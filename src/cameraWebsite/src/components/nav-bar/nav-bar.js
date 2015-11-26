@@ -1,20 +1,17 @@
 define(['knockout', 'text!./nav-bar.html', 'client', "modal", "../login-modal/login-modal"], function (ko, template, client, modal, login) {
 
     function NavBarViewModel(params) {
-        var self=this;
+        var modal=this;
         this.route = params.route;
         this.user = client.user;
 
-        this.requestAnimationFrame = window.requestAnimationFrame
-            || window.mozRequestAnimationFrame
-            || window.webkitRequestAnimationFrame
-            || window.msRequestAnimationFrame
-            || function (f) {
+        this.animate =
+            function (f) {
                 setTimeout(f, 1000 / 60)
             };
 
         window.addEventListener('scroll', function () { // on page scroll
-            self.requestAnimationFrame(self.parallax_banner); // call parallaxbanner() on next available screen paint
+            modal.animate(modal.parallax_banner); // call parallaxbanner() on next available screen paint
         }, false);
 
     }

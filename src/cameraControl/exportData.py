@@ -5,8 +5,10 @@
 
 # This exports observations to remote servers, if configured
 
+import sys
 from math import *
 
+import meteorpi_fdb
 from meteorpi_fdb.exporter import MeteorExporter
 
 import mod_log
