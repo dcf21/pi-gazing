@@ -9,4 +9,4 @@ DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 cd $DIR
 source /home/pi/meteor-pi/virtual-env/bin/activate # Need this so that astrometry.net uses right python environment
 ./loadMonitor.py &
-./main.py
+./main.py &>> /home/pi/meteor-pi/datadir/python.log
