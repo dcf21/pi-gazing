@@ -1,9 +1,72 @@
 <h2>Frequently asked questions</h2>
 
-<p>This page still needs to be written. It will talk about</p>
+<h3>What are shooting stars?</h3>
 
-<ul>
-    <li>Why can't I see anything?</li>
-    <li>Why are many of the images black and white?</li>
-    <li>How do I build my own camera?</li>
-</ul>
+<p class="text">
+    Shooting stars appear when pebble-sized lumps of space rock crash into the Earth. Because they are travelling so
+    fast, they burn up when they hit our planet’s atmosphere, leaving a fiery trail across the sky.
+</p><p class="text">
+    Millions of shooting stars appear around the world every day. The Solar System is teeming with rocky fragments of
+    material which never stuck together to form planets, and astronomers estimate that over 100 tonnes of this material
+    collides with the Earth every day.
+</p><p class="text">
+    Thankfully, the vast majority of it burns up at an altitude of over 50 miles, posing no hazard to anyone on the
+    ground.
+</p><p class="text">
+    By recording videos of these rocks burning up, we can count how many of them there are. By comparing videos seen
+    from multiple locations in East Anglia, we can triangulate the exact altitude and trajectory of each shooting star,
+    telling us where each one came from.
+</p><p class="text">
+    Eventually, MeteorPi will allow us to trace out how space rocks are distributed through the Solar System.
+</p>
+
+<h3>Why are many MeteorPi images blank?</h3>
+
+<p class="text">
+    Our cameras observe from nightfall until dawn every day, even when the weather is bad.
+</p><p class="text">
+    In the UK, most places have clear skies on one night in three, so roughly two thirds of MeteorPi images show cloudy
+    skies.
+</p><p class="text">
+    Around twilight, the images often appear completely white. This is because we use very sensitive cameras that are
+    designed to
+    see faint stars on dark nights. When the sun comes up, they're often completely overwhelmed by the amount of light
+    they see!
+</p>
+
+<h3>Why are the pictures black and white?</h3>
+
+<p class="text">
+    When we designed the MeteorPi cameras, our priority was make them as sensitive as possible to very faint objects in
+    the night sky.
+</p><p class="text">
+    Colour cameras are much less sensitive than black-and-white ones. They have an array of light-sensitive elements
+    inside them, each of which sits behind
+    filter which makes it sensitive to only one colour. Any green light which falls on a red pixel, for example, isn't
+    detected.
+</p><p class="text">
+    Black-and-white cameras have at least twice the sensitivity of color cameras, because they don't have any filters
+    inside.
+</p><p class="text">
+    So, although this makes the pictures slightly less pretty, it means we can see stars that would be invisible to a
+    colour camera.
+</p>
+
+<h3>What's does each MeteorPi camera look like?</h3>
+
+<p class="text">
+    There’s a lot of electronics packed inside each MeteorPi observatory.
+</p><p class="text">
+    The camera we use is a Watec 902H2 Ultimate – a Japanese CCTV camera which is designed to work in incredibly dark
+    places. Fitted with a wide-angle lens which can fit almost half the sky into view, these cameras need only look at
+    the sky for a few seconds to detect stars hundreds of times fainter than the human eye can see.
+</p><p class="text">
+    The images recorded by this camera are fed into a Raspberry Pi computer, which monitors them for moving objects. It
+    also uses a GPS receiver to determine the observatory’s exact location, and software called astrometry.net to
+    calculate the exact direction in which the camera is pointing. Using a catalogue of all the bright stars of the
+    night sky, astrometry.net looks for familiar patterns of stars in the images recorded by the camera to determine
+    which direction it is pointing in.
+</p><p class="text">
+    When moving objects are detected, short video clips are recorded to an internal hard disk, and later uploaded to the
+    Science Centre website the following day.
+</p>
