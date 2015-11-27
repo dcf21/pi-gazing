@@ -99,6 +99,7 @@ define(["knockout", "crossroads", "hasher", "client"], function (ko, crossroads,
         routes: [
             {name: 'home', url: '', params: {page: 'home-page'}},
             {name: 'what-to-do', url: 'whattodo', params: {page: 'what-to-do'}},
+            {name: 'how-it-works', url: 'howitworks', params: {page: 'how-it-works'}},
             {name: 'faqs', url: 'faqs', params: {page: 'faqs'}},
             {name: 'projects', url: 'projects', params: {page: 'projects'}},
             {name: 'about', url: 'about', params: {page: 'about-page'}},

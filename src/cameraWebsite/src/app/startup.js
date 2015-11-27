@@ -24,6 +24,10 @@ define(['jquery', 'knockout', 'router', 'client', 'bootstrap', 'knockout-project
         template: {require: 'text!components/projects/projects.html'}
     });
 
+    ko.components.register('how-it-works', {
+        template: {require: 'text!components/how-it-works/how-it-works.html'}
+    });
+
     ko.components.register('status-page', {require: 'components/status-page/status-page'});
 
     ko.components.register('search-page', {require: 'components/search-page/search-page'});

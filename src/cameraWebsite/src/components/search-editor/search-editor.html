@@ -31,7 +31,7 @@
                     </div>
             </div>
 
-            <div data-bind="if: search.hasOwnProperty('skyclarity') && search.searchtype()==searchTypes[0]">
+            <div data-bind="if: search.hasOwnProperty('skyclarity') && search.searchtype()==searchTypes[1]">
                 <div class="form-group">
                     <label for="skyclarity" class="control-label">Sky clarity at least</label>
                     <input id="skyclarity" class="form-control form-inline-number" type="text" data-bind="value: search.skyclarity"/>&nbsp;/100
@@ -51,7 +51,7 @@
                 </div>
             </div>
 
-            <div data-bind="if: search.hasOwnProperty('flag_bgsub') && search.searchtype()==searchTypes[0]">
+            <div data-bind="if: search.hasOwnProperty('flag_bgsub') && search.searchtype()==searchTypes[1]">
                 <div class="form-group">
                     <div class="col-xs-offset-2 col-xs-10">
                         <div class="checkbox">
@@ -61,7 +61,7 @@
                 </div>
             </div>
 
-            <div data-bind="if: search.hasOwnProperty('flag_highlights') && search.searchtype()==searchTypes[0]">
+            <div data-bind="if: search.hasOwnProperty('flag_highlights') && search.searchtype()==searchTypes[1]">
                 <div class="form-group">
                     <div class="col-xs-offset-2 col-xs-10">
                         <div class="checkbox">
@@ -72,7 +72,7 @@
                 </div>
             </div>
 
-            <div data-bind="if: search.hasOwnProperty('flag_lenscorr') && search.searchtype()==searchTypes[0]">
+            <div data-bind="if: search.hasOwnProperty('flag_lenscorr') && search.searchtype()==searchTypes[1]">
                 <div class="form-group">
                     <div class="col-xs-offset-2 col-xs-10">
                         <div class="checkbox">
@@ -83,7 +83,7 @@
                 </div>
             </div>
 
-            <div data-bind="if: search.hasOwnProperty('duration_min') && search.searchtype()!=searchTypes[0]">
+            <div data-bind="if: search.hasOwnProperty('duration_min') && search.searchtype()!=searchTypes[1]">
                 <div class="form-group">
                     <label for="minduration" class="control-label col-xs-3">Min&nbsp;duration</label>
                     <input id="minduration" class="form-control form-inline-number" type="text" data-bind="value: search.duration_min"/>&nbsp;seconds
@@ -91,7 +91,7 @@
                 </div>
             </div>
 
-            <div data-bind="if: search.hasOwnProperty('duration_max') && search.searchtype()!=searchTypes[0]">
+            <div data-bind="if: search.hasOwnProperty('duration_max') && search.searchtype()!=searchTypes[1]">
                 <div class="form-group">
                     <label for="maxduration" class="control-label col-xs-3">Max&nbsp;duration</label>
                     <input id="maxduration" class="form-control form-inline-number" style="width:60px;" type="text" data-bind="value: search.duration_max"/>&nbsp;seconds
