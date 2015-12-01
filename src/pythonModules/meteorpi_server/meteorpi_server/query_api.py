@@ -1,11 +1,18 @@
+import mimetypes
+import os
+import re
 from uuid import UUID
 from urllib import unquote
-
 from yaml import safe_load
-
 import meteorpi_model as model
 from flask.ext.jsonpify import jsonify
-from flask import send_file
+from flask import request, send_file, Response
+
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Accept-Ranges', 'bytes')
+    return response
 
 
 def add_routes(meteor_app, url_path=''):
@@ -59,8 +66,41 @@ def add_routes(meteor_app, url_path=''):
     @app.route('{0}/files/content/<file_id>/<file_name>'.format(url_path), methods=['GET'])
     @app.route('{0}/files/content/<file_id>'.format(url_path), methods=['GET'])
     def get_file_content(file_id, file_name=None):
+
+        # http://blog.asgaard.co.uk/2012/08/03/http-206-partial-content-for-flask-python
+        def send_file_partial(filename_or_fp, mimetype):
+            range_header = request.headers.get('Range', None)
+            if not range_header:
+                return send_file(filename_or_fp)
+
+            size = os.path.getsize(filename_or_fp)
+            byte1, byte2 = 0, None
+
+            m = re.search('(\d+)-(\d*)', range_header)
+            g = m.groups()
+
+            if g[0]: byte1 = int(g[0])
+            if g[1]: byte2 = int(g[1])
+
+            length = size - byte1
+            if byte2 is not None:
+                length = byte2 - byte1
+
+            data = None
+            with open(filename_or_fp, 'rb') as f:
+                f.seek(byte1)
+                data = f.read(length)
+
+            rv = Response(data,
+                          206,
+                          mimetype=mimetypes.guess_type(filename_or_fp)[0],
+                          direct_passthrough=True)
+            rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(byte1, byte1 + length - 1, size))
+
+            return rv
+
         record = db.get_file(file_id=UUID(hex=file_id))
         if record is not None:
-            return send_file(filename_or_fp=record.get_path(), mimetype=record.mime_type)
+            return send_file_partial(filename_or_fp=record.get_path(), mimetype=record.mime_type)
         else:
             return MeteorApp.not_found(entity_id=file_id)
