@@ -9,12 +9,6 @@ from flask.ext.jsonpify import jsonify
 from flask import request, send_file, Response
 
 
-@app.after_request
-def after_request(response):
-    response.headers.add('Accept-Ranges', 'bytes')
-    return response
-
-
 def add_routes(meteor_app, url_path=''):
     """
     Adds search and retrieval routes to a :class:`meteorpi_server.MeteorServer` instance
@@ -28,6 +22,11 @@ def add_routes(meteor_app, url_path=''):
 
     db = meteor_app.db
     app = meteor_app.app
+
+    @app.after_request
+    def after_request(response):
+        response.headers.add('Accept-Ranges', 'bytes')
+        return response
 
     @app.route('{0}/cameras'.format(url_path), methods=['GET'])
     def get_active_cameras():

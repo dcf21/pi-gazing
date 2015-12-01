@@ -12,9 +12,10 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
         if (params.search) searchTerms = utils.decodeString(params.search);
         if (searchTerms.camera) cameraDefault = searchTerms.camera;
 
+        now = new Date();
         self.inputs = {
-            after: ko.observable(),
-            before: ko.observable(),
+            after: ko.observable(new Date(now.getTime() - 3*24*3600*1000)),
+            before: ko.observable(now),
             camera: ko.observable("Any"),
             flag_bgsub: ko.observable(false),
             flag_highlights: ko.observable(true),
