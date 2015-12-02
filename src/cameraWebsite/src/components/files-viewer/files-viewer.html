@@ -6,7 +6,7 @@
     </div>
 </div>
 
-<div data-bind="if: search.searchtype()==searchTypes[0] && results().length>0">
+<div data-bind="if: search.searchtype()!=searchTypes[0] && results().length>0">
     <div data-bind="foreach: results">
         <img data-bind="attr : {alt: $parent.filenameForFile($data), src: $parent.urlForFile($data)}"
              style="display:block;max-width:800px;padding:4px;margin:4px auto;"/>
@@ -43,7 +43,7 @@
     </div>
 </div>
 
-<div data-bind="if: search.searchtype()!=searchTypes[0] && results().length>0">
+<div data-bind="if: search.searchtype()==searchTypes[0] && results().length>0">
     <div data-bind="foreach: results">
         <div style="display:block;max-width:800px;padding:4px;margin:4px auto;">
             <video controls>

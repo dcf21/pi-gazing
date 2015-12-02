@@ -5,7 +5,7 @@ define(['knockout', 'text!./files-viewer.html', 'client', 'router', 'utils'], fu
 
         var self = this;
 
-        self.searchTypes = ["Timelapse images", "Moving objects"];
+        self.searchTypes = ["Moving objects", "Timelapse images"];
 
         self.search = {
             after: ko.observable(0),
