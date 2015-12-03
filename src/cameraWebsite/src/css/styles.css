@@ -113,12 +113,16 @@ table.table table.table {
 
 .paging-nav .active { font-weight: bold; display:inline-block;background-color: #eee; }
 
+/* Tweak tooltips */
+.tooltip-inner { min-width:300px; max-width:400px; }
+.tooltip-holder { padding-top: 20px; }
+
 /* Top banner formatting */
-.bannerback { position:relative; top:0; left:0; width:100%; height: 240px; background-color: #000840; padding: 0; margin:0 0 15px 0; border: 0; border-bottom: 0 solid #222; overflow:hidden; }
+.bannerback { position:relative; top:0; left:0; width:100%; height: 240px; background-color: #000000; padding: 0; margin:0 0 15px 0; border: 0; border-bottom: 0 solid #222; overflow:hidden; }
 
-.banner { position:relative; top:0; left:0; color: #ffff60; max-width: 1170px; height: 240px; margin: 0 auto; overflow: hidden; padding: 0; border: 0; }
+.banner { position:relative; top:0; left:0; color: #eee; max-width: 1170px; height: 240px; margin: 0 auto; overflow: hidden; padding: 0; border: 0; }
 
-.banner a         { color: #ffffa0; text-decoration:none; }
+.banner a         { color: #eeeeee; text-decoration:none; }
 .banner a:hover   { color: #ffffff; }
 .banner_txt_left  { position:absolute; bottom:0; left:0; display:inline-block; z-index:2; padding: 0 0 20px 36px; }
 .banner_txt_right { position:absolute; bottom:0; right:0; display:inline-block; z-index:2; padding: 0 36px 85px 0; }
@@ -142,7 +146,7 @@ p.copyright a:hover { color: #ffff20; }
 /* Body text */
 p.text { max-width:500px; }
 p.caption { font-weight:bold; }
-div.caption { font-weight:bold; max-width:320px; padding: 3px 0 20px 0; }
+div.caption { font-weight:bold; max-width:320px; margin: 0 auto; padding: 3px 0 20px 0; }
 
 /* Table formatting */
 table.developers td { padding: 2px 16px; }

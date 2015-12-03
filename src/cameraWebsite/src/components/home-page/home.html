@@ -1,15 +1,19 @@
-<h3>
-    Recent images caught by MeteorPi
-</h3>
 
 <div class="row">
-    <div data-bind="foreach: items" class="col-md-6">
+    <div class="col-md-6" style="padding:8px;">
+        Meteor Pi
+        </div>
+    <!-- ko foreach: items -->
+    <div class="col-md-6" style="padding:8px;">
+        <div style="display:inline-block; margin:0 auto; padding:10px; height:370px; overflow:hidden; background-color:#eee; border: 1px solid #ccc;">
 
-    <div class="col-md-6">
-        <a data-bind="attr:{href:link}" target="_blank">
-            <img data-bind="attr:{src:img}" style="width:400px;padding:4px;"/>
-            <div class="caption"><span data-bind="text:caption"></span>
-            </div>
-        </a>
+            <a data-bind="attr:{href:link}" target="_blank">
+                <img data-bind="attr:{src:img}" style="width:400px;height:270px;padding:4px;"/>
+
+                <div class="caption"><span data-bind="text:caption"></span>
+                </div>
+            </a>
+        </div>
     </div>
+    <!-- /ko -->
 </div>

@@ -3,99 +3,156 @@
     <div data-bind="if: performSearch">
         <button type="submit" class="defaultsink" data-bind="click: performSearch">Search</button>
     </div>
+    <div class="help-toggle" style="cursor:pointer;text-align:right;">
+        <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+        Help
+    </div>
     <div class="row">
-        <div class="col-sm-6">
+        <div class="search-form-column col-sm-6">
 
-            <div data-bind="if: search.hasOwnProperty('after')">
+            <div class="tooltip-holder" data-bind="if: search.hasOwnProperty('after')">
                 <label for="after" class="control-label col-xs-2">From</label>
 
                 <div class="form-group">
-                    <input class="form-control" data-bind="kendoDateTimePicker: { format: 'dd/MM/yyyy', value: search.after }" id="after"/>
+                    <input class="form-control"
+                           data-bind="kendoDateTimePicker: { format: 'dd/MM/yyyy hh:mm', value: search.after }"
+                           id="after"
+                           data-toggle="tooltip"
+                           title="Search for images recorded after this date. Click the calendar icon to change day, or the clock icon to change time."
+                    />
                 </div>
             </div>
 
-            <div data-bind="if: search.hasOwnProperty('before')">
+            <div class="tooltip-holder" data-bind="if: search.hasOwnProperty('before')">
                 <label for="before" class="control-label col-xs-2">To</label>
 
                 <div class="form-group">
-                    <input class="form-control" data-bind="kendoDateTimePicker: { format: 'dd/MM/yyyy', value: search.before }" id="before"/>
+                    <input class="form-control"
+                           data-bind="kendoDateTimePicker: { format: 'dd/MM/yyyy hh:mm', value: search.before }"
+                           id="before"
+                           data-toggle="tooltip"
+                           title="Search for images recorded before this date. Click the calendar icon to change day, or the clock icon to change time."
+                    />
                 </div>
             </div>
 
-            <div data-bind="if: search.hasOwnProperty('camera')">
+            <div class="tooltip-holder" data-bind="if: search.hasOwnProperty('camera')">
                     <label for="camera_id" class="control-label col-xs-2">Camera</label>
 
-                    <div class="form-group">
-                        <select class="form-control" style="max-width:200px;" id="camera_id"
-                                data-bind="options: cameras, value: search.camera"></select>
-                    </div>
+                    <div class="form-group"><span
+                         data-toggle="tooltip"
+                         title="Use this to display images from only one camera in the Meteor Pi network. Set to 'Any' to display images from all Meteor Pi cameras."
+                    >
+                        <select class="form-control" style="max-width:200px;"
+                                id="camera_id"
+                                data-bind="options: cameras, value: search.camera"
+                        ></select>
+                    </span></div>
             </div>
 
-            <div data-bind="if: search.hasOwnProperty('skyclarity') && search.searchtype()==searchTypes[1]">
-                <div class="form-group">
+            <div class="tooltip-holder" data-bind="if: search.hasOwnProperty('skyclarity') && search.searchtype()==searchTypes[1]">
+                <div class="form-group"><span
+                     data-toggle="tooltip"
+                     title="The clarity of the sky in all Meteor Pi images is estimated on a scale of 0 (cloudy) to 100 (very clear), based on the number of stars visible. Try a value of 20 to exclude cloudy skies."
+                >
                     <label for="skyclarity" class="control-label">Sky clarity at least</label>
-                    <input id="skyclarity" class="form-control form-inline-number" type="text" data-bind="value: search.skyclarity"/>&nbsp;/100
-                </div>
+                    <input
+                            id="skyclarity"
+                            class="form-control form-inline-number"
+                            type="text"
+                            data-bind="value: search.skyclarity"
+                    />&nbsp;/100
+                </span></div>
             </div>
 
         </div>
-        <div class="col-sm-6">
+        <div class="search-form-column col-sm-6">
             <div data-bind="if: search.hasOwnProperty('searchtype')">
-                <div class="form-group">
+                <div class="tooltip-holder form-group"><span
+                     data-toggle="tooltip"
+                     title="Meteor Pi cameras record videos of moving objects, such as meteors, planes and satellites; and also timelapse still photographs through the night. Choose which you would like to search for."
+                >
                     <label for="searchtype" class="control-label col-xs-3">Search&nbsp;for</label>
 
-                    <div class="form-group">
-                        <select class="form-control" id="searchtype" style="max-width:200px;"
+                        <select class="form-control"
+                                id="searchtype"
+                                style="max-width:200px;"
                                 data-bind="options: searchTypes, value: search.searchtype"></select>
-                    </div>
-                </div>
+                </span></div>
             </div>
 
             <div data-bind="if: search.hasOwnProperty('flag_bgsub') && search.searchtype()==searchTypes[1]">
-                <div class="form-group">
+                <div class="tooltip-holder form-group">
                     <div class="col-xs-offset-2 col-xs-10">
-                        <div class="checkbox">
-                            <label><input type="checkbox" data-bind="checked: search.flag_bgsub">Remove light pollution</label>
-                        </div>
+                        <div class="checkbox"><span
+                             data-toggle="tooltip"
+                             title="Automatically remove light pollution from images. In clear conditions, this make more stars visible. In cloudy conditions, it can lead to strange artifacts."
+                        >
+                            <label><input type="checkbox"
+                                          data-bind="checked: search.flag_bgsub"
+                            >Remove light pollution</label>
+                        </span></div>
                     </div>
                 </div>
             </div>
 
             <div data-bind="if: search.hasOwnProperty('flag_highlights') && search.searchtype()==searchTypes[1]">
-                <div class="form-group">
+                <div class="tooltip-holder form-group">
                     <div class="col-xs-offset-2 col-xs-10">
-                        <div class="checkbox">
-                            <label><input type="checkbox" data-bind="checked: search.flag_highlights">Show fewer
-                                results</label>
-                        </div>
+                        <div class="checkbox"><span
+                             data-toggle="tooltip"
+                             title="Reduce the number of similar results to show a range of different images seen through the night. If unticked, you will see large numbers of similar images."
+                        >
+                            <label><input type="checkbox"
+                                          data-bind="checked: search.flag_highlights"
+                            >Show fewer results</label>
+                        </span></div>
                     </div>
                 </div>
             </div>
 
             <div data-bind="if: search.hasOwnProperty('flag_lenscorr') && search.searchtype()==searchTypes[1]">
-                <div class="form-group">
+                <div class="tooltip-holder form-group">
                     <div class="col-xs-offset-2 col-xs-10">
-                        <div class="checkbox">
-                            <label><input type="checkbox" data-bind="checked: search.flag_lenscorr">Correct lens
-                                distortions</label>
-                        </div>
+                        <div class="checkbox"><span
+                             data-toggle="tooltip"
+                             title="Correct lens distortions in the images (recommended)."
+                        >
+                            <label><input type="checkbox"
+                                          data-bind="checked: search.flag_lenscorr"
+                            >Correct lens distortions</label>
+                        </span></div>
                     </div>
                 </div>
             </div>
 
             <div data-bind="if: search.hasOwnProperty('duration_min') && search.searchtype()!=searchTypes[1]">
-                <div class="form-group">
+                <div class="tooltip-holder form-group"><span
+                     data-toggle="tooltip"
+                     title="Search for objects visible for longer than this period. Set to around 5 sec to see only planes and satellites."
+                >
                     <label for="minduration" class="control-label col-xs-3">Min&nbsp;duration</label>
-                    <input id="minduration" class="form-control form-inline-number" type="text" data-bind="value: search.duration_min"/>&nbsp;seconds
-
-                </div>
+                    <input id="minduration"
+                           class="form-control form-inline-number"
+                           type="text"
+                           data-bind="value: search.duration_min"
+                    />&nbsp;seconds
+                </span></div>
             </div>
 
             <div data-bind="if: search.hasOwnProperty('duration_max') && search.searchtype()!=searchTypes[1]">
-                <div class="form-group">
+                <div class="tooltip-holder form-group"><span
+                     data-toggle="tooltip"
+                     title="Search for objects visible for less than this period. Set to around 5 sec to filter out planes and satellites, which are visible for long periods."
+                >
                     <label for="maxduration" class="control-label col-xs-3">Max&nbsp;duration</label>
-                    <input id="maxduration" class="form-control form-inline-number" style="width:60px;" type="text" data-bind="value: search.duration_max"/>&nbsp;seconds
-                </div>
+                    <input id="maxduration"
+                           class="form-control form-inline-number"
+                           style="width:60px;"
+                           type="text"
+                           data-bind="value: search.duration_max"
+                    />&nbsp;seconds
+                </span></div>
             </div>
 
 

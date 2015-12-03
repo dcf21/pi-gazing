@@ -1,7 +1,23 @@
 define(['knockout', 'text!./search-editor.html', 'utils', 'jquery', 'client'], function (ko, templateMarkup, utils, jquery, client) {
 
-    function SearchEditor(params) {
+    function SearchEditor(params, componentInfo) {
         var self = this;
+
+        // Set up tooltips
+        self.showHelp = false;
+
+        $('[data-toggle="tooltip"]', $(componentInfo.element)).tooltip({'placement':'right'});
+
+        $('#searchtype').click(function() {
+            $('[data-toggle="tooltip"]', $(componentInfo.element)).tooltip({'placement':'right'});
+        });
+
+        $('.help-toggle', $(componentInfo.element)).click(function() {
+            self.showHelp = !self.showHelp;
+            $('[data-toggle="tooltip"]', $(componentInfo.element)).tooltip({'placement':'right'});
+            $('[data-toggle="tooltip"]', $(componentInfo.element)).tooltip( self.showHelp ? "show" : "hide");
+        });
+
         // Available cameras
         self.cameras = params.cameras;
         self.searchTypes = params.searchTypes;
@@ -43,6 +59,9 @@ define(['knockout', 'text!./search-editor.html', 'utils', 'jquery', 'client'], f
         jquery("body > div").slice(1).remove();
     };
 
-    return {viewModel: SearchEditor, template: templateMarkup, synchronous: true};
+    return {viewModel: {createViewModel: function (params, componentInfo) {
+                return new SearchEditor(params, componentInfo);
+            }
+        }, template: templateMarkup, synchronous: true};
 
 });
