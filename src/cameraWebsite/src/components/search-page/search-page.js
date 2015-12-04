@@ -47,10 +47,10 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
                 return self.inputs.before;
             }),
             exclude_events: ko.computed(function () {
-                return self.inputs.searchtype() == self.searchTypes[0];
+                return self.inputs.searchtype() == self.searchTypes[1];
             }),
             mime_type: ko.computed(function () {
-                return (self.inputs.searchtype() == self.searchTypes[0]) ? 'image/png' : '';
+                return (self.inputs.searchtype() == self.searchTypes[1]) ? 'image/png' : '';
             }),
             camera_ids: ko.computed(function () {
                 return (self.inputs.camera() == "Any") ? null : self.inputs.camera;
