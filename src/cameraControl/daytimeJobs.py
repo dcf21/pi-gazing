@@ -208,7 +208,7 @@ for cameraId,utc in hwm_new.iteritems():
 try:
   if (not quitTime) or (quitTime - getUTC() > 3600):
     logTxt("Exporting data to remote servers")
-    exportData.exportData( getUTC() , quitTime )
+    exportData.export_data( getUTC() , quitTime )
 except:
   logTxt("Unexpected error while trying to export data")
 
