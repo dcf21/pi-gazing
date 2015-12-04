@@ -8,13 +8,13 @@
         Help
     </div>
     <div class="row">
-        <div class="search-form-column col-sm-6">
+        <div class="search-form-column col-lg-6">
 
             <div class="tooltip-holder" data-bind="if: search.hasOwnProperty('after')">
-                <label for="after" class="control-label col-xs-2">From</label>
+                <label for="after" class="control-label" style="width:100px;">From</label>
 
-                <div class="form-group">
-                    <input class="form-control"
+                <div class="form-group-dcf">
+                    <input class="form-control-dcf"
                            data-bind="kendoDateTimePicker: { format: 'dd/MM/yyyy hh:mm', value: search.after }"
                            id="after"
                            data-toggle="tooltip"
@@ -24,10 +24,10 @@
             </div>
 
             <div class="tooltip-holder" data-bind="if: search.hasOwnProperty('before')">
-                <label for="before" class="control-label col-xs-2">To</label>
+                <label for="before" class="control-label" style="width:100px;">To</label>
 
-                <div class="form-group">
-                    <input class="form-control"
+                <div class="form-group-dcf">
+                    <input class="form-control-dcf"
                            data-bind="kendoDateTimePicker: { format: 'dd/MM/yyyy hh:mm', value: search.before }"
                            id="before"
                            data-toggle="tooltip"
@@ -37,13 +37,13 @@
             </div>
 
             <div class="tooltip-holder" data-bind="if: search.hasOwnProperty('camera')">
-                    <label for="camera_id" class="control-label col-xs-2">Camera</label>
+                    <label for="camera_id" class="control-label" style="width:100px;">Camera&nbsp;</label>
 
-                    <div class="form-group"><span
+                    <div class="form-group-dcf"><span
                          data-toggle="tooltip"
                          title="Use this to display images from only one camera in the Meteor Pi network. Set to 'Any' to display images from all Meteor Pi cameras."
                     >
-                        <select class="form-control" style="max-width:200px;"
+                        <select class="form-control-dcf" style="max-width:200px;"
                                 id="camera_id"
                                 data-bind="options: cameras, value: search.camera"
                         ></select>
@@ -51,14 +51,14 @@
             </div>
 
             <div class="tooltip-holder" data-bind="if: search.hasOwnProperty('skyclarity') && search.searchtype()==searchTypes[1]">
-                <div class="form-group"><span
+                <div class="form-group-dcf"><span
                      data-toggle="tooltip"
                      title="The clarity of the sky in all Meteor Pi images is estimated on a scale of 0 (cloudy) to 100 (very clear), based on the number of stars visible. Try a value of 20 to exclude cloudy skies."
                 >
                     <label for="skyclarity" class="control-label">Sky clarity at least</label>
                     <input
                             id="skyclarity"
-                            class="form-control form-inline-number"
+                            class="form-control-dcf form-inline-number"
                             type="text"
                             data-bind="value: search.skyclarity"
                     />&nbsp;/100
@@ -66,15 +66,15 @@
             </div>
 
         </div>
-        <div class="search-form-column col-sm-6">
+        <div class="search-form-column col-lg-6">
             <div data-bind="if: search.hasOwnProperty('searchtype')">
-                <div class="tooltip-holder form-group"><span
+                <div class="tooltip-holder"><span
                      data-toggle="tooltip"
                      title="Meteor Pi cameras record videos of moving objects, such as meteors, planes and satellites; and also timelapse still photographs through the night. Choose which you would like to search for."
                 >
-                    <label for="searchtype" class="control-label col-xs-3">Search&nbsp;for</label>
+                    <label for="searchtype" class="control-label">Search&nbsp;for&nbsp;</label>
 
-                        <select class="form-control"
+                        <select class="form-control-dcf"
                                 id="searchtype"
                                 style="max-width:200px;"
                                 data-bind="options: searchTypes, value: search.searchtype"></select>
@@ -82,8 +82,8 @@
             </div>
 
             <div data-bind="if: search.hasOwnProperty('flag_bgsub') && search.searchtype()==searchTypes[1]">
-                <div class="tooltip-holder form-group">
-                    <div class="col-xs-offset-2 col-xs-10">
+                <div class="tooltip-holder">
+                    <div class="">
                         <div class="checkbox"><span
                              data-toggle="tooltip"
                              title="Automatically remove light pollution from images. In clear conditions, this make more stars visible. In cloudy conditions, it can lead to strange artifacts."
@@ -97,8 +97,8 @@
             </div>
 
             <div data-bind="if: search.hasOwnProperty('flag_highlights') && search.searchtype()==searchTypes[1]">
-                <div class="tooltip-holder form-group">
-                    <div class="col-xs-offset-2 col-xs-10">
+                <div class="tooltip-holder">
+                    <div class="">
                         <div class="checkbox"><span
                              data-toggle="tooltip"
                              title="Reduce the number of similar results to show a range of different images seen through the night. If unticked, you will see large numbers of similar images."
@@ -112,8 +112,8 @@
             </div>
 
             <div data-bind="if: search.hasOwnProperty('flag_lenscorr') && search.searchtype()==searchTypes[1]">
-                <div class="tooltip-holder form-group">
-                    <div class="col-xs-offset-2 col-xs-10">
+                <div class="tooltip-holder">
+                    <div class="">
                         <div class="checkbox"><span
                              data-toggle="tooltip"
                              title="Correct lens distortions in the images (recommended)."
@@ -127,13 +127,13 @@
             </div>
 
             <div data-bind="if: search.hasOwnProperty('duration_min') && search.searchtype()!=searchTypes[1]">
-                <div class="tooltip-holder form-group"><span
+                <div class="tooltip-holder"><span
                      data-toggle="tooltip"
                      title="Search for objects visible for longer than this period. Set to around 5 sec to see only planes and satellites."
                 >
-                    <label for="minduration" class="control-label col-xs-3">Min&nbsp;duration</label>
+                    <label for="minduration" class="control-label">Min&nbsp;duration</label>
                     <input id="minduration"
-                           class="form-control form-inline-number"
+                           class="form-control-dcf form-inline-number"
                            type="text"
                            data-bind="value: search.duration_min"
                     />&nbsp;seconds
@@ -141,13 +141,13 @@
             </div>
 
             <div data-bind="if: search.hasOwnProperty('duration_max') && search.searchtype()!=searchTypes[1]">
-                <div class="tooltip-holder form-group"><span
+                <div class="tooltip-holder"><span
                      data-toggle="tooltip"
                      title="Search for objects visible for less than this period. Set to around 5 sec to filter out planes and satellites, which are visible for long periods."
                 >
-                    <label for="maxduration" class="control-label col-xs-3">Max&nbsp;duration</label>
+                    <label for="maxduration" class="control-label">Max&nbsp;duration</label>
                     <input id="maxduration"
-                           class="form-control form-inline-number"
+                           class="form-control-dcf form-inline-number"
                            style="width:60px;"
                            type="text"
                            data-bind="value: search.duration_max"
@@ -160,8 +160,8 @@
     </div>
 
     <div data-bind="if: performSearch">
-        <div class="form-group">
-            <div class="col-xs-offset-2 col-xs-10">
+        <div style="padding-left:16px 0 0 150px;">
+            <div class="">
                 <button type="submit" class="btn btn-primary" data-bind="click: performSearch">Search</button>
             </div>
         </div>
