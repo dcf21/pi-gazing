@@ -30,7 +30,7 @@ define(["knockout", "text!./home.html", "client", "router", "utils"], function (
             }
         ];
 
-        jQuery.each(self.items, function (index, item) {
+        jQuery.each(self.items, function (idx, item) {
             var search = {
                 after: ko.observable(1000 * (item['time'] - 1)),
                 before: ko.observable(1000 * (item['time'] + 1)),
@@ -40,7 +40,7 @@ define(["knockout", "text!./home.html", "client", "router", "utils"], function (
             };
 
             item['link'] = "https://meteorpi.cambridgesciencecentre.org/#file/%257B%2522camera_ids%2522%253A%2522" + item['camera'] + "%2522%252C%2522searchtype%2522%253A%2522Moving%2520objects%2522%252C%2522before%2522%253A" + (item['time'] + 1) + "000%252C%2522after%2522%253A" + (item['time'] - 1) + "000%257D";
-            item['img'] = "";
+            item['imgpath'] = ko.observable("");
 
             // Get the search object and use it to retrieve results
             var searchObj = utils.getSearchObject(search, {skip: 0});
@@ -48,7 +48,7 @@ define(["knockout", "text!./home.html", "client", "router", "utils"], function (
                 jQuery.each(results.events, function (index, item) {
                     jQuery.each(item.files, function (index, f) {
                         if (f.semantic_type == 'meteorpi:triggers/event/maxBrightness/lensCorr') {
-                            item['img'] = client.urlForFile(f);
+                            self.items[idx]['imgpath'](client.urlForFile(f));
                         }
                     });
                 });
