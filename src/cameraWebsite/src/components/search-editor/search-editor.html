@@ -15,7 +15,7 @@
 
                 <div class="form-group-dcf">
                     <input class="form-control-dcf"
-                           data-bind="kendoDateTimePicker: { format: 'dd/MM/yyyy hh:mm', value: search.after }"
+                           data-bind="kendoDateTimePicker: { format: 'dd/MM/yyyy HH:mm', value: search.after }"
                            id="after"
                            data-toggle="tooltip"
                            title="Search for images recorded after this date. Click the calendar icon to change day, or the clock icon to change time."
@@ -28,7 +28,7 @@
 
                 <div class="form-group-dcf">
                     <input class="form-control-dcf"
-                           data-bind="kendoDateTimePicker: { format: 'dd/MM/yyyy hh:mm', value: search.before }"
+                           data-bind="kendoDateTimePicker: { format: 'dd/MM/yyyy HH:mm', value: search.before }"
                            id="before"
                            data-toggle="tooltip"
                            title="Search for images recorded before this date. Click the calendar icon to change day, or the clock icon to change time."
@@ -160,7 +160,7 @@
     </div>
 
     <div data-bind="if: performSearch">
-        <div style="padding-left:16px 0 0 150px;">
+        <div style="padding:16px 80px;">
             <div class="">
                 <button type="submit" class="btn btn-primary" data-bind="click: performSearch">Search</button>
             </div>

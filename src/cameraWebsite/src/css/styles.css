@@ -144,10 +144,11 @@ table.table table.table {
 
 /* Site footer */
 div.footer  { clear: both; width: 100%; margin: 10px 0 0 0; border: 0; padding: 20px 0; padding-top: 15px; background-color: #303030; color: #f0f0f0; text-align: left; font-size: 13px; }
+div.footer a { color: #f0f0f0; }
 p.copyright { margin-top: 4px; margin-bottom: 4px; font-size: 12px; line-height: 18px; }
 p.copyright img     { vertical-align: middle; }
-p.copyright a       { color: #f5f570; }
-p.copyright a:hover { color: #ffff20; }
+p.copyright a       { color: #f0f0f0; }
+p.copyright a:hover { color: #ffffff; }
 
 /* Body text */
 p.text { max-width:500px; }
