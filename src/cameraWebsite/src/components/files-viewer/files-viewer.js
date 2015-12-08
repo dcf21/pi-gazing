@@ -31,7 +31,7 @@ define(['knockout', 'text!./files-viewer.html', 'client', 'router', 'utils'], fu
             self.search.limit(1);
             // Get the search object and use it to retrieve results
             var search = utils.getSearchObject(self.search, {skip: 0});
-            if (self.search.searchtype() == self.searchTypes[0]) {
+            if (self.search.searchtype() == self.searchTypes[1]) {
                 client.searchFiles(search, function (error, results) {
                     self.results(results.files);
                     self.resultCount(results.count);
