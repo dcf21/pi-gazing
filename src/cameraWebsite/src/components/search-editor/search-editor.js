@@ -2,20 +2,17 @@ define(['knockout', 'text!./search-editor.html', 'utils', 'jquery', 'client'], f
 
     function SearchEditor(params, componentInfo) {
         var self = this;
+        self.element = $(componentInfo.element);
 
         // Set up tooltips
         self.showHelp = false;
+        self.tooltip_placement();
+ 
+        $('#searchtype').click(function() { self.tooltip_placement(); });
 
-        $('[data-toggle="tooltip"]', $(componentInfo.element)).tooltip({'placement':'right'});
-
-        $('#searchtype').click(function() {
-            $('[data-toggle="tooltip"]', $(componentInfo.element)).tooltip({'placement':'right'});
-        });
-
-        $('.help-toggle', $(componentInfo.element)).click(function() {
+        $('.help-toggle', self.element).click(function() {
             self.showHelp = !self.showHelp;
-            $('[data-toggle="tooltip"]', $(componentInfo.element)).tooltip({'placement':'right'});
-            $('[data-toggle="tooltip"]', $(componentInfo.element)).tooltip( self.showHelp ? "show" : "hide");
+            self.tooltip_placement();
         });
 
         // Available cameras
@@ -34,24 +31,14 @@ define(['knockout', 'text!./search-editor.html', 'utils', 'jquery', 'client'], f
          */
         self.minTime = new Date(2000, 0, 1, 15, 0, 0);
         self.maxTime = new Date(2000, 0, 1, 10, 0, 0);
-
-        /**
-        self.removeMeta = function (meta) {
-            console.log(self);
-            self.search.meta.remove(meta);
-        };
-
-        self.addMeta = function () {
-            self.search.meta.push({
-                type: ko.observable('string_equals'),
-                key: ko.observable('meteorpi:meta_key_1'),
-                string_value: ko.observable('meta_value_1'),
-                date_value: ko.observable(new Date(Date.now())),
-                number_value: ko.observable(0)
-            });
-        };
-         */
     }
+
+    SearchEditor.prototype.tooltip_placement = function () {
+            $('[data-pos="tooltip-right"]', this.element).tooltip({'placement':'right'});
+            $('[data-pos="tooltip-above"]', this.element).tooltip({'placement':'top'});
+            $('[data-pos="tooltip-below"]', this.element).tooltip({'placement':'bottom'});
+            $('[data-toggle="tooltip"]', this.element).tooltip( this.showHelp ? "show" : "hide");
+    };
 
     // This runs when the component is torn down. Put here any logic necessary to clean up,
     // for example cancelling setTimeouts or disposing Knockout subscriptions/computeds.

@@ -105,7 +105,8 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
         self.resultCount = ko.observable(0);
         self.firstResultIndex = ko.observable(0);
         self.pages = ko.observableArray();
-        self.hasQuery = ko.observable();
+        self.hasQuery = ko.observable(false);
+        self.amSearching = ko.observable(true);
 
         self.urlForFile = client.urlForFile;
         self.filenameForFile = client.filenameForFile;
@@ -168,6 +169,7 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
             }
         } else {
             self.hasQuery(false);
+            self.amSearching(false);
         }
 
         self.changePage = function () {

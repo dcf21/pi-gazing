@@ -16,12 +16,19 @@
 <search-editor params="search:inputs, onSearch:searchFiles, searchTypes:searchTypes, cameras:cameras">
 </search-editor>
 
-<div data-bind="if: results().length==0 && hasQuery()==true">
+<div data-bind="if: results().length==0 && hasQuery()">
     <div class="alert alert-success">
         <p><b>No results found</b></p>
 
         <p>The query completed, but no files were found matching the constraints you specified. Try altering values in
             the form above and re-running the query.</p>
+    </div>
+</div>
+
+<div data-bind="if: results().length==0 && amSearching() && !hasQuery()">
+    <div class="alert alert-success">
+        <p><b>Please wait...</b></p>
+        <p>Your search is in progress.</p>
     </div>
 </div>
 
@@ -43,7 +50,7 @@
         <div data-bind="foreach: results">
             <div class="results-grid-item">
                 <a target="_blank" data-bind="attr : {href : linkurl }">
-                <img data-bind="attr: {alt: $parent.filenameForFile($data), src : $parent.urlForFile($data)}"
+                <img alt="" data-bind="attr: {src : $parent.urlForFile($data)}"
                      style="width:300px;padding:4px;"/>
 
                 <div data-bind="text: camera_id"></div>
@@ -57,7 +64,7 @@
         <div data-bind="foreach: results">
             <div class="results-grid-item">
                 <a target="_blank" data-bind="attr : {href : linkurl }">
-                <img data-bind="attr : {alt: imgfname, src : imgURL}"
+                <img alt="" data-bind="attr : {src : imgURL}"
                      style="width:300px;padding:4px;"/>
                 <div data-bind="text: camera_id"></div>
                 <div data-bind="text: new Date(event_time)"></div>
