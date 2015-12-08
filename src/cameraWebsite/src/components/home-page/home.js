@@ -9,23 +9,23 @@ define(["knockout", "text!./home.html", "client", "router", "utils"], function (
             "caption": "Bright satellite detected by our camera in south-east Cambridge."
         },
             {
-                "camera": "Bury-St-Edmunds",
-                "time": 1443324016,
-                "caption": "Bright aircraft detected by our camera in Bury St Edmunds."
+                "camera": "Cambridge-East",
+                "time": 1443322592,
+                "caption": "Bright shooting star spotted by our Cambridge East and Bury St Edmunds cameras."
             },
             {
                 "camera": "Bury-St-Edmunds",
-                "time": 1444501594,
+                "time": 1444501540,
                 "caption": "Bright satellite detected by our camera in Bury St Edmunds."
             },
             {
-                "camera": "Cambridge-South-East",
-                "time": 1446932348,
-                "caption": "Bright shooting star detected by our camera in south-east Cambridge."
+                "camera": "Bury-St-Edmunds",
+                "time": 1446932349,
+                "caption": "Bright shooting star detected by our camera in Bury St Edmunds."
             },
             {
                 "camera": "Bury-St-Edmunds",
-                "time": 1446958905,
+                "time": 1446958959,
                 "caption": "Beautiful grouping of the Moon and planets seen from Bury St Edmunds. From the left, the four bright objects in a diagonal line are the Moon, Venus, Mars (faint) and Jupiter."
             }
         ];
