@@ -163,3 +163,7 @@ table.developers td:nth-child(2) { text-align: left; }
 div.supporters div { padding: 2px 32px; text-align:center; font-size:22px; color:#aaa; }
 div.supporters img { height:100px; }
 
+/* Images */
+.mp-img       { display:inline-block;background-image: url(../img/sprite.png);background-position: 0 0; background-repeat: no-repeat;text-indent: -99999px;}
+.mp-img-fb    { width: 32px;height: 32px;background-position: -77px -10px;}
+.mp-img-tweet { width: 32px;height: 32px;background-position: -119px -10px;}
