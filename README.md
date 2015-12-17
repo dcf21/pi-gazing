@@ -1,22 +1,30 @@
 # Meteor Pi
 
-MeteorPi is a project, run from the [Cambridge Science Centre](http://www.cambridgesciencecentre.org/), producing a network of small, low cost internet enabled observatories and their accompanying software.
+MeteorPi is a project to make it really easy for schools, community groups, and enthusiasts to observe the night sky.
 
-## Meteors
+We're installing CCTV cameras around the east of England that point upwards and record pictures throughout the hours of darkness. All of the images we record are freely available from the [MeteorPi website](http://meteorpi.cambridgesciencecentre.org/).
 
-As the name suggests, this phase of the project is focused on watching the night skies for meteors (as well as other objects such as the ISS and any passing spy satellites!). Each camera contains a black and white security camera, a Raspberry Pi 2 and some local storage. A full stack from image processing through data storage and exposure through a REST API runs on the Pi, and we've created both a rich web UI and a Python client library to connect to and query the information the system captures. 
+Our cameras record still photos every 30 seconds, allowing you to spot the constellations, see the rotation of the stars through the night, and track the gradual movement of the planets.
+
+They are also motion sensitive, storing video clips of any planes, satellites and shooting stars that pass overhead.
+
+Our geographically distributed network of cameras allow the altitudes of some of these objects to be triangulated. If the International Space Station is observed by multiple cameras 50 miles apart, it appears in slightly different parts of the sky, and from that information it's quite easy to calculate the ISS's altitude.
+
+## Our GitHub website
+
+To access our data, or to find out about educational activities, please visit the [MeteorPi website](http://meteorpi.cambridgesciencecentre.org/).
+
+These GitHub pages are a respository for technical information about the project.
+
+Here you can learn about how to build your own MeteorPi camera, the software that's needed to control it, and how you can help improve the prohect.
+
+## Our supporters
+
+MeteorPi was developed by [Cambridge Science Centre](http://www.cambridgesciencecentre.org/), with generous support from the [Raspberry Pi Foundation](https://www.raspberrypi.org/), and [MathWorks](http://uk.mathworks.com).
 
 ## Audience
 
-We're building the MeteorPi cameras to be installed in schools and homes, for those with an interest in astronomy, an interest in learning about data science and those who are just plain curious.
+Meteor Pi is open to all. Although many of our activities have been developed with children in mind, all of our data is open for anyone to access. You can find instructions here for building your own camera, and we'd be delighted to hear how you get on. We're especially keen to work with amateur astronomers who would like to use our cameras to make scientific observations of meteors, for example as part of the [NEMETODE](http://www.nemetode.org) and [UKMON](http://www.ukmeteornetwork.co.uk) networks.
 
-You can follow us on [Twitter @meteorpi](https://twitter.com/meteorpi) and [Facebook meteorpicamera](https://www.facebook.com/meteorpicamera), in the meantime as you're reading this please fork this project and have a play.
+You can follow us on [Twitter @meteorpi](https://twitter.com/meteorpi) and [Facebook meteorpicamera](https://www.facebook.com/meteorpicamera).
 
-## Code
-
-If you think you might want to code something cool with our data you've got two options:
-
-1. You could write some Python code to search the database and do things with the results, we have four Python modules (database, server, model and client), you almost certainly mostly want to look at the client and the model classes it uses - these are defined in the repository at [src/pythonModules](https://github.com/camsci/meteor-pi/tree/master/src/pythonModules) if you want to see the code, or you can read the generated docs at [pythonhosted.org](https://pythonhosted.org/meteorpi_client/index.html). All our modules are uploaded regularly to PyPI, so a simple `pip install meteorpi_client` is enough to get started!
-2. You could extend our web interface. The source for this is at [src/cameraWebsite](https://github.com/camsci/meteor-pi/tree/master/src/cameraWebsite), which contains a KnockoutJS based rich client. While we run the website on the same machine as the database and HTTP server this isn't actually required - you could download the web code, make any changes or extensions you fancy, run it locally pointed at the API URL on your camera and everything should work just fine.
-
-There are loads of potential projects, we're working up some as workshops but in the meantime our current list is on the [wiki](https://github.com/camsci/meteor-pi/wiki/Ideas-for-projects) (where there's also other helpful information).

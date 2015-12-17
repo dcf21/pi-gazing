@@ -1,5 +1,5 @@
 // vidRec.c
-// $Id$
+// $Id: c1c50929a3276f92357c1bd49b60b1e107ed791a $
 
 #include <stdio.h>
 #include <stdlib.h>
