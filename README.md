@@ -1,8 +1,8 @@
 # Meteor Pi
 
-MeteorPi is a project to make it really easy for schools, community groups, and enthusiasts to observe the night sky.
+Meteor Pi is a project to make it really easy for schools, community groups, and enthusiasts to observe the night sky.
 
-We're installing CCTV cameras around the east of England that point upwards and record pictures throughout the hours of darkness. All of the images we record are freely available from the [MeteorPi website](http://meteorpi.cambridgesciencecentre.org/).
+We're installing CCTV cameras around the east of England that point upwards and record pictures throughout the hours of darkness. All of the images we record are freely available from the [Meteor Pi website](http://meteorpi.cambridgesciencecentre.org/).
 
 Our cameras record still photos every 30 seconds, allowing you to spot the constellations, see the rotation of the stars through the night, and track the gradual movement of the planets.
 
@@ -12,15 +12,15 @@ Our geographically distributed network of cameras allow the altitudes of some of
 
 ## Our GitHub website
 
-To access our data, or to find out about educational activities, please visit the [MeteorPi website](http://meteorpi.cambridgesciencecentre.org/).
+To access our data, or to find out about educational activities, please visit the [Meteor Pi website](http://meteorpi.cambridgesciencecentre.org/).
 
 These GitHub pages are a respository for technical information about the project.
 
-Here you can learn about how to build your own MeteorPi camera, the software that's needed to control it, and how you can help improve the prohect.
+Here you can learn about how to build your own Meteor Pi camera, the software that's needed to control it, and how you can help improve the prohect.
 
 ## Our supporters
 
-MeteorPi was developed by [Cambridge Science Centre](http://www.cambridgesciencecentre.org/), with generous support from the [Raspberry Pi Foundation](https://www.raspberrypi.org/), and [MathWorks](http://uk.mathworks.com).
+Meteor Pi was developed by [Cambridge Science Centre](http://www.cambridgesciencecentre.org/), with generous support from the [Raspberry Pi Foundation](https://www.raspberrypi.org/), and [MathWorks](http://uk.mathworks.com).
 
 ## Audience
 
