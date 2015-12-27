@@ -3,18 +3,10 @@ read -p "This will destroy and rebuild the meteorpi databases, hit 'y' to confir
 echo 
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
-    dbs=('meteorpi' 'meteorpi_test1' 'meteorpi_test2')
-    for dbname in "${dbs[@]}"
-    do
-        echo "1/3: Deleting file at '/var/lib/firebird/2.5/data/$dbname.fdb' if it exists"
-        rm -f /var/lib/firebird/2.5/data/$dbname.fdb
-        echo "2/3: Creating database file at '/var/lib/firebird/2.5/data/$dbname.fdb'"
-        sed s/DATABASENAME/$dbname/ < create-database.sql | isql-fb -quiet
-        echo "3/3: Sourcing definitions from 'camera-schema.sql' with user 'meteorpi'"
-        sed s/DATABASENAME/$dbname/ < camera-schema.sql | isql-fb -quiet -user meteorpi -password meteorpi
-        echo "Operation completed."
-        # do dangerous stuff
-    done
+    echo "1/2: Creating database and associated user in MySQL. You will need to enter your MySQL root password."
+    mysql -u root -p < create-database.sql
+    echo "2/2: Setting up database schema"
+    mysql -u meteorpi --password=meteorpi meteorpi < archive-schema.sql
 else
     echo "Operation cancelled, no changes made."
 fi
