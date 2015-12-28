@@ -12,9 +12,9 @@ setup(
     packages=['meteorpi_fdb'],
     install_requires=[
         'meteorpi_model',
-        'fdb',
+        'MySQLdb',
         'passlib',
-        'pyyaml',
+        'json',
         'requests',
         'requests-toolbelt',
         'apscheduler',
