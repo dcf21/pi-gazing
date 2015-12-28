@@ -101,7 +101,7 @@ class BaseImportReceiver(object):
 class MeteorDatabaseImportReceiver(BaseImportReceiver):
     """
     An implementation of :class:`meteorpi_server.import_api.BaseImportReceiver` that connects to a
-    :class:`meteorpi_fdb.MeteorDatabase` and pushes any data to it on import, including managing the acquisition of any
+    :class:`meteorpi_db.MeteorDatabase` and pushes any data to it on import, including managing the acquisition of any
     additional information (camera status, binary file data) required in the process.
     """
 

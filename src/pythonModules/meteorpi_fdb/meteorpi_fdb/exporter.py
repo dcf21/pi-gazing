@@ -10,8 +10,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 class MeteorExporter(object):
     """
-    Manages the communication part of MeteorPi's export mechanism, acquiring :class:`meteorpi_fdb.FileExportTask` and
-    :class:`meteorpi_fdb.EventExportTask` instances from the database and sending them on to the appropriate receiver.
+    Manages the communication part of MeteorPi's export mechanism, acquiring :class:`meteorpi_db.FileExportTask` and
+    :class:`meteorpi_db.EventExportTask` instances from the database and sending them on to the appropriate receiver.
     This class in effect defines the communication protocol used by this process.
 
     The scheduler defined by default will also handle back-off under failure conditions. If an export fails, the count
@@ -136,7 +136,7 @@ class MeteorExporter(object):
             previous export again. This is used to avoid having to query the database when we know already what needs
             to be done. It also maintains a cache of the entity so we don't have to re-acquire it on multiple exports.
         :return:
-            A :class:`meteorpi_fdb.exporter.MeteorExporter.ExportStateCache` representing the state of the export, or
+            A :class:`meteorpi_db.exporter.MeteorExporter.ExportStateCache` representing the state of the export, or
             None if there was nothing to do.
         """
         # Use a cached state, or generate a new one if required

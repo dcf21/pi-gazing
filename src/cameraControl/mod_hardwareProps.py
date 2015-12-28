@@ -61,15 +61,15 @@ class hardwareProps:
                                             float(d['barrel_c']))
 
 
-def fetchSensorData(fdb_handle, hw_handle, cameraId, utc):
-    cameraStatus = fdb_handle.get_camera_status(camera_id=cameraId, time=UTC2datetime(utc))
+def fetchSensorData(db_handle, hw_handle, cameraId, utc):
+    cameraStatus = db_handle.get_camera_status(camera_id=cameraId, time=UTC2datetime(utc))
     assert cameraStatus, "Camera status is not set for cameraId <%s> at time %d" % (cameraId, utc)
     assert cameraStatus.sensor in hw_handle.sensorData, "Unknown sensor type <%s>" % cameraStatus.sensor
     return hw_handle.sensorData[cameraStatus.sensor]
 
 
-def fetchLensData(fdb_handle, hw_handle, cameraId, utc):
-    cameraStatus = fdb_handle.get_camera_status(camera_id=cameraId, time=UTC2datetime(utc))
+def fetchLensData(db_handle, hw_handle, cameraId, utc):
+    cameraStatus = db_handle.get_camera_status(camera_id=cameraId, time=UTC2datetime(utc))
     assert cameraStatus, "Camera status is not set"
     assert cameraStatus.lens in hw_handle.lensData, "Unknown lens type <%s>" % cameraStatus.lens
     return hw_handle.lensData[cameraStatus.lens]

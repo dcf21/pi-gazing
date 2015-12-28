@@ -4,14 +4,14 @@ import time
 
 import os.path as path
 import meteorpi_server
-import meteorpi_fdb
-import meteorpi_fdb.exporter
+import meteorpi_db
+import meteorpi_db.exporter
 import meteorpi_model as model
-import meteorpi_fdb.testing.dummy_data as dummy
+import meteorpi_db.testing.dummy_data as dummy
 
-DB_PATH_1 = 'localhost:/var/lib/firebird/2.5/data/meteorpi_test1.fdb'
+DB_PATH_1 = 'localhost:/var/lib/firebird/2.5/data/meteorpi_test1.db'
 FILE_PATH_1 = path.expanduser("~/meteorpi_test1_files")
-DB_PATH_2 = 'localhost:/var/lib/firebird/2.5/data/meteorpi_test2.fdb'
+DB_PATH_2 = 'localhost:/var/lib/firebird/2.5/data/meteorpi_test2.db'
 FILE_PATH_2 = path.expanduser("~/meteorpi_test2_files")
 PORT_1 = 12345
 
@@ -44,8 +44,8 @@ class TestImportExport(TestCase):
         super(TestImportExport, self).__init__(*args, **kwargs)
         self.server = meteorpi_server.MeteorServer(db_path=DB_PATH_1, file_store_path=FILE_PATH_1, port=PORT_1)
         self.target_db = self.server.db
-        self.source_db = meteorpi_fdb.MeteorDatabase(db_path=DB_PATH_2, file_store_path=FILE_PATH_2)
-        self.exporter = meteorpi_fdb.exporter.MeteorExporter(db=self.source_db, mark_interval_seconds=1,
+        self.source_db = meteorpi_db.MeteorDatabase(db_path=DB_PATH_2, file_store_path=FILE_PATH_2)
+        self.exporter = meteorpi_db.exporter.MeteorExporter(db=self.source_db, mark_interval_seconds=1,
                                                              max_failures_before_disable=4, defer_on_failure_seconds=3)
 
     def setUp(self):
