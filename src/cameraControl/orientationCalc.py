@@ -9,7 +9,7 @@ import re
 import subprocess
 from math import *
 
-import meteorpi_fdb
+import meteorpi_db
 import meteorpi_model as mp
 
 import mod_astro
@@ -57,10 +57,10 @@ def orientationCalc(cameraId, utcNow, utcMustStop=0):
     # Calculate time span to use images from
     utcMax = utcNow
     utcMin = utcMax - 3600 * 24
-    fdb_handle = meteorpi_fdb.MeteorDatabase(DBPATH, FDBFILESTORE)
+    db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
 
     # Fetch camera status
-    cameraStatus = fdb_handle.get_camera_status(camera_id=cameraId, time=UTC2datetime(utcNow))
+    cameraStatus = db_handle.get_camera_status(camera_id=cameraId, time=UTC2datetime(utcNow))
     if not cameraStatus:
         logTxt("Aborting -- no camera status set for camera <%s>" % cameraId)
         return
@@ -70,7 +70,7 @@ def orientationCalc(cameraId, utcNow, utcMustStop=0):
     search = mp.FileRecordSearch(camera_ids=[cameraId], semantic_type=mp.NSString("timelapse/frame/bgrdSub"),
                                  exclude_events=True, before=UTC2datetime(utcMax), after=UTC2datetime(utcMin),
                                  limit=1000000)
-    files = fdb_handle.search_files(search)
+    files = db_handle.search_files(search)
     files = [i for i in files['files']]
     logTxt("%d candidate time-lapse images in past 24 hours" % len(files))
 
@@ -214,8 +214,8 @@ def orientationCalc(cameraId, utcNow, utcMustStop=0):
     cameraStatus.orientation = mp.Orientation(altitude=altAzBest[0] * rad, azimuth=altAzBest[1] * rad,
                                               error=altAzError * rad, rotation=paBest * rad,
                                               width_of_field=scalexBest * rad)
-    fdb_handle.update_camera_status(cameraStatus,
-                                    time=fdb_handle.get_high_water_mark(cameraId) + datetime.timedelta(0, 1),
+    db_handle.update_camera_status(cameraStatus,
+                                    time=db_handle.get_high_water_mark(cameraId) + datetime.timedelta(0, 1),
                                     camera_id=cameraId)
 
     # Output catalogue of image fits -- this is to be fed into the lens-fitting code

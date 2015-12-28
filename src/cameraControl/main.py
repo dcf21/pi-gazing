@@ -3,7 +3,7 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-import meteorpi_fdb
+import meteorpi_db
 import meteorpi_model as mp
 
 import mod_astro
@@ -12,7 +12,7 @@ from mod_settings import *
 from mod_time import *
 import mod_hardwareProps
 
-fdb_handle = meteorpi_fdb.MeteorDatabase(DBPATH, FDBFILESTORE)
+db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
 hw_handle = mod_hardwareProps.hardwareProps(os.path.join(PYTHON_PATH, "..", "sensorProperties"))
 
 logTxt("Camera controller launched")
@@ -53,7 +53,7 @@ setUTCoffset(toffset)
 # Update camera status with GPS position
 timenow = UTC2datetime(getUTC())
 logTxt("Fetching camera status")
-cameraStatus = fdb_handle.get_camera_status(time=timenow, camera_id=CAMERA_ID)
+cameraStatus = db_handle.get_camera_status(time=timenow, camera_id=CAMERA_ID)
 
 if not cameraStatus:
     logTxt("No camera status found for id '%s': using a default" % CAMERA_ID)
@@ -65,7 +65,7 @@ if not cameraStatus:
 logTxt("Updating camera status with new position")
 cameraStatus.location = mp.Location(latitude, longitude, (flagGPS != 0))
 logTxt("Storing camera status")
-fdb_handle.update_camera_status(cameraStatus, time=timenow, camera_id=CAMERA_ID)
+db_handle.update_camera_status(cameraStatus, time=timenow, camera_id=CAMERA_ID)
 
 # Create clipping region mask file
 logTxt("Creating clipping region mask")
@@ -80,7 +80,7 @@ while True:
     sunTimes = mod_astro.sunTimes(timeNow, longitude, latitude)
     secondsTillSunrise = sunTimes[0] - timeNow
     secondsTillSunset = sunTimes[2] - timeNow
-    sensorData = mod_hardwareProps.fetchSensorData(fdb_handle, hw_handle, CAMERA_ID, timeNow)
+    sensorData = mod_hardwareProps.fetchSensorData(db_handle, hw_handle, CAMERA_ID, timeNow)
 
     if (secondsTillSunset < -sunMargin) or (secondsTillSunrise > sunMargin):
         if secondsTillSunrise < 0:

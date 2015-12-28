@@ -9,8 +9,8 @@ from mod_settings import *
 from mod_time import *
 
 import meteorpi_model as mp
-import meteorpi_fdb
-fdb_handle = meteorpi_fdb.MeteorDatabase( DBPATH , FDBFILESTORE )
+import meteorpi_db
+db_handle = meteorpi_db.MeteorDatabase( DBPATH , DBFILESTORE )
 
 tmin=0
 tmax=time.time()
@@ -24,13 +24,13 @@ tmax=UTC2datetime(tmax)
 
 print "# ./listFiles.py %s %s\n"%(tmin,tmax)
 
-cameraList = fdb_handle.get_cameras()
+cameraList = db_handle.get_cameras()
 for cameraId in cameraList:
   title = "Camera <%s>"%cameraId
   print "\n\n%s\n%s"%(title,"-"*len(title))
-  print "%s\n  * %s\n  * High water mark: %s"%(cameraId,fdb_handle.get_camera_status(camera_id=cameraId),fdb_handle.get_high_water_mark(camera_id=cameraId))
+  print "%s\n  * %s\n  * High water mark: %s"%(cameraId,db_handle.get_camera_status(camera_id=cameraId),db_handle.get_high_water_mark(camera_id=cameraId))
   search = mp.FileRecordSearch(camera_ids=[cameraId],exclude_events=True,before=tmax,after=tmin)
-  files  = fdb_handle.search_files(search)
+  files  = db_handle.search_files(search)
   files  = [i for i in files['files']]
   files.sort(key=lambda x: x.file_time)
   print "  * %d matching files in time range %s --> %s"%(len(files),tmin,tmax)

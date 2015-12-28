@@ -11,7 +11,7 @@ setup(
     license='GPL',
     packages=['meteorpi_server'],
     install_requires=[
-        'meteorpi_fdb',
+        'meteorpi_db',
         'flask',
         'flask-cors',
         'tornado',

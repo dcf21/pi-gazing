@@ -3,7 +3,7 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-import meteorpi_fdb
+import meteorpi_db
 import meteorpi_model as mp
 
 from mod_astro import *
@@ -34,11 +34,11 @@ if (utcMax == 0): utcMax = time.time()
 
 print "# ./viewImages.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utcMin, utcMax, cameraId, label, imgType, stride)
 
-fdb_handle = meteorpi_fdb.MeteorDatabase(DBPATH, FDBFILESTORE)
+db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
 
 search = mp.FileRecordSearch(camera_ids=[cameraId], semantic_type=mp.NSString(imgType), exclude_events=True,
                              before=UTC2datetime(utcMax), after=UTC2datetime(utcMin), limit=1000000)
-files = fdb_handle.search_files(search)
+files = db_handle.search_files(search)
 files = [i for i in files['files']]
 files.sort(key=lambda x: x.file_time)
 
@@ -51,13 +51,13 @@ def metadata2dict(metadata):
     return output
 
 
-s = fdb_handle.get_camera_status(camera_id=cameraId)
+s = db_handle.get_camera_status(camera_id=cameraId)
 if not s:
     print "Unknown camera <%s>. Run ./listCameras.py to see a list of available cameras." % cameraId
     sys.exit(0)
 
 print "Camera <%s>" % cameraId
-print "  * High water mark: %s" % fdb_handle.get_high_water_mark(camera_id=cameraId)
+print "  * High water mark: %s" % db_handle.get_high_water_mark(camera_id=cameraId)
 print "  * Software: %s" % s.software_version
 print "  * Lens: %s" % s.lens
 print "  * Sensor: %s" % s.sensor

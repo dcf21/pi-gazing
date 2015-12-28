@@ -8,10 +8,10 @@ import os.path as path
 import os
 import MySQLdb
 import meteorpi_model as mp
-from meteorpi_fdb.generators import first_from_generator, first_non_null, MeteorDatabaseGenerators
-from meteorpi_fdb.sql_builder import search_events_sql_builder, search_files_sql_builder
+from meteorpi_db.generators import first_from_generator, first_non_null, MeteorDatabaseGenerators
+from meteorpi_db.sql_builder import search_events_sql_builder, search_files_sql_builder
 from backports.functools_lru_cache import lru_cache
-from meteorpi_fdb.exporter import FileExportTask, EventExportTask
+from meteorpi_db.exporter import FileExportTask, EventExportTask
 
 SOFTWARE_VERSION = 1
 
@@ -776,14 +776,14 @@ class MeteorDatabase(object):
     def get_next_entity_to_export(self):
         """
         Examines the t_fileExport and t_eventExport tables, finds the earliest incomplete export task and builds
-        either a :class:`meteorpi_fdb.FileExportTask` or a :class:`meteorpi_fdb.EventExportTask` as appropriate. These
+        either a :class:`meteorpi_db.FileExportTask` or a :class:`meteorpi_db.EventExportTask` as appropriate. These
         task objects can be used to retrieve the underlying entity and export configuration, and to update the
         completion state or push the timestamp into the future, deferring evaluation of the task until later. Only
         considers tasks where the timestamp is before (or equal to) the current time.
 
         :returns:
-            Either None, if no exports are available, or a :class:`meteorpi_fdb.FileExportTask` or
-            :class:`meteorpi_fdb.EventExportTask` depending on whether a file or event is next in the queue to export.
+            Either None, if no exports are available, or a :class:`meteorpi_db.FileExportTask` or
+            :class:`meteorpi_db.EventExportTask` depending on whether a file or event is next in the queue to export.
         """
         entity_type = None
         config_id = None

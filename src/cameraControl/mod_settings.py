@@ -31,10 +31,7 @@ assert os.path.exists(
     DATA_PATH), "You need to create a symlink 'datadir' in the root of your meteor-pi working copy, where we store all of the camera data"
 
 # The directory where meteorpi_db stores its files
-DBFILESTORE = os.path.join(DATA_PATH, "firebird_files")
-
-# The location of the firebird database
-DBPATH = "localhost:/var/lib/firebird/2.5/data/meteorpi.db"
+DBFILESTORE = os.path.join(DATA_PATH, "filestore")
 
 # Flag telling us whether to hunt for meteors in real time, or record H264 video for subsequent analysis
 REAL_TIME = True

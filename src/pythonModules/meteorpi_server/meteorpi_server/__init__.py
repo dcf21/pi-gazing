@@ -7,7 +7,7 @@ from tornado.ioloop import IOLoop
 from tornado.wsgi import WSGIContainer
 from tornado.web import FallbackHandler, Application
 from tornado.httpserver import HTTPServer
-from meteorpi_fdb import MeteorDatabase
+from meteorpi_db import MeteorDatabase
 from flask.ext.jsonpify import jsonify
 from flask.ext.cors import CORS
 from meteorpi_server import admin_api, importer_api, query_api
@@ -30,7 +30,7 @@ class MeteorApp(object):
         Create a new MeteorApp, setting up the internal DB
 
         :param MeteorDatabase db:
-            An instance of :class:`meteorpi_fdb.MeteorDatabase` to use when accessing the data and file stores.
+            An instance of :class:`meteorpi_db.MeteorDatabase` to use when accessing the data and file stores.
         """
         self.db = db
         self.app = Flask(__name__)
@@ -160,7 +160,7 @@ class MeteorServer(object):
         Create a new instance, does not start the server.
 
         :param string db_path:
-            Path to the database, i.e. 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb'
+            Path to the database, i.e. 'localhost:/var/lib/firebird/2.5/data/meteorpi.db'
         :param string file_store_path:
             File path to a directory on disk where the data store can store and retrieve its file data, i.e.
             path.expanduser("~/meteorpi_files")
@@ -229,7 +229,7 @@ class MeteorServer(object):
 
 """Start a blocking server if run as a script"""
 if __name__ == "__main__":
-    server = MeteorServer(db_path='localhost:/var/lib/firebird/2.5/data/meteorpi.fdb',
+    server = MeteorServer(db_path='localhost:/var/lib/firebird/2.5/data/meteorpi.db',
                           file_store_path=expanduser("~/meteorpi_files"),
                           port=12345)
     print 'Running blocking server (meteorpi) on port {0}'.format(server.port)

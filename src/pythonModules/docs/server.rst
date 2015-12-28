@@ -16,15 +16,15 @@ Server Object
 
 The WSGI application object is created using an instance of :class:`meteorpi_server.MeteorApp`. Note that the
 :class:`meteorpi_server.MeteorServer` is the development server, you almost certainly don't want to use this. The app
-is created with a reference to a :class:`meteorpi_fdb.MeteorDatabase` as follows:
+is created with a reference to a :class:`meteorpi_db.MeteorDatabase` as follows:
 
 .. code-block:: python
 
-    from meteorpi_fdb import MeteorDatabase
+    from meteorpi_db import MeteorDatabase
     from meteorpi_server import MeteorApp, admin_api, importer_api, query_api
 
     # Configure and create database and server objects
-    db_path = 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb'
+    db_path = 'localhost:/var/lib/firebird/2.5/data/meteorpi.db'
     file_store_path = '/home/meteorpi/meteorpi_files'
     db = MeteorDatabase(db_path=db_path, file_store_path=file_store_path)
     meteor_app = MeteorApp(db=db)
@@ -61,20 +61,20 @@ to other nodes (i.e. a camera sending data to a central server). Note that witho
 export tasks in the web UI and through the admin api routes (see above) but you won't actually get any export
 functionality.
 
-To create a new exporter you need to create a :class:`meteorpi_fdb.exporter.MeteorExporter` instance, this exposes a
+To create a new exporter you need to create a :class:`meteorpi_db.exporter.MeteorExporter` instance, this exposes a
 scheduler which can be used to automatically apply any export configurations on the node and to manage the export
 process for any matching :class:`meteorpi_model.FileRecord` and :class:`meteorpi_model.Event` instances.
 
 .. code-block:: python
 
-    from meteorpi_fdb.exporter import MeteorExporter
+    from meteorpi_db.exporter import MeteorExporter
     exporter = MeteorExporter(db=db,
                               mark_interval_seconds=1,
                               max_failures_before_disable=4,
                               defer_on_failure_seconds=3)
 
 The parameter values shown above are extremely short - they're what's used in the unit tests. Be sure to check the class
-documentation for :class:`meteorpi_fdb.exporter.MeteorExporter` and configure this object appropriately for your
+documentation for :class:`meteorpi_db.exporter.MeteorExporter` and configure this object appropriately for your
 application!
 
 At this point you have an exporter linked to your database, but its not going to run any scheduled tasks until you
@@ -114,12 +114,12 @@ virtual environment, this is strongly recommended:
     activate_this = '/home/meteorpi/meteor-env/bin/activate_this.py'
     execfile(activate_this, dict(__file__=activate_this))
 
-    from meteorpi_fdb import MeteorDatabase
-    from meteorpi_fdb.exporter import MeteorExporter
+    from meteorpi_db import MeteorDatabase
+    from meteorpi_db.exporter import MeteorExporter
     from meteorpi_server import MeteorApp, admin_api, importer_api, query_api
 
     # Configure and create database and server objects
-    db_path = 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb'
+    db_path = 'localhost:/var/lib/firebird/2.5/data/meteorpi.db'
     file_store_path = '/home/meteorpi/meteorpi_files'
     db = MeteorDatabase(db_path=db_path, file_store_path=file_store_path)
     meteor_app = MeteorApp(db=db)
@@ -156,12 +156,12 @@ virtual environment).
     #!/home/meteorpi/meteor-env/bin/python
     from flup.server.fcgi import WSGIServer
 
-    from meteorpi_fdb import MeteorDatabase
-    from meteorpi_fdb.exporter import MeteorExporter
+    from meteorpi_db import MeteorDatabase
+    from meteorpi_db.exporter import MeteorExporter
     from meteorpi_server import MeteorApp, admin_api, importer_api, query_api
 
     # Configure and create database and server objects
-    db_path = 'localhost:/var/lib/firebird/2.5/data/meteorpi.fdb'
+    db_path = 'localhost:/var/lib/firebird/2.5/data/meteorpi.db'
     file_store_path = '/home/meteorpi/meteorpi_files'
     db = MeteorDatabase(db_path=db_path, file_store_path=file_store_path)
     meteor_app = MeteorApp(db=db)

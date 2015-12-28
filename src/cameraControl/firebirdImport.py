@@ -6,7 +6,7 @@
 import glob
 import uuid
 import time
-import meteorpi_fdb
+import meteorpi_db
 import meteorpi_model as mp
 import mod_hwm
 import mod_deleteOldData
@@ -14,7 +14,7 @@ from mod_log import logTxt
 from mod_settings import *
 from mod_time import *
 
-fdb_handle = meteorpi_fdb.MeteorDatabase(DBPATH, FDBFILESTORE)
+db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
 
 
 def dict_tree_append(dictRoot, dictPath, value):
@@ -29,7 +29,7 @@ def dict_tree_append(dictRoot, dictPath, value):
     d[leaf_name].append(value)
 
 
-def metadata_to_fdb(fdb_handle, file_time, cameraId, file_stub, metadict):
+def metadata_to_db(db_handle, file_time, cameraId, file_stub, metadict):
     metadata_objs = []
     metadata_files = []
     for metafield in metadict:
@@ -39,7 +39,7 @@ def metadata_to_fdb(fdb_handle, file_time, cameraId, file_stub, metadict):
         else:
             fname = os.path.join("/tmp", str(uuid.uuid4()))
             open(fname, "w").write(value)
-            file_obj = fdb_handle.register_file(file_path=fname, mime_type="application/json",
+            file_obj = db_handle.register_file(file_path=fname, mime_type="application/json",
                                                 semantic_type=mp.NSString(metafield, "meteorpi"), file_time=file_time,
                                                 file_metas=[], camera_id=cameraId, file_name=os.path.split(fname)[1])
             metadata_files.append(file_obj)
@@ -64,7 +64,7 @@ def local_filename_to_semantic_type(fname):
 
 
 def firebird_import():
-    global fdb_handle
+    global db_handle
 
     pid = os.getpid()
     cwd = os.getcwd()
@@ -105,15 +105,15 @@ def firebird_import():
             assert "cameraId" in metadict, "Timelapse photograph <%s> does not have a cameraId set." % fname
             camera_id = metadict["cameraId"]
             if camera_id not in hwm_old:
-                hwm_new[camera_id] = hwm_old[camera_id] = datetime2UTC(fdb_handle.get_high_water_mark(camera_id))
+                hwm_new[camera_id] = hwm_old[camera_id] = datetime2UTC(db_handle.get_high_water_mark(camera_id))
             if utc < hwm_old[camera_id]:
                 continue
             file_name = os.path.split(fname)[1]
-            [metadata_objs, metadata_files] = metadata_to_fdb(fdb_handle, UTC2datetime(utc), camera_id, file_name,
+            [metadata_objs, metadata_files] = metadata_to_db(db_handle, UTC2datetime(utc), camera_id, file_name,
                                                               metadict)  # List of metadata objects
             semantic_type = local_filename_to_semantic_type(fname)
             logTxt("Registering file <%s>, with cameraId <%s>" % (fname, camera_id))
-            file_obj = fdb_handle.register_file(file_path=fname, mime_type="image/png",
+            file_obj = db_handle.register_file(file_path=fname, mime_type="image/png",
                                                 semantic_type=mp.NSString(semantic_type, "meteorpi"),
                                                 file_time=UTC2datetime(utc), file_metas=metadata_objs,
                                                 camera_id=camera_id,
@@ -132,14 +132,14 @@ def firebird_import():
         assert "cameraId" in metadict, "Trigger video <%s> does not have a cameraId set." % fname
         camera_id = metadict["cameraId"]
         if camera_id not in hwm_old:
-            hwm_new[camera_id] = hwm_old[camera_id] = datetime2UTC(fdb_handle.get_high_water_mark(camera_id))
+            hwm_new[camera_id] = hwm_old[camera_id] = datetime2UTC(db_handle.get_high_water_mark(camera_id))
         if utc < hwm_old[camera_id]:
             continue
         file_name = os.path.split(fname)[1]
-        [metadata_objs, metadata_files] = metadata_to_fdb(fdb_handle, UTC2datetime(utc), camera_id, file_name,
+        [metadata_objs, metadata_files] = metadata_to_db(db_handle, UTC2datetime(utc), camera_id, file_name,
                                                           metadict)  # List of metadata objects
         semantic_type = local_filename_to_semantic_type(fname)
-        file_objs = [fdb_handle.register_file(file_path=fname, mime_type="video/mp4",
+        file_objs = [db_handle.register_file(file_path=fname, mime_type="video/mp4",
                                               semantic_type=mp.NSString(semantic_type, "meteorpi"),
                                               file_time=UTC2datetime(utc), file_metas=metadata_objs,
                                               camera_id=camera_id,
@@ -150,7 +150,7 @@ def firebird_import():
                 file_objs.extend(imgs["triggers_img_processed"][utc])
         file_objs.extend(metadata_files)
         logTxt("Registering event <%s>, with cameraId <%s> and %d files" % (fname, camera_id, len(file_objs)))
-        event_obj = fdb_handle.register_event(camera_id=camera_id, event_time=UTC2datetime(utc),
+        event_obj = db_handle.register_event(camera_id=camera_id, event_time=UTC2datetime(utc),
                                               event_type=mp.NSString("meteorpi", "meteorpi"), file_records=file_objs,
                                               event_meta=metadata_objs)
         if os.path.exists(metafile):
@@ -160,7 +160,7 @@ def firebird_import():
     os.chdir(cwd)
     # Create a camera status log file
     os.system("./cameraStatusLog.sh > /tmp/cameraStatus.log")
-    file_obj = fdb_handle.register_file(file_path="/tmp/cameraStatus.log", mime_type="text/plain",
+    file_obj = db_handle.register_file(file_path="/tmp/cameraStatus.log", mime_type="text/plain",
                                         semantic_type=mp.NSString("logfile", "meteorpi"),
                                         file_time=UTC2datetime(time.time()), file_metas=[],
                                         camera_id=my_installation_id(),

@@ -8,8 +8,8 @@
 import sys
 from math import *
 
-import meteorpi_fdb
-from meteorpi_fdb.exporter import MeteorExporter
+import meteorpi_db
+from meteorpi_db.exporter import MeteorExporter
 
 import mod_log
 from mod_log import logTxt
@@ -25,15 +25,15 @@ def export_data(utcNow, utcMustStop=0):
     tStop = time.time() + (utcMustStop - utcNow)
 
     # Open a database handle
-    fdb_handle = meteorpi_fdb.MeteorDatabase(DBPATH, FDBFILESTORE)
+    db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
 
     # Search for items which need exporting
-    for export_config in fdb_handle.get_export_configurations():
+    for export_config in db_handle.get_export_configurations():
         if export_config.enabled:
-            fdb_handle.mark_entities_to_export(export_config)
+            db_handle.mark_entities_to_export(export_config)
 
     # Create an exporter instance
-    exporter = MeteorExporter(db=fdb_handle,
+    exporter = MeteorExporter(db=db_handle,
                               mark_interval_seconds=1,
                               max_failures_before_disable=4,
                               defer_on_failure_seconds=3)

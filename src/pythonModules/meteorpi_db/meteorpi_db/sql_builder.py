@@ -5,14 +5,14 @@
 
 def search_observations_sql_builder(search):
     """
-    Create and populate an instance of :class:`meteorpi_fdb.SQLBuilder` for a given
+    Create and populate an instance of :class:`meteorpi_db.SQLBuilder` for a given
     :class:`meteorpi_model.ObservatorySearch`. This can then be used to retrieve the results of the search, materialise
     them into :class:`meteorpi_model.Observation` instances etc.
 
     :param ObservationSearch search:
         The search to realise
     :return:
-        A :class:`meteorpi_fdb.SQLBuilder` configured from the supplied search
+        A :class:`meteorpi_db.SQLBuilder` configured from the supplied search
     """
     b = SQLBuilder(tables="""archive_observations o
 INNER JOIN archive_semanticTypes s ON o.obsType=s.uid
@@ -42,14 +42,14 @@ INNER JOIN archive_observatories l ON o.observatory=l.uid""", where_clauses=[])
 
 def search_files_sql_builder(search):
     """
-    Create and populate an instance of :class:`meteorpi_fdb.SQLBuilder` for a given
+    Create and populate an instance of :class:`meteorpi_db.SQLBuilder` for a given
     :class:`meteorpi_model.FileRecordSearch`. This can then be used to retrieve the results of the search, materialise
     them into :class:`meteorpi_model.FileRecord` instances etc.
 
     :param FileRecordSearch search:
         The search to realise
     :return:
-        A :class:`meteorpi_fdb.SQLBuilder` configured from the supplied search
+        A :class:`meteorpi_db.SQLBuilder` configured from the supplied search
     """
     b = SQLBuilder(tables="""archive_files f
 INNER JOIN archive_observations o ON f.observationId=o.uid
@@ -84,14 +84,14 @@ INNER JOIN archive_observatories l ON o.observatory=l.uid""", where_clauses=[])
 
 def search_metadata_sql_builder(search):
     """
-    Create and populate an instance of :class:`meteorpi_fdb.SQLBuilder` for a given
+    Create and populate an instance of :class:`meteorpi_db.SQLBuilder` for a given
     :class:`meteorpi_model.ObservatoryMetadataSearch`. This can then be used to retrieve the results of the search,
     materialise them into :class:`meteorpi_model.ObservatoryMetadata` instances etc.
 
     :param ObservatoryMetadataSearch search:
         The search to realise
     :return:
-        A :class:`meteorpi_fdb.SQLBuilder` configured from the supplied search
+        A :class:`meteorpi_db.SQLBuilder` configured from the supplied search
     """
     b = SQLBuilder(tables="""archive_metadata m
 INNER JOIN archive_metadataFields f ON m.fieldId=f.uid

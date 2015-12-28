@@ -30,20 +30,20 @@ if (utcMax == 0): utcMax = time.time()
 
 print "# ./listEvents.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utcMin, utcMax, cameraId, label, imgType, stride)
 
-fdb_handle = meteorpi_fdb.MeteorDatabase(DBPATH, FDBFILESTORE)
+db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
 
 search = mp.EventSearch(camera_ids=[cameraId], before=UTC2datetime(utcMax), after=UTC2datetime(utcMin), limit=1000000)
-triggers = fdb_handle.search_events(search)
+triggers = db_handle.search_events(search)
 triggers = triggers['events']
 triggers.sort(key=lambda x: x.event_time)
 
-s = fdb_handle.get_camera_status(camera_id=cameraId)
+s = db_handle.get_camera_status(camera_id=cameraId)
 if not s:
     print "Unknown camera <%s>. Run ./listCameras.py to see a list of available cameras." % cameraId
     sys.exit(0)
 
 print "Camera <%s>" % cameraId
-print "  * High water mark: %s" % fdb_handle.get_high_water_mark(camera_id=cameraId)
+print "  * High water mark: %s" % db_handle.get_high_water_mark(camera_id=cameraId)
 print "  * Software: %s" % s.software_version
 print "  * Lens: %s" % s.lens
 print "  * Sensor: %s" % s.sensor

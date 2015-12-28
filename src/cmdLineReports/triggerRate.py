@@ -5,7 +5,7 @@
 
 # Make a histogram of number raw videos and trigger videos by hour
 
-import meteorpi_fdb
+import meteorpi_db
 import meteorpi_model as mp
 
 from mod_astro import *
@@ -38,16 +38,16 @@ if (utcMax == 0): utcMax = time.time()
 
 print "# ./triggerRate.py %s %s %s\n" % (utcMin, utcMax, cameraId)
 
-fdb_handle = meteorpi_fdb.MeteorDatabase(DBPATH, FDBFILESTORE)
+db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
 
 search = mp.FileRecordSearch(camera_ids=[cameraId], semantic_type=mp.NSString("timelapse/frame/lensCorr"),
                              exclude_events=True, before=UTC2datetime(utcMax), after=UTC2datetime(utcMin),
                              limit=1000000)
-files = fdb_handle.search_files(search)
+files = db_handle.search_files(search)
 files = [i for i in files['files']]
 
 search = mp.EventSearch(camera_ids=[cameraId], before=UTC2datetime(utcMax), after=UTC2datetime(utcMin), limit=1000000)
-events = fdb_handle.search_events(search)
+events = db_handle.search_events(search)
 events = [i for i in events['events']]
 
 histogram = {}

@@ -26,7 +26,7 @@ the system can also be used for other purposes such as social media gateways, no
 .. automodule:: meteorpi_server.importer_api
     :members:
 
-Database: `meteorpi_fdb`
+Database: `meteorpi_db`
 ------------------------
 
 Firebird based data access layer, uses a simple directory based file store to handle file data. The database itself
@@ -34,10 +34,10 @@ provides for search, retrieval and registration operations, with extra modules p
 functionality. Caching is implemented as an in-memory LRU cache for each main event type, mostly to optimise the kind of
 burst access we tend to have during imports and exports, and during pagination of searches.
 
-.. automodule:: meteorpi_fdb
+.. automodule:: meteorpi_db
     :members:
 
-.. automodule:: meteorpi_fdb.exporter
+.. automodule:: meteorpi_db.exporter
     :members:
 
 The core search operations are split into SQL generation in the sql_builder module, and lazy instantiation of the domain
@@ -45,8 +45,8 @@ entities in the generators module. While most existing APIs in the main database
 response to search, if you are extending the server and need to iterate over all files or all events these generators
 allow you to do so in an efficient manner.
 
-.. automodule:: meteorpi_fdb.generators
+.. automodule:: meteorpi_db.generators
     :members:
 
-.. automodule:: meteorpi_fdb.sql_builder
+.. automodule:: meteorpi_db.sql_builder
     :members:

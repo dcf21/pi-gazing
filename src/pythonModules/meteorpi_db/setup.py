@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name='meteorpi_fdb',
+    name='meteorpi_db',
     version='0.1.5',
     description='Data access layer, uses FireBird to persist and retrieve MeteorPi classes',
     classifiers=['Programming Language :: Python :: 2.7'],
@@ -9,7 +9,7 @@ setup(
     author='Tom Oinn',
     author_email='tomoinn@crypticsquid.com',
     license='GPL',
-    packages=['meteorpi_fdb'],
+    packages=['meteorpi_db'],
     install_requires=[
         'meteorpi_model',
         'MySQLdb',

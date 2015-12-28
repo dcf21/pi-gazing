@@ -5,7 +5,7 @@
 
 import sys
 
-import meteorpi_fdb
+import meteorpi_db
 import meteorpi_model as mp
 import mod_deleteOldData
 
@@ -27,21 +27,21 @@ if (utcMax == 0): utcMax = time.time()
 
 print "# ./deleteImages.py %f %f \"%s\"\n" % (utcMin, utcMax, cameraId)
 
-fdb_handle = meteorpi_fdb.MeteorDatabase(DBPATH, FDBFILESTORE)
+db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
 
-s = fdb_handle.get_camera_status(camera_id=cameraId)
+s = db_handle.get_camera_status(camera_id=cameraId)
 if not s:
     print "Unknown camera <%s>. Run ./listCameras.py to see a list of available cameras." % cameraId
     sys.exit(0)
 
 search = mp.FileRecordSearch(camera_ids=[cameraId], exclude_events=False, before=UTC2datetime(utcMax),
                              after=UTC2datetime(utcMin), limit=1000000)
-files = fdb_handle.search_files(search)
+files = db_handle.search_files(search)
 files = [i for i in files['files']]
 files.sort(key=lambda x: x.file_time)
 
 search = mp.EventSearch(camera_ids=[cameraId], before=UTC2datetime(utcMax), after=UTC2datetime(utcMin), limit=1000000)
-triggers = fdb_handle.search_events(search)
+triggers = db_handle.search_events(search)
 triggers = triggers['events']
 triggers.sort(key=lambda x: x.event_time)
 

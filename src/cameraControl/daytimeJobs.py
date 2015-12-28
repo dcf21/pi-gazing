@@ -22,8 +22,8 @@ import mod_hwm
 import orientationCalc
 import exportData
 
-import meteorpi_fdb
-fdb_handle = meteorpi_fdb.MeteorDatabase( DBPATH , FDBFILESTORE )
+import meteorpi_db
+db_handle = meteorpi_db.MeteorDatabase( DBPATH , DBFILESTORE )
 
 import mod_hardwareProps
 hw_handle = mod_hardwareProps.hardwareProps( os.path.join( PYTHON_PATH, "..", "sensorProperties") )
@@ -122,16 +122,16 @@ try:
               params['filename_out'] = "%(outdir)s/%(date)s/%(filename)s"%params
               params['metadata']     = mod_hwm.fileToDB("%s.txt"%os.path.join(dirName,params['filename']))
               params.update( params['metadata'] )
-              if 'fps' not in params: params['fps'] = mod_hardwareProps.fetchSensorData(fdb_handle,hw_handle,params['cameraId'],utc).fps
+              if 'fps' not in params: params['fps'] = mod_hardwareProps.fetchSensorData(db_handle,hw_handle,params['cameraId'],utc).fps
 
               # Read barrel-correction parameters
-              lensData = mod_hardwareProps.fetchLensData(fdb_handle,hw_handle,params['cameraId'],utc)
+              lensData = mod_hardwareProps.fetchLensData(db_handle,hw_handle,params['cameraId'],utc)
               params['barrel_a'] = lensData.barrel_a
               params['barrel_b'] = lensData.barrel_b
               params['barrel_c'] = lensData.barrel_c
 
               # Fetch the status of the camera which made this observation
-              cameraStatus = fdb_handle.get_camera_status(camera_id=params['cameraId'],time=UTC2datetime(utc))
+              cameraStatus = db_handle.get_camera_status(camera_id=params['cameraId'],time=UTC2datetime(utc))
 
               # Create clipping region mask file
               open(maskFile,"w").write( "\n\n".join(["\n".join(["%(x)d %(y)d"%p for p in pointList]) for pointList in cameraStatus.regions]) )
@@ -158,7 +158,7 @@ try:
     for job in jobList:
       cameraId = job['params']['cameraId']
       if cameraId not in camerasSeen:
-        fdb_handle.set_high_water_mark( datetime.datetime.fromtimestamp(job['utc']) , cameraId )
+        db_handle.set_high_water_mark( datetime.datetime.fromtimestamp(job['utc']) , cameraId )
         camerasSeen.append(cameraId);
 
     # Now do jobs in order, raising local high level water mark as we do each job
@@ -202,7 +202,7 @@ except:
 # Update firebird hwm
 for cameraId,utc in hwm_new.iteritems():
   logTxt("Updating high water mark of camera <%s> to UTC %d (%s)"%(cameraId,utc,UTC2datetime(utc)))
-  fdb_handle.set_high_water_mark( UTC2datetime(utc) , cameraId )
+  db_handle.set_high_water_mark( UTC2datetime(utc) , cameraId )
 
 # Export data to remote server(s)
 try:

@@ -7,16 +7,16 @@
 
 import sys
 
-import meteorpi_fdb
+import meteorpi_db
 
 from mod_settings import *
 
-fdb_handle = meteorpi_fdb.MeteorDatabase(DBPATH, FDBFILESTORE)
+db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
 
 # List all current user accounts
 print "Current web interface accounts"
 print "------------------------------"
-users = fdb_handle.get_users()
+users = db_handle.get_users()
 for user in users:
     print "%20s -- roles: %s\n" % (user.user_id, " ".join(user.get_roles()))
 print "\n"
@@ -37,4 +37,4 @@ defaultRoles = "user camera_admin import"
 roles = raw_input('Enter roles <default %s>: ' % defaultRoles).split()
 if not roles: roles = defaultRoles.split()
 
-fdb_handle.create_or_update_user(userId, password, roles)
+db_handle.create_or_update_user(userId, password, roles)
