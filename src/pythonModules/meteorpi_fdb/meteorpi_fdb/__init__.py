@@ -6,78 +6,70 @@ import json
 from passlib.hash import pbkdf2_sha256
 import os.path as path
 import os
-import fdb
+import MySQLdb
 import meteorpi_model as mp
+from meteorpi_fdb.generators import first_from_generator, first_non_null, MeteorDatabaseGenerators
 from meteorpi_fdb.sql_builder import search_events_sql_builder, search_files_sql_builder
-from meteorpi_fdb.generators import MeteorDatabaseGenerators, first_from_generator, first_non_null
 from backports.functools_lru_cache import lru_cache
 from meteorpi_fdb.exporter import FileExportTask, EventExportTask
 
 SOFTWARE_VERSION = 1
 
-
 class MeteorDatabase(object):
     """
-    Class representing a single MeteorPi relational database and file store.
+    Class representing a single MeteorPi database and file store.
 
     :ivar con:
         Database connection used to access the db
-    :ivar db_path:
-        Path to the database
+    :ivar db_host:
+        Host of the database
+    :ivar db_user:
+        User login to the database
+    :ivar db_password:
+        Password for the database
+    :ivar db_name:
+        Database name
     :ivar file_store_path:
         Path to the file store on disk
-    :ivar generators:
-        Helper object containing generator functions to retrieve entities lazily
-    :ivar string installation_id:
-        The installation ID, either supplied explicitly in the constructor or derived automatically from the network
-        interface MAC address (used if None is passed to the constructor for this property)
+    :ivar string camera_id:
+        The local camera ID
+    :ivar object generator:
+        Object generator class
     """
 
-    def __init__(self, db_path, file_store_path, db_user='meteorpi', db_password='meteorpi', installation_id=None):
+    def __init__(self, file_store_path, db_host='localhost', db_user='meteorpi', db_password='meteorpi',
+                 db_name='meteorpi', camera_id='Undefined'):
         """
         Create a new db instance. This connects to the specified firebird database and retains a connection which is
         then used by methods in this class when querying or updating the database.
 
-        :param string db_path:
-            String passed to the firebird database driver and specifying a file location. Defaults to
-        :param string file_store_path:
-            File data is stored on the file system in a flat structure within the specified directory. If this location
-            doesn't exist it will be created, along with any necessary parent directories.
-        :param string db_user:
-            User for the database, defaults to 'meteorpi'
-        :param string db_password:
-            Password for the database, defaults to 'meteorpi'
-        :param string installation_id:
-            12 Character string containing the installation ID which will be used as the default when registering new
-            files and events to this database. If set to none this will default to an attempt to calculate the ID from
-            the MAC address of the first network interface found.
+        :param file_store_path:
+            Path to the file store on disk
+        :param db_host:
+            Host of the database
+        :param db_user:
+            User login to the database
+        :param db_password:
+            Password for the database
+        :param db_name:
+            Database name
+        :param string camera_id:
+            The local camera ID
         """
-        self.con = fdb.connect(
-            dsn=db_path,
-            user='meteorpi',
-            password='meteorpi')
-        self.db_path = db_path
+        self.db = MySQLdb.connect(host=db_host, user=db_user, passwd=db_password, db=db_name)
+        self.con = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+
         if not path.exists(file_store_path):
             os.makedirs(file_store_path)
         if not path.isdir(file_store_path):
-            raise ValueError(
-                'File store path already exists but is not a directory!')
+            raise ValueError('File store path already exists but is not a directory!')
         self.file_store_path = file_store_path
-        self.generators = MeteorDatabaseGenerators(db=self)
-        if installation_id is None:
-            def _to_array(number):
-                result = ''
-                n = number
-                while n > 0:
-                    (div, mod) = divmod(n, 256)
-                    n = (n - mod) / 256
-                    result = ('%0.2x' % mod) + result
-                return result
-
-            installation_id = _to_array(uuid.getnode())
-        if len(installation_id) != 12:
-            raise ValueError("Installation ID must be exactly 12 characters long, but was {0}".format(installation_id))
-        self.installation_id = installation_id
+        self.db_host = db_host
+        self.db_user = db_user
+        self.db_password = db_password
+        self.db_name = db_name
+        self.camera_id = camera_id
+        self.generators = MeteorDatabaseGenerators(self.db, self.con)
 
     def __str__(self):
         """Simple string representation of this db object
@@ -85,47 +77,56 @@ class MeteorDatabase(object):
         :return:
             info about the db path and file store location
         """
-        return 'MeteorDatabase(db={0}, file_store_path={1}'.format(
-            self.db_path,
-            self.file_store_path)
+        return ('MeteorDatabase(file_store_path={0}, db_path={1}, db_host={2}, db_user={3}, db_password={4}, '
+                'db_name={5}, camera_id={6})'.format(
+                self.file_store_path,
+                self.db_host,
+                self.db_user,
+                self.db_password,
+                self.db_name,
+                self.camera_id))
 
-    def file_path_for_id(self, file_id):
+    def file_path_for_id(self, repository_fname):
         """
         Get the system file path for a given file ID. Does not guarantee that the file exists!
 
-        :param uuid.UUID file_id:
+        :param string repository_fname:
             ID of a file (which may or may not exist, this method doesn't check)
         :return:
             System file path for the file
         """
-        return path.join(self.file_store_path, file_id.hex)
+        return path.join(self.file_store_path, repository_fname)
 
-    def has_file_id(self, file_id):
+    def has_file_id(self, repository_fname):
         """
         Check for the presence of the given file_id
 
-        :param uuid.UUID event_id:
+        :param string repository_fname:
             The file ID
         :return:
             True if we have a :class:`meteorpi_model.FileRecord` with this ID, False otherwise
         """
-        with closing(self.con.cursor()) as cursor:
-            cursor.execute('SELECT * FROM t_file WHERE fileID = (?)', (file_id.bytes,))
-            return cursor.fetchone() is not None
+        self.con.execute('SELECT COUNT(*) FROM archive_files WHERE repositoryFname = %s', (repository_fname,))
+        return self.con.fetchone()['COUNT(*)']>0
 
-    def get_file(self, file_id):
+    def get_file(self, repository_fname):
         """
         Retrieve an existing :class:`meteorpi_model.FileRecord` by its ID
 
-        :param uuid.UUID file_id:
-            UUID of the file record
+        :param string repository_fname:
+            The file ID
         :return:
             A :class:`meteorpi_model.FileRecord` instance, or None if not found
         """
-        sql = 'SELECT t.internalID, t.cameraID, t.mimeType, ' \
-              't.semanticType, t.fileTime, t.fileSize, t.fileID, t.fileName, s.statusID, t.MD5HEX ' \
-              'FROM t_file t, t_cameraStatus s WHERE t.fileID=(?) AND t.statusID = s.internalID'
-        return first_from_generator(self.generators.file_generator(sql=sql, sql_args=(file_id.bytes,)))
+        search = mp.FileRecordSearch(repository_fname=repository_fname)
+        b = search_files_sql_builder(search)
+        sql = b.get_select_sql(columns='f.observationId, f.mimeType, f.fileName, f.semanticType, f.fileTime, '
+                                       'f.fileSize, f.fileMD5, l.publicId AS camera_id, l.name AS camera_name',
+                               skip=0, limit=1, order='f.fileTime DESC')
+        files = list(self.generators.file_generator(sql=sql, sql_args=b.sql_args))
+        if not files:
+            return None
+        return files[0]
 
     def search_files(self, search):
         """
@@ -138,8 +139,8 @@ class MeteorDatabase(object):
             :class:`meteorpi_model.FileRecord`}
         """
         b = search_files_sql_builder(search)
-        sql = b.get_select_sql(columns='f.internalID, f.cameraID, f.mimeType, f.semanticType, f.fileTime, '
-                                       'f.fileSize, f.fileID, f.fileName, s.statusID, f.md5Hex',
+        sql = b.get_select_sql(columns='f.observationId, f.mimeType, f.fileName, f.semanticType, f.fileTime, '
+                                       'f.fileSize, f.fileMD5, l.publicId AS camera_id, l.name AS camera_name',
                                skip=search.skip,
                                limit=search.limit,
                                order='f.fileTime DESC')
@@ -147,9 +148,8 @@ class MeteorDatabase(object):
         rows_returned = len(files)
         total_rows = rows_returned + search.skip
         if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
-            with closing(self.con.cursor()) as cur:
-                cur.execute(b.get_count_sql(), b.sql_args)
-                total_rows = cur.fetchone()[0]
+                self.con.execute(b.get_count_sql(), b.sql_args)
+                total_rows = self.con.fetchone()[0]
         return {"count": total_rows,
                 "files": files}
 
@@ -177,7 +177,7 @@ class MeteorDatabase(object):
         """
         # Check the file exists, and retrieve its size
         if camera_id is None:
-            camera_id = self.installation_id
+            camera_id = self.camera_id
         if not path.exists(file_path):
             raise ValueError('No file exists at {0}'.format(file_path))
         file_size_bytes = os.stat(file_path).st_size
@@ -406,7 +406,7 @@ class MeteorDatabase(object):
         if time is None:
             time = mp.now()
         if camera_id is None:
-            camera_id = self.installation_id
+            camera_id = self.camera_id
         sql = ('SELECT lens, sensor, instURL, instName, locationLatitude, '
                'locationLongitude, locationGPS, locationError, orientationAltitude, '
                'orientationAzimuth, orientationError, orientationRotation, widthOfField, validFrom, '
@@ -457,7 +457,7 @@ class MeteorDatabase(object):
         if time is None:
             time = mp.now()
         if camera_id is None:
-            camera_id = self.installation_id
+            camera_id = self.camera_id
         # Set the high water mark, allowing it to advance to this point or to rollback if
         # we have data products produced after this status' time.
         self.set_high_water_mark(camera_id=camera_id, time=time, allow_rollback=True, allow_advance=True)
@@ -1047,7 +1047,7 @@ class MeteorDatabase(object):
             A UTC datetime for the high water mark, or None if none was found.
         """
         if camera_id is None:
-            camera_id = self.installation_id
+            camera_id = self.camera_id
         with closing(self.con.cursor()) as cur:
             cur.execute(
                 'SELECT mark FROM t_highWaterMark t WHERE t.cameraID = (?)',
@@ -1070,7 +1070,7 @@ class MeteorDatabase(object):
         :internal:
         """
         if camera_id is None:
-            camera_id = self.installation_id
+            camera_id = self.camera_id
         last = self.get_high_water_mark(camera_id)
         with closing(self.con.trans()) as transaction:
             if last is None and allow_advance:
@@ -1132,7 +1132,7 @@ class MeteorDatabase(object):
         if time is None:
             time = mp.now()
         if camera_id is None:
-            camera_id = self.installation_id
+            camera_id = self.camera_id
         with closing(self.con.cursor()) as cur:
             cur.execute(
                 'SELECT internalID, statusID FROM t_cameraStatus t '

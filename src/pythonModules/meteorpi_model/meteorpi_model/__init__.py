@@ -1,4 +1,7 @@
-# MeteorPi API module
+# meteorpi_model
+
+# Classes which represent MeteorPi objects
+
 import numbers
 import time
 from hashlib import md5
@@ -147,7 +150,8 @@ class FileRecordSearch(ModelEqualityMixin):
     """
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, time_min=None,
-                 time_max=None, mime_type=None, semantic_type=None, observation_type=False,
+                 time_max=None, mime_type=None, semantic_type=None, observation_type=None,
+                 observation_id=None, repository_fname=None,
                  meta_constraints=None, limit=100, skip=0, exclude_export_to=None,
                  exclude_imported=False):
         """
@@ -182,6 +186,10 @@ class FileRecordSearch(ModelEqualityMixin):
         :param string observation_type:
             Optional - if True then files associated with an :class:`meteorpi_model.Event` will be excluded from the
             results, otherwise files will be included whether they are associated with an Event or not.
+        :param int observation_id:
+            Optional - return only files associated with a particular observation
+        :param string repository_fname:
+            Optional - fetch file with this repository filename
         :param list[MetaConstraint] meta_constraints:
             Optional - a list of :class:`meteorpi_model.MetaConstraint` objects providing restrictions over the file
             record metadata.
@@ -224,6 +232,8 @@ class FileRecordSearch(ModelEqualityMixin):
         self.limit = limit
         self.semantic_type = semantic_type
         self.observation_type = observation_type
+        self.observation_id = observation_id
+        self.repository_fname = repository_fname
         # Import / export related functions
         self.exclude_imported = exclude_imported
         self.exclude_export_to = exclude_export_to
@@ -261,6 +271,8 @@ class FileRecordSearch(ModelEqualityMixin):
         _add_value(d, 'limit', self.limit)
         _add_string(d, 'semantic_type', self.semantic_type)
         _add_string(d, 'observation_type', self.observation_type)
+        _add_value(d, 'observation_id', self.observation_id)
+        _add_string(d, 'repository_fname', self.repository_fname)
         _add_boolean(d, 'exclude_imported', self.exclude_imported)
         _add_string(d, 'exclude_export_to', self.exclude_export_to)
         d['meta'] = list((x.as_dict() for x in self.meta_constraints))
@@ -286,6 +298,8 @@ class FileRecordSearch(ModelEqualityMixin):
         limit = _value_from_dict(d, 'limit', 100)
         semantic_type = _string_from_dict(d, 'semantic_type')
         observation_type = _string_from_dict(d, 'observation_type')
+        observation_id = _value_from_dict(d, 'observation_id')
+        repository_fname = _string_from_dict(d, 'repository_fname')
         exclude_imported = _boolean_from_dict(d, 'exclude_imported')
         exclude_export_to = _string_from_dict(d, 'exclude_export_to')
         if 'meta' in d:
@@ -296,52 +310,11 @@ class FileRecordSearch(ModelEqualityMixin):
                                 long_max=long_max, time_min=time_min, time_max=time_max, mime_type=mime_type,
                                 semantic_type=semantic_type,
                                 observation_type=observation_type,
+                                observation_id=observation_id, repository_fname=repository_fname,
                                 meta_constraints=meta_constraints, limit=limit, skip=skip,
                                 exclude_imported=exclude_imported,
                                 exclude_export_to=exclude_export_to)
 
-
-class MetaConstraint(ModelEqualityMixin):
-    """Defines a constraint over metadata on a FileRecord or Event, used in the respective searches."""
-
-    def __init__(self, constraint_type, key, value):
-        """
-        Constructor
-
-        :param string constraint_type:
-            one of 'string_equals', 'number_equals', 'less', 'greater'
-        :param string key:
-            an :class:`meteorpi_model.NSString` containing the namespace prefixed string to use as a key
-        :param object value:
-            the value, for string_equals this is a String, and for 'less', 'greater' and 'number_equals' a number
-            (generally a :class:`float` or :class:`int`).
-        """
-        self.constraint_type = constraint_type
-        self.key = key
-        self.value = value
-
-    def as_dict(self):
-        c_type = self.constraint_type
-        d = {'key': str(self.key),
-             'type': c_type}
-        if c_type == 'less' or c_type == 'greater' or c_type == 'number_equals':
-            _add_value(d, 'value', self.value)
-        elif c_type == 'string_equals':
-            _add_string(d, 'value', self.value)
-        else:
-            raise ValueError("Unknown MetaConstraint constraint type!")
-        return d
-
-    @staticmethod
-    def from_dict(d):
-        c_type = _string_from_dict(d, 'type')
-        key = _string_from_dict(d, 'key')
-        if c_type == 'less' or c_type == 'greater' or c_type == 'number_equals':
-            return MetaConstraint(constraint_type=c_type, key=key, value=_value_from_dict(d, 'value'))
-        elif c_type == 'string_equals':
-            return MetaConstraint(constraint_type=c_type, key=key, value=_string_from_dict(d, 'value'))
-        else:
-            raise ValueError("Unknown MetaConstraint constraint type!")
 
 
 class ObservationSearch(ModelEqualityMixin):
@@ -485,8 +458,8 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
     database. If parameters are set to None this means they won't be used to restrict the possible set of results.
     """
 
-    def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, time_min=None,
-                 time_max=None, limit=100, skip=0, exclude_export_to=None, exclude_imported=False):
+    def __init__(self, camera_ids=None, field_name=None, lat_min=None, lat_max=None, long_min=None, long_max=None,
+                 time_min=None, time_max=None, limit=100, skip=0, exclude_export_to=None, exclude_imported=False):
         """
         Create a new ObservatoryMetadataSearch. All parameters are optional, a default search will be created which
         returns at most the first 100 instances. All parameters specify restrictions on these results.
@@ -494,6 +467,8 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
         :param list[string] camera_ids:
             Optional - if specified, restricts results to only the specified camera IDs which
             are expressed as an array of strings.
+        :param string field_name:
+            Optional - name of metadata field to search for
         :param float lat_min:
             Optional - if specified, only returns results where the latitude field of at least the specified value.
         :param float lat_max:
@@ -531,6 +506,7 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
         if isinstance(camera_ids, basestring):
             camera_ids = [camera_ids]
         self.camera_ids = camera_ids
+        self.field_name = field_name
         self.lat_min = lat_min
         self.lat_max = lat_max
         self.long_min = long_min
@@ -560,6 +536,7 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
         """
         d = {}
         _add_value(d, 'camera_ids', self.camera_ids)
+        _add_string(d, 'field_name', self.field_name)
         _add_value(d, 'lat_min', self.lat_min)
         _add_value(d, 'lat_max', self.lat_max)
         _add_value(d, 'long_min', self.long_min)
@@ -575,6 +552,7 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
     @staticmethod
     def from_dict(d):
         camera_ids = _value_from_dict(d, 'camera_ids')
+        field_name = _string_from_dict(d, 'field_name')
         lat_min = _value_from_dict(d, 'lat_min')
         lat_max = _value_from_dict(d, 'lat_max')
         long_min = _value_from_dict(d, 'long_min')
@@ -585,10 +563,53 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
         limit = _value_from_dict(d, 'limit', 100)
         exclude_imported = _boolean_from_dict(d, 'exclude_imported')
         exclude_export_to = _string_from_dict(d, 'exclude_export_to')
-        return ObservatoryMetadataSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
-                                         long_max=long_max, time_min=time_min, time_max=time_max,
+        return ObservatoryMetadataSearch(camera_ids=camera_ids, field_name=field_name, lat_min=lat_min, lat_max=lat_max,
+                                         long_min=long_min, long_max=long_max, time_min=time_min, time_max=time_max,
                                          limit=limit, skip=skip, exclude_imported=exclude_imported,
                                          exclude_export_to=exclude_export_to)
+
+
+class MetaConstraint(ModelEqualityMixin):
+    """Defines a constraint over metadata on a FileRecord or Event, used in the respective searches."""
+
+    def __init__(self, constraint_type, key, value):
+        """
+        Constructor
+
+        :param string constraint_type:
+            one of 'string_equals', 'number_equals', 'less', 'greater'
+        :param string key:
+            an :class:`meteorpi_model.NSString` containing the namespace prefixed string to use as a key
+        :param object value:
+            the value, for string_equals this is a String, and for 'less', 'greater' and 'number_equals' a number
+            (generally a :class:`float` or :class:`int`).
+        """
+        self.constraint_type = constraint_type
+        self.key = key
+        self.value = value
+
+    def as_dict(self):
+        c_type = self.constraint_type
+        d = {'key': str(self.key),
+             'type': c_type}
+        if c_type == 'less' or c_type == 'greater' or c_type == 'number_equals':
+            _add_value(d, 'value', self.value)
+        elif c_type == 'string_equals':
+            _add_string(d, 'value', self.value)
+        else:
+            raise ValueError("Unknown MetaConstraint constraint type!")
+        return d
+
+    @staticmethod
+    def from_dict(d):
+        c_type = _string_from_dict(d, 'type')
+        key = _string_from_dict(d, 'key')
+        if c_type == 'less' or c_type == 'greater' or c_type == 'number_equals':
+            return MetaConstraint(constraint_type=c_type, key=key, value=_value_from_dict(d, 'value'))
+        elif c_type == 'string_equals':
+            return MetaConstraint(constraint_type=c_type, key=key, value=_string_from_dict(d, 'value'))
+        else:
+            raise ValueError("Unknown MetaConstraint constraint type!")
 
 
 class Observation(ModelEqualityMixin):
@@ -712,15 +733,12 @@ class FileRecord(ModelEqualityMixin):
         format of the contents). This is a string, and can take any arbitrary value. You
         should consult the documentation for the particular project you're working with for more information on what
         might appear here.
-    :ivar list[Meta] meta:
-        List of zero or more :class:`meteorpi_model.Meta` objects. Meta objects are used to provide arbitrary extra,
-        searchable, information about the file and its contents.
     :ivar string file_md5:
         The hex representation of the MD5 sum for the file, as computed by model.get_md5_hash()
     """
 
     def __init__(self, camera_id, camera_name, repository_fname, file_time, file_size, file_name, mime_type,
-                 semantic_type, meta, file_md5=None):
+                 semantic_type, file_md5=None):
         self.camera_id = camera_id
         self.camera_name = camera_name
         self.repository_fname = repository_fname
@@ -729,13 +747,12 @@ class FileRecord(ModelEqualityMixin):
         self.file_name = file_name
         self.mime_type = mime_type
         self.semantic_type = semantic_type
-        self.meta = meta
-        self.md5 = file_md5
+        self.file_md5 = file_md5
 
     def __str__(self):
         return (
             'FileRecord(camera_id={0}, camera_name={1}, repository_fname={2}, file_time={3}, '
-            'file_size={4}, file_name={5}, mime_type={6}, semantic_type={7}, meta={8}, file_md5={9}'.format(
+            'file_size={4}, file_name={5}, mime_type={6}, semantic_type={7}, file_md5={8}'.format(
                     self.camera_id,
                     self.camera_name,
                     self.repository_fname,
@@ -744,8 +761,7 @@ class FileRecord(ModelEqualityMixin):
                     self.file_name,
                     self.mime_type,
                     self.semantic_type,
-                    str([str(obj) for obj in self.meta]),
-                    self.md5))
+                    self.file_md5))
 
     def as_dict(self):
         d = {}
@@ -757,8 +773,7 @@ class FileRecord(ModelEqualityMixin):
         _add_string(d, 'file_name', self.file_name)
         _add_string(d, 'mime_type', self.mime_type)
         _add_string(d, 'semantic_type', self.semantic_type)
-        _add_string(d, 'md5', self.md5)
-        d['meta'] = list(fm.as_dict() for fm in self.meta)
+        _add_string(d, 'file_md5', self.file_md5)
         return d
 
     @staticmethod
@@ -772,8 +787,7 @@ class FileRecord(ModelEqualityMixin):
                 file_name=_string_from_dict(d, 'file_name'),
                 mime_type=_string_from_dict(d, 'mime_type'),
                 semantic_type=_string_from_dict(d, 'semantic_type'),
-                meta=list((Meta.from_dict(m) for m in d['meta'])),
-                file_md5=_string_from_dict(d, 'md5')
+                file_md5=_string_from_dict(d, 'file_md5')
         )
 
 
@@ -785,6 +799,10 @@ class ObservatoryMetadata(ModelEqualityMixin):
         String ID of the observatory.
     :ivar string camera_name:
         Name of the observatory.
+    :ivar float camera_lat:
+        Latitude of the observatory (degrees north)
+    :ivar float camera_lng:
+        Longitude of the observatory (degrees east)
     :ivar string key:
         Name of the metadata key.
     :ivar object value:
@@ -797,9 +815,12 @@ class ObservatoryMetadata(ModelEqualityMixin):
         Username of the user who set this value
     """
 
-    def __init__(self, camera_id, camera_name, key, value, metadata_time, time_created, user_created):
+    def __init__(self, camera_id, camera_name, camera_lat, camera_lng, key, value,
+                 metadata_time, time_created, user_created):
         self.camera_id = camera_id
         self.camera_name = camera_name
+        self.camera_lat = camera_lat
+        self.camera_lng = camera_lng
         self.key = key
         self.value = value
         self.time = metadata_time
@@ -816,10 +837,13 @@ class ObservatoryMetadata(ModelEqualityMixin):
 
     def __str__(self):
         return (
-            'ObservatoryMetadata(camera_id={0}, camera_name={1}, key={2}, value={3}, '
-            'metadata_time={4}, time_created={5}, user_created={6}'.format(
+            'ObservatoryMetadata(camera_id={0}, camera_name={1}, camera_lat={2}, camera_lng={3}, '
+            'key={4}, value={5}, '
+            'metadata_time={6}, time_created={7}, user_created={8}'.format(
                     self.camera_id,
                     self.camera_name,
+                    self.camera_lat,
+                    self.camera_lng,
                     self.key,
                     self.value,
                     self.time,
@@ -830,6 +854,8 @@ class ObservatoryMetadata(ModelEqualityMixin):
         d = {}
         _add_string(d, 'camera_id', self.camera_id)
         _add_string(d, 'camera_name', self.camera_name)
+        _add_value(d, 'camera_lat', self.camera_lat)
+        _add_value(d, 'camera_lng', self.camera_lng)
         _add_string(d, 'key', self.key)
         _add_value(d, 'time', self.time)
         _add_value(d, 'time_created', self.time_created)
@@ -854,6 +880,8 @@ class ObservatoryMetadata(ModelEqualityMixin):
         return ObservatoryMetadata(
                 camera_id=_string_from_dict(d, 'camera_id'),
                 camera_name=_string_from_dict(d, 'camera_name'),
+                camera_lat=_value_from_dict(d, 'camera_lat'),
+                camera_lng=_value_from_dict(d, 'camera_lng'),
                 key=_string_from_dict(d, 'key'),
                 value=v,
                 metadata_time=_value_from_dict(d, 'time'),
@@ -864,9 +892,9 @@ class ObservatoryMetadata(ModelEqualityMixin):
 
 class Meta(ModelEqualityMixin):
     """
-    A single piece of metadata pertaining to a FileRecord or an Event.
+    A single piece of metadata pertaining to a FileRecord or an Observation.
 
-    :ivar NSString key:
+    :ivar string key:
         Name of this metadata property, specified as an NSString
     :ivar object value:
         Value of this property, this can be a Number or string

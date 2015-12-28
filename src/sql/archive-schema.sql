@@ -20,29 +20,34 @@ CREATE TABLE archive_user_sessions (
   logIn     REAL,
   lastSeen  REAL,
   logOut    REAL,
-  FOREIGN KEY (userId) REFERENCES archive_users (uid) ON DELETE CASCADE,
+  FOREIGN KEY (userId) REFERENCES archive_users (uid)
+    ON DELETE CASCADE,
   INDEX (cookie)
 );
 
 CREATE TABLE archive_roles (
-  uid INTEGER PRIMARY KEY AUTO_INCREMENT,
+  uid  INTEGER PRIMARY KEY AUTO_INCREMENT,
   name TEXT
 );
 
 CREATE TABLE archive_user_roles (
   userId INTEGER,
   roleId INTEGER,
-  FOREIGN KEY (userId) REFERENCES archive_users (uid) ON DELETE CASCADE,
-  FOREIGN KEY (roleId) REFERENCES archive_roles (uid) ON DELETE CASCADE,
+  FOREIGN KEY (userId) REFERENCES archive_users (uid)
+    ON DELETE CASCADE,
+  FOREIGN KEY (roleId) REFERENCES archive_roles (uid)
+    ON DELETE CASCADE,
   PRIMARY KEY (userId, roleId)
 );
 
 /* Table of cameras */
 CREATE TABLE archive_observatories (
-  uid      INTEGER PRIMARY KEY AUTO_INCREMENT,
-  publicId VARCHAR(16) NOT NULL,
-  name     TEXT,
-  INDEX(publicId)
+  uid       INTEGER PRIMARY KEY AUTO_INCREMENT,
+  publicId  CHAR(16) NOT NULL,
+  name      TEXT,
+  latitude  REAL,
+  longitude REAL,
+  INDEX (publicId)
 );
 
 /* Table of high water marks */
@@ -53,7 +58,7 @@ CREATE TABLE archive_highWaterMarkTypes (
 
 CREATE TABLE archive_highWaterMarks (
   observatoryId INTEGER,
-  markType      VARCHAR(16),
+  markType      INTEGER,
   time          REAL,
   FOREIGN KEY (observatoryId) REFERENCES archive_observatories (uid)
     ON DELETE CASCADE,
@@ -63,8 +68,8 @@ CREATE TABLE archive_highWaterMarks (
 
 /* Table of types of observation */
 CREATE TABLE archive_semanticTypes (
-  uid     INTEGER PRIMARY KEY AUTO_INCREMENT,
-  metaKey VARCHAR(255) NOT NULL
+  uid  INTEGER PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(255) NOT NULL
 );
 
 /* Table of observations */
@@ -73,18 +78,18 @@ CREATE TABLE archive_observations (
   publicId    VARCHAR(16) NOT NULL,
   observatory INTEGER     NOT NULL,
   userId      VARCHAR(16),
-  eventTime   REAL        NOT NULL,
-  eventType   INTEGER     NOT NULL,
+  obsTime     REAL        NOT NULL,
+  obsType     INTEGER     NOT NULL,
   FOREIGN KEY (observatory) REFERENCES archive_observatories (uid)
     ON DELETE CASCADE,
-  FOREIGN KEY (eventType) REFERENCES archive_semanticTypes (uid)
+  FOREIGN KEY (obsType) REFERENCES archive_semanticTypes (uid)
     ON DELETE CASCADE,
-  INDEX(publicId)
+  INDEX (publicId)
 );
 
 /* Number of likes each observation has */
 CREATE TABLE archive_obs_likes (
-  userId       INTEGER,
+  userId        INTEGER,
   observationId INTEGER,
   PRIMARY KEY (userId, observationId),
   FOREIGN KEY (userId) REFERENCES archive_users (uid)
@@ -102,15 +107,13 @@ CREATE TABLE archive_metadataFields (
 CREATE TABLE archive_metadata (
   uid           INTEGER PRIMARY KEY AUTO_INCREMENT,
   fieldId       INTEGER,
-  time          REAL, /* time that metadata is relavant for */
+  time          REAL, /* time that metadata is relevant for */
   setAtTime     REAL, /* time that metadata was computed */
   setByUser     VARCHAR(16),
   stringValue   VARCHAR(255),
   floatValue    REAL,
   observationID INTEGER,
   observatory   INTEGER,
-  FOREIGN KEY (setByUser) REFERENCES archive_users (uid)
-    ON DELETE CASCADE,
   FOREIGN KEY (observatory) REFERENCES archive_observatories (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
@@ -132,22 +135,24 @@ CREATE TABLE archive_imageRegions (
 );
 
 /* Links to files in whatever external store we use */
-CREATE TABLE archive_file (
+CREATE TABLE archive_files (
   uid             INTEGER PRIMARY KEY AUTO_INCREMENT,
   observationId   INTEGER      NOT NULL,
   mimeType        VARCHAR(100) NOT NULL,
-  fileName        VARCHAR(255),
+  fileName        VARCHAR(255) NOT NULL,
   semanticType    INTEGER      NOT NULL,
   fileTime        REAL         NOT NULL,
   fileSize        INTEGER      NOT NULL,
   repositoryFname CHAR(32)     NOT NULL,
-  INDEX(repositoryFname)
+  fileMD5         CHAR(32)     NOT NULL, /* MD5 hash of file contents */
+  FOREIGN KEY (observationId) REFERENCES archive_observations (uid),
+  INDEX (repositoryFname)
 );
 
 /* Configuration used to export observations to an external server */
 CREATE TABLE archive_exportConfig (
   uid            INTEGER PRIMARY KEY AUTO_INCREMENT,
-  exportConfigID CHAR(16)      NOT NULL,
+  exportConfigId CHAR(16)      NOT NULL,
   exportType     VARCHAR(10)   NOT NULL,
   searchString   VARCHAR(2048) NOT NULL,
   targetURL      VARCHAR(255)  NOT NULL,
@@ -180,24 +185,23 @@ CREATE TABLE archive_observationImport (
     ON DELETE CASCADE
 );
 
-CREATE TABLE archive_fileExport (
+CREATE TABLE archive_metadataExport (
   uid          INTEGER PRIMARY KEY AUTO_INCREMENT,
-  fileID       INTEGER NOT NULL,
+  metadataId   INTEGER NOT NULL,
   exportConfig INTEGER NOT NULL, /* URL of the target import API */
-  exportTime   REAL    NOT NULL,
   exportState  INTEGER NOT NULL, /* 0 for complete, non-zero for active */
-  FOREIGN KEY (fileID) REFERENCES archive_file (uid)
+  FOREIGN KEY (metadataId) REFERENCES archive_metadata (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (exportConfig) REFERENCES archive_exportConfig (uid)
     ON DELETE CASCADE
 );
 
-CREATE TABLE archive_fileImport (
+CREATE TABLE archive_metadataImport (
   uid        INTEGER PRIMARY KEY AUTO_INCREMENT,
-  fileID     INTEGER      NOT NULL,
+  metadataId INTEGER      NOT NULL,
   importUser VARCHAR(255) NOT NULL, /* User ID of the user performing the import */
   importTime REAL         NOT NULL,
-  FOREIGN KEY (fileID) REFERENCES archive_file (uid)
+  FOREIGN KEY (metadataId) REFERENCES archive_metadata (uid)
     ON DELETE CASCADE
 );
 
