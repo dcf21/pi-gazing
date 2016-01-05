@@ -1,12 +1,14 @@
-# mod_gps.py
+#!../../virtual-env/bin/python
+# gpsFix.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
 import dateutil.parser
 import threading
 import time
+import json
 
-from gpsd.gps import *
+from gpsd.gps import gps
 
 
 class GpsPoller(threading.Thread):
@@ -47,14 +49,11 @@ def fetchGPSfix():
     while 1:
         x = gpsp.get_current_value()
         if x and ('mode' in x) and (x.mode == 3):
-            return [-gpsp.clockoffset, gpsp.latitude, gpsp.longitude]
+            return {'offset':-gpsp.clockoffset, 'latitude':gpsp.latitude, 'longitude':gpsp.longitude}
         if (time.time() > tstart + 30):
             return False  # Give up after 30 seconds
         time.sleep(2)
 
 
 if __name__ == '__main__':
-    while 1:
-        # In the main thread, every 2 seconds print the current value
-        time.sleep(2)
-        print gpsp.get_current_value()
+    print json.dumps(fetchGPSfix())
