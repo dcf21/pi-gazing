@@ -120,9 +120,13 @@ WHERE m.observatory=%s
         results = self.con.fetchall()
         output = []
         for result in results:
+            if result['stringValue'] is None:
+                value = result['floatValue']
+            else:
+                value = result['stringValue']
             obsMeta = mp.ObservatoryMetadata(camera_id=result['camera_id'], camera_name=result['camera_name'],
                                                  camera_lat=result['camera_lat'], camera_lng=result['camera_lng'],
-                                                 key=result['metadata_key'], value=result['value'],
+                                                 key=result['metadata_key'], value=value,
                                                  metadata_time=result['time'], time_created=result['time_created'],
                                                  user_created=result['user_created'])
             output.append(obsMeta)

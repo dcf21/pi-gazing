@@ -3,6 +3,9 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
+import json
+import subprocess
+
 import meteorpi_db
 import meteorpi_model as mp
 
@@ -12,43 +15,38 @@ from mod_settings import *
 from mod_time import *
 import mod_hardwareProps
 
-db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
+if I_AM_A_RPI:
+    import mod_relay
+
+db_handle = meteorpi_db.MeteorDatabase(DBFILESTORE)
 hw_handle = mod_hardwareProps.hardwareProps(os.path.join(PYTHON_PATH, "..", "sensorProperties"))
 
 logTxt("Camera controller launched")
 
 os.system("mkdir -p %s/rawvideo" % DATA_PATH)
 
-# Work out where we are
-toffset = 0
-latitude = LATITUDE_DEFAULT
-longitude = LONGITUDE_DEFAULT
-flagGPS = 0
-
-if I_AM_A_RPI:
-    import mod_relay
-
+def get_gps_fix():
     logTxt("Waiting for GPS link")
     os.system("killall gpsd ; gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock")
-    import mod_gps
-
-    gpsFix = mod_gps.fetchGPSfix()
-    if gpsFix:
-        [toffset, latitude, longitude] = gpsFix
-        flagGPS = 1
+    gps_process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    gps_fix_json = gps_process.stdout.read()
+    gps_fix = json.loads(gps_fix_json)
+    if gps_fix:
+        toffset = gps_fix['offset']
+        latitude = gps_fix['latitude']
+        longitude = gps_fix['longitude']
         logTxt("GPS link achieved")
+        logTxt("Longitude = %.6f ; Latitude = %.6f ; Clock offset: %.2f sec behind." % (longitude, latitude, toffset))
+        setUTCoffset(toffset)
+        logTxt("Trying to update system clock")
+        time_now = getUTC()
+        os.system("date -s @%d" % time_now)
+        toffset = time.time() - time_now
+        logTxt("Revised clock offset after trying to set the system clock: %.2f sec behind." % toffset)
+        setUTCoffset(toffset)
     else:
         logTxt("Gave up waiting for a GPS link")
-else:
-    logTxt("We are not running on a RPi; so not bothering to try to get GPS link")
 
-logTxt("Longitude = %.6f ; Latitude = %.6f ; Clock offset: %.2f sec behind." % (longitude, latitude, toffset))
-setUTCoffset(toffset)
-timeNow = getUTC()
-os.system("date -s @%d" % timeNow)
-toffset = time.time() - timeNow
-logTxt("Revised clock offset after trying to set the system clock: %.2f sec behind." % toffset)
-setUTCoffset(toffset)
 
 # Update camera status with GPS position
 timenow = UTC2datetime(getUTC())

@@ -75,7 +75,7 @@ CREATE TABLE archive_semanticTypes (
 /* Table of observations */
 CREATE TABLE archive_observations (
   uid         INTEGER PRIMARY KEY AUTO_INCREMENT,
-  publicId    VARCHAR(16) NOT NULL,
+  publicId    CHAR(16) NOT NULL,
   observatory INTEGER     NOT NULL,
   userId      VARCHAR(16),
   obsTime     REAL        NOT NULL,
@@ -106,31 +106,20 @@ CREATE TABLE archive_metadataFields (
 
 CREATE TABLE archive_metadata (
   uid           INTEGER PRIMARY KEY AUTO_INCREMENT,
+  publicId      CHAR(16) NOT NULL,
   fieldId       INTEGER,
   time          REAL, /* time that metadata is relevant for */
   setAtTime     REAL, /* time that metadata was computed */
   setByUser     VARCHAR(16),
-  stringValue   VARCHAR(255),
+  stringValue   TEXT,
   floatValue    REAL,
-  observationID INTEGER,
+  observationId INTEGER,
   observatory   INTEGER,
   FOREIGN KEY (observatory) REFERENCES archive_observatories (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (fieldId) REFERENCES archive_metadataFields (uid)
-    ON DELETE CASCADE
-);
-
-/* Marked out regions of images */
-CREATE TABLE archive_imageRegions (
-  uid        INTEGER PRIMARY KEY AUTO_INCREMENT,
-  metadataId INTEGER           NOT NULL,
-  region     INTEGER           NOT NULL,
-  pointOrder INTEGER DEFAULT 0 NOT NULL,
-  x          INTEGER           NOT NULL,
-  y          INTEGER           NOT NULL,
-  FOREIGN KEY (metadataId) REFERENCES archive_metadata (uid)
     ON DELETE CASCADE
 );
 

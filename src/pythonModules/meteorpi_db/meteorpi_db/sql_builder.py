@@ -18,7 +18,8 @@ def search_observations_sql_builder(search):
 INNER JOIN archive_semanticTypes s ON o.obsType=s.uid
 INNER JOIN archive_observatories l ON o.observatory=l.uid""", where_clauses=[])
     b.add_set_membership(search.camera_ids, 'l.publicId')
-    b.add_sql(search.obs_type, 's.name = %s')
+    b.add_sql(search.observation_type, 's.name = %s')
+    b.add_sql(search.observation_id, 'o.publicId = %s')
     b.add_sql(search.time_min, 'e.eventTime > %s')
     b.add_sql(search.time_max, 'e.eventTime < %s')
     b.add_sql(search.lat_min, 'l.latitude >= %s')
@@ -56,6 +57,7 @@ INNER JOIN archive_observations o ON f.observationId=o.uid
 INNER JOIN archive_semanticTypes s ON o.obsType=s.uid
 INNER JOIN archive_observatories l ON o.observatory=l.uid""", where_clauses=[])
     b.add_set_membership(search.camera_ids, 'l.publicId')
+    b.add_sql(search.repository_fname, 'f.repositoryFname = %s')
     b.add_sql(search.observation_type, 's.name = %s')
     b.add_sql(search.observation_id, 'o.uid = %s')
     b.add_sql(search.time_min, 'f.fileTime > %s')
@@ -104,6 +106,7 @@ INNER JOIN archive_observatories l ON m.observatory=l.uid""", where_clauses=["m.
     b.add_sql(search.lat_max, 'l.latitude <= %s')
     b.add_sql(search.long_min, 'l.longitude >= %s')
     b.add_sql(search.long_max, 'l.longitude <= %s')
+    b.add_sql(search.item_id, 'm.publicId = %s')
     b.add_metadata_query_properties(meta_constraints=search.meta_constraints)
 
     # Check for import / export filters

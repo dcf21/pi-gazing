@@ -8,7 +8,7 @@ import threading
 import time
 import json
 
-from gpsd.gps import gps
+from gpsd.gps import gps, WATCH_ENABLE
 
 
 class GpsPoller(threading.Thread):
@@ -39,6 +39,7 @@ class GpsPoller(threading.Thread):
 
 
 gpsp = GpsPoller()
+gpsp.daemon = True
 gpsp.start()
 
 

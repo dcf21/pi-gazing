@@ -324,7 +324,7 @@ class ObservationSearch(ModelEqualityMixin):
     """
 
     def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, time_min=None,
-                 time_max=None, observation_type=None, meta_constraints=None, limit=100,
+                 time_max=None, observation_type=None, observation_id=None, meta_constraints=None, limit=100,
                  skip=0, exclude_export_to=None, exclude_imported=False):
         """
         Create a new ObservationSearch. All parameters are optional, a default search will be created which returns
@@ -385,6 +385,7 @@ class ObservationSearch(ModelEqualityMixin):
         self.time_min = time_min
         self.time_max = time_max
         self.observation_type = observation_type
+        self.observation_id = observation_id
         self.limit = limit
         self.skip = skip
         # Import / export related functions
@@ -421,6 +422,7 @@ class ObservationSearch(ModelEqualityMixin):
         _add_value(d, 'skip', self.skip)
         _add_value(d, 'limit', self.limit)
         _add_string(d, 'observation_type', self.observation_type)
+        _add_string(d, 'observation_id', self.observation_id)
         _add_boolean(d, 'exclude_imported', self.exclude_imported)
         _add_string(d, 'exclude_export_to', self.exclude_export_to)
         d['meta'] = list((x.as_dict() for x in self.meta_constraints))
@@ -438,6 +440,7 @@ class ObservationSearch(ModelEqualityMixin):
         skip = _value_from_dict(d, 'skip', 0)
         limit = _value_from_dict(d, 'limit', 100)
         observation_type = _string_from_dict(d, 'observation_type')
+        observation_id = _string_from_dict(d, 'observation_id')
         exclude_imported = _boolean_from_dict(d, 'exclude_imported')
         exclude_export_to = _string_from_dict(d, 'exclude_export_to')
         if 'meta' in d:
@@ -447,7 +450,7 @@ class ObservationSearch(ModelEqualityMixin):
         return ObservationSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
                                  long_max=long_max, time_min=time_min, time_max=time_max,
                                  meta_constraints=meta_constraints,
-                                 observation_type=observation_type,
+                                 observation_type=observation_type, observation_id=observation_id,
                                  limit=limit, skip=skip, exclude_imported=exclude_imported,
                                  exclude_export_to=exclude_export_to)
 
@@ -459,7 +462,8 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
     """
 
     def __init__(self, camera_ids=None, field_name=None, lat_min=None, lat_max=None, long_min=None, long_max=None,
-                 time_min=None, time_max=None, limit=100, skip=0, exclude_export_to=None, exclude_imported=False):
+                 time_min=None, time_max=None, item_id=None,
+                 limit=100, skip=0, exclude_export_to=None, exclude_imported=False):
         """
         Create a new ObservatoryMetadataSearch. All parameters are optional, a default search will be created which
         returns at most the first 100 instances. All parameters specify restrictions on these results.
@@ -513,6 +517,7 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
         self.long_max = long_max
         self.time_min = time_min
         self.time_max = time_max
+        self.item_id = item_id
         self.limit = limit
         self.skip = skip
         # Import / export related functions
@@ -543,6 +548,7 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
         _add_value(d, 'long_max', self.long_max)
         _add_value(d, 'time_min', self.time_min)
         _add_value(d, 'time_max', self.time_max)
+        _add_string(d, 'item_id', self.item_id)
         _add_value(d, 'skip', self.skip)
         _add_value(d, 'limit', self.limit)
         _add_boolean(d, 'exclude_imported', self.exclude_imported)
@@ -559,12 +565,14 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
         long_max = _value_from_dict(d, 'long_max')
         time_min = _value_from_dict(d, 'time_min')
         time_max = _value_from_dict(d, 'time_max')
+        item_id = _string_from_dict(d, 'item_id')
         skip = _value_from_dict(d, 'skip', 0)
         limit = _value_from_dict(d, 'limit', 100)
         exclude_imported = _boolean_from_dict(d, 'exclude_imported')
         exclude_export_to = _string_from_dict(d, 'exclude_export_to')
         return ObservatoryMetadataSearch(camera_ids=camera_ids, field_name=field_name, lat_min=lat_min, lat_max=lat_max,
                                          long_min=long_min, long_max=long_max, time_min=time_min, time_max=time_max,
+                                         item_id=item_id,
                                          limit=limit, skip=skip, exclude_imported=exclude_imported,
                                          exclude_export_to=exclude_export_to)
 
@@ -713,6 +721,8 @@ class FileRecord(ModelEqualityMixin):
         String ID of the observatory which produced this file.
     :ivar string camera_name:
         Name of the observatory which produced this file.
+    :ivar string observation_id:
+        Observation of which this file is a part
     :ivar string repository_fname:
         File name of the file in the repository.
     :ivar float file_time:
@@ -737,10 +747,11 @@ class FileRecord(ModelEqualityMixin):
         The hex representation of the MD5 sum for the file, as computed by model.get_md5_hash()
     """
 
-    def __init__(self, camera_id, camera_name, repository_fname, file_time, file_size, file_name, mime_type,
-                 semantic_type, file_md5=None):
+    def __init__(self, camera_id, camera_name, observation_id, repository_fname, file_time, file_size, file_name,
+                 mime_type, semantic_type, file_md5=None):
         self.camera_id = camera_id
         self.camera_name = camera_name
+        self.observation_id = observation_id
         self.repository_fname = repository_fname
         self.file_time = file_time
         self.file_size = file_size
@@ -751,10 +762,11 @@ class FileRecord(ModelEqualityMixin):
 
     def __str__(self):
         return (
-            'FileRecord(camera_id={0}, camera_name={1}, repository_fname={2}, file_time={3}, '
-            'file_size={4}, file_name={5}, mime_type={6}, semantic_type={7}, file_md5={8}'.format(
+            'FileRecord(camera_id={0}, camera_name={1}, observation_id={2}, repository_fname={3}, file_time={4}, '
+            'file_size={5}, file_name={6}, mime_type={7}, semantic_type={8}, file_md5={9}'.format(
                     self.camera_id,
                     self.camera_name,
+                    self.observation_id,
                     self.repository_fname,
                     self.file_time,
                     self.file_size,
@@ -767,6 +779,7 @@ class FileRecord(ModelEqualityMixin):
         d = {}
         _add_string(d, 'camera_id', self.camera_id)
         _add_string(d, 'camera_name', self.camera_name)
+        _add_string(d, 'observation_id', self.observation_id)
         _add_string(d, 'repository_fname', self.repository_fname)
         _add_value(d, 'file_time', self.file_time)
         _add_value(d, 'file_size', self.file_size)
@@ -781,6 +794,7 @@ class FileRecord(ModelEqualityMixin):
         return FileRecord(
                 camera_id=_string_from_dict(d, 'camera_id'),
                 camera_name=_string_from_dict(d, 'camera_name'),
+                observation_id=_string_from_dict(d, 'observation_id'),
                 repository_fname=_string_from_dict(d, 'repository_fname'),
                 file_time=_value_from_dict(d, 'file_time'),
                 file_size=_value_from_dict(d, 'file_size'),

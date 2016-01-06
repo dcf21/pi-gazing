@@ -1,19 +1,22 @@
+# meteorpi_db
+
+# Classes which interact with the MeteorPi database
+
+import os
+import sys
+import MySQLdb
 import shutil
 import uuid
 from contextlib import closing
 import json
 
 from passlib.hash import pbkdf2_sha256
-import os.path as path
-import os
-import MySQLdb
 import meteorpi_model as mp
 from meteorpi_db.generators import first_from_generator, first_non_null, MeteorDatabaseGenerators
-from meteorpi_db.sql_builder import search_events_sql_builder, search_files_sql_builder
-from backports.functools_lru_cache import lru_cache
+from meteorpi_db.sql_builder import search_observations_sql_builder, search_files_sql_builder, search_metadata_sql_builder
 from meteorpi_db.exporter import FileExportTask, EventExportTask
 
-SOFTWARE_VERSION = 1
+SOFTWARE_VERSION = 2
 
 class MeteorDatabase(object):
     """
@@ -38,7 +41,7 @@ class MeteorDatabase(object):
     """
 
     def __init__(self, file_store_path, db_host='localhost', db_user='meteorpi', db_password='meteorpi',
-                 db_name='meteorpi', camera_id='Undefined'):
+                 db_name='meteorpi', camera_name='Undefined'):
         """
         Create a new db instance. This connects to the specified firebird database and retains a connection which is
         then used by methods in this class when querying or updating the database.
@@ -53,22 +56,22 @@ class MeteorDatabase(object):
             Password for the database
         :param db_name:
             Database name
-        :param string camera_id:
+        :param string camera_name:
             The local camera ID
         """
         self.db = MySQLdb.connect(host=db_host, user=db_user, passwd=db_password, db=db_name)
         self.con = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
 
-        if not path.exists(file_store_path):
+        if not os.path.exists(file_store_path):
             os.makedirs(file_store_path)
-        if not path.isdir(file_store_path):
+        if not os.path.isdir(file_store_path):
             raise ValueError('File store path already exists but is not a directory!')
         self.file_store_path = file_store_path
         self.db_host = db_host
         self.db_user = db_user
         self.db_password = db_password
         self.db_name = db_name
-        self.camera_id = camera_id
+        self.camera_name = camera_name
         self.generators = MeteorDatabaseGenerators(self.db, self.con)
 
     def __str__(self):
@@ -78,14 +81,59 @@ class MeteorDatabase(object):
             info about the db path and file store location
         """
         return ('MeteorDatabase(file_store_path={0}, db_path={1}, db_host={2}, db_user={3}, db_password={4}, '
-                'db_name={5}, camera_id={6})'.format(
+                'db_name={5}, camera_name={6})'.format(
                 self.file_store_path,
                 self.db_host,
                 self.db_user,
                 self.db_password,
                 self.db_name,
-                self.camera_id))
+                self.camera_name))
 
+    # Functions relating to observatories
+    def has_camera_id(self, camera_id):
+        self.con.execute('SELECT 1 FROM archive_observatories WHERE publicId=%s;', (camera_id,))
+        return len(self.con.fetchall())>0
+
+    def has_camera_name(self, camera_name):
+        self.con.execute('SELECT 1 FROM archive_observatories WHERE name=%s;', (camera_name,))
+        return len(self.con.fetchall())>0
+
+    def get_camera_from_name(self, camera_name):
+        self.con.execute('SELECT * FROM archive_observatories WHERE name=%s;', (camera_name,))
+        results = self.con.fetchall()
+        if len(results)<1:
+            raise ValueError("No such camera: %s"%camera_name)
+        return results[0]
+
+    def get_camera_from_id(self, camera_id):
+        self.con.execute('SELECT * FROM archive_observatories WHERE publicId=%s;', (camera_id,))
+        results = self.con.fetchall()
+        if len(results)<1:
+            raise ValueError("No such camera: %s" % camera_id)
+        return results[0]
+
+    def register_camera(self, camera_name, latitude, longitude):
+        camera_id = uuid.uuid4().hex[:16]
+        self.con.execute("""
+INSERT INTO archive_observatories
+(publicId, name, latitude, longitude)
+VALUES
+(%s, %s, %s, %s);
+""", (camera_id, camera_name, latitude, longitude))
+        return camera_id
+
+
+    # Functions relating to metadata keys
+    def get_metadata_key_id(self, metakey):
+        self.con.execute("SELECT uid FROM archive_metadataFields WHERE metaKey=%s;", (metakey,))
+        results = self.con.fetchall()
+        if len(results)<1:
+            self.con.execute("INSERT INTO archive_metadataFields (metaKey) VALUES (%s);", (metakey,))
+            self.con.execute("SELECT uid FROM archive_metadataFields WHERE metaKey=%s;", (metakey,))
+            results = self.con.fetchall()
+        return results[0]['uid']
+
+    # Functions relating to file objects
     def file_path_for_id(self, repository_fname):
         """
         Get the system file path for a given file ID. Does not guarantee that the file exists!
@@ -95,7 +143,7 @@ class MeteorDatabase(object):
         :return:
             System file path for the file
         """
-        return path.join(self.file_store_path, repository_fname)
+        return os.path.join(self.file_store_path, repository_fname)
 
     def has_file_id(self, repository_fname):
         """
@@ -106,8 +154,8 @@ class MeteorDatabase(object):
         :return:
             True if we have a :class:`meteorpi_model.FileRecord` with this ID, False otherwise
         """
-        self.con.execute('SELECT COUNT(*) FROM archive_files WHERE repositoryFname = %s', (repository_fname,))
-        return self.con.fetchone()['COUNT(*)']>0
+        self.con.execute('SELECT 1 FROM archive_files WHERE repositoryFname = %s', (repository_fname,))
+        return len(self.con.fetchall())>0
 
     def get_file(self, repository_fname):
         """
@@ -153,7 +201,7 @@ class MeteorDatabase(object):
         return {"count": total_rows,
                 "files": files}
 
-    def register_file(self, file_path, mime_type, semantic_type, file_time, file_metas, camera_id=None, file_name=None):
+    def register_file(self, observation_id, file_path, file_time, mime_type, semantic_type):
         """
         Register a file in the database, also moving the file into the file store. Returns the corresponding FileRecord
         object.
@@ -162,108 +210,95 @@ class MeteorDatabase(object):
             The path of the file on disk to register. This file will be moved into the file store and renamed.
         :param string mime_type:
             MIME type of the file
-        :param NSString semantic_type:
-            A :class:`meteorpi_model.NSString` defining the semantic type of the file
-        :param datetime file_time:
-            UTC datetime for the file
-        :param list[Meta] file_metas:
-            A list of :class:`meteorpi_model.Meta` describing additional properties of the file
-        :param string camera_id:
-            The camera ID which created this file. If not specified defaults to the current installation ID
-        :param string file_name:
-            An optional file name, primarily used to display in the UI and provide help when downloading.
+        :param string semantic_type:
+            A string defining the semantic type of the file
+        :param float file_time:
+            UTC datetime of the import of the file into the database
         :return:
             The resultant :class:`meteorpi_model.FileRecord` as stored in the database
         """
-        # Check the file exists, and retrieve its size
-        if camera_id is None:
-            camera_id = self.camera_id
-        if not path.exists(file_path):
+
+        # Check that file exists
+        if not os.path.exists(file_path):
             raise ValueError('No file exists at {0}'.format(file_path))
+
+        # Get checksum for file, and size
         file_size_bytes = os.stat(file_path).st_size
         md5 = mp.get_md5_hash(file_path)
-        # Handle the database parts
-        status_id = self._get_camera_status_id(camera_id=camera_id, time=file_time)
-        if status_id is None:
-            raise ValueError('No status defined for camera id {0} at time {1}!'.format(camera_id, file_time))
-        with closing(self.con.trans()) as transaction:
-            with closing(transaction.cursor()) as cur:
-                day_and_offset = mp.get_day_and_offset(file_time)
-                cur.execute(
-                    'INSERT INTO t_file (cameraID, mimeType, '
-                    'semanticType, fileTime, fileOffset, fileSize, statusID, fileName, md5Hex) '
-                    'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) '
-                    'RETURNING internalID, fileID, fileTime',
-                    (camera_id,
-                     mime_type,
-                     str(semantic_type),
-                     mp.utc_datetime_to_milliseconds(file_time),
-                     day_and_offset['seconds'],
-                     file_size_bytes,
-                     status_id['internal_id'],
-                     file_name,
-                     md5))
-                row = cur.fetchonemap()
-                # Retrieve the internal ID of the file row to link fileMeta if required
-                file_internal_id = row['internalID']
-                # Retrieve the generated file ID, used to build the File object and to
-                # name the source file
-                file_id = uuid.UUID(bytes=row['fileID'])
-                # Retrieve the file time as stored in the DB
-                stored_file_time = row['fileTime']
-                result_file = mp.FileRecord(camera_id=camera_id, mime_type=mime_type, semantic_type=semantic_type,
-                                            status_id=status_id['status_id'], md5=md5)
-                result_file.file_time = mp.milliseconds_to_utc_datetime(stored_file_time)
-                result_file.file_id = file_id
-                result_file.file_size = file_size_bytes
-                # Store the fileMeta
-                for file_meta_index, file_meta in enumerate(file_metas):
-                    cur.execute(
-                        'INSERT INTO t_fileMeta '
-                        '(fileID, metaKey, stringValue, floatValue, dateValue, metaIndex) '
-                        'VALUES (?, ?, ?, ?, ?, ?)',
-                        (file_internal_id,
-                         str(file_meta.key),
-                         file_meta.string_value(),
-                         file_meta.float_value(),
-                         mp.utc_datetime_to_milliseconds(file_meta.date_value()),
-                         file_meta_index))
-                    result_file.meta.append(
-                        mp.Meta(key=file_meta.key, value=file_meta.value))
-            transaction.commit()
+        file_name = os.path.split(file_path)[1]
+
+        # Fetch information about parent observation
+        self.con.execute("""
+SELECT obsTime, l.publicId AS camera_id, l.name AS camera_name FROM archive_observations o
+INNER JOIN archive_observatories l ON observatory=l.uid
+WHERE o.publicId=%s
+""", (observation_id,))
+        obs = self.con.fetchall()
+        if len(obs)==0:
+            raise ValueError("No observation with ID <%s>"%observation_id)
+        obs = obs[0]
+        repository_fname = mp.getHash(obs['obsTime'], obs['publicId'], file_name)
+
+        # Insert into database
+        self.con.execute("""
+INSERT INTO archive_files
+(observationId, mimeType, fileName, semanticType, fileTime, fileSize, repositoryFname, fileMD5)
+VALUES
+(%s, %s, %s, %s, %s, %s, %s, %s);
+""", (observation_id, mime_type, file_name, semantic_type, file_time, file_size_bytes, repository_fname, md5))
+
         # Move the original file from its path
-        target_file_path = path.join(self.file_store_path, result_file.file_id.hex)
-        shutil.move(file_path, target_file_path)
+        target_file_path = os.path.join(self.file_store_path, repository_fname)
+        try:
+            shutil.move(file_path, target_file_path)
+        except:
+            sys.stderr.write("Could not move file into repository\n")
+
+        result_file = mp.FileRecord(camera_id=obs['camera_id'],
+                                    camera_name=obs['camera_name'],
+                                    observation_id=observation_id,
+                                    repository_fname=repository_fname,
+                                    file_time=file_time,
+                                    file_size=file_size_bytes,
+                                    file_name=file_name,
+                                    mime_type=mime_type,
+                                    semantic_type=semantic_type,
+                                    file_md5=md5
+                                    )
+
         # Return the resultant file object
         return result_file
 
-    def has_event_id(self, event_id):
+    def has_observation_id(self, observation_id):
         """
         Check for the presence of the given event_id
 
-        :param uuid.UUID event_id:
-            The event ID
+        :param string observation_id:
+            The observation ID
         :return:
-            True if we have a :class:`meteorpi_model.Event` with this ID, False otherwise
+            True if we have a :class:`meteorpi_model.Observation` with this Id, False otherwise
         """
-        with closing(self.con.cursor()) as cursor:
-            cursor.execute('SELECT * FROM t_event WHERE eventID = (?)', (event_id.bytes,))
-            return cursor.fetchone() is not None
+        self.con.execute('SELECT 1 FROM archive_observations WHERE publicId = %s', (observation_id,))
+        return len(self.con.fetchall())>0
 
-    def get_event(self, event_id):
+    def get_observation(self, observation_id):
         """
-        Retrieve an existing :class:`meteorpi_model.Event` by its ID
+        Retrieve an existing :class:`meteorpi_model.Observation` by its ID
 
-        :param uuid.UUID event_id:
-            UUID of the event
+        :param string observation_id:
+            UUID of the observation
         :return:
-            A :class:`meteorpi_model.Event` instance, or None if not found
+            A :class:`meteorpi_model.Observation` instance, or None if not found
         """
-        sql = 'SELECT e.cameraID, e.eventID, e.internalID, e.eventTime, ' \
-              'e.eventType, s.statusID ' \
-              'FROM t_event e, t_cameraStatus s ' \
-              'WHERE e.eventID = (?) AND s.internalID = e.statusID'
-        return first_from_generator(self.generators.event_generator(sql=sql, sql_args=(event_id.bytes,)))
+        search = mp.ObservationSearch(observation_id=observation_id)
+        b = search_observations_sql_builder(search)
+        sql = b.get_select_sql(columns='l.publicId AS camera_id, l.name AS camera_name, '
+                                       'o.obsTime, o.obsType, o.publicId',
+                               skip=0, limit=1, order='f.obsTime DESC')
+        obs = list(self.generators.observation_generator(sql=sql, sql_args=b.sql_args))
+        if not obs:
+            return None
+        return obs[0]
 
     def search_events(self, search):
         """
@@ -275,235 +310,203 @@ class MeteorDatabase(object):
             a structure of {count:int total rows of an unrestricted search, events:list of
             :class:`meteorpi_model.Event`}
         """
-        b = search_events_sql_builder(search)
-        sql = b.get_select_sql(columns='e.cameraID, e.eventID, e.internalID, e.eventTime, e.eventType, s.statusID',
-                               skip=search.skip,
-                               limit=search.limit,
-                               order='e.eventTime DESC')
-        events = list(self.generators.event_generator(sql, b.sql_args))
-        rows_returned = len(events)
+        b = search_observations_sql_builder(search)
+        sql = b.get_select_sql(columns='l.publicId AS camera_id, l.name AS camera_name, '
+                                       'o.obsTime, o.obsType, o.publicId',
+                               skip=0, limit=1, order='f.obsTime DESC')
+        obs = list(self.generators.observation_generator(sql=sql, sql_args=b.sql_args))
+        rows_returned = len(obs)
         total_rows = rows_returned + search.skip
         if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
-            with closing(self.con.cursor()) as count_cur:
-                count_cur.execute(b.get_count_sql(), b.sql_args)
-                total_rows = count_cur.fetchone()[0]
+            self.con.execute(b.get_count_sql(), b.sql_args)
+            total_rows = self.con.fetchone()[0]
         return {"count": total_rows,
-                "events": events}
+                "obs": obs}
 
-    def register_event(self, camera_id, event_time, event_type, file_records=None, event_meta=None):
+    def register_observation(self, camera_name, user_id, time_set, obs_time, obs_type, obs_meta=None):
         """
         Register a new event, updating the database and returning the corresponding Event object
 
-        :param string camera_id:
+        :param string camera_name:
             The ID of the camera which produced this event
-        :param datetime event_time:
-            The UTC datetime of the event
-        :param NSString event_type:
-            A :class:`meteorpi_model.NSString` describing the semantic type of this event
-        :param file_records:
-            A list of :class:`meteorpi_model.FileRecord` associated with this event. These must already exist, typically
-            multiple calls would be made to register_file() before registering the associated event
-        :param event_meta:
+        :param string user_id:
+            The ID of the user who created this observation
+        :param float obs_time:
+            The UTC date/time of the observation
+        :param string obs_type:
+            A string describing the semantic type of this observation
+        :param list obs_meta:
             A list of :class:`meteorpi_model.Meta` used to provide additional information about this event
         :return:
-            The :class:`meteorpi_model.Event` as stored in the database
+            The :class:`meteorpi_model.Observation` as stored in the database
         """
-        if file_records is None:
-            file_records = []
-        if event_meta is None:
-            event_meta = []
-        status_id = self._get_camera_status_id(camera_id=camera_id, time=event_time)
-        if status_id is None:
-            raise ValueError('No status defined for camera id <%s> at time <%s>!' % (camera_id, event_time))
-        with closing(self.con.trans()) as transaction:
-            with closing(transaction.cursor()) as cur:
-                day_and_offset = mp.get_day_and_offset(event_time)
-                cur.execute(
-                    'INSERT INTO t_event (cameraID, eventTime, eventOffset, eventType, '
-                    'statusID) '
-                    'VALUES (?, ?, ?, ?, ?) '
-                    'RETURNING internalID, eventID, eventTime',
-                    (camera_id,
-                     mp.utc_datetime_to_milliseconds(event_time),
-                     day_and_offset['seconds'],
-                     str(event_type),
-                     status_id['internal_id']))
-                ids = cur.fetchone()
-                event_internal_id = ids[0]
-                event_id = uuid.UUID(bytes=ids[1])
-                event = mp.Event(camera_id=camera_id, event_time=mp.milliseconds_to_utc_datetime(ids[2]),
-                                 event_id=event_id, event_type=event_type, status_id=status_id['status_id'])
-                for file_record_index, file_record in enumerate(file_records):
-                    event.file_records.append(file_record)
-                    cur.execute(
-                        'SELECT internalID FROM t_file WHERE fileID = (?)',
-                        (file_record.file_id.bytes,
-                         ))
-                    file_internal_id = cur.fetchone()[0]
-                    cur.execute(
-                        'INSERT INTO t_event_to_file '
-                        '(fileID, eventID, sequenceNumber) '
-                        'VALUES (?, ?, ?)',
-                        (file_internal_id,
-                         event_internal_id,
-                         file_record_index))
-                # Store the event metadata
-                for meta_index, meta in enumerate(event_meta):
-                    cur.execute(
-                        'INSERT INTO t_eventMeta '
-                        '(eventID, metaKey, stringValue, floatValue, dateValue, metaIndex) '
-                        'VALUES (?, ?, ?, ?, ?, ?)',
-                        (event_internal_id,
-                         str(meta.key),
-                         meta.string_value(),
-                         meta.float_value(),
-                         mp.utc_datetime_to_milliseconds(meta.date_value()),
-                         meta_index))
-                    event.meta.append(
-                        mp.Meta(key=meta.key, value=meta.value))
-            transaction.commit()
-        return event
 
-    def get_cameras(self):
+        if obs_meta is None:
+            obs_meta = []
+
+        # Get camera id from name
+        camera = self.get_camera_from_name(camera_name)
+
+        # Create a unique ID for this observation
+        observation_id = mp.getHash(obs_time, camera['publicId'], obs_type)
+
+        # Insert into database
+        self.con.execute("""
+INSERT INTO archive_observations
+(publicId, observatory, userId, obsTime, obsType)
+VALUES
+(%s, %s, %s, %s, %s);
+""", (observation_id, camera['uid'], user_id, obs_time, obs_type))
+
+        # Store the observation metadata
+        for meta in obs_meta:
+            self.con.execute("""
+INSERT INTO archive_metadata (fieldId, time, setAtTime, setByUser, stringValue, floatValue, observationId)
+VALUES (%s, %s, %s, %s, %s, %s, %s)
+""", (self.get_metadata_key_id(meta.key),
+      obs_time,
+      time_set,
+      user_id,
+      meta.string_value(),
+      meta.float_value(),
+      observation_id))
+
+        observation = mp.Observation(camera_name=camera_name,
+                                     camera_id=camera['publicId'],
+                                     obs_time=obs_time,
+                                     obs_id=observation_id,
+                                     file_records=None,
+                                     meta=obs_meta)
+        return observation
+
+    def get_camera_ids(self):
         """
-        Retrieve the IDs of all cameras with active status blocks. As the model has changed somewhat since this code
-        was first written this in effect means the IDs of all cameras we've ever seen, as we no longer have a 'valid_to'
-        entry in the status table.
+        Retrieve the IDs of all cameras.
 
         :return:
-            A list of camera IDs for all cameras with status blocks
+            A list of camera IDs for all cameras
         """
-        with closing(self.con.cursor()) as cur:
-            cur.execute(
-                'SELECT DISTINCT cameraID FROM t_cameraStatus '
-                'ORDER BY cameraID DESC')
-            return map(lambda row: row[0], cur.fetchall())
+        self.con.execute('SELECT publicId FROM archive_observatories;')
+        return map(lambda row: row['publicId'], self.con.fetchall())
 
-    def has_status_id(self, status_id):
+    def has_camera_metadata(self, status_id):
         """
-        Check for the presence of the given status_id
+        Check for the presence of the given metadata item
 
-        :param uuid.UUID status_id:
-            The camera status ID
+        :param string status_id:
+            The metadata item ID
         :return:
-            True if we have a :class:`meteorpi_model.CameraStatus` with this ID, False otherwise
+            True if we have a metadata item with this ID, False otherwise
         """
-        with closing(self.con.cursor()) as cursor:
-            cursor.execute('SELECT * FROM t_cameraStatus WHERE statusID = (?)', (status_id.bytes,))
-            return cursor.fetchone() is not None
+        self.con.execute('SELECT 1 FROM archive_metadata WHERE publicId=%s;', (status_id,))
+        return len(self.con.fetchall())>0
 
-    def get_camera_status(self, time=None, camera_id=None):
-        """
-        Return the camera status for a given time, or None if no status is available.
+    def get_camera_metadata(self, item_id):
+        search = mp.ObservatoryMetadataSearch(item_id=item_id)
+        b = search_metadata_sql_builder(search)
+        sql = b.get_select_sql(columns='l.publicId AS camera_id, l.name AS camera_name, '
+                               'l.latitude AS camera_lat, l.longitude AS camera_lng'
+                               'stringValue, floatValue, '
+                               'f.name AS metadata_key, time, setAtTime AS time_created, setByUser AS user_created',
+                               skip=0, limit=1, order='f.fileTime DESC')
+        items = list(self.generators.camera_metadata_generator(sql=sql, sql_args=b.sql_args))
+        if not items:
+            return None
+        return items[0]
 
-        :param datetime.datetime time:
-            UTC time at which we want to know the camera status ID, defaults to model.now() if not specified
-        :param string camera_id:
-            The ID of the camera to query, defaults to the current installation ID if not specified
-        :return:
-            A :class:`meteorpi_model.CameraStatus` or None if no status was available
-        """
+    def search_camera_metadata(self, search):
+        b = search_metadata_sql_builder(search)
+        sql = b.get_select_sql(columns='l.publicId AS camera_id, l.name AS camera_name, '
+                               'l.latitude AS camera_lat, l.longitude AS camera_lng'
+                               'stringValue, floatValue, '
+                               'f.name AS metadata_key, time, setAtTime AS time_created, setByUser AS user_created',
+                               skip=0, limit=1, order='f.fileTime DESC')
+        items = list(self.generators.camera_metadata_generator(sql=sql, sql_args=b.sql_args))
+        rows_returned = len(items)
+        total_rows = rows_returned + search.skip
+        if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
+            self.con.execute(b.get_count_sql(), b.sql_args)
+            total_rows = self.con.fetchone()[0]
+        return {"count": total_rows,
+                "items": items}
+
+    def register_camera_metadata(self, camera_name, key, value, metadata_time, time_created, user_created):
+        camera = self.get_camera_from_name(camera_name)
+        item_id = mp.getHash(metadata_time, camera['publicId'], key)
+        key_id = self.get_metadata_key_id(key)
+
+        str_value = float_value = None
+        if isinstance(value, numbers.Number):
+            float_value = value
+        else:
+            str_value = str(value)
+
+        # Insert into database
+        self.con.execute("""
+INSERT INTO archive_metadata
+(publicId, observatory, fieldId, time, setAtTime, setByUser, stringValue, floatValue)
+VALUES
+(%s, %s, %s, %s, %s);
+""", (item_id, camera['uid'], key_id, metadata_time, time_created, user_created, str_value, float_value))
+
+        return mp.ObservatoryMetadata(camera_id=camera['uid'], camera_name=camera_name,
+                                      camera_lat=camera['latitude'], camera_lng=camera['longitude'],
+                                      key=key, value=value, metadata_time=metadata_time,
+                                      time_created=time_created, user_created=user_created)
+
+
+    def get_camera_status(self, time=None, camera_name=None):
         if time is None:
             time = mp.now()
-        if camera_id is None:
-            camera_id = self.camera_id
-        sql = ('SELECT lens, sensor, instURL, instName, locationLatitude, '
-               'locationLongitude, locationGPS, locationError, orientationAltitude, '
-               'orientationAzimuth, orientationError, orientationRotation, widthOfField, validFrom, '
-               'softwareVersion, internalID, statusID, cameraID '
-               'FROM t_cameraStatus t '
-               'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
-               'ORDER BY t.validFrom DESC '
-               'ROWS 1')
-        return first_from_generator(
-            self.generators.camera_status_generator(sql, (camera_id, mp.utc_datetime_to_milliseconds(time))))
+        if camera_name is None:
+            camera_name = self.camera_name
+        camera = self.get_camera_from_name(camera_name)
 
-    def get_camera_status_by_id(self, status_id):
-        """
-        Return the camera status block with the given UUID
+        output = {}
 
-        :param uuid.UUID status_id:
-            UUID of the camera status
-        :return:
-            An instance of :class:`meteorpi_model.CameraStatus` or None if none matched.
-        """
-        sql = ('SELECT lens, sensor, instURL, instName, locationLatitude, '
-               'locationLongitude, locationGPS, locationError, orientationAltitude, '
-               'orientationAzimuth, orientationError, orientationRotation, widthOfField, validFrom, '
-               'softwareVersion, internalID, statusID, cameraID '
-               'FROM t_cameraStatus t '
-               'WHERE t.statusID = (?)')
-        return first_from_generator(self.generators.camera_status_generator(sql, (status_id.bytes,)))
+        self.con.execute('SELECT uid,metaKey FROM archive_metadataFields;')
+        for item in self.con.fetchall():
+            self.con.execute("""
+SELECT floatValue, stringValue FROM archive_metadata
+WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
+""", (camera['uid'],item['uid'],time))
+            results = self.con.fetchall()
+            if len(results)>0:
+                result = results[0]
+                if result['stringValue'] is None:
+                    value = result['floatValue']
+                else:
+                    value = result['stringValue']
+                output[item['metaKey']] = value
+        return output
 
-    def update_camera_status(self, ns, time=None, camera_id=None):
-        """
-        Update the status for a camera, optionally specify a time (defaults to model.now()).
-
-        If the time is earlier than the current high water mark for this
-        camera any data products derived after that time will be deleted
-        as if setHighWaterMark was called.
-
-        Clears the status cache.
-
-        :param CameraStatus ns:
-            The new camera status. If an existing camera status is supplied (one with an assigned ID) the ID will be
-            ignored and a new one generated, this makes it easier to update a camera status by retrieving it, modifying
-            fields and then calling this method.
-        :param datetime.datetime time:
-            The time from which the new status should apply, defaults to now if not specified, should be a UTC time.
-        :param string camera_id:
-            The camera to which this status applies, or the default installation ID if not specified
-        """
+    def lookup_camera_metadata(self, key, time=None, camera_name=None):
         if time is None:
             time = mp.now()
-        if camera_id is None:
-            camera_id = self.camera_id
-        # Set the high water mark, allowing it to advance to this point or to rollback if
-        # we have data products produced after this status' time.
-        self.set_high_water_mark(camera_id=camera_id, time=time, allow_rollback=True, allow_advance=True)
-        with closing(self.con.trans()) as transaction:
-            with closing(transaction.cursor()) as cur:
-                # Insert the new status into the database
-                cur.execute(
-                    'INSERT INTO t_cameraStatus (cameraID, validFrom, '
-                    'softwareVersion, orientationAltitude, orientationAzimuth, '
-                    'orientationRotation, orientationError, widthOfField, locationLatitude, locationLongitude, '
-                    'locationGPS, lens, sensor, instURL, instName, locationError) '
-                    'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
-                    'RETURNING internalID',
-                    (camera_id,
-                     mp.utc_datetime_to_milliseconds(time),
-                     SOFTWARE_VERSION,
-                     ns.orientation.altitude,
-                     ns.orientation.azimuth,
-                     ns.orientation.rotation,
-                     ns.orientation.error,
-                     ns.orientation.width_of_field,
-                     ns.location.latitude,
-                     ns.location.longitude,
-                     ns.location.gps,
-                     ns.lens,
-                     ns.sensor,
-                     ns.inst_url,
-                     ns.inst_name,
-                     ns.location.error))
-                # Retrieve the newly created internal ID for the status block, use this to
-                # insert visible regions
-                status_internal_id = cur.fetchone()[0]
-                for region_index, region in enumerate(ns.regions):
-                    for point_index, point in enumerate(region):
-                        cur.execute(
-                            'INSERT INTO t_visibleRegions (cameraStatusID, '
-                            'region, pointOrder, x, y) VALUES (?,?,?,?,?)',
-                            (status_internal_id,
-                             region_index,
-                             point_index,
-                             point['x'],
-                             point['y']))
-            transaction.commit()
-        self.generators.cache_clear(cache='status')
+        if camera_name is None:
+            camera_name = self.camera_name
+        camera = self.get_camera_from_name(camera_name)
 
-    @lru_cache(maxsize=128)
+        self.con.execute('SELECT uid FROM archive_metadataFields WHERE metaKey=%s;', (key,))
+        results = self.con.fetchall()
+        if len(results)<1:
+            return None
+        self.con.execute("""
+SELECT floatValue, stringValue FROM archive_metadata
+WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
+""", (camera['uid'],results[0]['uid'],time))
+        results = self.con.fetchall()
+        if len(results)<1:
+            return None
+        result = results[0]
+        if result['stringValue'] is None:
+            value = result['floatValue']
+        else:
+            value = result['stringValue']
+        return value
+
+# -------------------------
+
     def get_user(self, user_id, password):
         """
         Retrieve a user record
@@ -1047,7 +1050,7 @@ class MeteorDatabase(object):
             A UTC datetime for the high water mark, or None if none was found.
         """
         if camera_id is None:
-            camera_id = self.camera_id
+            camera_id = self.camera_name
         with closing(self.con.cursor()) as cur:
             cur.execute(
                 'SELECT mark FROM t_highWaterMark t WHERE t.cameraID = (?)',
@@ -1070,7 +1073,7 @@ class MeteorDatabase(object):
         :internal:
         """
         if camera_id is None:
-            camera_id = self.camera_id
+            camera_id = self.camera_name
         last = self.get_high_water_mark(camera_id)
         with closing(self.con.trans()) as transaction:
             if last is None and allow_advance:
@@ -1116,36 +1119,7 @@ class MeteorDatabase(object):
                         (mp.utc_datetime_to_milliseconds(time), camera_id))
             transaction.commit()
 
-    def _get_camera_status_id(self, time=None, camera_id=None):
-        """
-        Return the integer internal ID and UUID of the camera status block for the given time and camera, or None if
-        there wasn't one available
-
-        :param datetime.datetime time:
-            UTC time at which we want to know the camera status ID, defaults to model.now() if not specified
-        :param string camera_id:
-            The ID of the camera to query, defaults to the current installation ID if not specified
-        :return:
-            A dict with 'internal_id' set to the integer ID of the row, and 'status_id' to the UUID of the status block
-        :internal:
-        """
-        if time is None:
-            time = mp.now()
-        if camera_id is None:
-            camera_id = self.camera_id
-        with closing(self.con.cursor()) as cur:
-            cur.execute(
-                'SELECT internalID, statusID FROM t_cameraStatus t '
-                'WHERE t.cameraID = (?) AND t.validFrom <= (?) '
-                'ORDER BY t.validFrom DESC '
-                'ROWS 1',
-                (camera_id, mp.utc_datetime_to_milliseconds(time), mp.utc_datetime_to_milliseconds(time)))
-            row = cur.fetchone()
-            if row is None:
-                return None
-            return {'internal_id': row[0], 'status_id': uuid.UUID(bytes=row[1])}
-
-    def clear_database(self):
+    def clear_database(self, tmin=None, tmax=None):
         """
         Delete ALL THE THINGS!
 
