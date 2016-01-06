@@ -7,9 +7,8 @@ BEGIN;
 /* Table of users */
 CREATE TABLE archive_users (
   uid      INTEGER PRIMARY KEY AUTO_INCREMENT,
-  userID   VARCHAR(16)       NOT NULL,
-  pwHash   VARCHAR(87)       NOT NULL,
-  roleMask INTEGER DEFAULT 0 NOT NULL
+  userId   VARCHAR(16)       NOT NULL,
+  pwHash   VARCHAR(87)       NOT NULL
 );
 
 CREATE TABLE archive_user_sessions (
