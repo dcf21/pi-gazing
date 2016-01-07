@@ -6,9 +6,9 @@ BEGIN;
 
 /* Table of users */
 CREATE TABLE archive_users (
-  uid      INTEGER PRIMARY KEY AUTO_INCREMENT,
-  userId   VARCHAR(16)       NOT NULL,
-  pwHash   VARCHAR(87)       NOT NULL
+  uid    INTEGER PRIMARY KEY AUTO_INCREMENT,
+  userId VARCHAR(16) NOT NULL,
+  pwHash VARCHAR(87) NOT NULL
 );
 
 CREATE TABLE archive_user_sessions (
@@ -75,10 +75,10 @@ CREATE TABLE archive_semanticTypes (
 CREATE TABLE archive_observations (
   uid         INTEGER PRIMARY KEY AUTO_INCREMENT,
   publicId    CHAR(16) NOT NULL,
-  observatory INTEGER     NOT NULL,
+  observatory INTEGER  NOT NULL,
   userId      VARCHAR(16),
-  obsTime     REAL        NOT NULL,
-  obsType     INTEGER     NOT NULL,
+  obsTime     REAL     NOT NULL,
+  obsType     INTEGER  NOT NULL,
   FOREIGN KEY (observatory) REFERENCES archive_observatories (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (obsType) REFERENCES archive_semanticTypes (uid)
@@ -168,6 +168,29 @@ CREATE TABLE archive_observationImport (
   importUser    INTEGER NOT NULL,
   importTime    REAL    NOT NULL,
   FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
+    ON DELETE CASCADE,
+  FOREIGN KEY (importUser) REFERENCES archive_users (uid)
+    ON DELETE CASCADE
+);
+
+CREATE TABLE archive_fileExport (
+  uid          INTEGER PRIMARY KEY AUTO_INCREMENT,
+  fileId       INTEGER NOT NULL,
+  exportConfig INTEGER NOT NULL,
+  exportState  INTEGER NOT NULL, /* 0 for complete, non-zero for active */
+  FOREIGN KEY (fileId) REFERENCES archive_files (uid)
+    ON DELETE CASCADE,
+  FOREIGN KEY (exportConfig) REFERENCES archive_exportConfig (uid)
+    ON DELETE CASCADE
+);
+
+
+CREATE TABLE archive_fileImport (
+  uid        INTEGER PRIMARY KEY AUTO_INCREMENT,
+  fileId     INTEGER NOT NULL,
+  importUser INTEGER NOT NULL,
+  importTime REAL    NOT NULL,
+  FOREIGN KEY (fileId) REFERENCES archive_files (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (importUser) REFERENCES archive_users (uid)
     ON DELETE CASCADE

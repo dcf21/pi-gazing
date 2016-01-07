@@ -671,6 +671,7 @@ class Observation(ModelEqualityMixin):
         self.obs_id = obs_id
         self.obs_time = obs_time
         self.obs_type = obs_type
+        self.likes = 0
         # Sequence of FileRecord
         if file_records is None:
             self.file_records = []

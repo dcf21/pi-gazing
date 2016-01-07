@@ -7,7 +7,6 @@ import sys
 import MySQLdb
 import shutil
 import uuid
-from contextlib import closing
 import json
 import numbers
 
@@ -16,7 +15,7 @@ import meteorpi_model as mp
 from meteorpi_db.generators import first_from_generator, first_non_null, MeteorDatabaseGenerators
 from meteorpi_db.sql_builder import search_observations_sql_builder, search_files_sql_builder, \
     search_metadata_sql_builder
-from meteorpi_db.exporter import FileExportTask, EventExportTask
+from meteorpi_db.exporter import ObservationExportTask, FileExportTask, MetadataExportTask
 
 SOFTWARE_VERSION = 2
 
@@ -85,12 +84,12 @@ class MeteorDatabase(object):
         """
         return ('MeteorDatabase(file_store_path={0}, db_path={1}, db_host={2}, db_user={3}, db_password={4}, '
                 'db_name={5}, camera_name={6})'.format(
-                self.file_store_path,
-                self.db_host,
-                self.db_user,
-                self.db_password,
-                self.db_name,
-                self.camera_name))
+                    self.file_store_path,
+                    self.db_host,
+                    self.db_user,
+                    self.db_password,
+                    self.db_name,
+                    self.camera_name))
 
     # Functions relating to observatories
     def has_camera_id(self, camera_id):
@@ -115,8 +114,7 @@ class MeteorDatabase(object):
             raise ValueError("No such camera: %s" % camera_id)
         return results[0]
 
-    def register_camera(self, camera_name, latitude, longitude):
-        camera_id = uuid.uuid4().hex[:16]
+    def register_camera(self, camera_id, camera_name, latitude, longitude):
         self.con.execute("""
 INSERT INTO archive_observatories
 (publicId, name, latitude, longitude)
@@ -161,7 +159,8 @@ VALUES
         sql = b.get_select_sql(columns='l.publicId AS camera_id, l.name AS camera_name, '
                                        'l.latitude AS camera_lat, l.longitude AS camera_lng'
                                        'stringValue, floatValue, '
-                                       'f.name AS metadata_key, time, setAtTime AS time_created, setByUser AS user_created',
+                                       'f.name AS metadata_key, time, setAtTime AS time_created, '
+                                       'setByUser AS user_created',
                                skip=0, limit=1, order='f.fileTime DESC')
         items = list(self.generators.camera_metadata_generator(sql=sql, sql_args=b.sql_args))
         if not items:
@@ -173,7 +172,8 @@ VALUES
         sql = b.get_select_sql(columns='l.publicId AS camera_id, l.name AS camera_name, '
                                        'l.latitude AS camera_lat, l.longitude AS camera_lng'
                                        'stringValue, floatValue, '
-                                       'f.name AS metadata_key, time, setAtTime AS time_created, setByUser AS user_created',
+                                       'f.name AS metadata_key, time, setAtTime AS time_created, '
+                                       'setByUser AS user_created',
                                skip=0, limit=1, order='f.fileTime DESC')
         items = list(self.generators.camera_metadata_generator(sql=sql, sql_args=b.sql_args))
         rows_returned = len(items)
@@ -184,11 +184,23 @@ VALUES
         return {"count": total_rows,
                 "items": items}
 
-    def register_camera_metadata(self, camera_name, key, value, metadata_time, time_created, user_created):
+    def register_camera_metadata(self, camera_id, key, value, metadata_time, time_created, user_created):
+        camera = self.get_camera_from_id(camera_id)
+        item_id = mp.getHash(metadata_time, camera['publicId'], key)
+        self.import_camera_metadata(camera['name'], key, value, metadata_time, time_created, user_created,item_id)
+
+        return mp.ObservatoryMetadata(camera_id=camera['uid'], camera_name=camera['name'],
+                                      camera_lat=camera['latitude'], camera_lng=camera['longitude'],
+                                      key=key, value=value, metadata_time=metadata_time,
+                                      time_created=time_created, user_created=user_created)
+
+    def import_camera_metadata(self, camera_name, key, value, metadata_time, time_created, user_created, item_id):
+        if self.has_camera_metadata(item_id):
+            return
+
         camera = self.get_camera_from_name(camera_name)
         item_id = mp.getHash(metadata_time, camera['publicId'], key)
         key_id = self.get_metadata_key_id(key)
-
         str_value = float_value = None
         if isinstance(value, numbers.Number):
             float_value = value
@@ -202,11 +214,6 @@ INSERT INTO archive_metadata
 VALUES
 (%s, %s, %s, %s, %s, %s, %s, %s);
 """, (item_id, camera['uid'], key_id, metadata_time, time_created, user_created, str_value, float_value))
-
-        return mp.ObservatoryMetadata(camera_id=camera['uid'], camera_name=camera_name,
-                                      camera_lat=camera['latitude'], camera_lng=camera['longitude'],
-                                      key=key, value=value, metadata_time=metadata_time,
-                                      time_created=time_created, user_created=user_created)
 
     def get_camera_status(self, time=None, camera_name=None):
         if time is None:
@@ -350,6 +357,8 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
         Register a file in the database, also moving the file into the file store. Returns the corresponding FileRecord
         object.
 
+        :param observation_id:
+            The publicId of the observation this file belongs to
         :param string file_path:
             The path of the file on disk to register. This file will be moved into the file store and renamed.
         :param string mime_type:
@@ -395,7 +404,7 @@ VALUES
         target_file_path = os.path.join(self.file_store_path, repository_fname)
         try:
             shutil.move(file_path, target_file_path)
-        except:
+        except OSError:
             sys.stderr.write("Could not move file into repository\n")
 
         result_file = mp.FileRecord(camera_id=obs['camera_id'],
@@ -413,6 +422,23 @@ VALUES
         # Return the resultant file object
         return result_file
 
+    def import_file(self, file):
+        if self.has_file_id(file.repository_fname):
+            return
+        if not self.has_observation_id(file.observation_id):
+            raise ValueError("No observation with ID <%s>" % file.observation_id)
+
+        # Insert into database
+        self.con.execute("""
+INSERT INTO archive_files
+(observationId, mimeType, fileName, semanticType, fileTime, fileSize, repositoryFname, fileMD5)
+VALUES
+(%s, %s, %s, %s, %s, %s, %s, %s);
+""", (
+            file.observation_id, file.mime_type, file.file_name, file.semantic_type, file.file_time, file.file_size,
+            file.repository_fname, file.file_md5))
+
+    # Functions for handling observation objects
     def has_observation_id(self, observation_id):
         """
         Check for the presence of the given event_id
@@ -429,8 +455,8 @@ VALUES
         self.con.execute('SELECT repositoryFname FROM archive_files f '
                          'INNER JOIN archive_observations o ON f.observationId=o.uid '
                          'WHERE o.publicId=%s;', (observation_id,))
-        for file in self.con.fetchall():
-            self.delete_file(file['repositoryFname'])
+        for file_item in self.con.fetchall():
+            self.delete_file(file_item['repositoryFname'])
         self.con.execute('DELETE FROM archive_observations WHERE publicId = %s', (observation_id,))
 
     def get_observation(self, observation_id):
@@ -452,15 +478,15 @@ VALUES
             return None
         return obs[0]
 
-    def search_events(self, search):
+    def search_observations(self, search):
         """
-        Search for :class:`meteorpi_model.Event` entities
+        Search for :class:`meteorpi_model.Observation` entities
 
         :param search:
-            an instance of :class:`meteorpi_model.EventSearch` used to constrain the events returned from the DB
+            an instance of :class:`meteorpi_model.ObservationSearch` used to constrain the events returned from the DB
         :return:
             a structure of {count:int total rows of an unrestricted search, events:list of
-            :class:`meteorpi_model.Event`}
+            :class:`meteorpi_model.Observation`}
         """
         b = search_observations_sql_builder(search)
         sql = b.get_select_sql(columns='l.publicId AS camera_id, l.name AS camera_name, '
@@ -475,7 +501,7 @@ VALUES
         return {"count": total_rows,
                 "obs": obs}
 
-    def register_observation(self, camera_name, user_id, time_set, obs_time, obs_type, obs_meta=None):
+    def register_observation(self, camera_name, user_id, obs_time, obs_type, obs_meta=None):
         """
         Register a new event, updating the database and returning the corresponding Event object
 
@@ -504,24 +530,14 @@ VALUES
 
         # Insert into database
         self.con.execute("""
-INSERT INTO archive_observations
-(publicId, observatory, userId, obsTime, obsType)
+INSERT INTO archive_observations (publicId, observatory, userId, obsTime, obsType)
 VALUES
 (%s, %s, %s, %s, %s);
 """, (observation_id, camera['uid'], user_id, obs_time, obs_type))
 
         # Store the observation metadata
         for meta in obs_meta:
-            self.con.execute("""
-INSERT INTO archive_metadata (fieldId, time, setAtTime, setByUser, stringValue, floatValue, observationId)
-VALUES (%s, %s, %s, %s, %s, %s, %s)
-""", (self.get_metadata_key_id(meta.key),
-      obs_time,
-      time_set,
-      user_id,
-      meta.string_value(),
-      meta.float_value(),
-      observation_id))
+            self.set_observation_metadata(user_id, observation_id, meta)
 
         observation = mp.Observation(camera_name=camera_name,
                                      camera_id=camera['publicId'],
@@ -530,6 +546,72 @@ VALUES (%s, %s, %s, %s, %s, %s, %s)
                                      file_records=None,
                                      meta=obs_meta)
         return observation
+
+    def import_observation(self, observation, user_id):
+        if self.has_observation_id(observation.obs_id):
+            return
+
+        # Insert into database
+        self.con.execute("""
+INSERT INTO archive_observations (publicId, observatory, userId, obsTime, obsType)
+VALUES
+(%s, (SELECT uid FROM archive_observatories WHERE publicId=%s), %s, %s, %s);
+""", (observation.obs_id, observation.camera_id, user_id, observation.obs_time, observation.obs_type))
+
+        # Store the observation metadata
+        for meta in observation.meta:
+            self.set_observation_metadata(user_id, observation.obs_id, meta)
+
+    def set_observation_metadata(self, user_id, observation_id, meta):
+        meta_id = self.get_metadata_key_id(meta.key)
+        self.con.execute("DELETE FROM archive_metadata WHERE fieldId=%s AND observationId=%s;",
+                         (meta_id, observation_id))
+        self.con.execute("""
+INSERT INTO archive_metadata (fieldId, setAtTime, setByUser, stringValue, floatValue, observationId)
+VALUES (%s, %s, %s, %s, %s, %s)
+""", (
+            meta_id,
+            mp.now(),
+            user_id,
+            meta.string_value(),
+            meta.float_value(),
+            observation_id))
+
+    def unset_observation_metadata(self, observation_id, key):
+        meta_id = self.get_metadata_key_id(key)
+        self.con.execute("DELETE FROM archive_metadata WHERE fieldId=%s AND observationId=%s;",
+                         (meta_id, observation_id))
+
+    def get_observation_metadata(self, observation_id, key):
+        meta_id = self.get_metadata_key_id(key)
+        self.con.execute("SELECT stringValue, floatValue FROM archive_metadata WHERE fieldId=%s AND observationId=%s;",
+                         (meta_id, observation_id))
+        results = self.con.fetchall()
+        if len(results) < 1:
+            return None
+        if results[0]['stringValue'] is not None:
+            return results[0]['stringValue']
+        return results[0]['floatValue']
+
+    def like_observation(self, observation_id, user_id):
+        self.con.execute('SELECT uid FROM archive_users WHERE userId = %s;', (user_id,))
+        results = self.con.fetchall()
+        if len(results) == 0:
+            return None
+        uid = results[0]['uid']
+        self.con.execute('DELETE FROM archive_obs_likes WHERE userId=%s AND observationId=%d;',
+                         (uid, observation_id))
+        self.con.execute('INSERT INTO archive_obs_likes (userId, observationId) VALUES (%s,%s);',
+                         (uid, observation_id))
+
+    def unlike_observation(self, observation_id, user_id):
+        self.con.execute('SELECT uid FROM archive_users WHERE userId = %s;', (user_id,))
+        results = self.con.fetchall()
+        if len(results) == 0:
+            return None
+        uid = results[0]['uid']
+        self.con.execute('DELETE FROM archive_obs_likes WHERE userId=%s AND observationId=%d;',
+                         (uid, observation_id))
 
     # Functions for handling user accounts
     def get_user(self, user_id, password):
@@ -756,6 +838,19 @@ VALUES (%s, %s, %s, %s, %s, %s, %s)
                                  'VALUES (%s,%s,%s)', (result['uid'], export_config_id, 1))
                 rows_created += 1
 
+        # Handle FileSearch
+        if isinstance(export_config.search, mp.FileRecordSearch):
+            # Create a deep copy of the search and set the properties required when creating exports
+            search = mp.FileRecordSearch.from_dict(export_config.search.as_dict())
+            search.exclude_export_to = export_config.config_id
+            b = search_files_sql_builder(search)
+
+            self.con.execute(b.get_select_sql(columns='o.uid'), b.sql_args)
+            for result in self.con.fetchall():
+                self.con.execute('INSERT INTO archive_fileExport (fileId, exportConfig, exportState) '
+                                 'VALUES (%s,%s,%s)', (result['uid'], export_config_id, 1))
+                rows_created += 1
+
         # Handle ObservatoryMetadataSearch
         elif isinstance(export_config.search, mp.ObservatoryMetadataSearch):
             # Create a deep copy of the search and set the properties required when creating exports
@@ -778,265 +873,79 @@ VALUES (%s, %s, %s, %s, %s, %s, %s)
     def get_next_entity_to_export(self):
         """
         Examines the archive_observationExport and archive_metadataExport tables, and builds
-        either a :class:`meteorpi_db.ObservationExportTask` or a :class:`meteorpi_db.MetadataExportTask` as appropriate. These
-        task objects can be used to retrieve the underlying entity and export configuration, and to update the
+        either a :class:`meteorpi_db.ObservationExportTask` or a :class:`meteorpi_db.MetadataExportTask` as appropriate.
+        These task objects can be used to retrieve the underlying entity and export configuration, and to update the
         completion state or push the timestamp into the future, deferring evaluation of the task until later.
 
         :returns:
-            Either None, if no exports are available, or an object, depending on whether an observation or metadata item is next in the queue to export.
+            Either None, if no exports are available, or an object, depending on whether an observation or metadata
+            item is next in the queue to export.
         """
-        entity_type = None
-        config_id = None
-        entity_id = None
-        timestamp = None
-        config_internal_id = None
-        entity_internal_id = None
-        status = None
-        target_url = None
-        target_user = None
-        target_password = None
-        current_timestamp = mp.utc_datetime_to_milliseconds(mp.now())
-        with closing(self.con.cursor()) as cur:
-            # Try to retrieve the earliest record in t_eventExport
-            cur.execute('SELECT c.exportConfigID, e.eventID, x.exportTime, x.eventID, x.exportConfig, x.exportState, '
-                        'c.targetURL, c.targetUser, c.targetPassword '
-                        'FROM t_eventExport x, t_exportConfig C, t_event e '
-                        'WHERE x.exportConfig = c.internalID AND x.eventID = e.internalID '
-                        'AND c.active = 1 '
-                        'AND x.exportState > 0 '
-                        'AND x.exportTime <= (?)'
-                        'ORDER BY x.exportTime ASC, x.eventID ASC '
-                        'ROWS 1', (current_timestamp,))
-            row = cur.fetchone()
-            if row is not None:
-                entity_type = 'event'
-                config_id = uuid.UUID(bytes=row[0])
-                entity_id = uuid.UUID(bytes=row[1])
-                timestamp = row[2]
-                entity_internal_id = row[3]
-                config_internal_id = row[4]
-                status = row[5]
-                target_url = row[6]
-                target_user = row[7]
-                target_password = row[8]
-            # Similar operation for t_fileExport
-            cur.execute('SELECT c.exportConfigID, f.fileID, x.exportTime, x.fileID, x.exportConfig, x.exportState, '
-                        'c.targetURL, c.targetUser, c.targetPassword '
-                        'FROM t_fileExport x, t_exportConfig c, t_file f '
-                        'WHERE x.exportConfig = C.internalID AND x.fileID = f.internalID '
-                        'AND c.active = 1 '
-                        'AND x.exportState > 0 '
-                        'AND x.exportTime <= (?)'
-                        'ORDER BY x.exportTime ASC, x.fileID ASC '
-                        'ROWS 1', (current_timestamp,))
-            row = cur.fetchone()
-            if row is not None:
-                if timestamp is None or row[2] < timestamp:
-                    entity_type = 'file'
-                    config_id = uuid.UUID(bytes=row[0])
-                    entity_id = uuid.UUID(bytes=row[1])
-                    timestamp = row[2]
-                    entity_internal_id = row[3]
-                    config_internal_id = row[4]
-                    status = row[5]
-                    target_url = row[6]
-                    target_user = row[7]
-                    target_password = row[8]
-        if entity_type is None:
-            return None
-        elif entity_type == 'file':
-            return FileExportTask(db=self, config_id=config_id, config_internal_id=config_internal_id,
-                                  file_id=entity_id, file_internal_id=entity_internal_id, timestamp=timestamp,
+
+        # Similar operation for archive_metadataExport
+        self.con.execute('SELECT c.exportConfigId, o.publicId, x.exportState, '
+                         'c.targetURL, c.targetUser, c.targetPassword '
+                         'FROM archive_metadataExport x '
+                         'INNER JOIN archive_exportConfig c ON x.exportConfig=c.uid '
+                         'INNER JOIN archive_metadata o ON x.metadataId=o.uid '
+                         'AND c.active = 1 '
+                         'AND x.exportState > 0 '
+                         'ORDER BY o.setAtTime ASC, o.uid ASC LIMIT 1')
+        row = self.con.fetchone()
+        if row is not None:
+            config_id = row['exportConfigId']
+            entity_id = row['publicId']
+            status = row['exportState']
+            target_url = row['targetURL']
+            target_user = row['targetUser']
+            target_password = row['targetPassword']
+            return MetadataExportTask(db=self, config_id=config_id, event_id=entity_id,
+                                      status=status, target_url=target_url, target_user=target_user,
+                                      target_password=target_password)
+
+        # Try to retrieve the earliest record in archive_observationExport
+        self.con.execute('SELECT c.exportConfigId, o.publicId, x.exportState, '
+                         'c.targetURL, c.targetUser, c.targetPassword '
+                         'FROM archive_observationExport x '
+                         'INNER JOIN archive_exportConfig c ON x.exportConfig=c.uid '
+                         'INNER JOIN archive_observations o ON x.observationId=o.uid '
+                         'WHERE c.active = 1 '
+                         'AND x.exportState > 0 '
+                         'ORDER BY o.obsTime ASC, o.uid ASC LIMIT 1')
+        row = self.con.fetchone()
+        if row is not None:
+            config_id = row['exportConfigId']
+            entity_id = row['publicId']
+            status = row['exportState']
+            target_url = row['targetURL']
+            target_user = row['targetUser']
+            target_password = row['targetPassword']
+            return ObservationExportTask(db=self, config_id=config_id, event_id=entity_id,
+                                         status=status, target_url=target_url, target_user=target_user,
+                                         target_password=target_password)
+
+        # Try to retrieve the earliest record in archive_fileExport
+        self.con.execute('SELECT c.exportConfigId, o.repositoryFname, x.exportState, '
+                         'c.targetURL, c.targetUser, c.targetPassword '
+                         'FROM archive_fileExport x '
+                         'INNER JOIN archive_exportConfig c ON x.exportConfig=c.uid '
+                         'INNER JOIN archive_files o ON x.fileId=o.uid '
+                         'WHERE c.active = 1 '
+                         'AND x.exportState > 0 '
+                         'ORDER BY o.fileTime ASC, o.uid ASC LIMIT 1')
+        row = self.con.fetchone()
+        if row is not None:
+            config_id = row['exportConfigId']
+            entity_id = row['repositoryFname']
+            status = row['exportState']
+            target_url = row['targetURL']
+            target_user = row['targetUser']
+            target_password = row['targetPassword']
+            return FileExportTask(db=self, config_id=config_id, event_id=entity_id,
                                   status=status, target_url=target_url, target_user=target_user,
                                   target_password=target_password)
-        elif entity_type == 'event':
-            return EventExportTask(db=self, config_id=config_id, config_internal_id=config_internal_id,
-                                   event_id=entity_id, event_internal_id=entity_internal_id, timestamp=timestamp,
-                                   status=status, target_url=target_url, target_user=target_user,
-                                   target_password=target_password)
-        else:
-            raise ValueError("Unknown entity type, should never see this!")
 
-    def import_event(self, event, user_id):
-        """
-        Functionality used by the import API, pulls in a :class:`meteorpi_model.Event` including its pre-existing links
-        to camera status and UUID. Do not use this to register a new event, it is only for use by the import system,
-        this system ensures that all pre-requisites (files, camera status etc) are in place. If you use it outside of
-        this context you will break your database. Don't.
-
-        :param Event event:
-            The :class:`meteorpi_model.Event` instance to import
-        :param string user_id:
-            The user_id of the importing :class:`meteorpi_model.User`
-        :internal:
-        """
-        if self.has_event_id(event.event_id):
-            return
-        status_id = self._get_camera_status_id(camera_id=event.camera_id, time=event.event_time)
-        if status_id is None:
-            raise ValueError(
-                    'No status defined for camera id {0} at time {1}!'.format(event.camera_id, event.event_time))
-        if status_id['status_id'].hex != event.status_id.hex:
-            raise ValueError('Existing status and supplied status IDs must be equal')
-        day_and_offset = mp.get_day_and_offset(event.event_time)
-        # Import the file records first
-        file_internal_ids = list(self.import_file_record(file_record=f, user_id=user_id) for f in event.file_records)
-        # Import the event
-        with closing(self.con.trans()) as transaction:
-            with closing(transaction.cursor()) as cur:
-                cur.execute(
-                        'INSERT INTO t_event (cameraID, eventTime, eventOffset, eventType, '
-                        'statusID, eventID) '
-                        'VALUES (?, ?, ?, ?, ?, ?) '
-                        'RETURNING internalID, eventID, eventTime',
-                        (event.camera_id,
-                         mp.utc_datetime_to_milliseconds(event.event_time),
-                         day_and_offset['seconds'],
-                         str(event.event_type),
-                         status_id['internal_id'],
-                         event.event_id.bytes))
-                ids = cur.fetchone()
-                event_internal_id = ids[0]
-                # Insert into event import table
-                cur.execute('INSERT INTO t_eventImport (eventID, importUser, importTime) VALUES (?, ?, ?)',
-                            (event_internal_id, user_id, mp.utc_datetime_to_milliseconds(mp.now())))
-                for file_record_index, file_internal_id in enumerate(file_internal_ids):
-                    cur.execute(
-                            'INSERT INTO t_event_to_file '
-                            '(fileID, eventID, sequenceNumber) '
-                            'VALUES (?, ?, ?)',
-                            (file_internal_id,
-                             event_internal_id,
-                             file_record_index))
-                for meta_index, meta in enumerate(event.meta):
-                    cur.execute(
-                            'INSERT INTO t_eventMeta '
-                            '(eventID, metaKey, stringValue, floatValue, dateValue, metaIndex) '
-                            'VALUES (?, ?, ?, ?, ?, ?)',
-                            (event_internal_id,
-                             str(meta.key),
-                             meta.string_value(),
-                             meta.float_value(),
-                             mp.utc_datetime_to_milliseconds(meta.date_value()),
-                             meta_index))
-            transaction.commit()
-
-    def import_file_record(self, file_record, user_id):
-        """
-        Used by the import system to import a previously instantiated and named :class:`meteorpi_model.FileRecord`. Do
-        not use this method outside of the import system, this system will ensure that any pre-requisite status or file
-        data is in place, using this method directly will certainly break your database.
-
-        :param FileRecord file_record:
-            The :class:`meteorpi_model.FileRecord` to import
-        :param string user_id:
-            The user_id of the importing :class:`meteorpi_model.User`
-        :return:
-            The integer internal ID of the imported record, used when importing events to create the link tables without
-            additional database queries.
-        :internal:
-        """
-        if self.has_file_id(file_record.file_id):
-            return
-        if not path.exists(self.file_path_for_id(file_record.file_id)):
-            raise ValueError('Must get the binary file before importing FileRecord')
-        status_id = self._get_camera_status_id(camera_id=file_record.camera_id, time=file_record.file_time)
-        if status_id is None:
-            raise ValueError(
-                    'No status defined for camera id {0} at time {1}!'.format(file_record.camera_id,
-                                                                              file_record.file_time))
-        if status_id['status_id'].hex != file_record.status_id.hex:
-            raise ValueError('Existing status and supplied status IDs must be equal')
-        day_and_offset = mp.get_day_and_offset(file_record.file_time)
-        with closing(self.con.trans()) as transaction:
-            with closing(transaction.cursor()) as cur:
-                cur.execute(
-                        'INSERT INTO t_file (cameraID, mimeType, '
-                        'semanticType, fileTime, fileOffset, fileSize, statusID, fileName, fileID, md5Hex) '
-                        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
-                        'RETURNING internalID, fileID, fileTime',
-                        (file_record.camera_id,
-                         file_record.mime_type,
-                         str(file_record.semantic_type),
-                         mp.utc_datetime_to_milliseconds(file_record.file_time),
-                         day_and_offset['seconds'],
-                         file_record.file_size,
-                         status_id['internal_id'],
-                         file_record.file_name,
-                         file_record.file_id.bytes,
-                         file_record.md5))
-                row = cur.fetchonemap()
-                # Retrieve the internal ID of the file row to link fileMeta if required
-                file_internal_id = row['internalID']
-                # Insert into file import table
-                cur.execute('INSERT INTO t_fileImport (fileID, importUser, importTime) VALUES (?, ?, ?)',
-                            (file_internal_id, user_id, mp.utc_datetime_to_milliseconds(mp.now())))
-                for file_meta_index, file_meta in enumerate(file_record.meta):
-                    cur.execute(
-                            'INSERT INTO t_fileMeta '
-                            '(fileID, metaKey, stringValue, floatValue, dateValue, metaIndex) '
-                            'VALUES (?, ?, ?, ?, ?, ?)',
-                            (file_internal_id,
-                             str(file_meta.key),
-                             file_meta.string_value(),
-                             file_meta.float_value(),
-                             mp.utc_datetime_to_milliseconds(file_meta.date_value()),
-                             file_meta_index))
-            transaction.commit()
-        return file_internal_id
-
-    def import_camera_status(self, status):
-        """
-        Import a new camera status block, used by the import server - do not use this for local status changes, it
-        doesn't update high water marks and will not execute any kind of roll-back. Clears the status cache, as camera
-        status instances are somewhat dynamically generated based on other instances, most particularly for their time
-        ranges.
-
-        :param status:
-            The new camera status block to import, this must be pre-populated with all required fields.
-        """
-        with closing(self.con.trans()) as transaction:
-            with closing(transaction.cursor()) as cur:
-                # Insert the new status into the database
-                cur.execute(
-                        'INSERT INTO t_cameraStatus (statusID, cameraID, validFrom, '
-                        'softwareVersion, orientationAltitude, orientationAzimuth, '
-                        'orientationRotation, orientationError, widthOfField, locationLatitude, locationLongitude, '
-                        'locationGPS, lens, sensor, instURL, instName, locationError) '
-                        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
-                        'RETURNING internalID',
-                        (status.status_id.bytes,
-                         status.camera_id,
-                         mp.utc_datetime_to_milliseconds(status.valid_from),
-                         SOFTWARE_VERSION,
-                         status.orientation.altitude,
-                         status.orientation.azimuth,
-                         status.orientation.rotation,
-                         status.orientation.error,
-                         status.orientation.width_of_field,
-                         status.location.latitude,
-                         status.location.longitude,
-                         status.location.gps,
-                         status.lens,
-                         status.sensor,
-                         status.inst_url,
-                         status.inst_name,
-                         status.location.error))
-                # Retrieve the newly created internal ID for the status block, use this to
-                # insert visible regions
-                status_internal_id = cur.fetchone()[0]
-                for region_index, region in enumerate(status.regions):
-                    for point_index, point in enumerate(region):
-                        cur.execute(
-                                'INSERT INTO t_visibleRegions (cameraStatusID, '
-                                'region, pointOrder, x, y) VALUES (?,?,?,?,?)',
-                                (status_internal_id,
-                                 region_index,
-                                 point_index,
-                                 point['x'],
-                                 point['y']))
-            transaction.commit()
-        self.generators.cache_clear(cache='status')
+        return None
 
     # Functions relating to high water marks
     def get_hwm_key_id(self, metakey):
@@ -1052,6 +961,8 @@ VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
         Retrieves the high water mark for a given camera, defaulting to the current installation ID
 
+        :param string mark_type:
+            The type of high water mark to set
         :param string camera_name:
             The camera ID to check for, or the default installation ID if not specified
         :return:

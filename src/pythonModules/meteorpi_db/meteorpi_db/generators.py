@@ -90,7 +90,8 @@ class MeteorDatabaseGenerators(object):
                                         obs_time=result['obsTime'], obs_id=result['publicId'],
                                         observation_type=result['obsType'])
 
-            sql = """SELECT f.metaKey, time, setAtTime, setByUser, stringValue, floatValue
+            # Look up observation metadata
+            sql = """SELECT f.metaKey, stringValue, floatValue
 FROM archive_metadata m
 INNER JOIN archive_metadataFields f ON m.fieldId=f.uid
 WHERE m.observatory=%s
@@ -99,6 +100,11 @@ WHERE m.observatory=%s
             for item in self.con.fetchall():
                 value = first_non_null([item['stringValue'],item['floatValue']])
                 observation.meta.append(mp.Meta(item['metaKey'],value))
+
+            # Count votes for observation
+            self.con.execute("SELECT COUNT(*) FROM archive_obs_likes WHERE observationId=%s;", (result['publicId'],))
+            observation.likes = self.con.fetchone()['COUNT(*)']
+
             output.append(observation)
 
         return output
@@ -152,6 +158,8 @@ WHERE m.observatory=%s
         for result in results:
             if result['exportType'] == "observation":
                 search = mp.ObservationSearch.from_dict(json.loads(result['searchString']))
+            elif result['exportType'] == "file":
+                search = mp.FileRecordSearch.from_dict(json.loads(result['searchString']))
             else:
                 search = mp.ObservatoryMetadataSearch.from_dict(json.loads(result['searchString']))
             conf = mp.ExportConfiguration(target_url=result['targetURL'], user_id=result['targetUser'],
