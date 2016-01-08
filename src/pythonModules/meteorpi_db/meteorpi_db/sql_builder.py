@@ -17,7 +17,7 @@ def search_observations_sql_builder(search):
     b = SQLBuilder(tables="""archive_observations o
 INNER JOIN archive_semanticTypes s ON o.obsType=s.uid
 INNER JOIN archive_observatories l ON o.observatory=l.uid""", where_clauses=[])
-    b.add_set_membership(search.camera_ids, 'l.publicId')
+    b.add_set_membership(search.obstory_ids, 'l.publicId')
     b.add_sql(search.observation_type, 's.name = %s')
     b.add_sql(search.observation_id, 'o.publicId = %s')
     b.add_sql(search.time_min, 'o.obsTime > %s')
@@ -56,7 +56,7 @@ def search_files_sql_builder(search):
 INNER JOIN archive_observations o ON f.observationId=o.uid
 INNER JOIN archive_semanticTypes s ON o.obsType=s.uid
 INNER JOIN archive_observatories l ON o.observatory=l.uid""", where_clauses=[])
-    b.add_set_membership(search.camera_ids, 'l.publicId')
+    b.add_set_membership(search.obstory_ids, 'l.publicId')
     b.add_sql(search.repository_fname, 'f.repositoryFname = %s')
     b.add_sql(search.observation_type, 's.name = %s')
     b.add_sql(search.observation_id, 'o.uid = %s')
@@ -98,7 +98,7 @@ def search_metadata_sql_builder(search):
     b = SQLBuilder(tables="""archive_metadata m
 INNER JOIN archive_metadataFields f ON m.fieldId=f.uid
 INNER JOIN archive_observatories l ON m.observatory=l.uid""", where_clauses=["m.observatory IS NOT NULL"])
-    b.add_set_membership(search.camera_ids, 'l.publicId')
+    b.add_set_membership(search.obstory_ids, 'l.publicId')
     b.add_sql(search.field_name, 'f.name = %s')
     b.add_sql(search.time_min, 'm.time > %s')
     b.add_sql(search.time_max, 'm.time < %s')
@@ -140,7 +140,7 @@ class SQLBuilder(object):
             Optionally specify an initial array of WHERE clauses, defaults to an empty sequence. Clauses specified here
             must not include the string 'WHERE', but should be e.g. ['e.statusID = s.internalID']
         :param tables:
-            A SQL fragment defining the tables used by this SQLBuilder, i.e. 't_file f, t_cameraStatus s'
+            A SQL fragment defining the tables used by this SQLBuilder, e.g. 't_file f'
         :ivar where_clauses:
             A list of strings of SQL, which will be prefixed by 'WHERE' to construct a constraint. As with the init
             parameter these will not include the 'WHERE' itself.
@@ -170,7 +170,7 @@ class SQLBuilder(object):
 
     def add_sql(self, value, clause):
         """
-        Add a WHERE clause to the state. Handles NSString and datetime.datetime sensibly.
+        Add a WHERE clause to the state.
 
         :param value:
             The unknown to bind into the state. Uses SQLBuilder._map_value() to map this into an appropriate database
@@ -242,7 +242,7 @@ WHERE m.{0} {1} %s AND k.metaKey = {2}
         Build a SELECT query based on the current state of the builder.
 
         :param columns:
-            SQL fragment describing which columns to select i.e. 'e.cameraID, s.statusID'
+            SQL fragment describing which columns to select i.e. 'e.obstoryID, s.statusID'
         :param order:
             Optional ordering constraint, i.e. 'e.eventTime DESC'
         :param limit:

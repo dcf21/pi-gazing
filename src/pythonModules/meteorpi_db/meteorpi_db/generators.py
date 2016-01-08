@@ -62,7 +62,7 @@ class MeteorDatabaseGenerators(object):
         results = self.con.fetchall()
         output = []
         for result in results:
-            file_record = mp.FileRecord(camera_id=result['camera_id'], camera_name=result['camera_name'],
+            file_record = mp.FileRecord(obstory_id=result['obstory_id'], obstory_name=result['obstory_name'],
                              repository_fname=result['repositoryFname'],
                              file_time=result['fileTime'], file_size=result['fileSize'],
                              file_name=result['fileName'], mime_type=result['mimeType'],
@@ -86,7 +86,7 @@ class MeteorDatabaseGenerators(object):
         results = self.con.fetchall()
         output = []
         for result in results:
-            observation = mp.Observation(camera_id=result['camera_id'], camera_name=result['camera_name'],
+            observation = mp.Observation(obstory_id=result['obstory_id'], obstory_name=result['obstory_name'],
                                         obs_time=result['obsTime'], obs_id=result['publicId'],
                                         observation_type=result['obsType'])
 
@@ -109,12 +109,12 @@ WHERE m.observatory=%s
 
         return output
 
-    def camera_metadata_generator(self, sql, sql_args):
+    def obstory_metadata_generator(self, sql, sql_args):
         """
         Generator for :class:`meteorpi_model.CameraStatus`
 
         :param sql:
-            A SQL statement which must return rows describing camera metadata
+            A SQL statement which must return rows describing obstory metadata
         :param sql_args:
             Any arguments required to populate the query provided in 'sql'
         :return:
@@ -130,8 +130,8 @@ WHERE m.observatory=%s
                 value = result['floatValue']
             else:
                 value = result['stringValue']
-            obsMeta = mp.ObservatoryMetadata(camera_id=result['camera_id'], camera_name=result['camera_name'],
-                                                 camera_lat=result['camera_lat'], camera_lng=result['camera_lng'],
+            obsMeta = mp.ObservatoryMetadata(obstory_id=result['obstory_id'], obstory_name=result['obstory_name'],
+                                                 obstory_lat=result['obstory_lat'], obstory_lng=result['obstory_lng'],
                                                  key=result['metadata_key'], value=value,
                                                  metadata_time=result['time'], time_created=result['time_created'],
                                                  user_created=result['user_created'])

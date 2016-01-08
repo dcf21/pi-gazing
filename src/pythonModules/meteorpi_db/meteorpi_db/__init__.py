@@ -36,14 +36,14 @@ class MeteorDatabase(object):
         Database name
     :ivar file_store_path:
         Path to the file store on disk
-    :ivar string camera_id:
-        The local camera ID
+    :ivar string obstory_id:
+        The local obstory ID
     :ivar object generator:
         Object generator class
     """
 
     def __init__(self, file_store_path, db_host='localhost', db_user='meteorpi', db_password='meteorpi',
-                 db_name='meteorpi', camera_name='Undefined'):
+                 db_name='meteorpi', obstory_name='Undefined'):
         """
         Create a new db instance. This connects to the specified firebird database and retains a connection which is
         then used by methods in this class when querying or updating the database.
@@ -58,8 +58,8 @@ class MeteorDatabase(object):
             Password for the database
         :param db_name:
             Database name
-        :param string camera_name:
-            The local camera ID
+        :param string obstory_name:
+            The local obstory ID
         """
         self.db = MySQLdb.connect(host=db_host, user=db_user, passwd=db_password, db=db_name)
         self.con = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
@@ -73,7 +73,7 @@ class MeteorDatabase(object):
         self.db_user = db_user
         self.db_password = db_password
         self.db_name = db_name
-        self.camera_name = camera_name
+        self.obstory_name = obstory_name
         self.generators = MeteorDatabaseGenerators(self.db, self.con)
 
     def __str__(self):
@@ -83,65 +83,68 @@ class MeteorDatabase(object):
             info about the db path and file store location
         """
         return ('MeteorDatabase(file_store_path={0}, db_path={1}, db_host={2}, db_user={3}, db_password={4}, '
-                'db_name={5}, camera_name={6})'.format(
+                'db_name={5}, obstory_name={6})'.format(
                     self.file_store_path,
                     self.db_host,
                     self.db_user,
                     self.db_password,
                     self.db_name,
-                    self.camera_name))
+                    self.obstory_name))
+
+    def commit(self):
+        self.db.commit()
 
     # Functions relating to observatories
-    def has_camera_id(self, camera_id):
-        self.con.execute('SELECT 1 FROM archive_observatories WHERE publicId=%s;', (camera_id,))
+    def has_obstory_id(self, obstory_id):
+        self.con.execute('SELECT 1 FROM archive_observatories WHERE publicId=%s;', (obstory_id,))
         return len(self.con.fetchall()) > 0
 
-    def has_camera_name(self, camera_name):
-        self.con.execute('SELECT 1 FROM archive_observatories WHERE name=%s;', (camera_name,))
+    def has_obstory_name(self, obstory_name):
+        self.con.execute('SELECT 1 FROM archive_observatories WHERE name=%s;', (obstory_name,))
         return len(self.con.fetchall()) > 0
 
-    def get_camera_from_name(self, camera_name):
-        self.con.execute('SELECT * FROM archive_observatories WHERE name=%s;', (camera_name,))
+    def get_obstory_from_name(self, obstory_name):
+        self.con.execute('SELECT * FROM archive_observatories WHERE name=%s;', (obstory_name,))
         results = self.con.fetchall()
         if len(results) < 1:
-            raise ValueError("No such camera: %s" % camera_name)
+            raise ValueError("No such obstory: %s" % obstory_name)
         return results[0]
 
-    def get_camera_from_id(self, camera_id):
-        self.con.execute('SELECT * FROM archive_observatories WHERE publicId=%s;', (camera_id,))
+    def get_obstory_from_id(self, obstory_id):
+        self.con.execute('SELECT * FROM archive_observatories WHERE publicId=%s;', (obstory_id,))
         results = self.con.fetchall()
         if len(results) < 1:
-            raise ValueError("No such camera: %s" % camera_id)
+            raise ValueError("No such obstory: %s" % obstory_id)
         return results[0]
 
-    def register_camera(self, camera_id, camera_name, latitude, longitude):
+    def register_obstory(self, obstory_id, obstory_name, latitude, longitude):
         self.con.execute("""
 INSERT INTO archive_observatories
 (publicId, name, latitude, longitude)
 VALUES
 (%s, %s, %s, %s);
-""", (camera_id, camera_name, latitude, longitude))
-        return camera_id
+""", (obstory_id, obstory_name, latitude, longitude))
+        return obstory_id
 
-    def delete_camera(self, camera_name):
-        self.con.execute("DELETE FROM archive_observatories WHERE name=%s;", (camera_name,))
+    def delete_obstory(self, obstory_name):
+        self.con.execute("DELETE FROM archive_observatories WHERE name=%s;", (obstory_name,))
 
-    def get_camera_ids(self):
+    def get_obstory_ids(self):
         """
-        Retrieve the IDs of all cameras.
+        Retrieve the IDs of all obstorys.
 
         :return:
-            A list of camera IDs for all cameras
+            A list of obstory IDs for all obstorys
         """
         self.con.execute('SELECT publicId FROM archive_observatories;')
         return map(lambda row: row['publicId'], self.con.fetchall())
 
-    def get_camera_names(self):
+    def get_obstory_names(self):
         self.con.execute('SELECT name FROM archive_observatories;')
         return map(lambda row: row['name'], self.con.fetchall())
 
     # Functions for returning observatory metadata
-    def has_camera_metadata(self, status_id):
+    def has_obstory_metadata(self, status_id):
         """
         Check for the presence of the given metadata item
 
@@ -153,29 +156,29 @@ VALUES
         self.con.execute('SELECT 1 FROM archive_metadata WHERE publicId=%s;', (status_id,))
         return len(self.con.fetchall()) > 0
 
-    def get_camera_metadata(self, item_id):
+    def get_obstory_metadata(self, item_id):
         search = mp.ObservatoryMetadataSearch(item_id=item_id)
         b = search_metadata_sql_builder(search)
-        sql = b.get_select_sql(columns='l.publicId AS camera_id, l.name AS camera_name, '
-                                       'l.latitude AS camera_lat, l.longitude AS camera_lng'
+        sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
+                                       'l.latitude AS obstory_lat, l.longitude AS obstory_lng'
                                        'stringValue, floatValue, '
                                        'f.name AS metadata_key, time, setAtTime AS time_created, '
                                        'setByUser AS user_created',
                                skip=0, limit=1, order='f.fileTime DESC')
-        items = list(self.generators.camera_metadata_generator(sql=sql, sql_args=b.sql_args))
+        items = list(self.generators.obstory_metadata_generator(sql=sql, sql_args=b.sql_args))
         if not items:
             return None
         return items[0]
 
-    def search_camera_metadata(self, search):
+    def search_obstory_metadata(self, search):
         b = search_metadata_sql_builder(search)
-        sql = b.get_select_sql(columns='l.publicId AS camera_id, l.name AS camera_name, '
-                                       'l.latitude AS camera_lat, l.longitude AS camera_lng'
+        sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
+                                       'l.latitude AS obstory_lat, l.longitude AS obstory_lng'
                                        'stringValue, floatValue, '
                                        'f.name AS metadata_key, time, setAtTime AS time_created, '
                                        'setByUser AS user_created',
                                skip=0, limit=1, order='f.fileTime DESC')
-        items = list(self.generators.camera_metadata_generator(sql=sql, sql_args=b.sql_args))
+        items = list(self.generators.obstory_metadata_generator(sql=sql, sql_args=b.sql_args))
         rows_returned = len(items)
         total_rows = rows_returned + search.skip
         if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
@@ -184,22 +187,22 @@ VALUES
         return {"count": total_rows,
                 "items": items}
 
-    def register_camera_metadata(self, camera_id, key, value, metadata_time, time_created, user_created):
-        camera = self.get_camera_from_id(camera_id)
-        item_id = mp.getHash(metadata_time, camera['publicId'], key)
-        self.import_camera_metadata(camera['name'], key, value, metadata_time, time_created, user_created,item_id)
+    def register_obstory_metadata(self, obstory_id, key, value, metadata_time, time_created, user_created):
+        obstory = self.get_obstory_from_id(obstory_id)
+        item_id = mp.get_hash(metadata_time, obstory['publicId'], key)
+        self.import_obstory_metadata(obstory['name'], key, value, metadata_time, time_created, user_created,item_id)
 
-        return mp.ObservatoryMetadata(camera_id=camera['uid'], camera_name=camera['name'],
-                                      camera_lat=camera['latitude'], camera_lng=camera['longitude'],
+        return mp.ObservatoryMetadata(obstory_id=obstory['uid'], obstory_name=obstory['name'],
+                                      obstory_lat=obstory['latitude'], obstory_lng=obstory['longitude'],
                                       key=key, value=value, metadata_time=metadata_time,
                                       time_created=time_created, user_created=user_created)
 
-    def import_camera_metadata(self, camera_name, key, value, metadata_time, time_created, user_created, item_id):
-        if self.has_camera_metadata(item_id):
+    def import_obstory_metadata(self, obstory_name, key, value, metadata_time, time_created, user_created, item_id):
+        if self.has_obstory_metadata(item_id):
             return
 
-        camera = self.get_camera_from_name(camera_name)
-        item_id = mp.getHash(metadata_time, camera['publicId'], key)
+        obstory = self.get_obstory_from_name(obstory_name)
+        item_id = mp.get_hash(metadata_time, obstory['publicId'], key)
         key_id = self.get_metadata_key_id(key)
         str_value = float_value = None
         if isinstance(value, numbers.Number):
@@ -213,14 +216,14 @@ INSERT INTO archive_metadata
 (publicId, observatory, fieldId, time, setAtTime, setByUser, stringValue, floatValue)
 VALUES
 (%s, %s, %s, %s, %s, %s, %s, %s);
-""", (item_id, camera['uid'], key_id, metadata_time, time_created, user_created, str_value, float_value))
+""", (item_id, obstory['uid'], key_id, metadata_time, time_created, user_created, str_value, float_value))
 
-    def get_camera_status(self, time=None, camera_name=None):
+    def get_obstory_status(self, time=None, obstory_name=None):
         if time is None:
             time = mp.now()
-        if camera_name is None:
-            camera_name = self.camera_name
-        camera = self.get_camera_from_name(camera_name)
+        if obstory_name is None:
+            obstory_name = self.obstory_name
+        obstory = self.get_obstory_from_name(obstory_name)
 
         output = {}
 
@@ -229,7 +232,7 @@ VALUES
             self.con.execute("""
 SELECT floatValue, stringValue FROM archive_metadata
 WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
-""", (camera['uid'], item['uid'], time))
+""", (obstory['uid'], item['uid'], time))
             results = self.con.fetchall()
             if len(results) > 0:
                 result = results[0]
@@ -240,12 +243,12 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
                 output[item['metaKey']] = value
         return output
 
-    def lookup_camera_metadata(self, key, time=None, camera_name=None):
+    def lookup_obstory_metadata(self, key, time=None, obstory_name=None):
         if time is None:
             time = mp.now()
-        if camera_name is None:
-            camera_name = self.camera_name
-        camera = self.get_camera_from_name(camera_name)
+        if obstory_name is None:
+            obstory_name = self.obstory_name
+        obstory = self.get_obstory_from_name(obstory_name)
 
         self.con.execute('SELECT uid FROM archive_metadataFields WHERE metaKey=%s;', (key,))
         results = self.con.fetchall()
@@ -254,7 +257,7 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
         self.con.execute("""
 SELECT floatValue, stringValue FROM archive_metadata
 WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
-""", (camera['uid'], results[0]['uid'], time))
+""", (obstory['uid'], results[0]['uid'], time))
         results = self.con.fetchall()
         if len(results) < 1:
             return None
@@ -320,7 +323,7 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
         search = mp.FileRecordSearch(repository_fname=repository_fname)
         b = search_files_sql_builder(search)
         sql = b.get_select_sql(columns='f.observationId, f.mimeType, f.fileName, f.semanticType, f.fileTime, '
-                                       'f.fileSize, f.fileMD5, l.publicId AS camera_id, l.name AS camera_name',
+                                       'f.fileSize, f.fileMD5, l.publicId AS obstory_id, l.name AS obstory_name',
                                skip=0, limit=1, order='f.fileTime DESC')
         files = list(self.generators.file_generator(sql=sql, sql_args=b.sql_args))
         if not files:
@@ -339,7 +342,7 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
         """
         b = search_files_sql_builder(search)
         sql = b.get_select_sql(columns='f.observationId, f.mimeType, f.fileName, f.semanticType, f.fileTime, '
-                                       'f.fileSize, f.fileMD5, l.publicId AS camera_id, l.name AS camera_name',
+                                       'f.fileSize, f.fileMD5, l.publicId AS obstory_id, l.name AS obstory_name',
                                skip=search.skip,
                                limit=search.limit,
                                order='f.fileTime DESC')
@@ -382,7 +385,7 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
 
         # Fetch information about parent observation
         self.con.execute("""
-SELECT obsTime, l.publicId AS camera_id, l.name AS camera_name FROM archive_observations o
+SELECT obsTime, l.publicId AS obstory_id, l.name AS obstory_name FROM archive_observations o
 INNER JOIN archive_observatories l ON observatory=l.uid
 WHERE o.publicId=%s
 """, (observation_id,))
@@ -390,15 +393,18 @@ WHERE o.publicId=%s
         if len(obs) == 0:
             raise ValueError("No observation with ID <%s>" % observation_id)
         obs = obs[0]
-        repository_fname = mp.getHash(obs['obsTime'], obs['publicId'], file_name)
+        repository_fname = mp.get_hash(obs['obsTime'], obs['obstory_id'], file_name)
+
+        # Get ID code for obs_type
+        semantic_type_id = self.get_obs_type_id(semantic_type)
 
         # Insert into database
         self.con.execute("""
 INSERT INTO archive_files
 (observationId, mimeType, fileName, semanticType, fileTime, fileSize, repositoryFname, fileMD5)
 VALUES
-(%s, %s, %s, %s, %s, %s, %s, %s);
-""", (observation_id, mime_type, file_name, semantic_type, file_time, file_size_bytes, repository_fname, md5))
+((SELECT uid FROM archive_observations WHERE publicId=%s), %s, %s, %s, %s, %s, %s, %s);
+""", (observation_id, mime_type, file_name, semantic_type_id, file_time, file_size_bytes, repository_fname, md5))
 
         # Move the original file from its path
         target_file_path = os.path.join(self.file_store_path, repository_fname)
@@ -407,8 +413,8 @@ VALUES
         except OSError:
             sys.stderr.write("Could not move file into repository\n")
 
-        result_file = mp.FileRecord(camera_id=obs['camera_id'],
-                                    camera_name=obs['camera_name'],
+        result_file = mp.FileRecord(obstory_id=obs['obstory_id'],
+                                    obstory_name=obs['obstory_name'],
                                     observation_id=observation_id,
                                     repository_fname=repository_fname,
                                     file_time=file_time,
@@ -422,21 +428,25 @@ VALUES
         # Return the resultant file object
         return result_file
 
-    def import_file(self, file):
-        if self.has_file_id(file.repository_fname):
+    def import_file(self, file_item):
+        if self.has_file_id(file_item.repository_fname):
             return
-        if not self.has_observation_id(file.observation_id):
-            raise ValueError("No observation with ID <%s>" % file.observation_id)
+        if not self.has_observation_id(file_item.observation_id):
+            raise ValueError("No observation with ID <%s>" % file_item.observation_id)
+
+        # Get ID code for obs_type
+        semantic_type_id = self.get_obs_type_id(file_item.semantic_type)
 
         # Insert into database
         self.con.execute("""
 INSERT INTO archive_files
 (observationId, mimeType, fileName, semanticType, fileTime, fileSize, repositoryFname, fileMD5)
 VALUES
-(%s, %s, %s, %s, %s, %s, %s, %s);
+((SELECT uid FROM archive_observations WHERE publicId=%s), %s, %s, %s, %s, %s, %s, %s);
 """, (
-            file.observation_id, file.mime_type, file.file_name, file.semantic_type, file.file_time, file.file_size,
-            file.repository_fname, file.file_md5))
+            file_item.observation_id, file_item.mime_type, file_item.file_name, semantic_type_id,
+            file_item.file_time, file_item.file_size,
+            file_item.repository_fname, file_item.file_md5))
 
     # Functions for handling observation objects
     def has_observation_id(self, observation_id):
@@ -450,6 +460,15 @@ VALUES
         """
         self.con.execute('SELECT 1 FROM archive_observations WHERE publicId = %s', (observation_id,))
         return len(self.con.fetchall()) > 0
+
+    def get_obs_type_id(self, name):
+        self.con.execute("SELECT uid FROM archive_semanticTypes WHERE name=%s;", (name,))
+        results = self.con.fetchall()
+        if len(results) < 1:
+            self.con.execute("INSERT INTO archive_semanticTypes (name) VALUES (%s);", (name,))
+            self.con.execute("SELECT uid FROM archive_semanticTypes WHERE name=%s;", (name,))
+            results = self.con.fetchall()
+        return results[0]['uid']
 
     def delete_observation(self, observation_id):
         self.con.execute('SELECT repositoryFname FROM archive_files f '
@@ -470,7 +489,7 @@ VALUES
         """
         search = mp.ObservationSearch(observation_id=observation_id)
         b = search_observations_sql_builder(search)
-        sql = b.get_select_sql(columns='l.publicId AS camera_id, l.name AS camera_name, '
+        sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
                                        'o.obsTime, o.obsType, o.publicId',
                                skip=0, limit=1, order='f.obsTime DESC')
         obs = list(self.generators.observation_generator(sql=sql, sql_args=b.sql_args))
@@ -489,7 +508,7 @@ VALUES
             :class:`meteorpi_model.Observation`}
         """
         b = search_observations_sql_builder(search)
-        sql = b.get_select_sql(columns='l.publicId AS camera_id, l.name AS camera_name, '
+        sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
                                        'o.obsTime, o.obsType, o.publicId',
                                skip=0, limit=1, order='f.obsTime DESC')
         obs = list(self.generators.observation_generator(sql=sql, sql_args=b.sql_args))
@@ -501,12 +520,12 @@ VALUES
         return {"count": total_rows,
                 "obs": obs}
 
-    def register_observation(self, camera_name, user_id, obs_time, obs_type, obs_meta=None):
+    def register_observation(self, obstory_name, user_id, obs_time, obs_type, obs_meta=None):
         """
         Register a new event, updating the database and returning the corresponding Event object
 
-        :param string camera_name:
-            The ID of the camera which produced this event
+        :param string obstory_name:
+            The ID of the obstory which produced this event
         :param string user_id:
             The ID of the user who created this observation
         :param float obs_time:
@@ -522,27 +541,31 @@ VALUES
         if obs_meta is None:
             obs_meta = []
 
-        # Get camera id from name
-        camera = self.get_camera_from_name(camera_name)
+        # Get obstory id from name
+        obstory = self.get_obstory_from_name(obstory_name)
 
         # Create a unique ID for this observation
-        observation_id = mp.getHash(obs_time, camera['publicId'], obs_type)
+        observation_id = mp.get_hash(obs_time, obstory['publicId'], obs_type)
+
+        # Get ID code for obs_type
+        obs_type_id = self.get_obs_type_id(obs_type)
 
         # Insert into database
         self.con.execute("""
 INSERT INTO archive_observations (publicId, observatory, userId, obsTime, obsType)
 VALUES
 (%s, %s, %s, %s, %s);
-""", (observation_id, camera['uid'], user_id, obs_time, obs_type))
+""", (observation_id, obstory['uid'], user_id, obs_time, obs_type_id))
 
         # Store the observation metadata
         for meta in obs_meta:
-            self.set_observation_metadata(user_id, observation_id, meta)
+            self.set_observation_metadata(user_id, observation_id, meta, obs_time)
 
-        observation = mp.Observation(camera_name=camera_name,
-                                     camera_id=camera['publicId'],
+        observation = mp.Observation(obstory_name=obstory_name,
+                                     obstory_id=obstory['publicId'],
                                      obs_time=obs_time,
                                      obs_id=observation_id,
+                                     obs_type=obs_type,
                                      file_records=None,
                                      meta=obs_meta)
         return observation
@@ -551,25 +574,32 @@ VALUES
         if self.has_observation_id(observation.obs_id):
             return
 
+        # Get ID code for obs_type
+        obs_type_id = self.get_obs_type_id(observation.obs_type)
+
         # Insert into database
         self.con.execute("""
 INSERT INTO archive_observations (publicId, observatory, userId, obsTime, obsType)
 VALUES
 (%s, (SELECT uid FROM archive_observatories WHERE publicId=%s), %s, %s, %s);
-""", (observation.obs_id, observation.camera_id, user_id, observation.obs_time, observation.obs_type))
+""", (observation.obs_id, observation.obstory_id, user_id, observation.obs_time, obs_type_id))
 
         # Store the observation metadata
         for meta in observation.meta:
             self.set_observation_metadata(user_id, observation.obs_id, meta)
 
-    def set_observation_metadata(self, user_id, observation_id, meta):
+    def set_observation_metadata(self, user_id, observation_id, meta, utc=None):
         meta_id = self.get_metadata_key_id(meta.key)
+        if utc is None:
+            utc = mp.now()
+        public_id = mp.get_hash(utc,meta.key,user_id)
         self.con.execute("DELETE FROM archive_metadata WHERE fieldId=%s AND observationId=%s;",
                          (meta_id, observation_id))
         self.con.execute("""
-INSERT INTO archive_metadata (fieldId, setAtTime, setByUser, stringValue, floatValue, observationId)
-VALUES (%s, %s, %s, %s, %s, %s)
+INSERT INTO archive_metadata (publicId, fieldId, setAtTime, setByUser, stringValue, floatValue, observationId)
+VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publicId=%s))
 """, (
+            public_id,
             meta_id,
             mp.now(),
             user_id,
@@ -781,7 +811,7 @@ VALUES (%s, %s, %s, %s, %s, %s)
                      export_config.config_id))
         else:
             # Create new record and add the ID into the supplied config
-            item_id = mp.getHash(mp.now(), name, export_type)
+            item_id = mp.get_hash(mp.now(), name, export_type)
             self.con.execute(
                     'INSERT INTO archive_exportConfig '
                     '(searchString, targetUrl, targetUser, targetPassword, '
@@ -957,56 +987,56 @@ VALUES (%s, %s, %s, %s, %s, %s)
             results = self.con.fetchall()
         return results[0]['uid']
 
-    def get_high_water_mark(self, mark_type, camera_name=None):
+    def get_high_water_mark(self, mark_type, obstory_name=None):
         """
-        Retrieves the high water mark for a given camera, defaulting to the current installation ID
+        Retrieves the high water mark for a given obstory, defaulting to the current installation ID
 
         :param string mark_type:
             The type of high water mark to set
-        :param string camera_name:
-            The camera ID to check for, or the default installation ID if not specified
+        :param string obstory_name:
+            The obstory ID to check for, or the default installation ID if not specified
         :return:
             A UTC datetime for the high water mark, or None if none was found.
         """
-        if camera_name is None:
-            camera_name = self.camera_name
+        if obstory_name is None:
+            obstory_name = self.obstory_name
 
-        camera = self.get_camera_from_name(camera_name)
+        obstory = self.get_obstory_from_name(obstory_name)
         key_id = self.get_metadata_key_id(mark_type)
 
         self.con.execute('SELECT time FROM archive_highWaterMarks WHERE markType=%s AND observatoryId=%s',
-                         (key_id, camera['uid']))
+                         (key_id, obstory['uid']))
         results = self.con.fetchall()
         if len(results) > 0:
             return results[0]['time']
         return None
 
-    def set_high_water_mark(self, mark_type, time, camera_name=None, ):
-        if camera_name is None:
-            camera_name = self.camera_name
+    def set_high_water_mark(self, mark_type, time, obstory_name=None, ):
+        if obstory_name is None:
+            obstory_name = self.obstory_name
 
-        camera = self.get_camera_from_name(camera_name)
+        obstory = self.get_obstory_from_name(obstory_name)
         key_id = self.get_metadata_key_id(mark_type)
 
         self.con.execute('DELETE FROM archive_highWaterMarks WHERE markType=%s AND observatoryId=%s',
-                         (key_id, camera['uid']))
+                         (key_id, obstory['uid']))
         self.con.execute('INSERT INTO archive_highWaterMarks (markType, observatoryId, time) VALUES (%s,%s,%s);',
-                         (key_id, camera['uid'], time))
+                         (key_id, obstory['uid'], time))
 
-    def clear_database(self, tmin=None, tmax=None, camera_names=None):
+    def clear_database(self, tmin=None, tmax=None, obstory_names=None):
 
-        if camera_names is None:
-            camera_names = self.get_camera_names()
-        if isinstance(camera_names, basestring):
-            camera_names = [camera_names]
+        if obstory_names is None:
+            obstory_names = self.get_obstory_names()
+        if isinstance(obstory_names, basestring):
+            obstory_names = [obstory_names]
 
-        for camera_name in camera_names:
-            camera = self.get_camera_from_name(camera_name)
+        for obstory_name in obstory_names:
+            obstory = self.get_obstory_from_name(obstory_name)
             # Purge tables - other tables are deleted by foreign key cascades from these ones.
             self.con.execute('SELECT publicId FROM archive_observations '
                              'WHERE obsTime>%s AND obsTime<%s AND observatory=%s',
-                             (tmin, tmax, camera['uid']))
+                             (tmin, tmax, obstory['uid']))
             for obs in self.con.fetchall():
                 self.delete_observation(obs['publicId'])
             self.con.execute('DELETE FROM archive_metadata WHERE time>%s AND time<%s AND observatory=%s',
-                             (tmin, tmax, camera['uid']))
+                             (tmin, tmax, obstory['uid']))

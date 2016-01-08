@@ -1,5 +1,4 @@
-import uuid
-from uuid import UUID
+
 from logging import getLogger
 
 from yaml import safe_load
@@ -7,95 +6,6 @@ from os import path, remove
 import meteorpi_model as model
 from flask.ext.jsonpify import jsonify
 from flask import request, g
-from backports.functools_lru_cache import lru_cache
-
-
-class BaseImportReceiver(object):
-    """
-    Base class for entities which should be able to receive imports, whether that's to handle database to database
-    replication or otherwise. This base implementation is functional, but simply replies to both event and file record
-    imports with 'complete' messages, thus never triggering either status imports or binary data.
-    """
-
-    @staticmethod
-    def get_importing_user_id():
-        """
-        Retrieve the importing user ID from the request context, this user will have already authenticated correctly
-        by the point the import receiver is called.
-
-        :return:
-            The string user_id for the importing user
-        """
-        return g.user.user_id
-
-    def receive_event(self, import_request):
-        """
-        Handle an Event import
-
-        :param ImportRequest import_request:
-            An instance of :class:`meteorpi_server.importer_api.ImportRequest` which contains the parsed request,
-            including the :class:`meteorpi_model.Event` object along with methods that can be used to continue the
-            import process. The Event is available as import_request.entity.
-        :returns:
-            A Flask response, typically generated using the response_xxx() methods on the import_request. If no return
-            is made or None is returned then treated as equivalent to returning response_complete() to terminate import
-            of this Event
-        """
-        return import_request.response_complete()
-
-    def receive_file_record(self, import_request):
-        """
-        Handle a FileRecord import
-
-        :param ImportRequest import_request:
-            An instance of :class:`meteorpi_server.importer_api.ImportRequest` which contains the parsed request,
-            including the :class:`meteorpi_model.FileRecord` object along with methods that can be used to continue the
-            import process. The FileRecord is available as import_request.entity.
-        :returns:
-            A Flask response, typically generated using the response_xxx() methods on the import_request. If no return
-            is made or None is returned then treated as equivalent to returning response_complete() to terminate import
-            of this FileRecord
-        """
-        return import_request.response_complete()
-
-    def receive_status(self, import_request):
-        """
-        Handle a :class:`meteorpi_model.CameraStatus` import in response to a previous return of response_need_status()
-        from one of the :class:`meteorpi_model.Event` or :class:`meteorpi_model.FileRecord` import methods.
-
-        :param ImportRequest import_request:
-            An instance of :class:`meteorpi_server.importer_api.ImportRequest` which contains the parsed request,
-            including the :class:`meteorpi_model.CameraStatus` object along with methods that can be used to continue
-            the import process. The CameraStatus is available as import_request.entity.
-        :returns:
-            A Flask response, typically generated using the response_xxx() methods on the import_request. If no return
-            is made or None is returned then treated as equivalent to returning response_continue() to return to the
-            import of the enclosing entity. This is different to receive_file_record() and receive_event() because we
-            only ever see a status imported in response to an attempt to import an event or file record which has a
-            status we don't have on the importing side.
-        """
-        pass
-
-    def receive_file_data(self, file_id, file_data, md5_hex):
-        """
-        Handle the reception of uploaded file data for a given ID. There is no return mechanism for this method, as the
-        import protocol specifies that after a binary file is uploaded the corresponding file record or event should be
-        sent again. This allows us to implement the import in a stateless fashion, caching aside, at the cost of an
-        additional very small HTTP request. The request is small because all the exporter has to do, typically, is send
-        the ID of the event or file record as the import infrastructure in this module caches the full record locally.
-
-        :param uuid.UUID file_id:
-            The ID of the FileRecord for this file data
-        :param file_data:
-            A file upload response from Flask's upload handler, acquired with `file_data = request.files['file']`
-        :param md5_hex:
-            The hex representation of the MD5 hash of this file from the exporting party. This should be checked against
-            the result of meteorpi_model.get_md5_hash(path) to ensure integrity of the file reception, and the file
-            discarded or otherwise ignored if it does not match.
-        :returns:
-            None, continues the import irrespective of whether the file was received or not.
-        """
-        pass
 
 
 class MeteorDatabaseImportReceiver(BaseImportReceiver):
@@ -108,24 +18,32 @@ class MeteorDatabaseImportReceiver(BaseImportReceiver):
     def __init__(self, db):
         self.db = db
 
+    @staticmethod
+    def get_importing_user_id():
+        """
+        Retrieve the importing user ID from the request context, this user will have already authenticated correctly
+        by the point the import receiver is called.
+
+        :return:
+            The string user_id for the importing user
+        """
+        return g.user.user_id
+
+
     def receive_event(self, import_request):
         event = import_request.entity
         if not self.db.has_event_id(event.event_id):
-            if not self.db.has_status_id(event.status_id):
-                return import_request.response_need_status()
             for file_record in event.file_records:
                 if not path.isfile(self.db.file_path_for_id(file_record.file_id)):
                     return import_request.response_need_file_data(file_id=file_record.file_id)
-            self.db.import_event(event=event, user_id=BaseImportReceiver.get_importing_user_id())
+            self.db.import_event(event=event, user_id=self.get_importing_user_id())
 
     def receive_file_record(self, import_request):
         file_record = import_request.entity
         if not self.db.has_file_id(file_record.file_id):
-            if not self.db.has_status_id(file_record.status_id):
-                return import_request.response_need_status()
             if not path.isfile(self.db.file_path_for_id(file_record.file_id)):
                 return import_request.response_need_file_data(file_id=file_record.file_id)
-            self.db.import_file_record(file_record=file_record, user_id=BaseImportReceiver.get_importing_user_id())
+            self.db.import_file_record(file_record=file_record, user_id=self.get_importing_user_id())
 
     def receive_status(self, import_request):
         if not self.db.has_status_id(import_request.entity.status_id):
@@ -253,22 +171,6 @@ class ImportRequest(object):
         ImportRequest.logger.debug("Sending: need_file_data, id={0}".format(file_id.hex))
         return jsonify({'state': 'need_file_data', 'file_id': file_id.hex})
 
-    def response_need_status(self):
-        """
-        Signal the exporter that we need the status associated with the current entity, in response to which it should
-        then send a status block with the appropriate ID.
-
-        :return:
-            A response that can be returned from a Flask service method
-        """
-        if self.entity_type == 'file' or self.entity_type == 'event':
-            ImportRequest.logger.debug("Sending: need_status, status_id={0}".format(self.entity.status_id.hex))
-            return jsonify({'state': 'need_status', 'status_id': self.entity.status_id.hex})
-        else:
-            ImportRequest.logger.debug(
-                "Failed: request to send status for non-event, non-file type {0}".format(self.entity_type))
-            raise ValueError("Can't ask for status for entity type {0}".format(self.entity_type))
-
     @staticmethod
     def process_request():
         """
@@ -285,33 +187,22 @@ class ImportRequest(object):
         """
         g.request_dict = safe_load(request.get_data())
         entity_type = g.request_dict['type']
-        if entity_type == 'cached_entity':
-            entity_id = UUID(g.request_dict['cached_entity_id'])
-        else:
-            entity_id = UUID(g.request_dict[entity_type][entity_type + '_id'])
+        entity_id = UUID(g.request_dict[entity_type]['id'])
         ImportRequest.logger.debug("Received request, type={0}, id={1}".format(entity_type, entity_id))
         entity = ImportRequest._get_entity(entity_id)
-        if entity is None:
-            ImportRequest.entity_cache.clear()
-            ImportRequest.logger.debug(
-                "Clearing cache and returning None, entity with id={0} cache requested but missed.".format(entity_id))
-        else:
-            ImportRequest.logger.debug("Entity with id={0} was {1}".format(entity_id, entity))
+        ImportRequest.logger.debug("Entity with id={0} was {1}".format(entity_id, entity))
         return ImportRequest(entity=entity, entity_id=entity_id)
 
     @staticmethod
-    @entity_cache
     def _get_entity(entity_id):
         """
         Uses the request context to retrieve a :class:`meteorpi_model.CameraStatus`, :class:`meteorpi_model.Event` or
-        :class:`meteorpi_model.FileRecord` from the POSTed JSON string. This method will cache using the backported LRU
-        cache from Python 3.3 in backports.functools_lru_cache.
+        :class:`meteorpi_model.FileRecord` from the POSTed JSON string.
 
         :param string entity_id:
             The ID of a CameraStatus, Event or FileRecord contained within the request
         :return:
-            The corresponding entity from the request, using a LRU cache for efficiency. None if we have a request for a
-            cached entity but no cache.
+            The corresponding entity from the request.
         """
         entity_type = g.request_dict['type']
         if entity_type == 'file':

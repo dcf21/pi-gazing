@@ -39,10 +39,10 @@ CREATE TABLE archive_user_roles (
   PRIMARY KEY (userId, roleId)
 );
 
-/* Table of cameras */
+/* Table of observatories */
 CREATE TABLE archive_observatories (
   uid       INTEGER PRIMARY KEY AUTO_INCREMENT,
-  publicId  CHAR(16) NOT NULL,
+  publicId  CHAR(32) NOT NULL,
   name      TEXT,
   latitude  REAL,
   longitude REAL,
@@ -74,7 +74,7 @@ CREATE TABLE archive_semanticTypes (
 /* Table of observations */
 CREATE TABLE archive_observations (
   uid         INTEGER PRIMARY KEY AUTO_INCREMENT,
-  publicId    CHAR(16) NOT NULL,
+  publicId    CHAR(32) NOT NULL,
   observatory INTEGER  NOT NULL,
   userId      VARCHAR(16),
   obsTime     REAL     NOT NULL,
@@ -97,15 +97,34 @@ CREATE TABLE archive_obs_likes (
     ON DELETE CASCADE
 );
 
-/* Metadata pertaining to observations or observatories */
+/* Groups of observations */
+CREATE TABLE archive_obs_groups (
+  uid       INTEGER PRIMARY KEY AUTO_INCREMENT,
+  title     TEXT,
+  setAtTime REAL, /* time that metadata was computed */
+  setByUser VARCHAR(16)
+);
+
+CREATE TABLE archive_obs_group_members (
+  groupId       INTEGER,
+  observationId INTEGER,
+  PRIMARY KEY (groupId, observationId),
+  FOREIGN KEY (groupId) REFERENCES archive_obs_groups (uid)
+    ON DELETE CASCADE,
+  FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
+    ON DELETE CASCADE
+);
+
+/* Metadata pertaining to observations, observatories, or groups of observations */
 CREATE TABLE archive_metadataFields (
   uid     INTEGER PRIMARY KEY AUTO_INCREMENT,
-  metaKey VARCHAR(255) NOT NULL
+  metaKey VARCHAR(255) NOT NULL,
+  INDEX(metaKey)
 );
 
 CREATE TABLE archive_metadata (
   uid           INTEGER PRIMARY KEY AUTO_INCREMENT,
-  publicId      CHAR(16) NOT NULL,
+  publicId      CHAR(32) NOT NULL,
   fieldId       INTEGER,
   time          REAL, /* time that metadata is relevant for */
   setAtTime     REAL, /* time that metadata was computed */
@@ -114,9 +133,12 @@ CREATE TABLE archive_metadata (
   floatValue    REAL,
   observationId INTEGER,
   observatory   INTEGER,
+  groupId       INTEGER,
   FOREIGN KEY (observatory) REFERENCES archive_observatories (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
+    ON DELETE CASCADE,
+  FOREIGN KEY (groupId) REFERENCES archive_obs_groups (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (fieldId) REFERENCES archive_metadataFields (uid)
     ON DELETE CASCADE
@@ -140,7 +162,7 @@ CREATE TABLE archive_files (
 /* Configuration used to export observations to an external server */
 CREATE TABLE archive_exportConfig (
   uid            INTEGER PRIMARY KEY AUTO_INCREMENT,
-  exportConfigId CHAR(16)      NOT NULL,
+  exportConfigId CHAR(32)      NOT NULL,
   exportType     VARCHAR(10)   NOT NULL,
   searchString   VARCHAR(2048) NOT NULL,
   targetURL      VARCHAR(255)  NOT NULL,

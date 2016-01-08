@@ -27,7 +27,7 @@ class MeteorExporter(object):
     def handle_next_export(self):
         """
         Retrieve and fully evaluate the next export task, including resolution of any sub-tasks requested by the
-        import client such as requests for binary data, camera status etc.
+        import client such as requests for binary data, observation, etc.
 
         :return:
             An instance of ExportStateCache, the 'state' field contains the state of the export after running as many
@@ -54,7 +54,7 @@ class MeteorExporter(object):
         """
         Process the next export sub-task, if there is one.
 
-        :param ExportStateCache previous_export_response:
+        :param ExportState export_state:
             If provided, this is used instead of the database queue, in effect directing the exporter to process the
             previous export again. This is used to avoid having to query the database when we know already what needs
             to be done. It also maintains a cache of the entity so we don't have to re-acquire it on multiple exports.
@@ -74,8 +74,8 @@ class MeteorExporter(object):
                     export_state.export_task.target_password)
             target_url = export_state.export_task.target_url
             response = post(url=target_url, verify=False,
-                                json=export_state.entity_dict,
-                                auth=auth)
+                            json=export_state.entity_dict,
+                            auth=auth)
             response.raise_for_status()
             json = response.json()
             state = json['state']
@@ -167,7 +167,7 @@ class ObservationExportTask(object):
     def as_dict(self):
         return {
             'type': 'observation',
-            'event': self.get_observation().as_dict()
+            'observation': self.get_observation().as_dict()
         }
 
     def get_entity_id(self):
@@ -237,7 +237,7 @@ class MetadataExportTask(object):
         self.target_password = target_password
 
     def get_metadata(self):
-        return self.db.get_camera_metadata(self.metadata_id)
+        return self.db.get_obstory_metadata(self.metadata_id)
 
     def get_export_config(self):
         return self.db.get_export_configuartion(self.config_id)
@@ -248,7 +248,7 @@ class MetadataExportTask(object):
     def as_dict(self):
         return {
             'type': 'metadata',
-            'file': self.get_metadata().as_dict()
+            'metadata': self.get_metadata().as_dict()
         }
 
     def set_status(self, status):

@@ -4,7 +4,7 @@
 
 import numbers
 import time
-from hashlib import md5
+import hashlib
 
 
 def _boolean_from_dict(d, key):
@@ -46,6 +46,11 @@ def now():
     """Returns the current UTC timestamp"""
     return time.time()
 
+def get_hash(utc, str1, str2):
+    tstr = time.strftime("%Y%m%d_%H%M%S", time.gmtime(utc))
+    key  = "%s_%s_%s"%(str1,str2,time.time())
+    uid  = hashlib.md5(key.encode()).hexdigest()
+    return ("%s_%s"%(tstr,uid))[0:32]
 
 def get_md5_hash(file_path):
     """
@@ -56,7 +61,7 @@ def get_md5_hash(file_path):
     :return:
         MD5 checksum
     """
-    checksum = md5()
+    checksum = hashlib.md5()
     with open(file_path, 'rb') as f:
         for chunk in iter(lambda: f.read(128 * checksum.block_size), b''):
             checksum.update(chunk)
@@ -94,17 +99,7 @@ class User(ModelEqualityMixin):
     Class variables:
 
     :cvar list[string] roles:
-        A sequence of roles, the ordering of items in this sequence is meaningful and must not be changed, new
-        values may be appended. The current values, in order, are:
-
-        :user:
-            the user can log in, no other permissions
-        :camera_admin:
-            the user can manipulate the editable parts of CameraStatus, vis. the installation url
-            and name, and the visible region polygons.
-        :import:
-            the user can import data into this node, used to manage from which parties data can be
-            received during import / export operations.
+        A sequence of roles.
 
     Instance variables:
 
@@ -149,7 +144,7 @@ class FileRecordSearch(ModelEqualityMixin):
     Encapsulates the possible parameters which can be used to search for :class:`meteorpi_model.FileRecord` instances
     """
 
-    def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, time_min=None,
+    def __init__(self, obstory_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, time_min=None,
                  time_max=None, mime_type=None, semantic_type=None, observation_type=None,
                  observation_id=None, repository_fname=None,
                  meta_constraints=None, limit=100, skip=0, exclude_export_to=None,
@@ -158,20 +153,20 @@ class FileRecordSearch(ModelEqualityMixin):
         Create a new FileRecordSearch. All parameters are optional, a default search will be created which returns
         at most the first 100 FileRecord instances. All parameters specify restrictions on these results.
 
-        :param list[string] camera_ids:
-            Optional - if specified, restricts results to only those the the specified camera IDs which
+        :param list[string] obstory_ids:
+            Optional - if specified, restricts results to only those the the specified obstory IDs which
             are expressed as an array of strings.
         :param float lat_min:
-            Optional - if specified, only returns results where the camera status at the time of the file
+            Optional - if specified, only returns results where the obstory status at the time of the file
             had a latitude field of at least the specified value.
         :param float lat_max:
-            Optional - if specified, only returns results where the camera status at the time of the file
+            Optional - if specified, only returns results where the obstory status at the time of the file
             had a latitude field of at most the specified value.
         :param float long_min:
-            Optional - if specified, only returns results where the camera status at the time of the file
+            Optional - if specified, only returns results where the obstory status at the time of the file
             had a longitude field of at least the specified value.
         :param float long_max:
-            Optional - if specified, only returns results where the camera status at the time of the file
+            Optional - if specified, only returns results where the obstory status at the time of the file
             had a longitude field of at most the specified value.
         :param float time_min:
             Optional - if specified, only returns results where the file time is after the specified value.
@@ -210,17 +205,17 @@ class FileRecordSearch(ModelEqualityMixin):
             applies to files which are not part of an event, so it only makes sense to set this flag if you also set
             exclude_events to True.
         """
-        if camera_ids is not None and len(camera_ids) == 0:
-            raise ValueError('If camera_ids is specified it must contain at least one ID')
+        if obstory_ids is not None and len(obstory_ids) == 0:
+            raise ValueError('If obstory_ids is specified it must contain at least one ID')
         if lat_min is not None and lat_max is not None and lat_max < lat_min:
             raise ValueError('Latitude max cannot be less than latitude minimum')
         if long_min is not None and long_max is not None and long_max < long_min:
             raise ValueError('Longitude max cannot be less than longitude minimum')
         if time_min is not None and time_max is not None and time_max < time_min:
             raise ValueError('Time max cannot be after before time min')
-        if isinstance(camera_ids, basestring):
-            camera_ids = [camera_ids]
-        self.camera_ids = camera_ids
+        if isinstance(obstory_ids, basestring):
+            obstory_ids = [obstory_ids]
+        self.obstory_ids = obstory_ids
         self.lat_min = lat_min
         self.lat_max = lat_max
         self.long_min = long_min
@@ -259,7 +254,7 @@ class FileRecordSearch(ModelEqualityMixin):
             Dict representation of this FileRecordSearch instance
         """
         d = {}
-        _add_value(d, 'camera_ids', self.camera_ids)
+        _add_value(d, 'obstory_ids', self.obstory_ids)
         _add_value(d, 'lat_min', self.lat_min)
         _add_value(d, 'lat_max', self.lat_max)
         _add_value(d, 'long_min', self.long_min)
@@ -286,7 +281,7 @@ class FileRecordSearch(ModelEqualityMixin):
         :param Object d: the dict to parse
         :return: a new FileRecordSearch based on the supplied dict
         """
-        camera_ids = _value_from_dict(d, 'camera_ids')
+        obstory_ids = _value_from_dict(d, 'obstory_ids')
         lat_min = _value_from_dict(d, 'lat_min')
         lat_max = _value_from_dict(d, 'lat_max')
         long_min = _value_from_dict(d, 'long_min')
@@ -306,7 +301,7 @@ class FileRecordSearch(ModelEqualityMixin):
             meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta']))
         else:
             meta_constraints = []
-        return FileRecordSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
+        return FileRecordSearch(obstory_ids=obstory_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
                                 long_max=long_max, time_min=time_min, time_max=time_max, mime_type=mime_type,
                                 semantic_type=semantic_type,
                                 observation_type=observation_type,
@@ -316,34 +311,33 @@ class FileRecordSearch(ModelEqualityMixin):
                                 exclude_export_to=exclude_export_to)
 
 
-
 class ObservationSearch(ModelEqualityMixin):
     """
     Encapsulates the possible parameters which can be used to search for :class:`Observation` instances in the database.
     If parameters are set to None this means they won't be used to restrict the possible set of results.
     """
 
-    def __init__(self, camera_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, time_min=None,
+    def __init__(self, obstory_ids=None, lat_min=None, lat_max=None, long_min=None, long_max=None, time_min=None,
                  time_max=None, observation_type=None, observation_id=None, meta_constraints=None, limit=100,
                  skip=0, exclude_export_to=None, exclude_imported=False):
         """
         Create a new ObservationSearch. All parameters are optional, a default search will be created which returns
         at most the first 100 instances. All parameters specify restrictions on these results.
 
-        :param list[string] camera_ids:
-            Optional - if specified, restricts results to only those the the specified camera IDs which
+        :param list[string] obstory_ids:
+            Optional - if specified, restricts results to only those the the specified obstory IDs which
             are expressed as an array of strings.
         :param float lat_min:
-            Optional - if specified, only returns results where the camera status at the time of the event
+            Optional - if specified, only returns results where the obstory status at the time of the event
             had a latitude field of at least the specified value.
         :param float lat_max:
-            Optional - if specified, only returns results where the camera status at the time of the event
+            Optional - if specified, only returns results where the obstory status at the time of the event
             had a latitude field of at most the specified value.
         :param float long_min:
-            Optional - if specified, only returns results where the camera status at the time of the event
+            Optional - if specified, only returns results where the obstory status at the time of the event
             had a longitude field of at least the specified value.
         :param float long_max:
-            Optional - if specified, only returns results where the camera status at the time of the event
+            Optional - if specified, only returns results where the obstory status at the time of the event
             had a longitude field of at most the specified value.
         :param float time_min:
             Optional - if specified, only returns results where the event time is after the specified value.
@@ -367,17 +361,17 @@ class ObservationSearch(ModelEqualityMixin):
         :param Boolean exclude_imported:
             Optional, if True excludes any Events which were imported from another node.
         """
-        if camera_ids is not None and len(camera_ids) == 0:
-            raise ValueError('If camera_ids is specified it must contain at least one ID')
+        if obstory_ids is not None and len(obstory_ids) == 0:
+            raise ValueError('If obstory_ids is specified it must contain at least one ID')
         if lat_min is not None and lat_max is not None and lat_max < lat_min:
             raise ValueError('Latitude max cannot be less than latitude minimum')
         if long_min is not None and long_max is not None and long_max < long_min:
             raise ValueError('Longitude max cannot be less than longitude minimum')
         if time_min is not None and time_max is not None and time_max < time_min:
             raise ValueError('Time min cannot be after before time max')
-        if isinstance(camera_ids, basestring):
-            camera_ids = [camera_ids]
-        self.camera_ids = camera_ids
+        if isinstance(obstory_ids, basestring):
+            obstory_ids = [obstory_ids]
+        self.obstory_ids = obstory_ids
         self.lat_min = lat_min
         self.lat_max = lat_max
         self.long_min = long_min
@@ -412,7 +406,7 @@ class ObservationSearch(ModelEqualityMixin):
             Dict representation of this ObservationSearch instance
         """
         d = {}
-        _add_value(d, 'camera_ids', self.camera_ids)
+        _add_value(d, 'obstory_ids', self.obstory_ids)
         _add_value(d, 'lat_min', self.lat_min)
         _add_value(d, 'lat_max', self.lat_max)
         _add_value(d, 'long_min', self.long_min)
@@ -430,7 +424,7 @@ class ObservationSearch(ModelEqualityMixin):
 
     @staticmethod
     def from_dict(d):
-        camera_ids = _value_from_dict(d, 'camera_ids')
+        obstory_ids = _value_from_dict(d, 'obstory_ids')
         lat_min = _value_from_dict(d, 'lat_min')
         lat_max = _value_from_dict(d, 'lat_max')
         long_min = _value_from_dict(d, 'long_min')
@@ -447,7 +441,7 @@ class ObservationSearch(ModelEqualityMixin):
             meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta']))
         else:
             meta_constraints = []
-        return ObservationSearch(camera_ids=camera_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
+        return ObservationSearch(obstory_ids=obstory_ids, lat_min=lat_min, lat_max=lat_max, long_min=long_min,
                                  long_max=long_max, time_min=time_min, time_max=time_max,
                                  meta_constraints=meta_constraints,
                                  observation_type=observation_type, observation_id=observation_id,
@@ -461,15 +455,15 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
     database. If parameters are set to None this means they won't be used to restrict the possible set of results.
     """
 
-    def __init__(self, camera_ids=None, field_name=None, lat_min=None, lat_max=None, long_min=None, long_max=None,
+    def __init__(self, obstory_ids=None, field_name=None, lat_min=None, lat_max=None, long_min=None, long_max=None,
                  time_min=None, time_max=None, item_id=None,
                  limit=100, skip=0, exclude_export_to=None, exclude_imported=False):
         """
         Create a new ObservatoryMetadataSearch. All parameters are optional, a default search will be created which
         returns at most the first 100 instances. All parameters specify restrictions on these results.
 
-        :param list[string] camera_ids:
-            Optional - if specified, restricts results to only the specified camera IDs which
+        :param list[string] obstory_ids:
+            Optional - if specified, restricts results to only the specified obstory IDs which
             are expressed as an array of strings.
         :param string field_name:
             Optional - name of metadata field to search for
@@ -499,17 +493,17 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
         :param Boolean exclude_imported:
             Optional, if True excludes any Metadata which were imported from another node.
         """
-        if camera_ids is not None and len(camera_ids) == 0:
-            raise ValueError('If camera_ids is specified it must contain at least one ID')
+        if obstory_ids is not None and len(obstory_ids) == 0:
+            raise ValueError('If obstory_ids is specified it must contain at least one ID')
         if lat_min is not None and lat_max is not None and lat_max < lat_min:
             raise ValueError('Latitude max cannot be less than latitude minimum')
         if long_min is not None and long_max is not None and long_max < long_min:
             raise ValueError('Longitude max cannot be less than longitude minimum')
         if time_min is not None and time_max is not None and time_max < time_min:
             raise ValueError('Time min cannot be after before time max')
-        if isinstance(camera_ids, basestring):
-            camera_ids = [camera_ids]
-        self.camera_ids = camera_ids
+        if isinstance(obstory_ids, basestring):
+            obstory_ids = [obstory_ids]
+        self.obstory_ids = obstory_ids
         self.field_name = field_name
         self.lat_min = lat_min
         self.lat_max = lat_max
@@ -540,7 +534,7 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
             Dict representation of this ObservatoryMetadataSearch instance
         """
         d = {}
-        _add_value(d, 'camera_ids', self.camera_ids)
+        _add_value(d, 'obstory_ids', self.obstory_ids)
         _add_string(d, 'field_name', self.field_name)
         _add_value(d, 'lat_min', self.lat_min)
         _add_value(d, 'lat_max', self.lat_max)
@@ -557,7 +551,7 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
 
     @staticmethod
     def from_dict(d):
-        camera_ids = _value_from_dict(d, 'camera_ids')
+        obstory_ids = _value_from_dict(d, 'obstory_ids')
         field_name = _string_from_dict(d, 'field_name')
         lat_min = _value_from_dict(d, 'lat_min')
         lat_max = _value_from_dict(d, 'lat_max')
@@ -570,7 +564,7 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
         limit = _value_from_dict(d, 'limit', 100)
         exclude_imported = _boolean_from_dict(d, 'exclude_imported')
         exclude_export_to = _string_from_dict(d, 'exclude_export_to')
-        return ObservatoryMetadataSearch(camera_ids=camera_ids, field_name=field_name, lat_min=lat_min, lat_max=lat_max,
+        return ObservatoryMetadataSearch(obstory_ids=obstory_ids, field_name=field_name, lat_min=lat_min, lat_max=lat_max,
                                          long_min=long_min, long_max=long_max, time_min=time_min, time_max=time_max,
                                          item_id=item_id,
                                          limit=limit, skip=skip, exclude_imported=exclude_imported,
@@ -624,8 +618,8 @@ class Observation(ModelEqualityMixin):
     """
     Represents a single observation.
 
-    :ivar string camera_id:
-        the string ID of the camera which produced this event.
+    :ivar string obstory_id:
+        the string ID of the obstory which produced this event.
     :ivar string obs_id:
         the unique Id of the observation.
     :ivar float obs_time:
@@ -643,8 +637,8 @@ class Observation(ModelEqualityMixin):
 
     def __init__(
             self,
-            camera_id,
-            camera_name,
+            obstory_id,
+            obstory_name,
             obs_time,
             obs_id,
             obs_type,
@@ -655,8 +649,8 @@ class Observation(ModelEqualityMixin):
         create a new Event, or on the client API to retrieve an existing one. This constructor is only for
         internal use within the database layer.
 
-        :param string camera_id: Camera ID which is responsible for this event
-        :param string camera_name: Name of the camera which is responsible for this event
+        :param string obstory_id: Camera ID which is responsible for this event
+        :param string obstory_name: Name of the obstory which is responsible for this event
         :param float obs_time: Date for the event
         :param string obs_id: UUID for this event
         :param string obs_type: string defining the event type
@@ -666,8 +660,8 @@ class Observation(ModelEqualityMixin):
             A list of :class:`meteorpi_model.Meta`, or None to specify an empty list, which provide additional
             information about the event.
         """
-        self.camera_id = camera_id
-        self.camera_name = camera_name
+        self.obstory_id = obstory_id
+        self.obstory_name = obstory_name
         self.obs_id = obs_id
         self.obs_time = obs_time
         self.obs_type = obs_type
@@ -685,9 +679,9 @@ class Observation(ModelEqualityMixin):
 
     def __str__(self):
         return (
-            'Observation(camera_id={0}, camera_name={1}, obs_time={2}, obs_id={3}, obs_type={4})'.format(
-                    self.camera_id,
-                    self.camera_name,
+            'Observation(obstory_id={0}, obstory_name={1}, obs_time={2}, obs_id={3}, obs_type={4})'.format(
+                    self.obstory_id,
+                    self.obstory_name,
                     self.obs_time,
                     self.obs_id,
                     self.obs_type
@@ -695,15 +689,15 @@ class Observation(ModelEqualityMixin):
         )
 
     def as_dict(self):
-        return {'camera_id': self.camera_id, 'camera_name': self.camera_name, 'obs_id': self.obs_id,
+        return {'obstory_id': self.obstory_id, 'obstory_name': self.obstory_name, 'obs_id': self.obs_id,
                 'obs_time': self.obs_time, 'obs_type': self.obs_type,
                 'files': list(fr.as_dict() for fr in self.file_records),
                 'meta': list(fm.as_dict() for fm in self.meta)}
 
     @staticmethod
     def from_dict(d):
-        return Observation(camera_id=_string_from_dict(d, 'camera_id'),
-                           camera_name=_string_from_dict(d, 'camera_name'),
+        return Observation(obstory_id=_string_from_dict(d, 'obstory_id'),
+                           obstory_name=_string_from_dict(d, 'obstory_name'),
                            obs_id=_string_from_dict(d, 'obs_id'),
                            obs_time=_value_from_dict(d, 'obs_time'),
                            obs_type=_string_from_dict(d, 'obs_type'),
@@ -718,16 +712,16 @@ class FileRecord(ModelEqualityMixin):
     methods in the database API.
 
 
-    :ivar string camera_id:
+    :ivar string obstory_id:
         String ID of the observatory which produced this file.
-    :ivar string camera_name:
+    :ivar string obstory_name:
         Name of the observatory which produced this file.
     :ivar string observation_id:
         Observation of which this file is a part
     :ivar string repository_fname:
         File name of the file in the repository.
     :ivar float file_time:
-        Datetime the file was created on the camera.
+        Datetime the file was created on the obstory.
     :ivar int file_size:
         File size in bytes. A value of 0 means that the underlying file is not yet available, so it
         cannot be downloaded. This may happen if you are retrieving results from a central server which has received
@@ -748,10 +742,10 @@ class FileRecord(ModelEqualityMixin):
         The hex representation of the MD5 sum for the file, as computed by model.get_md5_hash()
     """
 
-    def __init__(self, camera_id, camera_name, observation_id, repository_fname, file_time, file_size, file_name,
+    def __init__(self, obstory_id, obstory_name, observation_id, repository_fname, file_time, file_size, file_name,
                  mime_type, semantic_type, file_md5=None):
-        self.camera_id = camera_id
-        self.camera_name = camera_name
+        self.obstory_id = obstory_id
+        self.obstory_name = obstory_name
         self.observation_id = observation_id
         self.repository_fname = repository_fname
         self.file_time = file_time
@@ -763,10 +757,10 @@ class FileRecord(ModelEqualityMixin):
 
     def __str__(self):
         return (
-            'FileRecord(camera_id={0}, camera_name={1}, observation_id={2}, repository_fname={3}, file_time={4}, '
+            'FileRecord(obstory_id={0}, obstory_name={1}, observation_id={2}, repository_fname={3}, file_time={4}, '
             'file_size={5}, file_name={6}, mime_type={7}, semantic_type={8}, file_md5={9}'.format(
-                    self.camera_id,
-                    self.camera_name,
+                    self.obstory_id,
+                    self.obstory_name,
                     self.observation_id,
                     self.repository_fname,
                     self.file_time,
@@ -778,8 +772,8 @@ class FileRecord(ModelEqualityMixin):
 
     def as_dict(self):
         d = {}
-        _add_string(d, 'camera_id', self.camera_id)
-        _add_string(d, 'camera_name', self.camera_name)
+        _add_string(d, 'obstory_id', self.obstory_id)
+        _add_string(d, 'obstory_name', self.obstory_name)
         _add_string(d, 'observation_id', self.observation_id)
         _add_string(d, 'repository_fname', self.repository_fname)
         _add_value(d, 'file_time', self.file_time)
@@ -793,8 +787,8 @@ class FileRecord(ModelEqualityMixin):
     @staticmethod
     def from_dict(d):
         return FileRecord(
-                camera_id=_string_from_dict(d, 'camera_id'),
-                camera_name=_string_from_dict(d, 'camera_name'),
+                obstory_id=_string_from_dict(d, 'obstory_id'),
+                obstory_name=_string_from_dict(d, 'obstory_name'),
                 observation_id=_string_from_dict(d, 'observation_id'),
                 repository_fname=_string_from_dict(d, 'repository_fname'),
                 file_time=_value_from_dict(d, 'file_time'),
@@ -810,13 +804,13 @@ class ObservatoryMetadata(ModelEqualityMixin):
     """
     Represents a piece of data about an observatory.
 
-    :ivar string camera_id:
+    :ivar string obstory_id:
         String ID of the observatory.
-    :ivar string camera_name:
+    :ivar string obstory_name:
         Name of the observatory.
-    :ivar float camera_lat:
+    :ivar float obstory_lat:
         Latitude of the observatory (degrees north)
-    :ivar float camera_lng:
+    :ivar float obstory_lng:
         Longitude of the observatory (degrees east)
     :ivar string key:
         Name of the metadata key.
@@ -830,12 +824,12 @@ class ObservatoryMetadata(ModelEqualityMixin):
         Username of the user who set this value
     """
 
-    def __init__(self, camera_id, camera_name, camera_lat, camera_lng, key, value,
+    def __init__(self, obstory_id, obstory_name, obstory_lat, obstory_lng, key, value,
                  metadata_time, time_created, user_created):
-        self.camera_id = camera_id
-        self.camera_name = camera_name
-        self.camera_lat = camera_lat
-        self.camera_lng = camera_lng
+        self.obstory_id = obstory_id
+        self.obstory_name = obstory_name
+        self.obstory_lat = obstory_lat
+        self.obstory_lng = obstory_lng
         self.key = key
         self.value = value
         self.time = metadata_time
@@ -852,13 +846,13 @@ class ObservatoryMetadata(ModelEqualityMixin):
 
     def __str__(self):
         return (
-            'ObservatoryMetadata(camera_id={0}, camera_name={1}, camera_lat={2}, camera_lng={3}, '
+            'ObservatoryMetadata(obstory_id={0}, obstory_name={1}, obstory_lat={2}, obstory_lng={3}, '
             'key={4}, value={5}, '
             'metadata_time={6}, time_created={7}, user_created={8}'.format(
-                    self.camera_id,
-                    self.camera_name,
-                    self.camera_lat,
-                    self.camera_lng,
+                    self.obstory_id,
+                    self.obstory_name,
+                    self.obstory_lat,
+                    self.obstory_lng,
                     self.key,
                     self.value,
                     self.time,
@@ -867,10 +861,10 @@ class ObservatoryMetadata(ModelEqualityMixin):
 
     def as_dict(self):
         d = {}
-        _add_string(d, 'camera_id', self.camera_id)
-        _add_string(d, 'camera_name', self.camera_name)
-        _add_value(d, 'camera_lat', self.camera_lat)
-        _add_value(d, 'camera_lng', self.camera_lng)
+        _add_string(d, 'obstory_id', self.obstory_id)
+        _add_string(d, 'obstory_name', self.obstory_name)
+        _add_value(d, 'obstory_lat', self.obstory_lat)
+        _add_value(d, 'obstory_lng', self.obstory_lng)
         _add_string(d, 'key', self.key)
         _add_value(d, 'time', self.time)
         _add_value(d, 'time_created', self.time_created)
@@ -893,10 +887,10 @@ class ObservatoryMetadata(ModelEqualityMixin):
         else:
             raise ValueError("Unknown meta value type")
         return ObservatoryMetadata(
-                camera_id=_string_from_dict(d, 'camera_id'),
-                camera_name=_string_from_dict(d, 'camera_name'),
-                camera_lat=_value_from_dict(d, 'camera_lat'),
-                camera_lng=_value_from_dict(d, 'camera_lng'),
+                obstory_id=_string_from_dict(d, 'obstory_id'),
+                obstory_name=_string_from_dict(d, 'obstory_name'),
+                obstory_lat=_value_from_dict(d, 'obstory_lat'),
+                obstory_lng=_value_from_dict(d, 'obstory_lng'),
                 key=_string_from_dict(d, 'key'),
                 value=v,
                 metadata_time=_value_from_dict(d, 'time'),
@@ -1048,3 +1042,62 @@ class ExportConfiguration(ModelEqualityMixin):
         enabled = _boolean_from_dict(d, "enabled")
         return ExportConfiguration(config_id=config_id, target_url=target_url, user_id=user_id, password=password,
                                    search=search, name=name, description=description, enabled=enabled)
+
+
+class ObservationGroup(ModelEqualityMixin):
+    """
+    Represents a group of observations with associated metadata.
+
+    :ivar int group_id:
+        the ID of this observation group.
+    :ivar list[Observation] obs_records:
+        a list of zero or more :class:`meteorpi_model.Observation` objects.
+    :ivar list[Meta] meta:
+        a list of zero or more :class:`meteorpi_model.Meta` objects. Meta objects are used to provide arbitrary extra,
+        searchable, information about the group.
+    """
+
+    def __init__(
+            self,
+            group_id=None,
+            obs_records=None,
+            meta=None):
+        """
+        Constructor function. Note that typically you'd use the methods on the database to
+        create a new Event, or on the client API to retrieve an existing one. This constructor is only for
+        internal use within the database layer.
+
+        :param int group_id: Camera ID which is responsible for this event
+        :param list[Observation] obs_records:
+            A list of :class:`meteorpi_model.Observation`, or None to specify no observations.
+        :param list[Meta] meta:
+            A list of :class:`meteorpi_model.Meta`, or None to specify an empty list, which provide additional
+            information about the group.
+        """
+        self.group_id = group_id
+
+        # Sequence of Observations
+        if obs_records is None:
+            self.obs_records = []
+        else:
+            self.obs_records = obs_records
+
+        # Group metadata
+        if meta is None:
+            self.meta = []
+        else:
+            self.meta = meta
+
+    def __str__(self):
+        return 'ObservationGroup(group_id={0})'.format(self.group_id)
+
+    def as_dict(self):
+        return {'group_id': self.group_id,
+                'observations': list(obs.as_dict() for obs in self.obs_records),
+                'meta': list(fm.as_dict() for fm in self.meta)}
+
+    @staticmethod
+    def from_dict(d):
+        return ObservationGroup(group_id=_string_from_dict(d, 'group_id'),
+                                obs_records=list(Observation.from_dict(obs) for obs in d['observations']),
+                                meta=list((Meta.from_dict(m) for m in d['meta'])))
