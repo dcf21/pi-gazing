@@ -6,7 +6,7 @@
 def search_observations_sql_builder(search):
     """
     Create and populate an instance of :class:`meteorpi_db.SQLBuilder` for a given
-    :class:`meteorpi_model.ObservatorySearch`. This can then be used to retrieve the results of the search, materialise
+    :class:`meteorpi_model.ObservationSearch`. This can then be used to retrieve the results of the search, materialise
     them into :class:`meteorpi_model.Observation` instances etc.
 
     :param ObservationSearch search:
@@ -26,7 +26,7 @@ INNER JOIN archive_observatories l ON o.observatory=l.uid""", where_clauses=[])
     b.add_sql(search.lat_max, 'l.latitude <= %s')
     b.add_sql(search.long_min, 'l.longitude >= %s')
     b.add_sql(search.long_max, 'l.longitude <= %s')
-    b.add_metadata_query_properties(meta_constraints=search.meta_constraints)
+    b.add_metadata_query_properties(meta_constraints=search.meta_constraints, id_column="observationId", id_table="o")
 
     # Check for import / export filters
     if search.exclude_imported:
@@ -40,6 +40,32 @@ INNER JOIN archive_observatories l ON o.observatory=l.uid""", where_clauses=[])
         b.sql_args.append(SQLBuilder.map_value(search.exclude_export_to))
     return b
 
+def search_obsgroups_sql_builder(search):
+    """
+    Create and populate an instance of :class:`meteorpi_db.SQLBuilder` for a given
+    :class:`meteorpi_model.ObservationGroupSearch`. This can then be used to retrieve the results of the search,
+    materialise them into :class:`meteorpi_model.ObservationGroup` instances etc.
+
+    :param ObservationGroupSearch search:
+        The search to realise
+    :return:
+        A :class:`meteorpi_db.SQLBuilder` configured from the supplied search
+    """
+    b = SQLBuilder(tables="archive_obs_groups g", where_clauses=[])
+    b.add_sql(search.obstory_name, """
+EXISTS (SELECT 1 FROM archive_obs_group_members x1
+INNER JOIN archive_observations x2 ON x2.uid=x1.observationId
+INNER JOIN archive_observatories x3 ON x3.uid=x2.observatory
+WHERE x1.groupId=g.uid AND x3.publicId=%s)""")
+    b.add_sql(search.observation_id, """
+EXISTS (SELECT 1 FROM archive_obs_group_members y1
+INNER JOIN archive_observations y2 ON y2.uid=y1.observationId
+WHERE y1.groupId=g.uid AND y2.publicId=%s)""")
+    b.add_sql(search.group_id, 'g.publicId = %s')
+    b.add_sql(search.time_min, 'g.obsTime > %s')
+    b.add_sql(search.time_max, 'g.obsTime < %s')
+    b.add_metadata_query_properties(meta_constraints=search.meta_constraints, id_column="groupId", id_table="g")
+    return b
 
 def search_files_sql_builder(search):
     """
@@ -68,7 +94,7 @@ INNER JOIN archive_observatories l ON o.observatory=l.uid""", where_clauses=[])
     b.add_sql(search.long_max, 'l.longitude <= %s')
     b.add_sql(search.mime_type, 'f.mimeType = %s')
     b.add_sql(search.semantic_type, 'f.semanticType = %s')
-    b.add_metadata_query_properties(meta_constraints=search.meta_constraints)
+    b.add_metadata_query_properties(meta_constraints=search.meta_constraints, id_column="fileId", id_table="f")
 
     # Check for import / export filters
     if search.exclude_imported:
@@ -107,7 +133,6 @@ INNER JOIN archive_observatories l ON m.observatory=l.uid""", where_clauses=["m.
     b.add_sql(search.long_min, 'l.longitude >= %s')
     b.add_sql(search.long_max, 'l.longitude <= %s')
     b.add_sql(search.item_id, 'm.publicId = %s')
-    b.add_metadata_query_properties(meta_constraints=search.meta_constraints)
 
     # Check for import / export filters
     if search.exclude_imported:
@@ -202,7 +227,7 @@ class SQLBuilder(object):
             for value in values:
                 self.sql_args.append(SQLBuilder.map_value(value))
 
-    def add_metadata_query_properties(self, meta_constraints):
+    def add_metadata_query_properties(self, meta_constraints, id_table, id_column):
         """
         Construct WHERE clauses from a list of MetaConstraint objects, adding them to the query state.
 
@@ -216,10 +241,10 @@ class SQLBuilder(object):
             meta_key = str(mc.key)
             ct = mc.constraint_type
             sql_template = """
-o.uid IN (
-SELECT m.observationID FROM archive_metadata m
+{0}.uid IN (
+SELECT m.{1} FROM archive_metadata m
 INNER JOIN archive_metadataFields k ON m.fieldId=k.uid
-WHERE m.{0} {1} %s AND k.metaKey = {2}
+WHERE m.{2} {3} %s AND k.metaKey = {4}
 )"""
             # Meta value, mapping to the correct type as appropriate
             self.sql_args.append(SQLBuilder.map_value(mc.value))
@@ -227,13 +252,13 @@ WHERE m.{0} {1} %s AND k.metaKey = {2}
             self.sql_args.append(str(mc.key))
             # Put an appropriate WHERE clause
             if ct == 'less':
-                self.where_clauses.append(sql_template.format('floatValue', '<=', meta_key))
+                self.where_clauses.append(sql_template.format(id_table, id_column, 'floatValue', '<=', meta_key))
             elif ct == 'greater':
-                self.where_clauses.append(sql_template.format('floatValue', '>=', meta_key))
+                self.where_clauses.append(sql_template.format(id_table, id_column, 'floatValue', '>=', meta_key))
             elif ct == 'number_equals':
-                self.where_clauses.append(sql_template.format('floatValue', '=', meta_key))
+                self.where_clauses.append(sql_template.format(id_table, id_column, 'floatValue', '=', meta_key))
             elif ct == 'string_equals':
-                self.where_clauses.append(sql_template.format('stringValue', '=', meta_key))
+                self.where_clauses.append(sql_template.format(id_table, id_column, 'stringValue', '=', meta_key))
             else:
                 raise ValueError("Unknown meta constraint type!")
 

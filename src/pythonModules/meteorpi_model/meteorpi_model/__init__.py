@@ -46,11 +46,13 @@ def now():
     """Returns the current UTC timestamp"""
     return time.time()
 
+
 def get_hash(utc, str1, str2):
     tstr = time.strftime("%Y%m%d_%H%M%S", time.gmtime(utc))
-    key  = "%s_%s_%s"%(str1,str2,time.time())
-    uid  = hashlib.md5(key.encode()).hexdigest()
-    return ("%s_%s"%(tstr,uid))[0:32]
+    key = "%s_%s_%s" % (str1, str2, time.time())
+    uid = hashlib.md5(key.encode()).hexdigest()
+    return ("%s_%s" % (tstr, uid))[0:32]
+
 
 def get_md5_hash(file_path):
     """
@@ -179,8 +181,7 @@ class FileRecordSearch(ModelEqualityMixin):
             Optional - if specified, only returns results where the semantic type exactly matches.
             The type of this value should be an instance of :class:`meteorpi_model.NSString`
         :param string observation_type:
-            Optional - if True then files associated with an :class:`meteorpi_model.Event` will be excluded from the
-            results, otherwise files will be included whether they are associated with an Event or not.
+            Optional - search only for files associated with a particular observation type.
         :param int observation_id:
             Optional - return only files associated with a particular observation
         :param string repository_fname:
@@ -198,12 +199,9 @@ class FileRecordSearch(ModelEqualityMixin):
             i.e. use skip 0 and limit 10 to get the first ten, then skip 10 limit 10 to get the next and so on.
         :param string exclude_export_to:
             Optional, if specified excludes FileRecords with an entry in t_fileExport for the specified file export
-            configuration. Note that this only applies to files which are not part of an event, so it only makes sense
-            to set this flag if you also set exclude_events to True.
+            configuration.
         :param Boolean exclude_imported:
-            Optional, if True excludes any FileRecords which were imported from another node. Note that this only
-            applies to files which are not part of an event, so it only makes sense to set this flag if you also set
-            exclude_events to True.
+            Optional, if True excludes any FileRecords which were imported from another node.
         """
         if obstory_ids is not None and len(obstory_ids) == 0:
             raise ValueError('If obstory_ids is specified it must contain at least one ID')
@@ -328,24 +326,24 @@ class ObservationSearch(ModelEqualityMixin):
             Optional - if specified, restricts results to only those the the specified obstory IDs which
             are expressed as an array of strings.
         :param float lat_min:
-            Optional - if specified, only returns results where the obstory status at the time of the event
+            Optional - if specified, only returns results where the obstory status at the time of the observation
             had a latitude field of at least the specified value.
         :param float lat_max:
-            Optional - if specified, only returns results where the obstory status at the time of the event
+            Optional - if specified, only returns results where the obstory status at the time of the observation
             had a latitude field of at most the specified value.
         :param float long_min:
-            Optional - if specified, only returns results where the obstory status at the time of the event
+            Optional - if specified, only returns results where the obstory status at the time of the observation
             had a longitude field of at least the specified value.
         :param float long_max:
-            Optional - if specified, only returns results where the obstory status at the time of the event
+            Optional - if specified, only returns results where the obstory status at the time of the observation
             had a longitude field of at most the specified value.
         :param float time_min:
-            Optional - if specified, only returns results where the event time is after the specified value.
+            Optional - if specified, only returns results where the observation time is after the specified value.
         :param float time_max:
-            Optional - if specified, only returns results where the event time is before the specified value
+            Optional - if specified, only returns results where the observation time is before the specified value
         :param list[MetaConstraint] meta_constraints:
-            Optional - a list of :class:`meteorpi_model.MetaConstraint` objects providing restrictions over the event
-            metadata.
+            Optional - a list of :class:`meteorpi_model.MetaConstraint` objects providing restrictions over the
+            observation metadata.
         :param int limit:
             Optional, defaults to 100 - controls the maximum number of results that will be returned by this
             search. If set to 0 will return all results, but be aware that this may potentially have negative effects on
@@ -355,11 +353,10 @@ class ObservationSearch(ModelEqualityMixin):
             of results from the result set. Use when limiting the number returned by each query to paginate the results,
             i.e. use skip 0 and limit 10 to get the first ten, then skip 10 limit 10 to get the next and so on.
         :param string exclude_export_to:
-            Optional, if specified excludes Events with an entry in t_eventExport for the specified event export
-            configuration. Note that this only applies to files which are not part of an event, so it only makes sense
-            to set this flag if you also set exclude_events to True.
+            Optional, if specified excludes Observations with an entry in t_observationExport for the specified
+            observation export configuration.
         :param Boolean exclude_imported:
-            Optional, if True excludes any Events which were imported from another node.
+            Optional, if True excludes any Observations which were imported from another node.
         """
         if obstory_ids is not None and len(obstory_ids) == 0:
             raise ValueError('If obstory_ids is specified it must contain at least one ID')
@@ -449,6 +446,102 @@ class ObservationSearch(ModelEqualityMixin):
                                  exclude_export_to=exclude_export_to)
 
 
+class ObservationGroupSearch(ModelEqualityMixin):
+    """
+    Encapsulates the possible parameters which can be used to search for :class:`ObservationGroup` instances in
+    the database. If parameters are set to None this means they won't be used to restrict the possible set of results.
+    """
+
+    def __init__(self, obstory_name=None, time_min=None, group_id=None,
+                 time_max=None, observation_id=None, meta_constraints=None, limit=100,
+                 skip=0):
+        """
+        Create a new ObservationGroupSearch. All parameters are optional, a default search will be created which returns
+        at most the first 100 instances. All parameters specify restrictions on these results.
+
+        :param string obstory_name:
+            Optional - if specified, restricts results to groups containing observations from the specified obstory,
+            expressed as string.
+        :param float time_min:
+            Optional - if specified, only returns results where the observation time is after the specified value.
+        :param float time_max:
+            Optional - if specified, only returns results where the observation time is before the specified value.
+        :param string group_id:
+            Optional - search for a group by ID
+        :param string observation_id:
+            Optional - search for groups containing a particular observation
+        :param list[MetaConstraint] meta_constraints:
+            Optional - a list of :class:`meteorpi_model.MetaConstraint` objects providing restrictions over the
+            observation group metadata.
+        :param int limit:
+            Optional, defaults to 100 - controls the maximum number of results that will be returned by this
+            search. If set to 0 will return all results, but be aware that this may potentially have negative effects on
+            the server software. Only set this to 0 when you are sure that you won't return too many results!
+        :param int skip:
+            Optional, defaults to 0 - used with the limit parameter, this will skip the specified number
+            of results from the result set. Use when limiting the number returned by each query to paginate the results,
+            i.e. use skip 0 and limit 10 to get the first ten, then skip 10 limit 10 to get the next and so on.
+        """
+        if time_min is not None and time_max is not None and time_max < time_min:
+            raise ValueError('Time min cannot be after before time max')
+        self.obstory_name = obstory_name
+        self.time_min = time_min
+        self.time_max = time_max
+        self.group_id = group_id
+        self.observation_id = observation_id
+        self.limit = limit
+        self.skip = skip
+
+        if meta_constraints is None:
+            self.meta_constraints = []
+        else:
+            self.meta_constraints = meta_constraints
+
+    def __str__(self):
+        fields = []
+        for field in self.__dict__:
+            if self.__dict__[field] is not None:
+                fields.append({'name': field, 'value': self.__dict__[field]})
+        return '{0}[{1}]'.format(self.__class__.__name__,
+                                 ','.join(('{0}=\'{1}\''.format(x['name'], str(x['value'])) for x in fields)))
+
+    def as_dict(self):
+        """
+        Convert this ObservationGroupSearch to a dict, ready for serialization to JSON for use in the API.
+
+        :return:
+            Dict representation of this ObservationGroupSearch instance
+        """
+        d = {}
+        _add_string(d, 'obstory_name', self.obstory_name)
+        _add_value(d, 'time_min', self.time_min)
+        _add_value(d, 'time_max', self.time_max)
+        _add_string(d, 'group_id', self.group_id)
+        _add_string(d, 'observation_id', self.observation_id)
+        _add_value(d, 'skip', self.skip)
+        _add_value(d, 'limit', self.limit)
+        d['meta'] = list((x.as_dict() for x in self.meta_constraints))
+        return d
+
+    @staticmethod
+    def from_dict(d):
+        obstory_name = _value_from_dict(d, 'obstory_name')
+        time_min = _value_from_dict(d, 'time_min')
+        time_max = _value_from_dict(d, 'time_max')
+        group_id = _string_from_dict(d, 'group_id')
+        observation_id = _string_from_dict(d, 'observation_id')
+        skip = _value_from_dict(d, 'skip', 0)
+        limit = _value_from_dict(d, 'limit', 100)
+        if 'meta' in d:
+            meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta']))
+        else:
+            meta_constraints = []
+        return ObservationGroupSearch(obstory_name=obstory_name, time_min=time_min, time_max=time_max,
+                                      meta_constraints=meta_constraints, observation_id=observation_id,
+                                      group_id=group_id,
+                                      limit=limit, skip=skip)
+
+
 class ObservatoryMetadataSearch(ModelEqualityMixin):
     """
     Encapsulates the possible parameters which can be used to search for :class:`ObservatoryMetadata` instances in the
@@ -487,9 +580,8 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
             of results from the result set. Use when limiting the number returned by each query to paginate the results,
             i.e. use skip 0 and limit 10 to get the first ten, then skip 10 limit 10 to get the next and so on.
         :param string exclude_export_to:
-            Optional, if specified excludes Events with an entry in t_metadataExport for the specified event export
-            configuration. Note that this only applies to files which are not part of an event, so it only makes sense
-            to set this flag if you also set exclude_events to True.
+            Optional, if specified excludes Observations with an entry in t_metadataExport for the specified
+            observation export configuration.
         :param Boolean exclude_imported:
             Optional, if True excludes any Metadata which were imported from another node.
         """
@@ -564,7 +656,8 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
         limit = _value_from_dict(d, 'limit', 100)
         exclude_imported = _boolean_from_dict(d, 'exclude_imported')
         exclude_export_to = _string_from_dict(d, 'exclude_export_to')
-        return ObservatoryMetadataSearch(obstory_ids=obstory_ids, field_name=field_name, lat_min=lat_min, lat_max=lat_max,
+        return ObservatoryMetadataSearch(obstory_ids=obstory_ids, field_name=field_name, lat_min=lat_min,
+                                         lat_max=lat_max,
                                          long_min=long_min, long_max=long_max, time_min=time_min, time_max=time_max,
                                          item_id=item_id,
                                          limit=limit, skip=skip, exclude_imported=exclude_imported,
@@ -572,7 +665,7 @@ class ObservatoryMetadataSearch(ModelEqualityMixin):
 
 
 class MetaConstraint(ModelEqualityMixin):
-    """Defines a constraint over metadata on a FileRecord or Event, used in the respective searches."""
+    """Defines a constraint over metadata on a FileRecord or Observation, used in the respective searches."""
 
     def __init__(self, constraint_type, key, value):
         """
@@ -619,7 +712,7 @@ class Observation(ModelEqualityMixin):
     Represents a single observation.
 
     :ivar string obstory_id:
-        the string ID of the obstory which produced this event.
+        the string ID of the obstory which produced this observation.
     :ivar string obs_id:
         the unique Id of the observation.
     :ivar float obs_time:
@@ -629,7 +722,7 @@ class Observation(ModelEqualityMixin):
         string, and can take any arbitrary value.
     :ivar list[FileRecord] file_records:
         a list of zero or more :class:`meteorpi_model.FileRecord` objects. You can think of these as the supporting
-        evidence for the other information in the event.
+        evidence for the other information in the observation.
     :ivar list[Meta] meta:
         a list of zero or more :class:`meteorpi_model.Meta` objects. Meta objects are used to provide arbitrary extra,
         searchable, information about the observation.
@@ -646,32 +739,34 @@ class Observation(ModelEqualityMixin):
             meta=None):
         """
         Constructor function. Note that typically you'd use the methods on the database to
-        create a new Event, or on the client API to retrieve an existing one. This constructor is only for
+        create a new Observation, or on the client API to retrieve an existing one. This constructor is only for
         internal use within the database layer.
 
-        :param string obstory_id: Camera ID which is responsible for this event
-        :param string obstory_name: Name of the obstory which is responsible for this event
-        :param float obs_time: Date for the event
-        :param string obs_id: UUID for this event
-        :param string obs_type: string defining the event type
+        :param string obstory_id: Camera ID which is responsible for this observation
+        :param string obstory_name: Name of the obstory which is responsible for this observation
+        :param float obs_time: Date for the observation
+        :param string obs_id: UUID for this observation
+        :param string obs_type: string defining the observation type
         :param list[FileRecord] file_records:
-            A list of :class:`meteorpi_model.FileRecord`, or None to specify no files, which support the event.
+            A list of :class:`meteorpi_model.FileRecord`, or None to specify no files, which support the observation.
         :param list[Meta] meta:
             A list of :class:`meteorpi_model.Meta`, or None to specify an empty list, which provide additional
-            information about the event.
+            information about the observation.
         """
         self.obstory_id = obstory_id
         self.obstory_name = obstory_name
-        self.obs_id = obs_id
+        self.id = self.obs_id = obs_id
         self.obs_time = obs_time
         self.obs_type = obs_type
         self.likes = 0
+
         # Sequence of FileRecord
         if file_records is None:
             self.file_records = []
         else:
             self.file_records = file_records
-        # Event metadata
+
+        # Observation metadata
         if meta is None:
             self.meta = []
         else:
@@ -689,7 +784,8 @@ class Observation(ModelEqualityMixin):
         )
 
     def as_dict(self):
-        return {'obstory_id': self.obstory_id, 'obstory_name': self.obstory_name, 'obs_id': self.obs_id,
+        return {'obstory_id': self.obstory_id, 'id': self.id,
+                'obstory_name': self.obstory_name, 'obs_id': self.obs_id,
                 'obs_time': self.obs_time, 'obs_type': self.obs_type,
                 'files': list(fr.as_dict() for fr in self.file_records),
                 'meta': list(fm.as_dict() for fm in self.meta)}
@@ -743,17 +839,23 @@ class FileRecord(ModelEqualityMixin):
     """
 
     def __init__(self, obstory_id, obstory_name, observation_id, repository_fname, file_time, file_size, file_name,
-                 mime_type, semantic_type, file_md5=None):
+                 mime_type, semantic_type, file_md5=None, meta=None):
         self.obstory_id = obstory_id
         self.obstory_name = obstory_name
         self.observation_id = observation_id
-        self.repository_fname = repository_fname
+        self.id = self.repository_fname = repository_fname
         self.file_time = file_time
         self.file_size = file_size
         self.file_name = file_name
         self.mime_type = mime_type
         self.semantic_type = semantic_type
         self.file_md5 = file_md5
+
+        # Observation metadata
+        if meta is None:
+            self.meta = []
+        else:
+            self.meta = meta
 
     def __str__(self):
         return (
@@ -772,6 +874,7 @@ class FileRecord(ModelEqualityMixin):
 
     def as_dict(self):
         d = {}
+        _add_string(d, 'id', self.id)
         _add_string(d, 'obstory_id', self.obstory_id)
         _add_string(d, 'obstory_name', self.obstory_name)
         _add_string(d, 'observation_id', self.observation_id)
@@ -782,6 +885,7 @@ class FileRecord(ModelEqualityMixin):
         _add_string(d, 'mime_type', self.mime_type)
         _add_string(d, 'semantic_type', self.semantic_type)
         _add_string(d, 'file_md5', self.file_md5)
+        d['meta'] = list(fm.as_dict() for fm in self.meta)
         return d
 
     @staticmethod
@@ -796,7 +900,8 @@ class FileRecord(ModelEqualityMixin):
                 file_name=_string_from_dict(d, 'file_name'),
                 mime_type=_string_from_dict(d, 'mime_type'),
                 semantic_type=_string_from_dict(d, 'semantic_type'),
-                file_md5=_string_from_dict(d, 'file_md5')
+                file_md5=_string_from_dict(d, 'file_md5'),
+                meta=list((Meta.from_dict(m) for m in d['meta']))
         )
 
 
@@ -824,8 +929,9 @@ class ObservatoryMetadata(ModelEqualityMixin):
         Username of the user who set this value
     """
 
-    def __init__(self, obstory_id, obstory_name, obstory_lat, obstory_lng, key, value,
+    def __init__(self, metadata_id, obstory_id, obstory_name, obstory_lat, obstory_lng, key, value,
                  metadata_time, time_created, user_created):
+        self.id = self.metadata_id = metadata_id
         self.obstory_id = obstory_id
         self.obstory_name = obstory_name
         self.obstory_lat = obstory_lat
@@ -846,7 +952,7 @@ class ObservatoryMetadata(ModelEqualityMixin):
 
     def __str__(self):
         return (
-            'ObservatoryMetadata(obstory_id={0}, obstory_name={1}, obstory_lat={2}, obstory_lng={3}, '
+            'ObservatoryMetadata(metadata_id={9}, obstory_id={0}, obstory_name={1}, obstory_lat={2}, obstory_lng={3}, '
             'key={4}, value={5}, '
             'metadata_time={6}, time_created={7}, user_created={8}'.format(
                     self.obstory_id,
@@ -857,10 +963,12 @@ class ObservatoryMetadata(ModelEqualityMixin):
                     self.value,
                     self.time,
                     self.time_created,
-                    self.user_created))
+                    self.user_created,
+                    self.metadata_id))
 
     def as_dict(self):
         d = {}
+        _add_string(d, 'id', self.id)
         _add_string(d, 'obstory_id', self.obstory_id)
         _add_string(d, 'obstory_name', self.obstory_name)
         _add_value(d, 'obstory_lat', self.obstory_lat)
@@ -869,6 +977,7 @@ class ObservatoryMetadata(ModelEqualityMixin):
         _add_value(d, 'time', self.time)
         _add_value(d, 'time_created', self.time_created)
         _add_string(d, 'user_created', self.user_created)
+        _add_string(d, 'metadata_id', self.metadata_id)
 
         meta_type = self.type()
         _add_string(d, "type", meta_type)
@@ -895,7 +1004,8 @@ class ObservatoryMetadata(ModelEqualityMixin):
                 value=v,
                 metadata_time=_value_from_dict(d, 'time'),
                 time_created=_value_from_dict(d, 'time_created'),
-                user_created=_string_from_dict(d, 'user_created')
+                user_created=_string_from_dict(d, 'user_created'),
+                metadata_id=_string_from_dict(d, 'metadata_id')
         )
 
 
@@ -960,8 +1070,8 @@ class Meta(ModelEqualityMixin):
 
 class ExportConfiguration(ModelEqualityMixin):
     """
-    Defines an export configuration, comprising an :class:`meteorpi_model.EventSearch` or
-    :class:`meteorpi_model.FileRecordSearch` defining a set of :class:`meteorpi_model.Event` or
+    Defines an export configuration, comprising an :class:`meteorpi_model.ObservationSearch` or
+    :class:`meteorpi_model.FileRecordSearch` defining a set of :class:`meteorpi_model.Observation` or
     :class:`meteorpi_model.FileRecord` objects respectively which should be exported, and the necessary information
     about the target, including its URL, user and password. Also carries a descriptive name and long description for
     management and a UUID for the configuration itself.
@@ -987,14 +1097,14 @@ class ExportConfiguration(ModelEqualityMixin):
     :ivar Boolean enabled:
         True if this export configuration is enabled, False otherwise.
     :ivar string type:
-        Set based on the type of the supplied search object, either to 'file' or 'event'.
+        Set based on the type of the supplied search object, either to 'file' or 'observation' or 'metadata'.
     """
 
     def __init__(self, target_url, user_id, password, search, name, description, enabled=False, config_id=None):
         if search is None:
             raise ValueError("Search must not be None")
 
-        self.config_id = config_id
+        self.id = self.config_id = config_id
         self.target_url = target_url
         self.user_id = user_id
         self.password = password
@@ -1011,6 +1121,7 @@ class ExportConfiguration(ModelEqualityMixin):
 
     def as_dict(self):
         d = {}
+        _add_string(d, 'id', self.id)
         _add_string(d, "type", self.type)
         _add_string(d, "config_id", self.config_id)
         _add_string(d, "target_url", self.target_url)
@@ -1031,7 +1142,7 @@ class ExportConfiguration(ModelEqualityMixin):
         obj_type = _value_from_dict(d, "type")
         if obj_type == "file":
             search = FileRecordSearch.from_dict(d["search"])
-        elif obj_type == "event":
+        elif obj_type == "observation":
             search = ObservationSearch.from_dict(d["search"])
         elif obj_type == "metadata":
             search = ObservatoryMetadataSearch.from_dict(d["search"])
@@ -1057,24 +1168,22 @@ class ObservationGroup(ModelEqualityMixin):
         searchable, information about the group.
     """
 
-    def __init__(
-            self,
-            group_id=None,
-            obs_records=None,
-            meta=None):
+    def __init__(self, group_id, title, obs_time, set_time, user_id, obs_records=None, meta=None):
         """
-        Constructor function. Note that typically you'd use the methods on the database to
-        create a new Event, or on the client API to retrieve an existing one. This constructor is only for
-        internal use within the database layer.
+        Constructor function.
 
-        :param int group_id: Camera ID which is responsible for this event
+        :param int group_id: Camera ID which is responsible for this observation group
         :param list[Observation] obs_records:
             A list of :class:`meteorpi_model.Observation`, or None to specify no observations.
         :param list[Meta] meta:
             A list of :class:`meteorpi_model.Meta`, or None to specify an empty list, which provide additional
             information about the group.
         """
-        self.group_id = group_id
+        self.id = self.group_id = group_id
+        self.title = title
+        self.obs_time = obs_time
+        self.set_time = set_time
+        self.user_id = user_id
 
         # Sequence of Observations
         if obs_records is None:
@@ -1089,15 +1198,27 @@ class ObservationGroup(ModelEqualityMixin):
             self.meta = meta
 
     def __str__(self):
-        return 'ObservationGroup(group_id={0})'.format(self.group_id)
+        return 'ObservationGroup(group_id={0}, title={1}, obs_time={2}, set_time={3})'.format(self.group_id,
+                                                                                              self.title,
+                                                                                              self.obs_time,
+                                                                                              self.set_time)
 
     def as_dict(self):
         return {'group_id': self.group_id,
+                'id': self.id,
+                'title': self.title,
+                'obs_time': self.obs_time,
+                'set_time': self.set_time,
+                'user_id': self.user_id,
                 'observations': list(obs.as_dict() for obs in self.obs_records),
                 'meta': list(fm.as_dict() for fm in self.meta)}
 
     @staticmethod
     def from_dict(d):
         return ObservationGroup(group_id=_string_from_dict(d, 'group_id'),
+                                title=_string_from_dict(d, 'title'),
+                                obs_time=_value_from_dict(d, 'obs_time'),
+                                set_time=_value_from_dict(d, 'set_time'),
+                                user_id=_value_from_dict(d, 'user_id'),
                                 obs_records=list(Observation.from_dict(obs) for obs in d['observations']),
                                 meta=list((Meta.from_dict(m) for m in d['meta'])))

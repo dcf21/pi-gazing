@@ -83,7 +83,7 @@ CREATE TABLE archive_observations (
     ON DELETE CASCADE,
   FOREIGN KEY (obsType) REFERENCES archive_semanticTypes (uid)
     ON DELETE CASCADE,
-  INDEX (publicId)
+  INDEX (obsTime), INDEX (publicId)
 );
 
 /* Number of likes each observation has */
@@ -100,9 +100,13 @@ CREATE TABLE archive_obs_likes (
 /* Groups of observations */
 CREATE TABLE archive_obs_groups (
   uid       INTEGER PRIMARY KEY AUTO_INCREMENT,
+  publicId  CHAR(32) NOT NULL,
   title     TEXT,
+  obsTime   REAL,
+  time      REAL,
   setAtTime REAL, /* time that metadata was computed */
-  setByUser VARCHAR(16)
+  setByUser VARCHAR(16),
+  INDEX(time), INDEX(setAtTime)
 );
 
 CREATE TABLE archive_obs_group_members (
@@ -113,6 +117,21 @@ CREATE TABLE archive_obs_group_members (
     ON DELETE CASCADE,
   FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
     ON DELETE CASCADE
+);
+
+/* Links to files in whatever external store we use */
+CREATE TABLE archive_files (
+  uid             INTEGER PRIMARY KEY AUTO_INCREMENT,
+  observationId   INTEGER      NOT NULL,
+  mimeType        VARCHAR(100) NOT NULL,
+  fileName        VARCHAR(255) NOT NULL,
+  semanticType    INTEGER      NOT NULL,
+  fileTime        REAL         NOT NULL,
+  fileSize        INTEGER      NOT NULL,
+  repositoryFname CHAR(32)     NOT NULL,
+  fileMD5         CHAR(32)     NOT NULL, /* MD5 hash of file contents */
+  FOREIGN KEY (observationId) REFERENCES archive_observations (uid),
+  INDEX(fileTime), INDEX (repositoryFname)
 );
 
 /* Metadata pertaining to observations, observatories, or groups of observations */
@@ -131,9 +150,12 @@ CREATE TABLE archive_metadata (
   setByUser     VARCHAR(16),
   stringValue   TEXT,
   floatValue    REAL,
+  fileId        INTEGER,
   observationId INTEGER,
   observatory   INTEGER,
   groupId       INTEGER,
+  FOREIGN KEY (fileId) REFERENCES archive_files (uid)
+    ON DELETE CASCADE,
   FOREIGN KEY (observatory) REFERENCES archive_observatories (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
@@ -141,22 +163,8 @@ CREATE TABLE archive_metadata (
   FOREIGN KEY (groupId) REFERENCES archive_obs_groups (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (fieldId) REFERENCES archive_metadataFields (uid)
-    ON DELETE CASCADE
-);
-
-/* Links to files in whatever external store we use */
-CREATE TABLE archive_files (
-  uid             INTEGER PRIMARY KEY AUTO_INCREMENT,
-  observationId   INTEGER      NOT NULL,
-  mimeType        VARCHAR(100) NOT NULL,
-  fileName        VARCHAR(255) NOT NULL,
-  semanticType    INTEGER      NOT NULL,
-  fileTime        REAL         NOT NULL,
-  fileSize        INTEGER      NOT NULL,
-  repositoryFname CHAR(32)     NOT NULL,
-  fileMD5         CHAR(32)     NOT NULL, /* MD5 hash of file contents */
-  FOREIGN KEY (observationId) REFERENCES archive_observations (uid),
-  INDEX (repositoryFname)
+    ON DELETE CASCADE,
+  INDEX(setAtTime), INDEX(publicId)
 );
 
 /* Configuration used to export observations to an external server */
@@ -170,7 +178,8 @@ CREATE TABLE archive_exportConfig (
   targetPassword VARCHAR(255)  NOT NULL,
   exportName     VARCHAR(255)  NOT NULL,
   description    VARCHAR(2048) NOT NULL,
-  active         BOOLEAN       NOT NULL
+  active         BOOLEAN       NOT NULL,
+  INDEX(exportConfigId)
 );
 
 CREATE TABLE archive_observationExport (

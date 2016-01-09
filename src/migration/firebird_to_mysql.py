@@ -86,7 +86,11 @@ for item in events:
             else:
                 meta_val = meta[4]
             meta_list.append(mp.Meta(meta[1],meta_val))
-    obs = db.register_observation(obstory_id, "migrate", utc, "movingObject", meta_list)
+    obs = db.register_observation(obstory_name=obstory_id,
+                                  user_id="migrate",
+                                  obs_time=utc,
+                                  obs_type="movingObject",
+                                  obs_meta=meta_list)
     event_public_ids[item[0]] = obs.obs_id
 db.commit()
 
@@ -138,14 +142,37 @@ for item in files:
                 meta_val = meta[4]
             meta_list.append(mp.Meta(meta[1],meta_val))
     if item[0] in event_file_dict:
-        file_obj = db.register_file(event_public_ids[event_file_dict[item[0]]], file_path, utc, item[3], item[4])
+        file_obj = db.register_file(observation_id=event_public_ids[event_file_dict[item[0]]],
+                                    user_id="migrate",
+                                    file_path=file_path,
+                                    file_time=utc,
+                                    mime_type=item[3],
+                                    semantic_type=item[4],
+                                    file_meta=meta_list)
     elif utc_floor in created_observations:
-        file_obj = db.register_file(created_observations[utc_floor], file_path, utc, item[3], item[4])
+        file_obj = db.register_file(observation_id=created_observations[utc_floor],
+                                    user_id="migrate",
+                                    file_path=file_path,
+                                    file_time=utc,
+                                    mime_type=item[3],
+                                    semantic_type=item[4],
+                                    file_meta=meta_list)
     else:
         if item[3] == "text/plain":
             semantic_type = "logging"
         else:
             semantic_type = "timelapse"
-        obs = db.register_observation(obstory_id, "migrate", utc, "timelapse", meta_list)
+        obs = db.register_observation(obstory_name=obstory_id,
+                                      user_id="migrate",
+                                      obs_time=utc,
+                                      obs_type="timelapse",
+                                      obs_meta=meta_list)
         created_observations[utc_floor] = obs.obs_id
-        file_obj = db.register_file(obs.obs_id, file_path, utc, item[3], item[4])
+        file_obj = db.register_file(observation_id=obs.obs_id,
+                                    user_id="migrate",
+                                    file_path=file_path,
+                                    file_time=utc,
+                                    mime_type=item[3],
+                                    semantic_type=item[4],
+                                    file_meta=meta_list)
+db.commit()

@@ -14,7 +14,7 @@ from passlib.hash import pbkdf2_sha256
 import meteorpi_model as mp
 from meteorpi_db.generators import first_from_generator, first_non_null, MeteorDatabaseGenerators
 from meteorpi_db.sql_builder import search_observations_sql_builder, search_files_sql_builder, \
-    search_metadata_sql_builder
+    search_metadata_sql_builder, search_obsgroups_sql_builder
 from meteorpi_db.exporter import ObservationExportTask, FileExportTask, MetadataExportTask
 
 SOFTWARE_VERSION = 2
@@ -84,12 +84,12 @@ class MeteorDatabase(object):
         """
         return ('MeteorDatabase(file_store_path={0}, db_path={1}, db_host={2}, db_user={3}, db_password={4}, '
                 'db_name={5}, obstory_name={6})'.format(
-                    self.file_store_path,
-                    self.db_host,
-                    self.db_user,
-                    self.db_password,
-                    self.db_name,
-                    self.obstory_name))
+                self.file_store_path,
+                self.db_host,
+                self.db_user,
+                self.db_password,
+                self.db_name,
+                self.obstory_name))
 
     def commit(self):
         self.db.commit()
@@ -161,7 +161,7 @@ VALUES
         b = search_metadata_sql_builder(search)
         sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
                                        'l.latitude AS obstory_lat, l.longitude AS obstory_lng'
-                                       'stringValue, floatValue, '
+                                       'stringValue, floatValue, m.publicId AS metadata_id, '
                                        'f.name AS metadata_key, time, setAtTime AS time_created, '
                                        'setByUser AS user_created',
                                skip=0, limit=1, order='f.fileTime DESC')
@@ -174,7 +174,7 @@ VALUES
         b = search_metadata_sql_builder(search)
         sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
                                        'l.latitude AS obstory_lat, l.longitude AS obstory_lng'
-                                       'stringValue, floatValue, '
+                                       'stringValue, floatValue, m.publicId AS metadata_id, '
                                        'f.name AS metadata_key, time, setAtTime AS time_created, '
                                        'setByUser AS user_created',
                                skip=0, limit=1, order='f.fileTime DESC')
@@ -190,9 +190,9 @@ VALUES
     def register_obstory_metadata(self, obstory_id, key, value, metadata_time, time_created, user_created):
         obstory = self.get_obstory_from_id(obstory_id)
         item_id = mp.get_hash(metadata_time, obstory['publicId'], key)
-        self.import_obstory_metadata(obstory['name'], key, value, metadata_time, time_created, user_created,item_id)
+        self.import_obstory_metadata(obstory['name'], key, value, metadata_time, time_created, user_created, item_id)
 
-        return mp.ObservatoryMetadata(obstory_id=obstory['uid'], obstory_name=obstory['name'],
+        return mp.ObservatoryMetadata(metadata_id=item_id, obstory_id=obstory['uid'], obstory_name=obstory['name'],
                                       obstory_lat=obstory['latitude'], obstory_lng=obstory['longitude'],
                                       key=key, value=value, metadata_time=metadata_time,
                                       time_created=time_created, user_created=user_created)
@@ -202,7 +202,6 @@ VALUES
             return
 
         obstory = self.get_obstory_from_name(obstory_name)
-        item_id = mp.get_hash(metadata_time, obstory['publicId'], key)
         key_id = self.get_metadata_key_id(key)
         str_value = float_value = None
         if isinstance(value, numbers.Number):
@@ -322,7 +321,7 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
         """
         search = mp.FileRecordSearch(repository_fname=repository_fname)
         b = search_files_sql_builder(search)
-        sql = b.get_select_sql(columns='f.observationId, f.mimeType, f.fileName, f.semanticType, f.fileTime, '
+        sql = b.get_select_sql(columns='f.uid, f.observationId, f.mimeType, f.fileName, f.semanticType, f.fileTime, '
                                        'f.fileSize, f.fileMD5, l.publicId AS obstory_id, l.name AS obstory_name',
                                skip=0, limit=1, order='f.fileTime DESC')
         files = list(self.generators.file_generator(sql=sql, sql_args=b.sql_args))
@@ -335,13 +334,14 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
         Search for :class:`meteorpi_model.FileRecord` entities
 
         :param search:
-            an instance of :class:`meteorpi_model.FileRecordSearch` used to constrain the events returned from the DB
+            an instance of :class:`meteorpi_model.FileRecordSearch` used to constrain the observations returned from
+            the DB
         :return:
-            a structure of {count:int total rows of an unrestricted search, events:list of
+            a structure of {count:int total rows of an unrestricted search, observations:list of
             :class:`meteorpi_model.FileRecord`}
         """
         b = search_files_sql_builder(search)
-        sql = b.get_select_sql(columns='f.observationId, f.mimeType, f.fileName, f.semanticType, f.fileTime, '
+        sql = b.get_select_sql(columns='f.uid, f.observationId, f.mimeType, f.fileName, f.semanticType, f.fileTime, '
                                        'f.fileSize, f.fileMD5, l.publicId AS obstory_id, l.name AS obstory_name',
                                skip=search.skip,
                                limit=search.limit,
@@ -355,13 +355,15 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
         return {"count": total_rows,
                 "files": files}
 
-    def register_file(self, observation_id, file_path, file_time, mime_type, semantic_type):
+    def register_file(self, observation_id, user_id, file_path, file_time, mime_type, semantic_type, file_meta=None):
         """
         Register a file in the database, also moving the file into the file store. Returns the corresponding FileRecord
         object.
 
         :param observation_id:
             The publicId of the observation this file belongs to
+        :param string user_id:
+            The ID of the user who created this file
         :param string file_path:
             The path of the file on disk to register. This file will be moved into the file store and renamed.
         :param string mime_type:
@@ -370,9 +372,14 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
             A string defining the semantic type of the file
         :param float file_time:
             UTC datetime of the import of the file into the database
+        :param list file_meta:
+            A list of :class:`meteorpi_model.Meta` used to provide additional information about this file
         :return:
             The resultant :class:`meteorpi_model.FileRecord` as stored in the database
         """
+
+        if file_meta is None:
+            file_meta = []
 
         # Check that file exists
         if not os.path.exists(file_path):
@@ -413,6 +420,10 @@ VALUES
         except OSError:
             sys.stderr.write("Could not move file into repository\n")
 
+        # Store the file metadata
+        for meta in file_meta:
+            self.set_file_metadata(user_id, repository_fname, meta, file_time)
+
         result_file = mp.FileRecord(obstory_id=obs['obstory_id'],
                                     obstory_name=obs['obstory_name'],
                                     observation_id=observation_id,
@@ -422,13 +433,14 @@ VALUES
                                     file_name=file_name,
                                     mime_type=mime_type,
                                     semantic_type=semantic_type,
-                                    file_md5=md5
+                                    file_md5=md5,
+                                    meta=file_meta
                                     )
 
         # Return the resultant file object
         return result_file
 
-    def import_file(self, file_item):
+    def import_file(self, file_item, user_id):
         if self.has_file_id(file_item.repository_fname):
             return
         if not self.has_observation_id(file_item.observation_id):
@@ -448,10 +460,52 @@ VALUES
             file_item.file_time, file_item.file_size,
             file_item.repository_fname, file_item.file_md5))
 
+        # Store the file metadata
+        for meta in file_item.meta:
+            self.set_file_metadata(user_id, file_item.repository_fname, meta, file_item.file_time)
+
+    def set_file_metadata(self, user_id, file_id, meta, utc=None):
+        meta_id = self.get_metadata_key_id(meta.key)
+        if utc is None:
+            utc = mp.now()
+        public_id = mp.get_hash(utc, meta.key, user_id)
+        self.con.execute("DELETE FROM archive_metadata WHERE "
+                         "fieldId=%s AND fileId=(SELECT uid FROM archive_files WHERE publicId=%s);",
+                         (meta_id, file_id))
+        self.con.execute("""
+INSERT INTO archive_metadata (publicId, fieldId, setAtTime, setByUser, stringValue, floatValue, fileId)
+VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE publicId=%s))
+""", (
+            public_id,
+            meta_id,
+            mp.now(),
+            user_id,
+            meta.string_value(),
+            meta.float_value(),
+            file_id))
+
+    def unset_file_metadata(self, file_id, key):
+        meta_id = self.get_metadata_key_id(key)
+        self.con.execute("DELETE FROM archive_metadata WHERE "
+                         "fieldId=%s AND fileId=(SELECT uid FROM archive_files WHERE publicId=%s);",
+                         (meta_id, file_id))
+
+    def get_file_metadata(self, file_id, key):
+        meta_id = self.get_metadata_key_id(key)
+        self.con.execute("SELECT stringValue, floatValue FROM archive_metadata "
+                         "WHERE fieldId=%s AND fileId=(SELECT uid FROM archive_files WHERE publicId=%s);",
+                         (meta_id, file_id))
+        results = self.con.fetchall()
+        if len(results) < 1:
+            return None
+        if results[0]['stringValue'] is not None:
+            return results[0]['stringValue']
+        return results[0]['floatValue']
+
     # Functions for handling observation objects
     def has_observation_id(self, observation_id):
         """
-        Check for the presence of the given event_id
+        Check for the presence of the given observation_id
 
         :param string observation_id:
             The observation ID
@@ -490,7 +544,7 @@ VALUES
         search = mp.ObservationSearch(observation_id=observation_id)
         b = search_observations_sql_builder(search)
         sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
-                                       'o.obsTime, o.obsType, o.publicId',
+                                       'o.obsTime, o.obsType, o.publicId, o.uid',
                                skip=0, limit=1, order='f.obsTime DESC')
         obs = list(self.generators.observation_generator(sql=sql, sql_args=b.sql_args))
         if not obs:
@@ -502,14 +556,15 @@ VALUES
         Search for :class:`meteorpi_model.Observation` entities
 
         :param search:
-            an instance of :class:`meteorpi_model.ObservationSearch` used to constrain the events returned from the DB
+            an instance of :class:`meteorpi_model.ObservationSearch` used to constrain the observations returned from
+            the DB
         :return:
-            a structure of {count:int total rows of an unrestricted search, events:list of
+            a structure of {count:int total rows of an unrestricted search, observations:list of
             :class:`meteorpi_model.Observation`}
         """
         b = search_observations_sql_builder(search)
         sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
-                                       'o.obsTime, o.obsType, o.publicId',
+                                       'o.obsTime, o.obsType, o.publicId, o.uid',
                                skip=0, limit=1, order='f.obsTime DESC')
         obs = list(self.generators.observation_generator(sql=sql, sql_args=b.sql_args))
         rows_returned = len(obs)
@@ -522,10 +577,10 @@ VALUES
 
     def register_observation(self, obstory_name, user_id, obs_time, obs_type, obs_meta=None):
         """
-        Register a new event, updating the database and returning the corresponding Event object
+        Register a new observation, updating the database and returning the corresponding Observation object
 
         :param string obstory_name:
-            The ID of the obstory which produced this event
+            The ID of the obstory which produced this observation
         :param string user_id:
             The ID of the user who created this observation
         :param float obs_time:
@@ -533,7 +588,7 @@ VALUES
         :param string obs_type:
             A string describing the semantic type of this observation
         :param list obs_meta:
-            A list of :class:`meteorpi_model.Meta` used to provide additional information about this event
+            A list of :class:`meteorpi_model.Meta` used to provide additional information about this observation
         :return:
             The :class:`meteorpi_model.Observation` as stored in the database
         """
@@ -592,8 +647,9 @@ VALUES
         meta_id = self.get_metadata_key_id(meta.key)
         if utc is None:
             utc = mp.now()
-        public_id = mp.get_hash(utc,meta.key,user_id)
-        self.con.execute("DELETE FROM archive_metadata WHERE fieldId=%s AND observationId=%s;",
+        public_id = mp.get_hash(utc, meta.key, user_id)
+        self.con.execute("DELETE FROM archive_metadata WHERE "
+                         "fieldId=%s AND observationId=(SELECT uid FROM archive_observations WHERE publicId=%s);",
                          (meta_id, observation_id))
         self.con.execute("""
 INSERT INTO archive_metadata (publicId, fieldId, setAtTime, setByUser, stringValue, floatValue, observationId)
@@ -609,12 +665,14 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
 
     def unset_observation_metadata(self, observation_id, key):
         meta_id = self.get_metadata_key_id(key)
-        self.con.execute("DELETE FROM archive_metadata WHERE fieldId=%s AND observationId=%s;",
+        self.con.execute("DELETE FROM archive_metadata WHERE "
+                         "fieldId=%s AND observationId=(SELECT uid FROM archive_observations WHERE publicId=%s);",
                          (meta_id, observation_id))
 
     def get_observation_metadata(self, observation_id, key):
         meta_id = self.get_metadata_key_id(key)
-        self.con.execute("SELECT stringValue, floatValue FROM archive_metadata WHERE fieldId=%s AND observationId=%s;",
+        self.con.execute("SELECT stringValue, floatValue FROM archive_metadata "
+                         "WHERE fieldId=%s AND observationId=(SELECT uid FROM archive_observations WHERE publicId=%s);",
                          (meta_id, observation_id))
         results = self.con.fetchall()
         if len(results) < 1:
@@ -642,6 +700,160 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
         uid = results[0]['uid']
         self.con.execute('DELETE FROM archive_obs_likes WHERE userId=%s AND observationId=%d;',
                          (uid, observation_id))
+
+    # Functions for handling observation groups
+    def has_obsgroup_id(self, group_id):
+        """
+        Check for the presence of the given group_id
+
+        :param string group_id:
+            The group ID
+        :return:
+            True if we have a :class:`meteorpi_model.ObservationGroup` with this Id, False otherwise
+        """
+        self.con.execute('SELECT 1 FROM archive_obs_groups WHERE publicId = %s', (group_id,))
+        return len(self.con.fetchall()) > 0
+
+    def delete_obsgroup(self, group_id):
+        self.con.execute('DELETE FROM archive_obs_groups WHERE publicId = %s', (group_id,))
+
+    def get_obsgroup(self, group_id):
+        """
+        Retrieve an existing :class:`meteorpi_model.ObservationGroup` by its ID
+
+        :param string group_id:
+            UUID of the observation
+        :return:
+            A :class:`meteorpi_model.Observation` instance, or None if not found
+        """
+        search = mp.ObservationGroupSearch(group_id=group_id)
+        b = search_obsgroups_sql_builder(search)
+        sql = b.get_select_sql(columns='g.uid, g.obsTime, g.setAtTime, g.setByUser, g.publicId, g.title',
+                               skip=0, limit=1, order='g.obsTime DESC')
+        obs_groups = list(self.generators.obsgroup_generator(sql=sql, sql_args=b.sql_args))
+        if not obs_groups:
+            return None
+        return obs_groups[0]
+
+    def search_obsgroups(self, search):
+        """
+        Search for :class:`meteorpi_model.ObservationGroup` entities
+
+        :param search:
+            an instance of :class:`meteorpi_model.ObservationGroupSearch` used to constrain the observations returned
+            from the DB
+        :return:
+            a structure of {count:int total rows of an unrestricted search, observations:list of
+            :class:`meteorpi_model.ObservationGroup`}
+        """
+        b = search_obsgroups_sql_builder(search)
+        sql = b.get_select_sql(columns='g.uid, g.obsTime, g.setAtTime, g.setByUser, g.publicId, g.title',
+                               skip=0, limit=1, order='g.obsTime DESC')
+        obs_groups = list(self.generators.obsgroup_generator(sql=sql, sql_args=b.sql_args))
+        rows_returned = len(obs_groups)
+        total_rows = rows_returned + search.skip
+        if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
+            self.con.execute(b.get_count_sql(), b.sql_args)
+            total_rows = self.con.fetchone()[0]
+        return {"count": total_rows,
+                "obsgroups": obs_groups}
+
+    def register_obsgroup(self, title, user_id, obs_time, set_time, obs=None, grp_meta=None):
+        """
+        Register a new observation, updating the database and returning the corresponding Observation object
+
+        :param string title:
+            The title of this observation group
+        :param string user_id:
+            The ID of the user who created this observation
+        :param float obs_time:
+            The UTC date/time of the observation
+        :param float set_time:
+            The UTC date/time that this group was created
+        :param list obs:
+            A list of :class: `meteorpi_model.Observation` which are members of this group
+        :param list grp_meta:
+            A list of :class:`meteorpi_model.Meta` used to provide additional information about this observation
+        :return:
+            The :class:`meteorpi_model.Observation` as stored in the database
+        """
+
+        if grp_meta is None:
+            grp_meta = []
+
+        # Create a unique ID for this observation
+        group_id = mp.get_hash(set_time, title, user_id)
+
+        # Insert into database
+        self.con.execute("""
+INSERT INTO archive_obs_groups (publicId, title, obsTime, setByUser, setAtTime)
+VALUES
+(%s, %s, %s, %s, %s);
+""", (group_id, title, obs_time, user_id, set_time))
+
+        # Store the observation metadata
+        for meta in grp_meta:
+            self.set_obsgroup_metadata(user_id, group_id, meta, obs_time)
+
+        obs_group = mp.ObservationGroup(group_id=group_id,
+                                        title=title,
+                                        obs_time=obs_time,
+                                        user_id=user_id,
+                                        set_time=set_time,
+                                        obs_records=None,
+                                        meta=grp_meta)
+        return obs_group
+
+    def add_obsgroup_member(self, group_id, observation_id):
+        self.delete_obsgroup_member(group_id, observation_id)
+        self.con.execute("INSERT INTO archive_obs_group_members (groupId, observationId)  VALUES "
+                         "( (SELECT uid FROM archive_obs_groups WHERE publicId=%s),"
+                         "  (SELECT uid FROM archive_observations WHERE publicId=%s) );",
+                         (group_id, observation_id))
+
+    def delete_obsgroup_member(self, group_id, observation_id):
+        self.con.execute("DELETE FROM archive_obs_group_members WHERE "
+                         "groupId=(SELECT uid FROM archive_obs_groups WHERE publicId=%s) AND"
+                         "observationId=(SELECT uid FROM archive_observations WHERE publicId=%s);",
+                         (group_id, observation_id))
+
+    def set_obsgroup_metadata(self, user_id, group_id, meta, utc=None):
+        meta_id = self.get_metadata_key_id(meta.key)
+        if utc is None:
+            utc = mp.now()
+        public_id = mp.get_hash(utc, meta.key, user_id)
+        self.con.execute("DELETE FROM archive_metadata WHERE "
+                         "fieldId=%s AND groupId=(SELECT uid FROM archive_obs_groups WHERE publicId=%s);",
+                         (meta_id, group_id))
+        self.con.execute("""
+INSERT INTO archive_metadata (publicId, fieldId, setAtTime, setByUser, stringValue, floatValue, groupId)
+VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE publicId=%s))
+""", (
+            public_id,
+            meta_id,
+            mp.now(),
+            user_id,
+            meta.string_value(),
+            meta.float_value(),
+            group_id))
+
+    def unset_obsgroup_metadata(self, group_id, key):
+        meta_id = self.get_metadata_key_id(key)
+        self.con.execute("DELETE FROM archive_metadata WHERE "
+                         "fieldId=%s AND groupId=(SELECT uid FROM archive_obs_groups WHERE publicId=%s);",
+                         (meta_id, group_id))
+
+    def get_obsgroup_metadata(self, group_id, key):
+        meta_id = self.get_metadata_key_id(key)
+        self.con.execute("SELECT stringValue, floatValue FROM archive_metadata "
+                         "WHERE fieldId=%s AND groupId=(SELECT uid FROM archive_obs_groups WHERE publicId=%s);",
+                         (meta_id, group_id))
+        results = self.con.fetchall()
+        if len(results) < 1:
+            return None
+        if results[0]['stringValue'] is not None:
+            return results[0]['stringValue']
+        return results[0]['floatValue']
 
     # Functions for handling user accounts
     def get_user(self, user_id, password):
@@ -833,7 +1045,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
     def mark_entities_to_export(self, export_config):
         """
         Apply the specified :class:`meteorpi_model.ExportConfiguration` to the database, running its contained query and
-        creating rows in t_eventExport or t_fileExport for matching entities.
+        creating rows in t_observationExport or t_fileExport for matching entities.
 
         :param ExportConfiguration export_config:
             An instance of :class:`meteorpi_model.ExportConfiguration` to apply.
@@ -929,7 +1141,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
             target_url = row['targetURL']
             target_user = row['targetUser']
             target_password = row['targetPassword']
-            return MetadataExportTask(db=self, config_id=config_id, event_id=entity_id,
+            return MetadataExportTask(db=self, config_id=config_id, metadata_id=entity_id,
                                       status=status, target_url=target_url, target_user=target_user,
                                       target_password=target_password)
 
@@ -950,7 +1162,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
             target_url = row['targetURL']
             target_user = row['targetUser']
             target_password = row['targetPassword']
-            return ObservationExportTask(db=self, config_id=config_id, event_id=entity_id,
+            return ObservationExportTask(db=self, config_id=config_id, observation_id=entity_id,
                                          status=status, target_url=target_url, target_user=target_user,
                                          target_password=target_password)
 
@@ -971,7 +1183,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
             target_url = row['targetURL']
             target_user = row['targetUser']
             target_password = row['targetPassword']
-            return FileExportTask(db=self, config_id=config_id, event_id=entity_id,
+            return FileExportTask(db=self, config_id=config_id, file_id=entity_id,
                                   status=status, target_url=target_url, target_user=target_user,
                                   target_password=target_password)
 
