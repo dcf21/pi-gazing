@@ -6,24 +6,23 @@ import os
 import xml.etree.cElementTree as ElementTree
 
 import mod_xml
-from mod_time import *
 
 
-class sensor:
-    def __init__(self, name, width, height, fps, upsideDown, cameraType):
+class Sensor:
+    def __init__(self, name, width, height, fps, upside_down, camera_type):
         self.name = name
         self.width = width
         self.height = height
         self.fps = fps
-        self.upsideDown = upsideDown
-        self.cameraType = cameraType
+        self.upside_down = upside_down
+        self.camera_type = camera_type
 
     def __str__(self):
         print "sensor(%s,%s,%s,%s,%s,%s)" % (
-        self.name, self.width, self.height, self.fps, self.upsideDown, self.cameraType)
+            self.name, self.width, self.height, self.fps, self.upside_down, self.camera_type)
 
 
-class lens:
+class Lens:
     def __init__(self, name, fov, barrel_a, barrel_b, barrel_c):
         self.name = name
         self.fov = fov
@@ -35,41 +34,46 @@ class lens:
         print "lens(%s,%s,%s,%s,%s)" % (self.name, self.fov, self.barrel_a, self.barrel_b, self.barrel_c)
 
 
-class hardwareProps:
+class HardwareProps:
     def __init__(self, path):
-        sensorsDataPath = os.path.join(path, "sensors.xml")
-        lensDataPath = os.path.join(path, "lenses.xml")
-        assert os.path.exists(sensorsDataPath), "Could not find sensor data in file <%s>" % sensorsDataPath
-        assert os.path.exists(lensDataPath), "Could not find lens data in file <%s>" % lensDataPath
+        sensors_data_path = os.path.join(path, "sensors.xml")
+        lenses_data_path = os.path.join(path, "lenses.xml")
+        assert os.path.exists(sensors_data_path), "Could not find sensor data in file <%s>" % sensors_data_path
+        assert os.path.exists(lenses_data_path), "Could not find lens data in file <%s>" % lenses_data_path
 
-        tree = ElementTree.parse(sensorsDataPath)
+        tree = ElementTree.parse(sensors_data_path)
         root = tree.getroot()
-        sensorXml = mod_xml.XmlListConfig(root)
+        sensor_xml = mod_xml.XmlListConfig(root)
 
-        self.sensorData = {}
-        for d in sensorXml:
-            self.sensorData[d['name']] = sensor(d['name'], int(d['width']), int(d['height']), float(d['fps']),
-                                                int(d['upsidedown']), d['type'])
+        self.sensor_data = {}
+        for d in sensor_xml:
+            self.sensor_data[d['name']] = Sensor(d['name'], int(d['width']), int(d['height']), float(d['fps']),
+                                                 int(d['upsidedown']), d['type'])
 
-        tree = ElementTree.parse(lensDataPath)
+        tree = ElementTree.parse(lenses_data_path)
         root = tree.getroot()
-        lensXml = mod_xml.XmlListConfig(root)
+        lens_xml = mod_xml.XmlListConfig(root)
 
-        self.lensData = {}
-        for d in lensXml:
-            self.lensData[d['name']] = lens(d['name'], float(d['fov']), float(d['barrel_a']), float(d['barrel_b']),
-                                            float(d['barrel_c']))
+        self.lens_data = {}
+        for d in lens_xml:
+            self.lens_data[d['name']] = Lens(d['name'], float(d['fov']), float(d['barrel_a']), float(d['barrel_b']),
+                                             float(d['barrel_c']))
 
+    def update_sensor(self, db, obstory_name, utc, name):
+        assert name in self.sensor_data, "Unknown sensor type <%s>" % name
+        x = self.sensor_data[name]
+        db.register_obstory_metadata(obstory_name, "sensor", name, utc, "system")
+        db.register_obstory_metadata(obstory_name, "sensor_width", x.width, utc, "system")
+        db.register_obstory_metadata(obstory_name, "sensor_height", x.height, utc, "system")
+        db.register_obstory_metadata(obstory_name, "sensor_fps", x.fps, utc, "system")
+        db.register_obstory_metadata(obstory_name, "sensor_upside_down", x.upside_down, utc, "system")
+        db.register_obstory_metadata(obstory_name, "sensor_camera_type", x.camera_type, utc, "system")
 
-def fetchSensorData(db_handle, hw_handle, cameraId, utc):
-    cameraStatus = db_handle.get_camera_status(camera_id=cameraId, time=UTC2datetime(utc))
-    assert cameraStatus, "Camera status is not set for cameraId <%s> at time %d" % (cameraId, utc)
-    assert cameraStatus.sensor in hw_handle.sensorData, "Unknown sensor type <%s>" % cameraStatus.sensor
-    return hw_handle.sensorData[cameraStatus.sensor]
-
-
-def fetchLensData(db_handle, hw_handle, cameraId, utc):
-    cameraStatus = db_handle.get_camera_status(camera_id=cameraId, time=UTC2datetime(utc))
-    assert cameraStatus, "Camera status is not set"
-    assert cameraStatus.lens in hw_handle.lensData, "Unknown lens type <%s>" % cameraStatus.lens
-    return hw_handle.lensData[cameraStatus.lens]
+    def update_lens(self, db, obstory_name, utc, name):
+        assert name in self.sensor_data, "Unknown lens type <%s>" % name
+        x = self.lens_data[name]
+        db.register_obstory_metadata(obstory_name, "lens", name, utc, "system")
+        db.register_obstory_metadata(obstory_name, "lens_fov", x.fov, utc, "system")
+        db.register_obstory_metadata(obstory_name, "lens_barrel_a", x.barrel_a, utc, "system")
+        db.register_obstory_metadata(obstory_name, "lens_barrel_b", x.barrel_b, utc, "system")
+        db.register_obstory_metadata(obstory_name, "lens_barrel_c", x.barrel_c, utc, "system")

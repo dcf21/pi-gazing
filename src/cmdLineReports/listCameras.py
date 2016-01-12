@@ -5,27 +5,23 @@
 
 import meteorpi_db
 
-from mod_settings import *
+import mod_settings
 
-db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
+db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+
 
 # List current camera statuses
 print "List of cameras"
 print "---------------"
-cameraList = db_handle.get_cameras()
-cameraList.sort()
 
-print "\nCameras: %s\n" % cameraList
+obstory_list = db.get_obstory_names()
+obstory_list.sort()
 
-for cameraId in cameraList:
-    print "Camera <%s>" % cameraId
-    print "  * High water mark: %s" % db_handle.get_high_water_mark(camera_id=cameraId)
-    s = db_handle.get_camera_status(camera_id=cameraId)
-    print "  * Software: %s" % s.software_version
-    print "  * Lens: %s" % s.lens
-    print "  * Sensor: %s" % s.sensor
-    print "  * Validity of this status: %s -> %s" % (s.valid_from, s.valid_to)
-    print "  * Location: %s" % s.location
-    print "  * Orientation: %s" % s.orientation
-    print "  * Regions: %s" % s.regions
+print "\nCameras: %s\n" % obstory_list
+
+for obstory in obstory_list:
+    print "%s\n" % obstory
+    status = db.get_obstory_status(obstory_name=obstory)
+    for item in status:
+        print "  * %s = %s\n" % (item, status[item])
     print "\n"

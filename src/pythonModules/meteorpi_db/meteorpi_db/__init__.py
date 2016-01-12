@@ -6,7 +6,6 @@ import os
 import sys
 import MySQLdb
 import shutil
-import uuid
 import json
 import numbers
 
@@ -190,6 +189,12 @@ VALUES
     def register_obstory_metadata(self, obstory_id, key, value, metadata_time, time_created, user_created):
         obstory = self.get_obstory_from_id(obstory_id)
         item_id = mp.get_hash(metadata_time, obstory['publicId'], key)
+
+        # If new value equals old value, no point re-entering it!
+        previous_value = self.lookup_obstory_metadata(key, metadata_time, obstory_id)
+        if previous_value == value:
+            return None
+
         self.import_obstory_metadata(obstory['name'], key, value, metadata_time, time_created, user_created, item_id)
 
         return mp.ObservatoryMetadata(metadata_id=item_id, obstory_id=obstory['uid'], obstory_name=obstory['name'],

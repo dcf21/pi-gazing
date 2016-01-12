@@ -7,54 +7,58 @@
 
 import sys
 
-import mod_hwm
-from mod_settings import *
+import mod_settings
+import mod_astro
 
-pid = os.getpid()
-os.chdir(DATA_PATH)
+import meteorpi_db
 
-fileCensus = {}
+db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+
+file_census = {}
 
 # Get list of files in each directory
-for dirName, subdirList, fileList in os.walk("."):
-    leafName = os.path.split(dirName)[1]
-    if (leafName == 'rawvideo' or leafName.startswith("20")):
-        rootDir = dirName.split('/')[1]
-        for f in fileList:
-            if f.startswith("20"):
-                dayName = mod_hwm.fetchDayNameFromFilename(f)
-                if rootDir not in fileCensus: fileCensus[rootDir] = {}
-                if dayName not in fileCensus[rootDir]: fileCensus[rootDir][dayName] = 0
-                fileCensus[rootDir][dayName] += os.path.getsize(os.path.join(dirName, f))
+db.con.execute("SELECT * FROM archive_files;")
+for item in db.con.fetchall():
+    file_type = item['mimeType']
+    date = mod_astro.inv_julian_day( mod_astro.jd_from_utc( item['fileTime']))
+    date_str = "%04d%2d%02d" % (date[0], date[1], date[2])
+    if file_type not in file_census:
+        file_census[file_type] = {}
+    if date_str not in file_census[file_type]:
+        file_census[file_type][date_str] = 0
+    file_census[file_type][date_str] += item['fileSize']
 
 
-def renderDataSizeList(data):
-    totalFileSize = sum(data)
+def render_data_size_list(data):
+    total_file_size = sum(data)
     output = []
     for d in data:
-        output.append("%6.2f GB (%5.1f%%)" % (d / 1.e9, d * 100. / totalFileSize))
+        output.append("%6.2f GB (%5.1f%%)" % (d / 1.e9, d * 100. / total_file_size))
     return output
 
 
 # Render quick and dirty table
 out = sys.stdout
-cols = fileCensus.keys();
+cols = file_census.keys()
 cols.sort()
 rows = []
-for colHead in cols:
-    for rowHead in fileCensus[colHead]:
-        if rowHead not in rows: rows.append(rowHead)
+for col_head in cols:
+    for row_head in file_census[col_head]:
+        if row_head not in rows:
+            rows.append(row_head)
 rows.sort()
-for colHead in [''] + cols: out.write("%25s " % colHead)
+for col_head in [''] + cols:
+    out.write("%25s " % col_head)
 out.write("\n")
-for rowHead in rows:
-    out.write("%25s " % rowHead)
+for row_head in rows:
+    out.write("%25s " % row_head)
     data = []
-    for colHead in cols:
-        if rowHead in fileCensus[colHead]:
-            data.append(fileCensus[colHead][rowHead])
+    for col_head in cols:
+        if row_head in file_census[col_head]:
+            data.append(file_census[col_head][row_head])
         else:
             data.append(0)
-    dataStr = renderDataSizeList(data)
-    for i in range(len(cols)): out.write("%25s " % dataStr[i])
+    dataStr = render_data_size_list(data)
+    for i in range(len(cols)):
+        out.write("%25s " % dataStr[i])
     out.write("\n")

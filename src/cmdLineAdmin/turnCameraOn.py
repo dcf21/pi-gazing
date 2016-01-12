@@ -4,4 +4,4 @@
 
 import mod_relay
 
-mod_relay.cameraOn()
+mod_relay.camera_on()

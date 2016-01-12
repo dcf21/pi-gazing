@@ -10,38 +10,50 @@ import sys
 import meteorpi_db
 import meteorpi_model as mp
 
-from mod_settings import *
+import mod_settings
+import installation_info
 
-db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
+db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
 # List all current user accounts
 print "Current export configurations"
 print "-----------------------------"
-configs = db_handle.get_export_configurations()
+configs = db.get_export_configurations()
 for config in configs:
     print config.as_dict()
 print "\n"
 
 confirm = raw_input('Replace with default configuration? (Y/N) ')
-if not confirm in 'Yy': sys.exit(0)
+if not confirm in 'Yy':
+    sys.exit(0)
 
 # Delete all export config
 for config in configs:
-    db_handle.delete_export_configuration(config.config_id)
+    db.delete_export_configuration(config.config_id)
 
-# Fetch installation info (imported via mod_settings)
-ii = installation_info
+# Set up default observatory metadata export configuration
+search = mp.ObservatoryMetadataSearch(limit=None)
+config = mp.ExportConfiguration(target_url=installation_info.local_conf['exportURL'],
+                                user_id=installation_info.local_conf['exportUsername'],
+                                password=installation_info.local_conf['exportPassword'],
+                                search=search, name="event_export",
+                                description="Export all observatory metadata to remote server", enabled=True)
+db.create_or_update_export_configuration(config)
+
+# Set up default observation export configuration
+search = mp.ObservationSearch(limit=None)
+config = mp.ExportConfiguration(target_url=installation_info.local_conf['exportURL'],
+                                user_id=installation_info.local_conf['exportUsername'],
+                                password=installation_info.local_conf['exportPassword'],
+                                search=search, name="event_export",
+                                description="Export all observation objects to remote server", enabled=True)
+db.create_or_update_export_configuration(config)
 
 # Set up default file export configuration
 search = mp.FileRecordSearch(limit=None)
-config = mp.ExportConfiguration(target_url=ii.EXPORT_URL, user_id=ii.EXPORT_USERNAME, password=ii.EXPORT_PASSWORD,
+config = mp.ExportConfiguration(target_url=installation_info.local_conf['exportURL'],
+                                user_id=installation_info.local_conf['exportUsername'],
+                                password=installation_info.local_conf['exportPassword'],
                                 search=search, name="file_export",
                                 description="Export all image files to remote server", enabled=True)
-db_handle.create_or_update_export_configuration(config)
-
-# Set up default event export configuration
-search = mp.EventSearch(limit=None)
-config = mp.ExportConfiguration(target_url=ii.EXPORT_URL, user_id=ii.EXPORT_USERNAME, password=ii.EXPORT_PASSWORD,
-                                search=search, name="event_export",
-                                description="Export all object detections to remote server", enabled=True)
-db_handle.create_or_update_export_configuration(config)
+db.create_or_update_export_configuration(config)

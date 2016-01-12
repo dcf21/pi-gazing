@@ -1,62 +1,83 @@
 #!../../virtual-env/bin/python
-# updateCameraStatus.py
+# updateRegions.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
 # This script is used to manually update a camera status
 
-import datetime
+import sys
+import json
 
 import meteorpi_db
 import meteorpi_model as mp
 
-from mod_settings import *
+import mod_settings
+import installation_info
 
-db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
+db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+
+
+def fetch_option(title, key, indict, default, argv_index):
+    if key in indict:
+        default = indict[key]
+    if (argv_index > 0) and (len(sys.argv) > argv_index):
+        value = sys.argv[argv_index]
+    else:
+        value = raw_input('Set %s <default %s>: ' % (title, default))
+    if not value:
+        value = default
+    return value
+
 
 # List current camera statuses
 print "Current camera statuses"
 print "-----------------------"
-cameraList = db_handle.get_cameras()
-for cameraId in cameraList:
-    print "%s\n  * %s\n  * High water mark: %s" % (
-    cameraId, db_handle.get_camera_status(camera_id=cameraId), db_handle.get_high_water_mark(camera_id=cameraId))
-print "\n"
+obstory_list = db.get_obstory_names()
+for obstory in obstory_list:
+    print "%s\n" % obstory
+    status = db.get_obstory_status(obstory_name=obstory)
+    for item in status:
+        print "  * %s = %s\n" % (item, status[item])
+    print "\n"
 
 # Select camera status to update
-defaultCameraId = CAMERA_ID;
-cameraId = raw_input('Select cameraId to update <default %s>: ' % defaultCameraId)
-if not cameraId: cameraId = defaultCameraId
+obstory = fetch_option(title="observatory to update",
+                       key="_",
+                       indict={},
+                       default=installation_info.local_conf['observatoryName'],
+                       argv_index=1)
 
-cameraStatus = db_handle.get_camera_status(camera_id=cameraId)
+assert obstory in obstory_list, "Observatory does not exist!"
 
-if not cameraStatus:
-    cameraStatus = mp.CameraStatus("watec_default", "watec_902h", "", "default", mp.Orientation(0, 0, 360, 0, 0),
-                                   mp.Location(LATITUDE_DEFAULT, LONGITUDE_DEFAULT, False), cameraId)
-
-# Reset clipping region
-cameraStatus.regions = []
+# Find out time that metadata update should be applied to
+metadata_time = fetch_option(title="time stamp for update",
+                             key="_",
+                             indict={},
+                             default=mp.now(),
+                             argv_index=2)
 
 # Read user-specified clipping region
-print "Enter new clipping region. Specify one white-space separated x y coordinate on each line. Leave a blank line to start a new region. Leave two blank lines to finish:"
-ptlist = []
+print "Enter new clipping region. Specify one white-space separated x y coordinate on each line."
+print "Leave a blank line to start a new region. Leave two blank lines to finish:"
+regions = []
+point_list = []
 while 1:
     line = raw_input()
     words = line.split()
     if len(words) == 2:
         x = float(words[0])
         y = float(words[1])
-        ptlist.extend([x, y])
+        point_list.append([x, y])
     else:
-        if len(ptlist) > 1:
-            cameraStatus.add_region(ptlist)
+        if len(point_list) > 1:
+            regions.append(point_list)
         else:
             break
-        ptlist = []
+        point_list = []
 
-# Apply to historical data?
-backdate = raw_input('Apply to all historical data? (Y/N) ')
-valid_from = None
-if backdate in 'Yy': valid_from = datetime.datetime.fromtimestamp(0)
-
-db_handle.update_camera_status(cameraStatus, time=valid_from, camera_id=cameraId)
+db.register_obstory_metadata(obstory_id=obstory,
+                             key="clippingRegion",
+                             value=json.dumps(regions),
+                             metadata_time=metadata_time,
+                             time_created=mp.now(),
+                             user_created="system")

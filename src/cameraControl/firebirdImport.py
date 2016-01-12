@@ -8,8 +8,6 @@ import uuid
 import time
 import meteorpi_db
 import meteorpi_model as mp
-import mod_hwm
-import mod_deleteOldData
 from mod_log import logTxt
 from mod_settings import *
 from mod_time import *

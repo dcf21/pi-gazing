@@ -9,25 +9,26 @@ import sys
 
 import meteorpi_db
 
-from mod_settings import *
+import mod_settings
 
-db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
+db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
 # List all current user accounts
 print "Current web interface accounts"
 print "------------------------------"
-users = db_handle.get_users()
+users = db.get_users()
 for user in users:
-    print "%20s -- roles: %s\n" % (user.user_id, " ".join(user.get_roles()))
+    print "%20s -- roles: %s\n" % (user.user_id, " ".join(user.roles))
 print "\n"
 
 # Select user to update
-defaultUserId = "admin";
+default_user_id = "admin"
 if len(sys.argv) > 1:
-    defaultUserId = sys.argv[1]
+    user_id = sys.argv[1]
 else:
-    userId = raw_input('Select userId to update <default %s>: ' % defaultUserId)
-if not userId: userId = defaultUserId
+    user_id = raw_input('Select userId to update <default %s>: ' % default_user_id)
+if not user_id:
+    user_id = default_user_id
 
 # Enter password
 password = raw_input('Enter password: ')
@@ -35,6 +36,7 @@ password = raw_input('Enter password: ')
 # Enter roles
 defaultRoles = "user camera_admin import"
 roles = raw_input('Enter roles <default %s>: ' % defaultRoles).split()
-if not roles: roles = defaultRoles.split()
+if not roles:
+    roles = defaultRoles.split()
 
-db_handle.create_or_update_user(userId, password, roles)
+db.create_or_update_user(user_id=user_id, password=password, roles=roles)

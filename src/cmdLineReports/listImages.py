@@ -3,71 +3,72 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
+import sys
+import time
+
 import meteorpi_db
 import meteorpi_model as mp
 
-from mod_astro import *
-from mod_settings import *
-from mod_time import *
+import mod_astro
+import mod_settings
+import installation_info
 
-pid = os.getpid()
-os.chdir(DATA_PATH)
-
-utcMin = time.time() - 3600 * 24
-utcMax = time.time()
-cameraId = my_installation_id()
+utc_min = time.time() - 3600 * 24
+utc_max = time.time()
+obstory_name = installation_info.local_conf['observatoryName']
 label = ""
-imgType = "timelapse/frame/bgrdSub/lensCorr"
+img_type = "timelapse/frame/bgrdSub/lensCorr"
 stride = 5
 
-if len(sys.argv) > 1: utcMin = float(sys.argv[1])
-if len(sys.argv) > 2: utcMax = float(sys.argv[2])
-if len(sys.argv) > 3: cameraId = sys.argv[3]
-if len(sys.argv) > 4: label = sys.argv[4]
-if len(sys.argv) > 5: imgType = sys.argv[5]
-if len(sys.argv) > 6: stride = int(sys.argv[6])
+if len(sys.argv) > 1:
+    utc_min = float(sys.argv[1])
+if len(sys.argv) > 2:
+    utc_max = float(sys.argv[2])
+if len(sys.argv) > 3:
+    obstory_name = sys.argv[3]
+if len(sys.argv) > 4:
+    label = sys.argv[4]
+if len(sys.argv) > 5:
+    img_type = sys.argv[5]
+if len(sys.argv) > 6:
+    stride = int(sys.argv[6])
 
-if (utcMax == 0): utcMax = time.time()
+if utc_max == 0:
+    utc_max = time.time()
 
-print "# ./listImages.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utcMin, utcMax, cameraId, label, imgType, stride)
+print "# ./listImages.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utc_min, utc_max, obstory_name, label, img_type, stride)
 
-db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
+db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
-search = mp.FileRecordSearch(camera_ids=[cameraId], semantic_type=mp.NSString(imgType), exclude_events=True,
-                             before=UTC2datetime(utcMax), after=UTC2datetime(utcMin), limit=1000000)
-files = db_handle.search_files(search)
-files = [i for i in files['files']]
+s = db.get_obstory_status(obstory_name=obstory_name)
+if not s:
+    print "Unknown camera <%s>. Run ./listCameras.py to see a list of available cameras." % obstory_name
+    sys.exit(0)
+
+search = mp.FileRecordSearch(obstory_ids=[obstory_name], semantic_type=img_type,
+                             time_min=utc_min, time_max=utc_max, limit=1000000)
+files = db.search_files(search)
+files = files['files']
 files.sort(key=lambda x: x.file_time)
 
 
 def metadata2dict(metadata):
     output = {}
     for i in metadata:
-        if (i.key.ns == "meteorpi"):
-            output[i.key.s] = i.value
+        output[i.key] = i.value
     return output
 
 
-s = db_handle.get_camera_status(camera_id=cameraId)
-if not s:
-    print "Unknown camera <%s>. Run ./listCameras.py to see a list of available cameras." % cameraId
-    sys.exit(0)
-
-print "Camera <%s>" % cameraId
-print "  * High water mark: %s" % db_handle.get_high_water_mark(camera_id=cameraId)
-print "  * Software: %s" % s.software_version
-print "  * Lens: %s" % s.lens
-print "  * Sensor: %s" % s.sensor
-print "  * Validity of this status: %s -> %s" % (s.valid_from, s.valid_to)
-print "  * Location: %s" % s.location
-print "  * Orientation: %s" % s.orientation
-print "  * Regions: %s" % s.regions
-print "  * %d matching files in time range %s --> %s" % (len(files), UTC2datetime(utcMin), UTC2datetime(utcMax))
+print "Camera <%s>" % obstory_name
+print "  * %d matching files in time range %s --> %s" % (len(files),
+                                                         mod_astro.time_print(utc_min),
+                                                         mod_astro.time_print(utc_max))
 count = 1
-for fileObj in files:
+for file_item in files:
     count += 1
-    if not (count % stride == 0): continue
-    metadata = metadata2dict(fileObj.meta)
-    [year, month, day, h, m, s] = InvJulianDay(JDfromUTC(datetime2UTC(fileObj.file_time)))
-    print "  * Unix %12.1f   date %04d/%02d/%02d %02d:%02d:%02d UTC   sky clarity %8.1f   filename <%s>" % (
-    datetime2UTC(fileObj.file_time), year, month, day, h, m, s, float(metadata['skyClarity']), fileObj.get_path())
+    if not (count % stride == 0):
+        continue
+    metadata = metadata2dict(file_item.meta)
+    [year, month, day, h, m, s] = mod_astro.inv_julian_day(mod_astro.jd_from_utc(file_item.file_time))
+    print "  * Date %04d/%02d/%02d %02d:%02d:%02d UTC   Sky clarity %8.1f   Filename <%s>" % (
+        year, month, day, h, m, s, float(metadata['skyClarity']), file_item.id)

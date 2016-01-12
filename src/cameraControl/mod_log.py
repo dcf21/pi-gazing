@@ -6,38 +6,40 @@ import os
 import time
 
 import mod_settings
+import mod_astro
 
 pid = os.getpid()
 
-toffset = 0
+t_offset = 0
 
 
-def getUTC():
-    global toffset
-    return time.time() + toffset
+def get_utc():
+    global t_offset
+    return time.time() + t_offset
 
 
-def getUTCoffset():
-    global toffset
-    return toffset
+def get_utc_offset():
+    global t_offset
+    return t_offset
 
 
-def setUTCoffset(x):
-    global toffset
-    toffset = x
+def set_utc_offset(x):
+    global t_offset
+    t_offset = x
 
 
-logfile = open(os.path.join(mod_settings.DATA_PATH, "meteorPi.log"), "a")
+log_file = open(os.path.join(mod_settings.settings['dataPath'], "meteorPi.log"), "a")
 
 
-def logTxt(txt):
-    output = "[%s py] %s" % (time.strftime("%b %d %Y %H:%M:%S", time.gmtime(getUTC())), txt)
+def log_txt(txt):
+    output = "[%s py] %s" % (time.strftime("%b %d %Y %H:%M:%S", time.gmtime(get_utc())), txt)
     print output
-    logfile.write("%s\n" % output)
-    logfile.flush()
+    log_file.write("%s\n" % output)
+    log_file.flush()
+
 
 # Function for turning filenames into Unix times
-def filenameToUTC(f):
+def filename_to_utc(f):
     f = os.path.split(f)[1]
     if not f.startswith("20"):
         return -1
@@ -45,16 +47,16 @@ def filenameToUTC(f):
     mon = int(f[4: 6])
     day = int(f[6: 8])
     hour = int(f[8:10])
-    minu = int(f[10:12])
+    minute = int(f[10:12])
     sec = int(f[12:14])
-    return UTCfromJD(JulianDay(year, mon, day, hour, minu, sec))
+    return mod_astro.utc_from_jd(mod_astro.julian_day(year, mon, day, hour, minute, sec))
 
 
-def fetchDayNameFromFilename(f):
+def fetch_day_name_from_filename(f):
     f = os.path.split(f)[1]
     if not f.startswith("20"):
         return None
-    utc = filenameToUTC(f)
-    utc = utc - 12 * 3600
-    [year, month, day, hour, minu, sec] = InvJulianDay(JDfromUTC(utc))
+    utc = filename_to_utc(f)
+    utc -= 12 * 3600
+    [year, month, day, hour, minu, sec] = mod_astro.inv_julian_day(mod_astro.jd_from_utc(utc))
     return "%04d%02d%02d" % (year, month, day)

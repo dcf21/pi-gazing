@@ -26,7 +26,7 @@ import meteorpi_db
 db_handle = meteorpi_db.MeteorDatabase( DBPATH , DBFILESTORE )
 
 import mod_hardwareProps
-hw_handle = mod_hardwareProps.hardwareProps( os.path.join( PYTHON_PATH, "..", "sensorProperties") )
+hw_handle = mod_hardwareProps.HardwareProps(os.path.join(PYTHON_PATH, "..", "sensorProperties"))
 
 import firebirdImport
 

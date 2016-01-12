@@ -3,53 +3,66 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
+import os
 import sys
+import time
 
 import meteorpi_db
 import meteorpi_model as mp
-import mod_deleteOldData
 
-from mod_settings import *
-from mod_time import *
+import mod_settings
+import installation_info
+import mod_astro
 
 pid = os.getpid()
-os.chdir(DATA_PATH)
 
-utcMin = time.time() - 3600 * 24
-utcMax = time.time()
-cameraId = my_installation_id()
+utc_min = time.time() - 3600 * 24
+utc_max = time.time()
+observatory = installation_info.local_conf['observatoryName']
 
-if len(sys.argv) > 1: utcMin = float(sys.argv[1])
-if len(sys.argv) > 2: utcMax = float(sys.argv[2])
-if len(sys.argv) > 3: cameraId = sys.argv[3]
+if len(sys.argv) > 1:
+    utc_min = float(sys.argv[1])
+if len(sys.argv) > 2:
+    utc_max = float(sys.argv[2])
+if len(sys.argv) > 3:
+    observatory = sys.argv[3]
 
-if (utcMax == 0): utcMax = time.time()
+if utc_max == 0:
+    utc_max = time.time()
 
-print "# ./deleteImages.py %f %f \"%s\"\n" % (utcMin, utcMax, cameraId)
+print "# ./deleteImages.py %f %f \"%s\"\n" % (utc_min, utc_max, observatory)
 
-db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
+db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
-s = db_handle.get_camera_status(camera_id=cameraId)
+s = db.get_obstory_status(obstory_name=observatory)
 if not s:
-    print "Unknown camera <%s>. Run ./listCameras.py to see a list of available cameras." % cameraId
+    print "Unknown observatory <%s>.\nRun ./listObservatories.py to see a list of available options." % observatory
     sys.exit(0)
 
-search = mp.FileRecordSearch(camera_ids=[cameraId], exclude_events=False, before=UTC2datetime(utcMax),
-                             after=UTC2datetime(utcMin), limit=1000000)
-files = db_handle.search_files(search)
+search = mp.FileRecordSearch(obstory_ids=[observatory],
+                             time_min=utc_min,
+                             time_max=utc_max,
+                             limit=1000000)
+files = db.search_files(search)
 files = [i for i in files['files']]
 files.sort(key=lambda x: x.file_time)
 
-search = mp.EventSearch(camera_ids=[cameraId], before=UTC2datetime(utcMax), after=UTC2datetime(utcMin), limit=1000000)
-triggers = db_handle.search_events(search)
-triggers = triggers['events']
-triggers.sort(key=lambda x: x.event_time)
+search = mp.ObservationSearch(obstory_ids=[observatory],
+                              time_min=utc_min,
+                              time_max=utc_max,
+                              limit=1000000)
+observations = db.search_observations(search)
+observations = observations['events']
+observations.sort(key=lambda x: x.obs_time)
 
-print "Camera <%s>" % cameraId
-print "  * %6d matching files in time range %s --> %s" % (len(files), UTC2datetime(utcMin), UTC2datetime(utcMax))
-print "  * %6d matching events in time range" % (len(triggers))
+print "Observatory <%s>" % observatory
+print "  * %6d matching files in time range %s --> %s" % (len(files),
+                                                          mod_astro.time_print(utc_min),
+                                                          mod_astro.time_print(utc_max))
+print "  * %6d matching observations in time range" % (len(observations))
 
 confirmation = raw_input('Delete these files? (Y/N) ')
-if not confirmation in 'Yy': sys.exit(0)
+if confirmation not in 'Yy':
+    sys.exit(0)
 
-mod_deleteOldData.delete_old_data(cameraId, utcMin, utcMax)
+db.clear_database(tmin=utc_min, tmax=utc_max, obstory_names=observatory)

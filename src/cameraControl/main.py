@@ -19,7 +19,7 @@ if I_AM_A_RPI:
     import mod_relay
 
 db_handle = meteorpi_db.MeteorDatabase(DBFILESTORE)
-hw_handle = mod_hardwareProps.hardwareProps(os.path.join(PYTHON_PATH, "..", "sensorProperties"))
+hw_handle = mod_hardwareProps.HardwareProps(os.path.join(PYTHON_PATH, "..", "sensorProperties"))
 
 logTxt("Camera controller launched")
 

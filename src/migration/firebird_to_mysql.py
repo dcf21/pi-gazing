@@ -8,11 +8,14 @@ import os
 import math
 import fdb
 import time
+import mod_settings
+import mod_hardwareProps
 import meteorpi_model as mp
 import meteorpi_db
 
 db = meteorpi_db.MeteorDatabase(file_store_path="../../datadir/db_filestore")
-tnow = time.time()
+hw = mod_hardwareProps.HardwareProps( os.path.join( mod_settings.settings['pythonPath'], "..", "sensorProperties") )
+utc_now = time.time()
 
 def if3(a,b,c):
     if (a):
@@ -42,14 +45,14 @@ for item in statuses:
     utc = item[3]/1000.0
     if not db.has_obstory_id(obstory_id):
         db.register_obstory(obstory_id=obstory_id, obstory_name=obstory_name, latitude=item[10], longitude=item[11])
-        db.register_obstory_metadata(obstory_id, "instURL", item[16], utc, tnow, "migrate")
-        db.register_obstory_metadata(obstory_id, "instName", item[17], utc, tnow, "migrate")
-    db.register_obstory_metadata(obstory_id, "softwareVersion", item[4], utc, tnow, "migrate")
-    db.register_obstory_metadata(obstory_id, "latitude", item[10], utc, tnow, "migrate")
-    db.register_obstory_metadata(obstory_id, "longitude", item[11], utc, tnow, "migrate")
-    db.register_obstory_metadata(obstory_id, "location_source", if3(item[12],"gps","manual"), utc, tnow, "migrate")
-    db.register_obstory_metadata(obstory_id, "lens", item[14], utc, tnow, "migrate")
-    db.register_obstory_metadata(obstory_id, "sensor", item[15], utc, tnow, "migrate")
+        db.register_obstory_metadata(obstory_name, "instURL", item[16], utc, utc_now, "migrate")
+        db.register_obstory_metadata(obstory_name, "instName", item[17], utc, utc_now, "migrate")
+    db.register_obstory_metadata(obstory_name, "softwareVersion", item[4], utc, utc_now, "migrate")
+    db.register_obstory_metadata(obstory_name, "latitude", item[10], utc, utc_now, "migrate")
+    db.register_obstory_metadata(obstory_name, "longitude", item[11], utc, utc_now, "migrate")
+    db.register_obstory_metadata(obstory_name, "location_source", if3(item[12],"gps","manual"), utc, utc_now, "migrate")
+    hw.update_sensor(db=db, obstory_name=obstory_name, utc=utc, name=item[15])
+    hw.update_lens(db=db, obstory_name=obstory_name, utc=utc, name=item[14])
 db.commit()
 
 # Migrate events
