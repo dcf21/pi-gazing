@@ -186,7 +186,9 @@ VALUES
         return {"count": total_rows,
                 "items": items}
 
-    def register_obstory_metadata(self, obstory_id, key, value, metadata_time, time_created, user_created):
+    def register_obstory_metadata(self, obstory_id, key, value, metadata_time, user_created, time_created=None):
+        if time_created is None:
+            time_created = mp.now()
         obstory = self.get_obstory_from_id(obstory_id)
         item_id = mp.get_hash(metadata_time, obstory['publicId'], key)
 
@@ -475,11 +477,11 @@ VALUES
             utc = mp.now()
         public_id = mp.get_hash(utc, meta.key, user_id)
         self.con.execute("DELETE FROM archive_metadata WHERE "
-                         "fieldId=%s AND fileId=(SELECT uid FROM archive_files WHERE publicId=%s);",
+                         "fieldId=%s AND fileId=(SELECT uid FROM archive_files WHERE repositoryFname=%s);",
                          (meta_id, file_id))
         self.con.execute("""
 INSERT INTO archive_metadata (publicId, fieldId, setAtTime, setByUser, stringValue, floatValue, fileId)
-VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE publicId=%s))
+VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryFname=%s))
 """, (
             public_id,
             meta_id,
@@ -492,13 +494,13 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE publicId=%s
     def unset_file_metadata(self, file_id, key):
         meta_id = self.get_metadata_key_id(key)
         self.con.execute("DELETE FROM archive_metadata WHERE "
-                         "fieldId=%s AND fileId=(SELECT uid FROM archive_files WHERE publicId=%s);",
+                         "fieldId=%s AND fileId=(SELECT uid FROM archive_files WHERE repositoryFname=%s);",
                          (meta_id, file_id))
 
     def get_file_metadata(self, file_id, key):
         meta_id = self.get_metadata_key_id(key)
         self.con.execute("SELECT stringValue, floatValue FROM archive_metadata "
-                         "WHERE fieldId=%s AND fileId=(SELECT uid FROM archive_files WHERE publicId=%s);",
+                         "WHERE fieldId=%s AND fileId=(SELECT uid FROM archive_files WHERE repositoryFname=%s);",
                          (meta_id, file_id))
         results = self.con.fetchall()
         if len(results) < 1:

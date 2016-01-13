@@ -70,7 +70,7 @@ class HardwareProps:
         db.register_obstory_metadata(obstory_name, "sensor_camera_type", x.camera_type, utc, "system")
 
     def update_lens(self, db, obstory_name, utc, name):
-        assert name in self.sensor_data, "Unknown lens type <%s>" % name
+        assert name in self.lens_data, "Unknown lens type <%s>" % name
         x = self.lens_data[name]
         db.register_obstory_metadata(obstory_name, "lens", name, utc, "system")
         db.register_obstory_metadata(obstory_name, "lens_fov", x.fov, utc, "system")

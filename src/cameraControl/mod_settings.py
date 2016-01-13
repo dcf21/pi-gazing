@@ -17,8 +17,8 @@ settings = {
     'pythonPath': path,
 
     # The path to compiled binary executables in the videoProcess directory
-    'binaryPath': os.path.join(path, "../videoProcess/bin"),
-    'stackerPath': os.path.join(path, "../gnomonicStack/bin"),
+    'binaryPath': os.path.join(path, "../cameraControl/videoAnalysis/bin"),
+    'stackerPath': os.path.join(path, "../imageProjection/bin"),
 
     # Flag telling us whether we're a raspberry pi or a desktop PC
     'i_am_a_rpi': os.uname()[4].startswith("arm"),
