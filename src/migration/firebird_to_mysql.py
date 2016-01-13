@@ -8,6 +8,8 @@ import os
 import math
 import fdb
 import time
+import shutil
+import uuid
 import mod_settings
 import mod_hardwareProps
 import meteorpi_model as mp
@@ -141,10 +143,13 @@ for item in files:
     meta_list = []
 
     # Move file from firebird repository into new repository
-    file_path = os.path.join("../../datadir/firebird_files", item[4])
+    file_path = os.path.join("../../datadir/firebird_files", uuid.UUID(bytes=item[2]).hex)
+    file_path_tmp = os.path.join("../../datadir", item[4]) # Move file to a location where its original filename is restored prior to import into mysql
     if not os.path.exists(file_path):
         print "Warning: Could not find file <%s>" % file_path
-        open(file_path, "w").write("")
+        open(file_path_tmp, "w").write("")
+    else:
+        shutil.move(file_path,file_path_tmp)
         
     if item[0] in fileMetaDict:
         for meta in fileMetaDict[item[0]]:
@@ -158,7 +163,7 @@ for item in files:
     if item[0] in event_file_dict:
         file_obj = db.register_file(observation_id=event_public_ids[event_file_dict[item[0]]],
                                     user_id="migrate",
-                                    file_path=file_path,
+                                    file_path=file_path_tmp,
                                     file_time=utc,
                                     mime_type=item[3],
                                     semantic_type=item[4],
@@ -166,7 +171,7 @@ for item in files:
     elif utc_floor in created_observations:
         file_obj = db.register_file(observation_id=created_observations[utc_floor],
                                     user_id="migrate",
-                                    file_path=file_path,
+                                    file_path=file_path_tmp,
                                     file_time=utc,
                                     mime_type=item[3],
                                     semantic_type=item[4],
@@ -184,7 +189,7 @@ for item in files:
         created_observations[utc_floor] = obs.obs_id
         file_obj = db.register_file(observation_id=obs.obs_id,
                                     user_id="migrate",
-                                    file_path=file_path,
+                                    file_path=file_path_tmp,
                                     file_time=utc,
                                     mime_type=item[3],
                                     semantic_type=item[4],
