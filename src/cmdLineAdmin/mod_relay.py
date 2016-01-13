@@ -1,1 +1,1 @@
-../cameraControl/mod_relay.py
+../observatoryControl/mod_relay.py

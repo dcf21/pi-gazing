@@ -1,1 +1,1 @@
-../cameraControl/mod_log.py
+../observatoryControl/mod_log.py

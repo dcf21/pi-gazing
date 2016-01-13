@@ -1,1 +1,1 @@
-../cameraControl/mod_astro.py
+../observatoryControl/mod_astro.py

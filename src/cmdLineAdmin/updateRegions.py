@@ -3,7 +3,11 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-# This script is used to manually update a camera status
+# This script is used to manually update an observatory status
+
+# Observing regions are used to specify that a particular observatory should only analyse certain portions of the visible fioeld to look for moving objects (e.g. meteors). This is useful when the field also contains distracting objects such as buildings, roads, etc, where homans are often moving around.
+
+# You should enter a series of coordinate positions which represent the corners of a polygon within which the observatory should search for moving objects. This is a bit fiddly to do through a commandline interface, so you may want to use the web interface instead.
 
 import sys
 import json
@@ -29,9 +33,9 @@ def fetch_option(title, key, indict, default, argv_index):
     return value
 
 
-# List current camera statuses
-print "Current camera statuses"
-print "-----------------------"
+# List current observatory statuses
+print "Current observatory statuses"
+print "----------------------------"
 obstory_list = db.get_obstory_names()
 for obstory in obstory_list:
     print "%s\n" % obstory
@@ -40,7 +44,7 @@ for obstory in obstory_list:
         print "  * %s = %s\n" % (item, status[item])
     print "\n"
 
-# Select camera status to update
+# Select observatory status to update
 obstory = fetch_option(title="observatory to update",
                        key="_",
                        indict={},

@@ -1,1 +1,1 @@
-../cameraControl/mod_xml.py
+../observatoryControl/mod_xml.py

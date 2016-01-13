@@ -1,1 +1,1 @@
-../cameraControl/mod_hardwareProps.py
+../observatoryControl/mod_hardwareProps.py

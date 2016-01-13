@@ -1,5 +1,5 @@
 #!../../virtual-env/bin/python
-# updateCameraStatus.py
+# updateObservatoryStatus.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
@@ -30,9 +30,9 @@ def fetch_option(title, key, indict, default, argv_index):
     return value
 
 
-# List current camera statuses
-print "Current camera statuses"
-print "-----------------------"
+# List current observatory statuses
+print "Current observatory statuses"
+print "----------------------------"
 obstory_list = db.get_obstory_names()
 for obstory in obstory_list:
     print "%s\n" % obstory
@@ -41,7 +41,7 @@ for obstory in obstory_list:
         print "  * %s = %s\n" % (item, status[item])
     print "\n"
 
-# Select camera status to update
+# Select observatory status to update
 obstory = fetch_option(title="observatory to update",
                        key="_",
                        indict={},
@@ -70,7 +70,7 @@ if obstory not in obstory_list:
                         longitude=longitude)
     obstory_status = {}
 else:
-    obstory_status = db.get_camera_status(obstory_id=obstory)
+    obstory_status = db.get_obstory_status(obstory_id=obstory)
 
 # Find out time that metadata update should be applied to
 metadata_time = fetch_option(title="time stamp for update",

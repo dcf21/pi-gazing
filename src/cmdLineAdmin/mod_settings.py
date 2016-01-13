@@ -1,1 +1,1 @@
-../cameraControl/mod_settings.py
+../observatoryControl/mod_settings.py
