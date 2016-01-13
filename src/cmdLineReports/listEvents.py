@@ -43,7 +43,8 @@ db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
 s = db.get_obstory_status(obstory_name=obstory_name)
 if not s:
-    print "Unknown camera <%s>. Run ./listCameras.py to see a list of available cameras." % obstory_name
+    print "Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
+          obstory_name
     sys.exit(0)
 
 search = mp.ObservationSearch(obstory_ids=[obstory_name],
@@ -52,7 +53,7 @@ triggers = db.search_observations(search)
 triggers = triggers['events']
 triggers.sort(key=lambda x: x.obs_time)
 
-print "Camera <%s>" % obstory_name
+print "Observatory <%s>" % obstory_name
 print "  * %d matching triggers in time range %s --> %s" % (len(triggers),
                                                             mod_astro.time_print(utc_min),
                                                             mod_astro.time_print(utc_max))

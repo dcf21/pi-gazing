@@ -3,64 +3,77 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-# Make a timelapse video of images recording between specified start and end times
+# Make a timelapse video of still images recorded between specified start and end times
 
-from math import *
+import os
+import sys
+import time
 
 import meteorpi_db
 import meteorpi_model as mp
 
-from mod_settings import *
-from mod_time import *
+import mod_settings
+import installation_info
 
 pid = os.getpid()
-os.chdir(DATA_PATH)
+tmp = os.path.join("/tmp", "dcf_movieImages_%d" % pid)
+os.system("mkdir -p %s" % tmp)
 
-utcMin = time.time() - 3600 * 24
-utcMax = time.time()
-cameraId = my_installation_id()
+utc_min = time.time() - 3600 * 24
+utc_max = time.time()
+obstory_name = installation_info.local_conf['observatoryName']
 label = ""
-imgType = "timelapse/frame/bgrdSub/lensCorr"
+img_type = "timelapse/frame/bgrdSub/lensCorr"
 stride = 1
 
-if len(sys.argv) > 1: utcMin = float(sys.argv[1])
-if len(sys.argv) > 2: utcMax = float(sys.argv[2])
-if len(sys.argv) > 3: cameraId = sys.argv[3]
-if len(sys.argv) > 4: label = sys.argv[4]
-if len(sys.argv) > 5: imgType = sys.argv[5]
-if len(sys.argv) > 6: stride = int(sys.argv[6])
+if len(sys.argv) > 1:
+    utc_min = float(sys.argv[1])
+if len(sys.argv) > 2:
+    utc_max = float(sys.argv[2])
+if len(sys.argv) > 3:
+    obstory_name = sys.argv[3]
+if len(sys.argv) > 4:
+    label = sys.argv[4]
+if len(sys.argv) > 5:
+    img_type = sys.argv[5]
+if len(sys.argv) > 6:
+    stride = int(sys.argv[6])
 
-if (utcMax == 0): utcMax = time.time()
+if utc_max == 0:
+    utc_max = time.time()
 
-print "./timelapseMovie.py %f %f \"%s\" \"%s\" \"%s\" %d" % (utcMin, utcMax, cameraId, label, imgType, stride)
+print "# ./timelapseMovie.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utc_min, utc_max, obstory_name,
+                                                                 label, img_type, stride)
 
-db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
+db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
-s = db_handle.get_camera_status(camera_id=cameraId)
+s = db.get_obstory_status(obstory_name=obstory_name)
 if not s:
-    print "Unknown camera <%s>. Run ./listCameras.py to see a list of available cameras." % cameraId
+    print "Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
+          obstory_name
     sys.exit(0)
 
-search = mp.FileRecordSearch(camera_ids=[cameraId], semantic_type=mp.NSString(imgType), exclude_events=True,
-                             before=UTC2datetime(utcMax), after=UTC2datetime(utcMin), limit=1000000)
-files = db_handle.search_files(search)
-files = [i for i in files['files']]
+search = mp.FileRecordSearch(obstory_ids=[obstory_name], semantic_type=img_type,
+                             time_min=utc_min, time_max=utc_max, limit=1000000)
+files = db.search_files(search)
+files = files['files']
 files.sort(key=lambda x: x.file_time)
 
-print "Found %d images between time <%s> and <%s> from camera <%s>" % (
-len(files), UTC2datetime(utcMin), UTC2datetime(utcMax), cameraId)
+print "Found %d images between time <%s> and <%s> from observatory <%s>" % (len(files), utc_min, utc_max, obstory_name)
 
-filestub = "/tmp/frame_%d_%%08d.jpg" % pid
+filename_format = os.path.join(tmp, "frame_%d_%%08d.jpg" % pid)
 
-imgNo = 1
+img_num = 1
 count = 1
 for f in files:
     count += 1
-    if not (count % stride == 0): continue
-    utc = datetime2UTC(f.file_time)
-    os.system(
-        """convert %s -gravity SouthEast -fill ForestGreen -pointsize 20 -font Ubuntu-Bold -annotate +16+10 '%s %s' %s""" % (
-        f.get_path(), label, time.strftime("%d %b %Y %H:%M", time.gmtime(utc)), filestub % imgNo))
-    imgNo += 1
+    if not (count % stride == 0):
+        continue
+    utc = f.file_time
+    os.system("convert %s -gravity SouthEast -fill ForestGreen -pointsize 20 -font Ubuntu-Bold "
+              "-annotate +16+10 '%s %s' %s""" % (f.get_path(), label,
+                                                 time.strftime("%d %b %Y %H:%M", time.gmtime(utc)),
+                                                 filename_format % img_num))
+    img_num += 1
 
-os.system("""avconv -r 40 -i %s -codec:v libx264 /tmp/timelapse.mp4""" % filestub)
+os.system("avconv -r 40 -i %s -codec:v libx264 %s" % (filename_format, os.path.join(tmp, "timelapse.mp4")))

@@ -3,6 +3,8 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
+# Display a list of the still (timelapse) images recorded by an observatory between specified start and end times
+
 import sys
 import time
 
@@ -42,7 +44,8 @@ db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
 s = db.get_obstory_status(obstory_name=obstory_name)
 if not s:
-    print "Unknown camera <%s>. Run ./listCameras.py to see a list of available cameras." % obstory_name
+    print "Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
+          obstory_name
     sys.exit(0)
 
 search = mp.FileRecordSearch(obstory_ids=[obstory_name], semantic_type=img_type,
@@ -51,15 +54,7 @@ files = db.search_files(search)
 files = files['files']
 files.sort(key=lambda x: x.file_time)
 
-
-def metadata2dict(metadata):
-    output = {}
-    for i in metadata:
-        output[i.key] = i.value
-    return output
-
-
-print "Camera <%s>" % obstory_name
+print "Observatory <%s>" % obstory_name
 print "  * %d matching files in time range %s --> %s" % (len(files),
                                                          mod_astro.time_print(utc_min),
                                                          mod_astro.time_print(utc_max))
@@ -68,7 +63,7 @@ for file_item in files:
     count += 1
     if not (count % stride == 0):
         continue
-    metadata = metadata2dict(file_item.meta)
+    sky_clarity = db.get_file_metadata(file_item.id, 'skyClarity')
     [year, month, day, h, m, s] = mod_astro.inv_julian_day(mod_astro.jd_from_utc(file_item.file_time))
     print "  * Date %04d/%02d/%02d %02d:%02d:%02d UTC   Sky clarity %8.1f   Filename <%s>" % (
-        year, month, day, h, m, s, float(metadata['skyClarity']), file_item.id)
+        year, month, day, h, m, s, sky_clarity, file_item.id)

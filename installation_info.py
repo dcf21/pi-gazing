@@ -1,4 +1,4 @@
-# In this file you must configure the default position and name of this camera
+# In this file you must configure the default position and name of this observatory
 
 local_conf = {
 

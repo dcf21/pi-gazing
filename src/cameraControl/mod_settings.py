@@ -8,16 +8,16 @@ import installation_info
 path = os.path.split(os.path.abspath(__file__))[0]
 data_path = os.path.join(path, "../../datadir")
 
-# The settings below control how the camera controller works
+# The settings below control how the observatory controller works
 settings = {
 
     'softwareVersion': 2,
 
-    # The path to python scripts in the cameraControl directory
+    # The path to python scripts in the observatoryControl directory
     'pythonPath': path,
 
-    # The path to compiled binary executables in the videoProcess directory
-    'binaryPath': os.path.join(path, "../cameraControl/videoAnalysis/bin"),
+    # The path to compiled binary executables in the videoAnalysis directory
+    'binaryPath': os.path.join(path, "../observatoryControl/videoAnalysis/bin"),
     'stackerPath': os.path.join(path, "../imageProjection/bin"),
 
     # Flag telling us whether we're a raspberry pi or a desktop PC
@@ -32,10 +32,11 @@ settings = {
     # Flag telling us whether to hunt for meteors in real time, or record H264 video for subsequent analysis
     'realTime': True,
 
-    # How many second before/after sun is above horizon do we wait before bothering observing
-    'sunMargin': 1200,  # 20 minutes
+    # How many seconds before/after sun is above horizon do we wait before bothering observing
+    'sunMargin': 1800,  # 30 minutes
 
-    # When observing with non-real-time triggering, this is how many seconds in each video
+    # When observing with non-real-time triggering, this is the maximum number of seconds of video allowed
+    # in a single file
     'videoMaxRecordTime': 7200,
 
     # Position to assume when we don't have any GPS data available
@@ -48,9 +49,11 @@ settings = {
 }
 
 # Checks to make sure everything is going to work
-assert os.path.exists(settings['binaryPath']), "You need to compile the videoProcess C code before using this script"
-assert os.path.exists(settings['stackerPath']), "You need to compile the gnomonicStack C code before using this script"
+assert os.path.exists(settings['binaryPath']),\
+    "You need to compile the videoAnalysis C code before using this script"
+assert os.path.exists(settings['stackerPath']),\
+    "You need to compile the imageProjection C code before using this script"
 
 assert os.path.exists(settings['dataPath']), (
     "You need to create a symlink 'datadir' in the root of your meteor-pi working copy, "
-    "where we store all of the camera data")
+    "where we store all recorded data")

@@ -27,7 +27,7 @@ print "# ./listFiles.py %s %s\n" % (utc_min, utc_max)
 
 obstory_list = db.get_obstory_names()
 for obstory_name in obstory_list:
-    title = "Camera <%s>" % obstory_name
+    title = "Observatory <%s>" % obstory_name
     print "\n\n%s\n%s" % (title, "-" * len(title))
 
     search = mp.FileRecordSearch(obstory_ids=[obstory_name], time_min=utc_max, time_max=utc_min)
