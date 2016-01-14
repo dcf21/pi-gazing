@@ -3,6 +3,18 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
+# This script attempts to connect to a USB GPS dongle, if we have one. It uses gpsd, which needs to be installed. The
+# python module of the same name (gpsd) is used to communicate with gpsd, but since this isn't widely available in
+# a standard version (it's not in the pip repository, for example), we ship the source for it in the directory gpsd.
+
+# The output from this script, if successful, is a JSON structure with the elements: offset, latitude, longitude.
+# The offset is the number of seconds that the second clock is AHEAD of the time measured from GPS
+
+# If no connection is made within 30 seconds, this script gives up and returns "False"
+
+# This script is best run as a stand-alone binary, as GpsPoller isn't stable over long periods. It tends to
+# spontaneously quit saying "Connection reset by peer".
+
 import dateutil.parser
 import threading
 import time
@@ -16,7 +28,7 @@ class GpsPoller(threading.Thread):
         threading.Thread.__init__(self)
         self.session = gps(mode=WATCH_ENABLE)
         self.current_value = None
-        self.clockoffset = None
+        self.clock_offset = None
         self.latitude = None
         self.longitude = None
 
@@ -30,7 +42,7 @@ class GpsPoller(threading.Thread):
                 if ('mode' in self.current_value) and (self.current_value.mode == 3):
                     dt = dateutil.parser.parse(self.current_value['time'])
                     utc = time.mktime(dt.timetuple())
-                    self.clockoffset = time.time() - utc
+                    self.clock_offset = time.time() - utc
                     self.latitude = self.current_value['lat']
                     self.longitude = self.current_value['lon']
                 time.sleep(0.2)  # tune this, you might not get values that quickly
@@ -50,7 +62,7 @@ def fetchGPSfix():
     while 1:
         x = gpsp.get_current_value()
         if x and ('mode' in x) and (x.mode == 3):
-            return {'offset':-gpsp.clockoffset, 'latitude':gpsp.latitude, 'longitude':gpsp.longitude}
+            return {'offset': -gpsp.clock_offset, 'latitude': gpsp.latitude, 'longitude': gpsp.longitude}
         if (time.time() > tstart + 30):
             return False  # Give up after 30 seconds
         time.sleep(2)

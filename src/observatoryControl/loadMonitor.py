@@ -7,11 +7,12 @@
 
 import os
 import time
-from math import *
+import math
 
 import mod_settings
 
-if mod_settings.I_AM_A_RPI:
+# Set up GPIO lines as outputs. But only if we're running on a RPi, as otherwise we don't have any lines to configure...
+if mod_settings.settings['i_am_a_rpi']:
     import RPi.GPIO as GPIO
 
     GPIO.setwarnings(False)
@@ -22,23 +23,31 @@ if mod_settings.I_AM_A_RPI:
     GPIO.output(22, True)
 
 
+# Set the two LEDs according to whether x and y are true or false
 def set_lights(x, y):
-    if mod_settings.I_AM_A_RPI:
+    if mod_settings.settings['i_am_a_rpi']:
         GPIO.output(18, x)
         GPIO.output(22, y)
     else:
         print "%10s %10s" % (x, y)
 
 
+# This is a sum of all of the load measurements we have ever made
 loadCount = 0
-logFilename = os.path.join(mod_settings.DATA_PATH, "meteorPi.log")
+
+# This is the filename of the log file which we watch for changes
+logFilename = os.path.join(mod_settings.settings['dataPath'], "meteorPi.log")
+
+# This is the last time that we saw the log file update
 lastLogTime = 0
 
+# Pulse the load-indicator LED whenever loadCount increases by this amount
 loadDivisor = 300
 
-while 1:
+# Main loop
+while True:
     loadCount = float(open("/proc/stat").readline().split()[1]) / loadDivisor
-    led1 = (floor(loadCount) % 2 == 0)
+    led1 = (math.floor(loadCount) % 2 == 0)
     if os.path.exists(logFilename):
         lastLogTime = os.path.getmtime(logFilename)
     led2 = ((time.time() - lastLogTime) < 10)

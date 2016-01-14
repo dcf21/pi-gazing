@@ -3,24 +3,22 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
+# This is a demo script which turns the camera on, and then records a time lapse video of frames recorded once a
+# minute until the script is killed
+
 from __future__ import division
 
 import os
 import time
 from math import *
 
-# This is a demo script which produces a timelapse video of frames recorded ever N seconds
+frame_interval = 60
 
-PERIOD = 60
-
-pid = os.getpid()
+logfile = open("log.txt", "a")
 
 
 def utc():
     return time.time()
-
-
-logfile = open("log.txt", "a")
 
 
 def logtxt(txt):
@@ -28,42 +26,46 @@ def logtxt(txt):
     logfile.flush()
 
 
+pid = os.getpid()
+
 logtxt("timelapse launched")
 
 # Start time for time lapse sequence
-timeTarget = floor((utc() + 10) / 10) * 10;
+time_next_frame = floor((utc() + 10) / 10) * 10
 
 # Make directory
-# dirname = time.strftime("/mnt/harddisk/pi/%Y%m%d_%H%M%S" , time.gmtime(utc()))
-dirname = "/mnt/harddisk/pi/daveSky"
+dirname = "/tmp/meteorpi_timelapse"
 os.system("mkdir -p %s" % dirname)
 os.chdir(dirname)
 
-frNum = 1
+frame_num = 1
 
 while True:
     logtxt("Waiting for next exposure")
-    wait = timeTarget - utc()
-    if (wait > 0): time.sleep(wait)
+    wait = time_next_frame - utc()
+    if wait > 0:
+        time.sleep(wait)
 
     # Filename
-    while 1:
-        fname = "frame%06d.jpg" % (frNum)
+    fname = "frame%06d.jpg" % (frame_num)
+    while True:
         if os.path.exists(fname):
-            frNum += 1
+            frame_num += 1
+            fname = "frame%06d.jpg" % (frame_num)
         else:
             break
 
     # Take exposure
     logtxt("Taking photo")
     os.system("rm -f tmp.jpg")
-    os.system("/home/pi/meteor-pi/src/videoProcess/bin/snapshot tmp.jpg 500")
-    os.system("""convert tmp.jpg -background black -rotate -180 tmp2.jpg""")
-    os.system(
-        """convert tmp2.jpg -gravity South -background Green -splice 0x26 -pointsize 16 -font Ubuntu-Bold -annotate +0+2 '%s' %s""" % (
-        time.strftime("%b %d %Y %H:%M:%S", time.gmtime(utc())), fname))
-    # os.system("""rm -f daveShed.mp4""")
-    # os.system("""avconv -r 10 -i frame%06d.jpg -codec:v libx264 daveShed.mp4""")
-    os.system("""rsync -av * dcf21@sandbox.britastro.com:public_html/daveSky/""")
+    os.system("./snapshot.sh tmp.png 500")
+    os.system("convert tmp.png -background black -rotate -180 tmp2.jpg")
+    os.system("convert tmp2.jpg -gravity South -background Green -splice 0x26 -pointsize 16 -font Ubuntu-Bold "
+              "-annotate +0+2 '%s' %s" % (time.strftime("%b %d %Y %H:%M:%S", time.gmtime(utc())), fname))
 
-    timeTarget += PERIOD
+    # Use avconv to make a timelapse video. Can't do this inside the loop if we intend to observe for a very
+    # long time, as otherwise it takes more than a minute to do this encoding after each frame...
+    os.system("rm -f /tmp/meteorpi_timelapse.mp4")
+    os.system("avconv -r 10 -i frame%06d.jpg -codec:v libx264 /tmp/meteorpi_timelapse.mp4")
+
+    time_next_frame += frame_interval

@@ -14,7 +14,7 @@ Our geographically distributed network of cameras allow the altitudes of some of
 
 To access our data, or to find out about educational activities, please visit the [Meteor Pi website](http://meteorpi.cambridgesciencecentre.org/).
 
-These GitHub pages are a respository for technical information about the project.
+These GitHub pages are a repository for technical information about the project.
 
 Here you can learn about how to build your own Meteor Pi camera, the software that's needed to control it, and how you can help improve the prohect.
 
