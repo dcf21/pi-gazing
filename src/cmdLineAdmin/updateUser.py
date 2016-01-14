@@ -5,6 +5,8 @@
 
 # This script is used to add users to the web interface
 
+# It is useful to run this after <sql/rebuild.sh>
+
 import sys
 
 import meteorpi_db

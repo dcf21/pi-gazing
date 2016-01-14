@@ -3,7 +3,7 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-# Display a list of the still (timelapse) images recorded by an observatory between specified start and end times
+# Lists all of the still (timelapse) images recorded by an observatory between specified start and end times
 
 import sys
 import time

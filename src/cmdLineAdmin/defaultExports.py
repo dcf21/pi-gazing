@@ -3,7 +3,9 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-# This script is used to set up a default export configuration
+# This script is used to set up an observatory to use the default export configuration specified in installation_info.py
+
+# It is useful to run this after <sql/rebuild.sh>
 
 import sys
 

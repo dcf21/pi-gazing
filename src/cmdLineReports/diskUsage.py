@@ -3,7 +3,8 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-# This gives a breakdown of the disk usage of different kinds of files by observation day
+# This searches through all of the files in the database, and gives a breakdown of the disk usage of different kinds
+# of files, day by day
 
 import sys
 

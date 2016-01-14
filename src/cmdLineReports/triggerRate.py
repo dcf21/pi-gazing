@@ -3,7 +3,8 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-# Make a histogram of number raw videos and trigger videos by hour
+# Make a histogram of the number of moving objects of timelapse still images recorded by an observatory each hour
+# This is displayed as a table which can subsequently be plotted as a graph using, e.g. gnuplot
 
 import sys
 import time

@@ -3,7 +3,9 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-# This script is used to manually update a camera status
+# This script is used to manually set up metadata about an observatory in the database.
+
+# It is useful to run this after <sql/rebuild.sh> to specify the lens, camera, etc being used.
 
 import os
 import sys

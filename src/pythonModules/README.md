@@ -1,0 +1,1 @@
+Here we keep various core python modules that Meteor Pi uses. You will certainly need to install `meteorpi_model` and `meterpi_db` to use any of the other python scripts in this repository (and possibly also `meteorpi_server` if you want the web interface to work). See the Wiki on our GitHub pages for more information.

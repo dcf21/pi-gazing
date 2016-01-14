@@ -3,6 +3,8 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
+# Lists all of the files entered into the database by a particular observatory between two given unix times
+
 import time
 import sys
 

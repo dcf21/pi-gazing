@@ -5,9 +5,13 @@
 
 # This script is used to manually update an observatory status
 
-# Observing regions are used to specify that a particular observatory should only analyse certain portions of the visible fioeld to look for moving objects (e.g. meteors). This is useful when the field also contains distracting objects such as buildings, roads, etc, where homans are often moving around.
+# Observing regions are used to specify that a particular observatory should only analyse certain portions of the
+# visible field to look for moving objects (e.g. meteors). This is useful when the field also contains distracting
+# objects such as buildings, roads, etc, where humans are often moving around.
 
-# You should enter a series of coordinate positions which represent the corners of a polygon within which the observatory should search for moving objects. This is a bit fiddly to do through a commandline interface, so you may want to use the web interface instead.
+# You should enter a series of coordinate positions which represent the corners of a polygon within which the
+# observatory should search for moving objects. This is a bit fiddly to do through a commandline interface, so you
+# may want to use the web interface instead.
 
 import sys
 import json

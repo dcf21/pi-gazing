@@ -3,6 +3,7 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
+# Lists all of the moving objects recorded by an observatory between given unix times
 
 import sys
 import time
