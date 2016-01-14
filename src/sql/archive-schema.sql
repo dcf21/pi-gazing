@@ -83,7 +83,8 @@ CREATE TABLE archive_observations (
     ON DELETE CASCADE,
   FOREIGN KEY (obsType) REFERENCES archive_semanticTypes (uid)
     ON DELETE CASCADE,
-  INDEX (obsTime), INDEX (publicId)
+  INDEX (obsTime),
+  INDEX (publicId)
 );
 
 /* Number of likes each observation has */
@@ -106,7 +107,8 @@ CREATE TABLE archive_obs_groups (
   time      REAL,
   setAtTime REAL, /* time that metadata was computed */
   setByUser VARCHAR(16),
-  INDEX(time), INDEX(setAtTime)
+  INDEX (time),
+  INDEX (setAtTime)
 );
 
 CREATE TABLE archive_obs_group_members (
@@ -130,15 +132,19 @@ CREATE TABLE archive_files (
   fileSize        INTEGER      NOT NULL,
   repositoryFname CHAR(32)     NOT NULL,
   fileMD5         CHAR(32)     NOT NULL, /* MD5 hash of file contents */
-  FOREIGN KEY (observationId) REFERENCES archive_observations (uid),
-  INDEX(fileTime), INDEX (repositoryFname)
+  FOREIGN KEY (semanticType) REFERENCES archive_semanticTypes (uid)
+    ON DELETE CASCADE,
+  FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
+    ON DELETE CASCADE,
+  INDEX (fileTime),
+  INDEX (repositoryFname)
 );
 
 /* Metadata pertaining to observations, observatories, or groups of observations */
 CREATE TABLE archive_metadataFields (
   uid     INTEGER PRIMARY KEY AUTO_INCREMENT,
   metaKey VARCHAR(255) NOT NULL,
-  INDEX(metaKey)
+  INDEX (metaKey)
 );
 
 CREATE TABLE archive_metadata (
@@ -164,14 +170,15 @@ CREATE TABLE archive_metadata (
     ON DELETE CASCADE,
   FOREIGN KEY (fieldId) REFERENCES archive_metadataFields (uid)
     ON DELETE CASCADE,
-  INDEX(setAtTime), INDEX(publicId)
+  INDEX (setAtTime),
+  INDEX (publicId)
 );
 
 /* Configuration used to export observations to an external server */
 CREATE TABLE archive_exportConfig (
   uid            INTEGER PRIMARY KEY AUTO_INCREMENT,
   exportConfigId CHAR(32)      NOT NULL,
-  exportType     VARCHAR(10)   NOT NULL,
+  exportType     VARCHAR(16)   NOT NULL,
   searchString   VARCHAR(2048) NOT NULL,
   targetURL      VARCHAR(255)  NOT NULL,
   targetUser     VARCHAR(255)  NOT NULL,
@@ -179,7 +186,7 @@ CREATE TABLE archive_exportConfig (
   exportName     VARCHAR(255)  NOT NULL,
   description    VARCHAR(2048) NOT NULL,
   active         BOOLEAN       NOT NULL,
-  INDEX(exportConfigId)
+  INDEX (exportConfigId)
 );
 
 CREATE TABLE archive_observationExport (

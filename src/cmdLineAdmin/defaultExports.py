@@ -59,3 +59,6 @@ config = mp.ExportConfiguration(target_url=installation_info.local_conf['exportU
                                 search=search, name="file_export",
                                 description="Export all image files to remote server", enabled=True)
 db.create_or_update_export_configuration(config)
+
+# Commit changes to database
+db.commit()

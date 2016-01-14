@@ -42,3 +42,6 @@ if not roles:
     roles = defaultRoles.split()
 
 db.create_or_update_user(user_id=user_id, password=password, roles=roles)
+
+# Commit changes to database
+db.commit()

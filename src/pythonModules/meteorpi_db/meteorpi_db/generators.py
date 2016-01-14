@@ -104,7 +104,7 @@ WHERE m.fileId=%s
         for result in results:
             observation = mp.Observation(obstory_id=result['obstory_id'], obstory_name=result['obstory_name'],
                                          obs_time=result['obsTime'], obs_id=result['publicId'],
-                                         observation_type=result['obsType'])
+                                         obs_type=result['obsType'])
 
             # Look up observation metadata
             sql = """SELECT f.metaKey, stringValue, floatValue
@@ -124,7 +124,8 @@ WHERE m.observationId=%s
                 observation.file_records.append(self.db.get_observation(item['repositoryFname']))
 
             # Count votes for observation
-            self.con.execute("SELECT COUNT(*) FROM archive_obs_likes WHERE observationId=%s;", (result['publicId'],))
+            self.con.execute("SELECT COUNT(*) FROM archive_obs_likes WHERE observationId="
+                             "(SELECT uid FROM archive_observations WHERE publicId=%s);", (result['publicId'],))
             observation.likes = self.con.fetchone()['COUNT(*)']
 
             output.append(observation)
@@ -192,17 +193,18 @@ WHERE m.groupId=%s
         results = self.con.fetchall()
         output = []
         for result in results:
-            if result['stringValue'] is None:
+            value = ""
+            if ('floatValue' in result) and (result['floatValue'] is not None):
                 value = result['floatValue']
-            else:
+            if ('stringValue' in result) and (result['stringValue'] is not None):
                 value = result['stringValue']
-            obsMeta = mp.ObservatoryMetadata(metadata_id=result['metadata_id'], obstory_id=result['obstory_id'],
-                                             obstory_name=result['obstory_name'],
-                                             obstory_lat=result['obstory_lat'], obstory_lng=result['obstory_lng'],
-                                             key=result['metadata_key'], value=value,
-                                             metadata_time=result['time'], time_created=result['time_created'],
-                                             user_created=result['user_created'])
-            output.append(obsMeta)
+            obs_meta = mp.ObservatoryMetadata(metadata_id=result['metadata_id'], obstory_id=result['obstory_id'],
+                                              obstory_name=result['obstory_name'],
+                                              obstory_lat=result['obstory_lat'], obstory_lng=result['obstory_lng'],
+                                              key=result['metadata_key'], value=value,
+                                              metadata_time=result['time'], time_created=result['time_created'],
+                                              user_created=result['user_created'])
+            output.append(obs_meta)
 
         return output
 

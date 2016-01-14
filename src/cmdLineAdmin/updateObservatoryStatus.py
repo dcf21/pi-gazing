@@ -38,10 +38,23 @@ print "----------------------------"
 obstory_list = db.get_obstory_names()
 for obstory in obstory_list:
     print "%s\n" % obstory
+    print "  * Observatory configuration"
+    o = db.get_obstory_from_name(obstory)
+    for item in ['latitude', 'longitude', 'name', 'publicId']:
+        print "    * %s = %s" % (item, o[item])
     status = db.get_obstory_status(obstory_name=obstory)
-    for item in status:
-        print "  * %s = %s\n" % (item, status[item])
+    status_keys = status.keys()
+    status_keys.sort()
+    print "\n  * Additional metadata"
+    for item in status_keys:
+        print "    * %s = %s" % (item, status[item])
     print "\n"
+if len(obstory_list)==0:
+    print "None!\n"
+
+print
+print "Update or add an observatory"
+print "----------------------------"
 
 # Select observatory status to update
 obstory = fetch_option(title="observatory to update",
@@ -80,9 +93,10 @@ metadata_time = fetch_option(title="time stamp for update",
                              indict={},
                              default=mp.now(),
                              argv_index=2)
+metadata_time = float(metadata_time)
 
 # Register software version in use
-db.register_obstory_metadata(obstory_id=obstory,
+db.register_obstory_metadata(obstory_name=obstory,
                              key="softwareVersion",
                              value=mod_settings.settings['softwareVersion'],
                              metadata_time=metadata_time,
@@ -103,3 +117,6 @@ lens = fetch_option(title="new lens",
                     default="VF-DCD-AI-3.5-18-C-2MP",
                     argv_index=4)
 hw.update_lens(db=db, obstory_name=obstory, utc=metadata_time, name=lens)
+
+# Commit changes to database
+db.commit()

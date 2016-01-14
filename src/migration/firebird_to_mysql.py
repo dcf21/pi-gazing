@@ -143,14 +143,16 @@ for item in files:
     meta_list = []
 
     # Move file from firebird repository into new repository
+    # Temporarily move file to a location where its original filename is restored prior to import into mysql
     file_path = os.path.join("../../datadir/firebird_files", uuid.UUID(bytes=item[2]).hex)
-    file_path_tmp = os.path.join("../../datadir", item[4]) # Move file to a location where its original filename is restored prior to import into mysql
+    file_path_tmp = os.path.join("../../datadir", item[4])
     if not os.path.exists(file_path):
         print "Warning: Could not find file <%s>" % file_path
+        meta_list.append(mp.Meta("fileError", 1))
         open(file_path_tmp, "w").write("")
     else:
-        shutil.move(file_path,file_path_tmp)
-        
+        shutil.move(file_path, file_path_tmp)
+
     if item[0] in fileMetaDict:
         for meta in fileMetaDict[item[0]]:
             if meta[2] is not None:
@@ -166,7 +168,8 @@ for item in files:
                                     file_path=file_path_tmp,
                                     file_time=utc,
                                     mime_type=item[3],
-                                    semantic_type=item[4],
+                                    semantic_type=item[5],
+                                    file_md5=item[10],
                                     file_meta=meta_list)
     elif utc_floor in created_observations:
         file_obj = db.register_file(observation_id=created_observations[utc_floor],
@@ -174,7 +177,8 @@ for item in files:
                                     file_path=file_path_tmp,
                                     file_time=utc,
                                     mime_type=item[3],
-                                    semantic_type=item[4],
+                                    semantic_type=item[5],
+                                    file_md5=item[10],
                                     file_meta=meta_list)
     else:
         if item[3] == "text/plain":
@@ -192,6 +196,7 @@ for item in files:
                                     file_path=file_path_tmp,
                                     file_time=utc,
                                     mime_type=item[3],
-                                    semantic_type=item[4],
+                                    semantic_type=item[5],
+                                    file_md5=item[10],
                                     file_meta=meta_list)
     db.commit()

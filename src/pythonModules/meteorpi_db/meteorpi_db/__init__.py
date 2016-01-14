@@ -73,7 +73,7 @@ class MeteorDatabase(object):
         self.db_password = db_password
         self.db_name = db_name
         self.obstory_name = obstory_name
-        self.generators = MeteorDatabaseGenerators(self.db, self.con)
+        self.generators = MeteorDatabaseGenerators(db=self, con=self.con)
 
     def __str__(self):
         """Simple string representation of this db object
@@ -159,11 +159,11 @@ VALUES
         search = mp.ObservatoryMetadataSearch(item_id=item_id)
         b = search_metadata_sql_builder(search)
         sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
-                                       'l.latitude AS obstory_lat, l.longitude AS obstory_lng'
+                                       'l.latitude AS obstory_lat, l.longitude AS obstory_lng, '
                                        'stringValue, floatValue, m.publicId AS metadata_id, '
-                                       'f.name AS metadata_key, time, setAtTime AS time_created, '
+                                       'f.metaKey AS metadata_key, time, setAtTime AS time_created, '
                                        'setByUser AS user_created',
-                               skip=0, limit=1, order='f.fileTime DESC')
+                               skip=0, limit=1, order='m.time DESC')
         items = list(self.generators.obstory_metadata_generator(sql=sql, sql_args=b.sql_args))
         if not items:
             return None
@@ -172,11 +172,13 @@ VALUES
     def search_obstory_metadata(self, search):
         b = search_metadata_sql_builder(search)
         sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
-                                       'l.latitude AS obstory_lat, l.longitude AS obstory_lng'
+                                       'l.latitude AS obstory_lat, l.longitude AS obstory_lng, '
                                        'stringValue, floatValue, m.publicId AS metadata_id, '
-                                       'f.name AS metadata_key, time, setAtTime AS time_created, '
+                                       'f.metaKey AS metadata_key, time, setAtTime AS time_created, '
                                        'setByUser AS user_created',
-                               skip=0, limit=1, order='f.fileTime DESC')
+                               skip=search.skip,
+                               limit=search.limit,
+                               order='m.time DESC')
         items = list(self.generators.obstory_metadata_generator(sql=sql, sql_args=b.sql_args))
         rows_returned = len(items)
         total_rows = rows_returned + search.skip
@@ -186,14 +188,14 @@ VALUES
         return {"count": total_rows,
                 "items": items}
 
-    def register_obstory_metadata(self, obstory_id, key, value, metadata_time, user_created, time_created=None):
+    def register_obstory_metadata(self, obstory_name, key, value, metadata_time, user_created, time_created=None):
         if time_created is None:
             time_created = mp.now()
-        obstory = self.get_obstory_from_id(obstory_id)
+        obstory = self.get_obstory_from_name(obstory_name)
         item_id = mp.get_hash(metadata_time, obstory['publicId'], key)
 
         # If new value equals old value, no point re-entering it!
-        previous_value = self.lookup_obstory_metadata(key, metadata_time, obstory_id)
+        previous_value = self.lookup_obstory_metadata(key, metadata_time, obstory_name)
         if previous_value == value:
             return None
 
@@ -362,7 +364,8 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
         return {"count": total_rows,
                 "files": files}
 
-    def register_file(self, observation_id, user_id, file_path, file_time, mime_type, semantic_type, file_meta=None):
+    def register_file(self, observation_id, user_id, file_path, file_time, mime_type, semantic_type,
+                      file_md5=None, file_meta=None):
         """
         Register a file in the database, also moving the file into the file store. Returns the corresponding FileRecord
         object.
@@ -394,8 +397,10 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
 
         # Get checksum for file, and size
         file_size_bytes = os.stat(file_path).st_size
-        md5 = mp.get_md5_hash(file_path)
         file_name = os.path.split(file_path)[1]
+
+        if file_md5 is None:
+            file_md5 = mp.get_md5_hash(file_path)
 
         # Fetch information about parent observation
         self.con.execute("""
@@ -418,7 +423,7 @@ INSERT INTO archive_files
 (observationId, mimeType, fileName, semanticType, fileTime, fileSize, repositoryFname, fileMD5)
 VALUES
 ((SELECT uid FROM archive_observations WHERE publicId=%s), %s, %s, %s, %s, %s, %s, %s);
-""", (observation_id, mime_type, file_name, semantic_type_id, file_time, file_size_bytes, repository_fname, md5))
+""", (observation_id, mime_type, file_name, semantic_type_id, file_time, file_size_bytes, repository_fname, file_md5))
 
         # Move the original file from its path
         target_file_path = os.path.join(self.file_store_path, repository_fname)
@@ -440,7 +445,7 @@ VALUES
                                     file_name=file_name,
                                     mime_type=mime_type,
                                     semantic_type=semantic_type,
-                                    file_md5=md5,
+                                    file_md5=file_md5,
                                     meta=file_meta
                                     )
 
@@ -552,7 +557,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
         b = search_observations_sql_builder(search)
         sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
                                        'o.obsTime, o.obsType, o.publicId, o.uid',
-                               skip=0, limit=1, order='f.obsTime DESC')
+                               skip=0, limit=1, order='o.obsTime DESC')
         obs = list(self.generators.observation_generator(sql=sql, sql_args=b.sql_args))
         if not obs:
             return None
@@ -572,7 +577,9 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
         b = search_observations_sql_builder(search)
         sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
                                        'o.obsTime, o.obsType, o.publicId, o.uid',
-                               skip=0, limit=1, order='f.obsTime DESC')
+                               skip=search.skip,
+                               limit=search.limit,
+                               order='o.obsTime DESC')
         obs = list(self.generators.observation_generator(sql=sql, sql_args=b.sql_args))
         rows_returned = len(obs)
         total_rows = rows_returned + search.skip
@@ -755,7 +762,9 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
         """
         b = search_obsgroups_sql_builder(search)
         sql = b.get_select_sql(columns='g.uid, g.obsTime, g.setAtTime, g.setByUser, g.publicId, g.title',
-                               skip=0, limit=1, order='g.obsTime DESC')
+                               skip=search.skip,
+                               limit=search.limit,
+                               order='g.obsTime DESC')
         obs_groups = list(self.generators.obsgroup_generator(sql=sql, sql_args=b.sql_args))
         rows_returned = len(obs_groups)
         total_rows = rows_returned + search.skip
@@ -943,9 +952,9 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
         if roles is not None:
 
             # Clear out existing roles, and delete any unused roles
-            self.con.execute("DELETE FROM archive_user_roles r INNER JOIN archive_users u ON r.userId=u.uid "
-                             "WHERE u.userId=%s;", (user_id,))
-            self.con.execute("DELETE FROM archive_roles r WHERE r.uid NOT IN "
+            self.con.execute("DELETE r FROM archive_user_roles AS r WHERE "
+                             "(SELECT u.userId FROM  archive_users AS u WHERE r.userId=u.uid)=%s;", (user_id,))
+            self.con.execute("DELETE r FROM archive_roles AS r WHERE r.uid NOT IN "
                              "(SELECT roleId FROM archive_user_roles);")
 
             for role in roles:
@@ -957,7 +966,8 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
                     results = self.con.fetchall()
 
                     self.con.execute('INSERT INTO archive_user_roles (userId, roleId) VALUES '
-                                     '(%s, %s)', (user_id, results[0]['uid']))
+                                     '((SELECT u.uid FROM archive_users u WHERE u.userId=%s),'
+                                     '%s)', (user_id, results[0]['uid']))
             return action
 
     def delete_user(self, user_id):
@@ -1230,7 +1240,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
             return results[0]['time']
         return None
 
-    def set_high_water_mark(self, mark_type, time, obstory_name=None, ):
+    def set_high_water_mark(self, mark_type, time, obstory_name=None):
         if obstory_name is None:
             obstory_name = self.obstory_name
 

@@ -3,34 +3,53 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-import mod_hwm
-from mod_daytimejobs import *
-from mod_log import logTxt
+import os
+import sys
+import time
 
-logTxt("Running daytimeJobsClean")
-CWD = os.getcwd()
-os.chdir(DATA_PATH)
+import meteorpi_db
 
-# Clean up any file products which are newer than high water mark
-highWaterMarks = mod_hwm.fetchHWM()
+import mod_log
+import mod_settings
+import mod_daytimejobs
+from mod_log import log_txt
 
-# Work on each task in turn
-for taskGroup in dayTimeTasks:
-    [HWMout, Nmax, taskList] = taskGroup
-    if HWMout not in highWaterMarks:
-        highWaterMarks[HWMout] = 0
-    for task in taskList:
-        [inDir, outDirs, inExt, outExt, cmd] = task
 
-        # Remove any output which is newer than HWM
-        for outDir in outDirs:
-            for dirName, subdirList, fileList in os.walk(outDir):
-                for f in fileList:
-                    utc = mod_hwm.filenameToUTC(f)
-                    if utc < 0:
-                        continue
-                    if utc > highWaterMarks[HWMout]:
-                        os.system("rm -f %s" % os.path.join(dirName, f))
+def day_time_jobs_clean(db):
+    log_txt("Running daytimeJobsClean")
+    cwd = os.getcwd()
+    os.chdir(mod_settings.settings['dataPath'])
 
-os.chdir(CWD)
-logTxt("Finished daytimeJobsClean")
+    # Clean up any file products which are newer than high water mark
+    # Work on each task in turn
+    for taskGroup in mod_daytimejobs.dayTimeTasks:
+        hwm_output = taskGroup[0]
+        task_list = taskGroup[2]
+        if db.get_high_water_mark(mark_type=hwm_output) is None:
+            db.set_high_water_mark(mark_type=hwm_output, time=0)
+        high_water = db.get_high_water_mark(mark_type=hwm_output)
+        for task in task_list:
+            out_dirs = task[1]
+
+            # Remove any output which is newer than HWM
+            for out_dir in out_dirs:
+                for dir_name, subdir_list, file_list in os.walk(out_dir):
+                    for f in file_list:
+                        utc = mod_log.filename_to_utc(f)
+                        if utc < 0:
+                            continue
+                        if utc > high_water:
+                            os.system("rm -f %s" % os.path.join(dir_name, f))
+
+    os.chdir(cwd)
+    log_txt("Finished daytimeJobsClean")
+
+
+# If we're called as a script, run the method exportData()
+if __name__ == "__main__":
+    utc_now = time.time()
+    if len(sys.argv) > 1:
+        utc_now = float(sys.argv[1])
+    mod_log.set_utc_offset(utc_now - time.time())
+    dbh = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+    day_time_jobs_clean(dbh)

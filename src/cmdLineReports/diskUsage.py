@@ -22,7 +22,7 @@ db.con.execute("SELECT * FROM archive_files;")
 for item in db.con.fetchall():
     file_type = item['mimeType']
     date = mod_astro.inv_julian_day( mod_astro.jd_from_utc( item['fileTime']))
-    date_str = "%04d%2d%02d" % (date[0], date[1], date[2])
+    date_str = "%04d %02d %02d" % (date[0], date[1], date[2])
     if file_type not in file_census:
         file_census[file_type] = {}
     if date_str not in file_census[file_type]:
@@ -34,7 +34,7 @@ def render_data_size_list(data):
     total_file_size = sum(data)
     output = []
     for d in data:
-        output.append("%6.2f GB (%5.1f%%)" % (d / 1.e9, d * 100. / total_file_size))
+        output.append("%8.2f MB (%5.1f%%)" % (d / 1.e6, d * 100. / total_file_size))
     return output
 
 

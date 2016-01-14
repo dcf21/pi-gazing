@@ -6,47 +6,43 @@
 # This exports observations to remote servers, if configured
 
 import sys
-from math import *
+import time
 
 import meteorpi_db
 from meteorpi_db.exporter import MeteorExporter
 
 import mod_log
-from mod_log import logTxt
-from mod_settings import *
-from mod_time import *
+from mod_log import log_txt
+import mod_settings
 
 
-def export_data(utcNow, utcMustStop=0):
-    logTxt("Starting export of images and events")
+def export_data(utc_now, utc_must_stop=0):
+    log_txt("Starting export of images and events")
 
     # Work out how long we can do exporting for
     state = None
-    tStop = time.time() + (utcMustStop - utcNow)
+    utc_stop = time.time() + (utc_must_stop - utc_now)
 
     # Open a database handle
-    db_handle = meteorpi_db.MeteorDatabase(DBPATH, DBFILESTORE)
+    db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
     # Search for items which need exporting
-    for export_config in db_handle.get_export_configurations():
+    for export_config in db.get_export_configurations():
         if export_config.enabled:
-            db_handle.mark_entities_to_export(export_config)
+            db.mark_entities_to_export(export_config)
 
     # Create an exporter instance
-    exporter = MeteorExporter(db=db_handle,
-                              mark_interval_seconds=1,
-                              max_failures_before_disable=4,
-                              defer_on_failure_seconds=3)
+    exporter = MeteorExporter(db=db)
 
     # Loop until either we run out of time, or we run out of files to export
-    while (not utcMustStop) or (time.time() < tStop):
+    while (not utc_must_stop) or (time.time() < utc_stop):
         state = exporter.handle_next_export()
         if not state:
-            logTxt("Finished export of images and events")
+            log_txt("Finished export of images and events")
             break
         print "Export status: %s" % state.state
         if state.state == "failed":
-            logTxt("Backing off, because an export failed")
+            log_txt("Backing off, because an export failed")
             time.sleep(300)
 
     # Exit
@@ -55,8 +51,8 @@ def export_data(utcNow, utcMustStop=0):
 
 # If we're called as a script, run the method exportData()
 if __name__ == "__main__":
-    utcNow = time.time()
+    _utc_now = time.time()
     if len(sys.argv) > 1:
-        utcNow = float(sys.argv[1])
-    mod_log.setUTCoffset(utcNow - time.time())
-    export_data(utcNow, 0)
+        _utc_now = float(sys.argv[1])
+    mod_log.set_utc_offset(_utc_now - time.time())
+    export_data(_utc_now, 0)

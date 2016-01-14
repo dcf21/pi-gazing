@@ -63,6 +63,7 @@ metadata_time = fetch_option(title="time stamp for update",
                              indict={},
                              default=mp.now(),
                              argv_index=2)
+metadata_time = float(metadata_time)
 
 # Read user-specified clipping region
 print "Enter new clipping region. Specify one white-space separated x y coordinate on each line."
@@ -83,9 +84,12 @@ while 1:
             break
         point_list = []
 
-db.register_obstory_metadata(obstory_id=obstory,
+db.register_obstory_metadata(obstory_name=obstory,
                              key="clippingRegion",
                              value=json.dumps(regions),
                              metadata_time=metadata_time,
                              time_created=mp.now(),
                              user_created="system")
+
+# Commit changes to database
+db.commit()

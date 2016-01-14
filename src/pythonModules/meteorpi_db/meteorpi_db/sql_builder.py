@@ -79,6 +79,7 @@ def search_files_sql_builder(search):
         A :class:`meteorpi_db.SQLBuilder` configured from the supplied search
     """
     b = SQLBuilder(tables="""archive_files f
+INNER JOIN archive_semanticTypes s2 ON f.semanticType=s2.uid
 INNER JOIN archive_observations o ON f.observationId=o.uid
 INNER JOIN archive_semanticTypes s ON o.obsType=s.uid
 INNER JOIN archive_observatories l ON o.observatory=l.uid""", where_clauses=[])
@@ -93,7 +94,7 @@ INNER JOIN archive_observatories l ON o.observatory=l.uid""", where_clauses=[])
     b.add_sql(search.long_min, 'l.longitude >= %s')
     b.add_sql(search.long_max, 'l.longitude <= %s')
     b.add_sql(search.mime_type, 'f.mimeType = %s')
-    b.add_sql(search.semantic_type, 'f.semanticType = %s')
+    b.add_sql(search.semantic_type, 's2.name = %s')
     b.add_metadata_query_properties(meta_constraints=search.meta_constraints, id_column="fileId", id_table="f")
 
     # Check for import / export filters
@@ -125,7 +126,7 @@ def search_metadata_sql_builder(search):
 INNER JOIN archive_metadataFields f ON m.fieldId=f.uid
 INNER JOIN archive_observatories l ON m.observatory=l.uid""", where_clauses=["m.observatory IS NOT NULL"])
     b.add_set_membership(search.obstory_ids, 'l.publicId')
-    b.add_sql(search.field_name, 'f.name = %s')
+    b.add_sql(search.field_name, 'f.metaKey = %s')
     b.add_sql(search.time_min, 'm.time > %s')
     b.add_sql(search.time_max, 'm.time < %s')
     b.add_sql(search.lat_min, 'l.latitude >= %s')

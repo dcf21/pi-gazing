@@ -51,7 +51,7 @@ if not s:
 search = mp.ObservationSearch(obstory_ids=[obstory_name],
                               time_min=utc_min, time_max=utc_max, limit=1000000)
 triggers = db.search_observations(search)
-triggers = triggers['events']
+triggers = triggers['obs']
 triggers.sort(key=lambda x: x.obs_time)
 
 print "Observatory <%s>" % obstory_name
@@ -59,6 +59,12 @@ print "  * %d matching triggers in time range %s --> %s" % (len(triggers),
                                                             mod_astro.time_print(utc_min),
                                                             mod_astro.time_print(utc_max))
 for event in triggers:
-    print
-    print "  * Event at <%s>" % event.obs_time
-    print "  * Metadata: [%s]" % (",".join("'%s':%s" % (i.key, i.value) for i in event.meta))
+    event_id = event.id
+    duration = db.get_observation_metadata(event_id, "meteorpi:duration")
+    peak_amplitude = db.get_observation_metadata(event_id, "meteorpi:amplitudePeak")
+    if duration is None:
+        duration = -1
+    if peak_amplitude is None:
+        peak_amplitude = -1
+    print "  * [ID %s] %s -- Duration %5.1f sec -- Peak amplitude %7.1f" % (event_id,
+        mod_astro.time_print(event.obs_time), duration, peak_amplitude)

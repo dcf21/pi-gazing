@@ -1,7 +1,12 @@
 #!../../virtual-env/bin/python
-# deleteFiles.py
+# deleteData.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
+
+# Deletes all of the observations and files recorded by a particular observatory between two times.
+
+# Commandline syntax:
+# ./deleteData.py t_min t_max observatory
 
 import os
 import sys
@@ -30,7 +35,7 @@ if len(sys.argv) > 3:
 if utc_max == 0:
     utc_max = time.time()
 
-print "# ./deleteImages.py %f %f \"%s\"\n" % (utc_min, utc_max, observatory)
+print "# ./deleteData.py %f %f \"%s\"\n" % (utc_min, utc_max, observatory)
 
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
@@ -52,7 +57,7 @@ search = mp.ObservationSearch(obstory_ids=[observatory],
                               time_max=utc_max,
                               limit=1000000)
 observations = db.search_observations(search)
-observations = observations['events']
+observations = observations['obs']
 observations.sort(key=lambda x: x.obs_time)
 
 print "Observatory <%s>" % observatory
@@ -66,3 +71,6 @@ if confirmation not in 'Yy':
     sys.exit(0)
 
 db.clear_database(tmin=utc_min, tmax=utc_max, obstory_names=observatory)
+
+# Commit changes to database
+db.commit()

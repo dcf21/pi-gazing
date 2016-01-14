@@ -11,7 +11,6 @@ import mod_settings
 
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
-
 # List current observatory statuses
 print "List of observatories"
 print "---------------------"
@@ -23,7 +22,14 @@ print "\nObservatories: %s\n" % obstory_list
 
 for obstory in obstory_list:
     print "%s\n" % obstory
+    print "  * Observatory configuration"
+    o = db.get_obstory_from_name(obstory)
+    for item in ['latitude', 'longitude', 'name', 'publicId']:
+        print "    * %s = %s" % (item, o[item])
     status = db.get_obstory_status(obstory_name=obstory)
-    for item in status:
-        print "  * %s = %s\n" % (item, status[item])
+    status_keys = status.keys()
+    status_keys.sort()
+    print "\n  * Additional metadata"
+    for item in status_keys:
+        print "    * %s = %s" % (item, status[item])
     print "\n"

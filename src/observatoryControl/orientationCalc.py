@@ -14,7 +14,7 @@ import meteorpi_model as mp
 
 import mod_astro
 import mod_log
-from mod_log import logTxt
+from mod_log import log_txt
 from mod_settings import *
 from mod_time import *
 
@@ -45,7 +45,7 @@ def getMetaItem(fileRec, key):
 
 
 def orientationCalc(cameraId, utcNow, utcMustStop=0):
-    logTxt("Starting calculation of camera alignment")
+    log_txt("Starting calculation of camera alignment")
 
     deg = pi / 180
     rad = 180 / pi
@@ -62,7 +62,7 @@ def orientationCalc(cameraId, utcNow, utcMustStop=0):
     # Fetch camera status
     cameraStatus = db_handle.get_camera_status(camera_id=cameraId, time=UTC2datetime(utcNow))
     if not cameraStatus:
-        logTxt("Aborting -- no camera status set for camera <%s>" % cameraId)
+        log_txt("Aborting -- no camera status set for camera <%s>" % cameraId)
         return
     lensName = cameraStatus.lens
 
@@ -72,7 +72,7 @@ def orientationCalc(cameraId, utcNow, utcMustStop=0):
                                  limit=1000000)
     files = db_handle.search_files(search)
     files = [i for i in files['files']]
-    logTxt("%d candidate time-lapse images in past 24 hours" % len(files))
+    log_txt("%d candidate time-lapse images in past 24 hours" % len(files))
 
     # Filter out files where the sky clariy is good and the Sun is well below horizon
     acceptableFiles = []
@@ -81,11 +81,11 @@ def orientationCalc(cameraId, utcNow, utcMustStop=0):
         if (getMetaItem(f, 'sunAlt') > -4): continue
         acceptableFiles.append(f)
 
-    logTxt("%d acceptable images found for alignment (others do not have good sky quality)" % len(acceptableFiles))
+    log_txt("%d acceptable images found for alignment (others do not have good sky quality)" % len(acceptableFiles))
 
     # If we don't have enough images, we can't proceed to get a secure orientation fit
     if (len(acceptableFiles) < 10):
-        logTxt("Giving up: not enough suitable images")
+        log_txt("Giving up: not enough suitable images")
         return
 
     # We can't afford to run astrometry.net on too many images, so pick the 20 best ones
@@ -97,7 +97,7 @@ def orientationCalc(cameraId, utcNow, utcMustStop=0):
     cwd = os.getcwd()
     pid = os.getpid()
     tmp = "/tmp/dcf21_orientationCalc_%d" % pid
-    logTxt("Created temporary directory <%s>" % tmp)
+    log_txt("Created temporary directory <%s>" % tmp)
     os.system("mkdir %s" % tmp)
     os.chdir(tmp)
 
@@ -110,7 +110,7 @@ def orientationCalc(cameraId, utcNow, utcMustStop=0):
         imgname = f.file_name
         fitObj = {'f': f, 'i': count, 'fit': False}
         fits.append(fitObj)
-        logTxt("Determining orientation of image with timestamp <%s> (unix time %d) -- skyClarity=%.1f" % (
+        log_txt("Determining orientation of image with timestamp <%s> (unix time %d) -- skyClarity=%.1f" % (
         f.file_time, datetime2UTC(f.file_time), getMetaItem(f, 'skyClarity')))
         fname = f.get_path()
 
@@ -148,12 +148,12 @@ def orientationCalc(cameraId, utcNow, utcMustStop=0):
         os.system("timeout 10m /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --overwrite %s > txt" % (
         fit['fname_processed']))  # Insert --no-plots to speed things up
         astrometryTimeTaken = time.time() - astrometryStartTime
-        logTxt("Astrometry.net took %d seconds to analyse image at time <%s>" % (astrometryTimeTaken, f.file_time))
+        log_txt("Astrometry.net took %d seconds to analyse image at time <%s>" % (astrometryTimeTaken, f.file_time))
         fittxt = open("txt").read()
         test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",
                          fittxt)
         if not test:
-            logTxt("Failed. Cannot read central RA and Dec from image at <%s>" % f.file_time)
+            log_txt("Failed. Cannot read central RA and Dec from image at <%s>" % f.file_time)
             continue
         rasgn = sgn(float(test.group(1)))
         ra = abs(float(test.group(1))) + float(test.group(2)) / 60 + float(test.group(3)) / 3600
@@ -163,7 +163,7 @@ def orientationCalc(cameraId, utcNow, utcMustStop=0):
         if (decsgn < 0): dec *= -1
         test = re.search(r"up is [+]?([-\d\.]*) degrees (.) of N", fittxt)
         if not test:
-            logTxt("Failed. Cannot read position angle from image at <%s>" % f.file_time)
+            log_txt("Failed. Cannot read position angle from image at <%s>" % f.file_time)
             continue
         posang = float(test.group(
             1)) + 180  # This 180 degree rotation appears to be a bug in astrometry.net (pos angles relative to south, not north)
@@ -171,28 +171,28 @@ def orientationCalc(cameraId, utcNow, utcMustStop=0):
         if test.group(2) == "W": posang *= -1
         test = re.search(r"Field size: ([\d\.]*) x ([\d\.]*) deg", fittxt)
         if not test:
-            logTxt("Failed. Cannot read field size from image at <%s>" % f.file_time)
+            log_txt("Failed. Cannot read field size from image at <%s>" % f.file_time)
             continue
         scalex = 2 * atan(tan(float(test.group(1)) / 2 * deg) * (
         1 / fractionX)) * rad  # Expand size of image to whole image, not just the central tile we sent to astrometry.net
         scaley = 2 * atan(tan(float(test.group(2)) / 2 * deg) * (1 / fractionY)) * rad
         fit.update({'fit': True, 'ra': ra, 'dec': dec, 'pa': posang, 'sx': scalex, 'sy': scaley})
-        logTxt("Success. RA: %7.2fh. Dec %7.2f deg. PA %6.1f deg. ScaleX %6.1f. ScaleY %6.1f." % (
+        log_txt("Success. RA: %7.2fh. Dec %7.2f deg. PA %6.1f deg. ScaleX %6.1f. ScaleY %6.1f." % (
         ra, dec, posang, scalex, scaley))
         fitlist.append(fit);
 
         # Work out alt-az of each fitted position from known location of camera. Fits returned in degrees.
         altAz = mod_astro.altAz(fit['ra'], fit['dec'], datetime2UTC(fit['f'].file_time), cameraStatus.location.latitude,
                                 cameraStatus.location.longitude)
-        logTxt("Alt: %7.2f deg. Az: %7.2f deg." % (altAz[0], altAz[1]))
+        log_txt("Alt: %7.2f deg. Az: %7.2f deg." % (altAz[0], altAz[1]))
         altAzList.append(altAz)
 
     # Average the resulting fits
     if len(fitlist) < 3:
-        logTxt("Giving up: astrometry.net only managed to fit %d images." % len(fitlist))
+        log_txt("Giving up: astrometry.net only managed to fit %d images." % len(fitlist))
         return None
     else:
-        logTxt("astrometry.net managed to fit %d images out of %d." % (len(fitlist), len(fits)))
+        log_txt("astrometry.net managed to fit %d images out of %d." % (len(fitlist), len(fits)))
 
     paList = [i['pa'] * deg for i in fits if i['fit']];
     paBest = mod_astro.meanAngle(paList)[0]
@@ -206,7 +206,7 @@ def orientationCalc(cameraId, utcNow, utcMustStop=0):
     [altAzBest, altAzError] = mod_astro.meanAngle2D(altAzList_r)
 
     # Print fit information
-    logTxt(
+    log_txt(
         "Orientation fit. Alt: %.2f deg. Az: %.2f deg. PA: %.2f deg. ScaleX: %.2f deg. ScaleY: %.2f deg. Uncertainty: %.2f deg." % (
         altAzBest[0] * rad, altAzBest[1] * rad, paBest * rad, scalexBest * rad, scaleyBest * rad, altAzError * rad))
 
@@ -252,5 +252,5 @@ if __name__ == "__main__":
     utcNow = time.time()
     if len(sys.argv) > 1: cameraId = sys.argv[1]
     if len(sys.argv) > 2: utcNow = float(sys.argv[2])
-    mod_log.setUTCoffset(utcNow - time.time())
+    mod_log.set_utc_offset(utcNow - time.time())
     orientationCalc(cameraId, utcNow, 0)
