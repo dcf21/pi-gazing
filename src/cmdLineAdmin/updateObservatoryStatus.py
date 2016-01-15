@@ -101,7 +101,7 @@ db.register_obstory_metadata(obstory_name=obstory,
                              value=mod_settings.settings['softwareVersion'],
                              metadata_time=metadata_time,
                              time_created=mp.now(),
-                             user_created="system")
+                             user_created=mod_settings.settings['meteorpiUser'])
 
 # Offer user options to update metadata
 sensor = fetch_option(title="new sensor",

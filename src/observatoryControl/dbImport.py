@@ -112,7 +112,7 @@ def database_import():
             semantic_type = local_filename_to_semantic_type(fname)
             log_txt("Registering file <%s>, with cameraId <%s>" % (fname, camera_id))
             file_obj = db.register_file(file_path=fname, mime_type="image/png",
-                                        semantic_type=mp.NSString(semantic_type, "meteorpi"),
+                                        semantic_type=semantic_type,
                                         file_time=utc, file_metas=metadata_objs,
                                         camera_id=camera_id,
                                         file_name=file_name)

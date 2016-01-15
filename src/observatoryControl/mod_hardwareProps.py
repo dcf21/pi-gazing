@@ -6,6 +6,7 @@ import os
 import xml.etree.cElementTree as ElementTree
 
 import mod_xml
+import mod_settings
 
 
 class Sensor:
@@ -62,18 +63,20 @@ class HardwareProps:
     def update_sensor(self, db, obstory_name, utc, name):
         assert name in self.sensor_data, "Unknown sensor type <%s>" % name
         x = self.sensor_data[name]
-        db.register_obstory_metadata(obstory_name, "sensor", name, utc, "system")
-        db.register_obstory_metadata(obstory_name, "sensor_width", x.width, utc, "system")
-        db.register_obstory_metadata(obstory_name, "sensor_height", x.height, utc, "system")
-        db.register_obstory_metadata(obstory_name, "sensor_fps", x.fps, utc, "system")
-        db.register_obstory_metadata(obstory_name, "sensor_upside_down", x.upside_down, utc, "system")
-        db.register_obstory_metadata(obstory_name, "sensor_camera_type", x.camera_type, utc, "system")
+        user = mod_settings.settings['meteorpiUser']
+        db.register_obstory_metadata(obstory_name, "sensor", name, utc, user)
+        db.register_obstory_metadata(obstory_name, "sensor_width", x.width, utc, user)
+        db.register_obstory_metadata(obstory_name, "sensor_height", x.height, utc, user)
+        db.register_obstory_metadata(obstory_name, "sensor_fps", x.fps, utc, user)
+        db.register_obstory_metadata(obstory_name, "sensor_upside_down", x.upside_down, utc, user)
+        db.register_obstory_metadata(obstory_name, "sensor_camera_type", x.camera_type, utc, user)
 
     def update_lens(self, db, obstory_name, utc, name):
         assert name in self.lens_data, "Unknown lens type <%s>" % name
         x = self.lens_data[name]
-        db.register_obstory_metadata(obstory_name, "lens", name, utc, "system")
-        db.register_obstory_metadata(obstory_name, "lens_fov", x.fov, utc, "system")
-        db.register_obstory_metadata(obstory_name, "lens_barrel_a", x.barrel_a, utc, "system")
-        db.register_obstory_metadata(obstory_name, "lens_barrel_b", x.barrel_b, utc, "system")
-        db.register_obstory_metadata(obstory_name, "lens_barrel_c", x.barrel_c, utc, "system")
+        user = mod_settings.settings['meteorpiUser']
+        db.register_obstory_metadata(obstory_name, "lens", name, utc, user)
+        db.register_obstory_metadata(obstory_name, "lens_fov", x.fov, utc, user)
+        db.register_obstory_metadata(obstory_name, "lens_barrel_a", x.barrel_a, utc, user)
+        db.register_obstory_metadata(obstory_name, "lens_barrel_b", x.barrel_b, utc, user)
+        db.register_obstory_metadata(obstory_name, "lens_barrel_c", x.barrel_c, utc, user)

@@ -5,7 +5,7 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
     });
 
     /**
-     * Client to the MeteorPi REST API
+     * Client to the Meteor Pi REST API
      * @param config initialise with configuration parameters, currently only urlPrefix which is applied to all URLs
      * @constructor
      */

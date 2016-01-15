@@ -2,6 +2,8 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
+import os
+
 import mod_settings
 
 # This file defines the commands which daytimeJobs.py uses to do tasks such as encoding videos
@@ -67,3 +69,34 @@ dayTimeTasks = [
          ]
     ],
 ]
+
+# Make a dictionary from a file containing metadata keys and values on lines
+def file_to_dict(in_filename, must_be_float=False):
+    output = {}
+    if not os.path.exists(in_filename):
+        return output
+    for line in open(in_filename):
+        if line.strip() == "":
+            continue
+        if line[0] == "#":
+            continue
+        words = line.split()
+        keyword = words[0]
+        val = words[1]
+        try:
+            val = float(val)
+        except ValueError:
+            if must_be_float:
+                continue
+        output[keyword] = val
+    return output
+
+# Convert a dictionary of metadata keys and values into a file with keys and values on lines
+def dict_to_file(out_filename, in_dict):
+    f = open(out_filename, "w")
+    keywords = in_dict.keys()
+    keywords.sort()
+    for keyword in keywords:
+        value = in_dict[keyword]
+        f.write("%16s %s\n" % (keyword, value))
+    f.close()

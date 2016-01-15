@@ -9,7 +9,7 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 class MeteorExporter(object):
     """
-    Manages the communication part of MeteorPi's export mechanism, acquiring :class:`meteorpi_db.FileExportTask` and
+    Manages the communication part of Meteor Pi's export mechanism, acquiring :class:`meteorpi_db.FileExportTask` and
     :class:`meteorpi_db.EventExportTask` instances from the database and sending them on to the appropriate receiver.
     This class in effect defines the communication protocol used by this process.
     """

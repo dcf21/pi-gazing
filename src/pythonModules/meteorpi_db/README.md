@@ -1,3 +1,3 @@
-# MeteorPi Python API - FireBird Database
+# Meteor Pi Python API - MySQL Database
 
-API to manage MeteorPi classes within a FireBird database instance
+API to manage Meteor Pi classes within a MySQL database instance

@@ -8,8 +8,8 @@ from flask.ext.cors import CORS
 
 class MeteorApp(object):
     """
-    Common functionality for MeteorPi WSGI apps. This won't contain any routes by default, these must be added using the
-    functionality in admin_api, importer_api, query_api etc. This allows you to customise your application to suit,
+    Common functionality for Meteor Pi WSGI apps. This won't contain any routes by default, these must be added using
+    the functionality in admin_api, importer_api, query_api etc. This allows you to customise your application to suit,
     rather than forcing all the functionality into every instance. It might be sensible, for example, to only import
     the query API for a node which will never need external administration or configuration.
 

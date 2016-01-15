@@ -1,6 +1,6 @@
 # generators.py
 
-# Helper functions for generating MeteorPi objects from SQL query results
+# Helper functions for generating Meteor Pi objects from SQL query results
 
 import json
 import meteorpi_model as mp

@@ -15,6 +15,7 @@ import math
 import mod_log
 from mod_log import log_txt, get_utc
 import mod_settings
+import installation_info
 import mod_daytimejobs
 import mod_astro
 import orientationCalc
@@ -39,7 +40,7 @@ mod_log.set_utc_offset(utc_offset)
 
 log_txt("Running daytimeJobs. Need to quit at %s." % mod_astro.time_print(quit_time))
 
-# Cleaning up any output files which are ahead of high water marks
+# Clean up any output files which are ahead of high water marks
 log_txt("Cleaning up any output files which are ahead of high water marks")
 daytimeJobsClean.day_time_jobs_clean(db)
 
@@ -69,11 +70,11 @@ def run_job_group(job_group):
         for product in products:
             stub = product[:-len(m['outExt'])]
             metadata = m['metadata']  # Metadata that was associated with input file
-            metadata.update(mod_hwm.fileToDB("%stxt" % stub))
-            mod_hwm.DBtoFile("%stxt" % stub, metadata)
+            metadata.update(mod_daytimejobs.file_to_dict(in_filename="%stxt" % stub))
+            mod_daytimejobs.dict_to_file(out_filename="%stxt" % stub, in_dict=metadata)
 
 
-# We raise this exception if we pass the time when we've been told we need to hand execution back
+# Create a custom exception which we raise if we pass the time when we've been told we need to hand execution back
 class TimeOut(Exception):
     pass
 
@@ -83,8 +84,8 @@ job_counter = 0
 try:
     for task_group in mod_daytimejobs.dayTimeTasks:
         [hwm_output, n_max, task_list] = task_group
-        if hwm_output not in highWaterMarks:
-            highWaterMarks[hwm_output] = 0
+        if db.get_high_water_mark(mark_type=hwm_output) is None:
+            db.set_high_water_mark(mark_type=hwm_output, time=0)
         log_txt("Working on task group <%s>" % hwm_output)
         hwm_margin = ((mod_settings.settings['videoMaxRecordTime'] - 5) if hwm_output == "rawvideo" else 0.1)
         job_list = []
@@ -99,10 +100,11 @@ try:
                     input_file = os.path.join(dir_name, f)
 
                     # File must have correct extension and non-zero size
-                    if (f.endswith(".%s" % in_ext) and (os.path.getsize(input_file) > 0)):
-                        utc = mod_hwm.filenameToUTC(f)
-                        if (utc < 0): continue
-                        if (utc > highWaterMarks[hwm_output]):
+                    if f.endswith(".%s" % in_ext) and (os.path.getsize(input_file) > 0):
+                        utc = mod_log.filename_to_utc(f)
+                        if utc < 0:
+                            continue
+                        if utc > db.get_high_water_mark(mark_type=hwm_output):
 
                             job_counter += 1
                             mask_file = "/tmp/triggermask_%d_%d.txt" % (os.getpid(), job_counter)
@@ -119,42 +121,44 @@ try:
                                       'outExt': out_ext,
                                       'date': mod_log.fetch_day_name_from_filename(f),
                                       'tstamp': utc,
-                                      'cameraId': CAMERA_ID,
+                                      'cameraId': installation_info.local_conf['observatoryName'],
                                       'pid': pid,
                                       'triggermask': mask_file,
-                                      'opm': ('_openmax' if I_AM_A_RPI else ''),
+                                      'opm': ('_openmax' if mod_settings.settings['i_am_a_rpi'] else ''),
 
                                       # Produce non-lens-corrected images once every 2 mins
                                       'produceFilesWithoutLC': int(math.floor(utc % 120) < 24),
                                       }
                             params['filename_out'] = "%(outdir)s/%(date)s/%(filename)s" % params
-                            params['metadata'] = mod_hwm.fileToDB("%s.txt" % os.path.join(dir_name, params['filename']))
+
+                            # Overwrite the default parameters above with those output from the videoAnalysis C code
+                            params['metadata'] = mod_daytimejobs.file_to_dict(
+                                    in_filename="%s.txt" % os.path.join(dir_name, params['filename']))
                             params.update(params['metadata'])
+
+                            # Fetch the status of the observatory which made this observation
+                            cameraStatus = db.get_obstory_status(obstory_name=params['cameraId'], time=utc)
+
                             if 'fps' not in params:
-                                params['fps'] = mod_hardwareProps.fetchSensorData(db, hw_handle, params['cameraId'],
-                                                                                  utc).fps
+                                params['fps'] = cameraStatus["sensor_fps"]
 
                             # Read barrel-correction parameters
-                            lensData = mod_hardwareProps.fetchLensData(db, hw_handle, params['cameraId'], utc)
-                            params['barrel_a'] = lensData.barrel_a
-                            params['barrel_b'] = lensData.barrel_b
-                            params['barrel_c'] = lensData.barrel_c
-
-                            # Fetch the status of the camera which made this observation
-                            cameraStatus = db.get_camera_status(camera_id=params['cameraId'], time=utc)
+                            params['barrel_a'] = cameraStatus["lens_barrel_a"]
+                            params['barrel_b'] = cameraStatus["lens_barrel_b"]
+                            params['barrel_c'] = cameraStatus["lens_barrel_c"]
 
                             # Create clipping region mask file
                             open(mask_file, "w").write(
                                     "\n\n".join(
                                             ["\n".join(["%(x)d %(y)d" % p for p in pointList])
-                                             for pointList in cameraStatus.regions]
+                                             for pointList in cameraStatus['clippingRegions']]
                                     )
                             )
 
                             # Insert metadata about position of Sun
                             sunPos = mod_astro.sun_pos(utc)
-                            sunAltAz = mod_astro.alt_az(sunPos[0], sunPos[1], utc, cameraStatus.location.latitude,
-                                                        cameraStatus.location.longitude)
+                            sunAltAz = mod_astro.alt_az(sunPos[0], sunPos[1], utc,
+                                                        cameraStatus['latitude'], cameraStatus['longitude'])
                             params['metadata']['sunRA'] = sunPos[0]
                             params['metadata']['sunDecl'] = sunPos[1]
                             params['metadata']['sunAlt'] = sunAltAz[0]
@@ -175,7 +179,7 @@ try:
         for job in job_list:
             cameraId = job['params']['cameraId']
             if cameraId not in obstories_seen:
-                db.set_high_water_mark(datetime.datetime.fromtimestamp(job['utc']), cameraId)
+                db.set_high_water_mark(mark_type='observing', time=job['utc'], obstory_name=cameraId)
                 obstories_seen.append(cameraId)
 
         # Now do jobs in order, raising local high level water mark as we do each job
@@ -191,17 +195,19 @@ try:
                     jobGrp = []
 
                     # Set HWM so that next job is marked as not yet done (it may have the same timestamp as present job)
-                    if (i < jobListLen - 1):
-                        highWaterMarks[hwm_output] = job_list[i + 1]['utc'] - 0.1
+                    if i < jobListLen - 1:
+                        db.set_high_water_mark(mark_type=hwm_output, time=job_list[i + 1]['utc'] - 0.1)
 
                     # Set HWM so it's just past the job we've just done (0.1 sec)
                     else:
-                        highWaterMarks[hwm_output] = job['utc'] + hwm_margin
+                        db.set_high_water_mark(mark_type=hwm_output, time=job['utc'] + hwm_margin)
 
             run_job_group(jobGrp)
-            highWaterMarks[hwm_output] = job_list[jobListLen - 1]['utc'] + hwm_margin
+            db.set_high_water_mark(mark_type=hwm_output, time=job_list[jobListLen - 1]['utc'] + hwm_margin)
             log_txt("Completed %d jobs" % len(job_list))
-            os.system("rm -f /tmp/triggermask_%d_*" % (os.getpid()))  # Delete trigger masks that we've finished with
+
+            # Delete trigger masks that we've finished with
+            os.system("rm -f /tmp/triggermask_%d_*" % (os.getpid()))
 
 except TimeOut:
     log_txt("Interrupting processing as we've run out of time")
@@ -216,14 +222,14 @@ if (not quit_time) or (quit_time - get_utc() > 300):
 try:
     if (not quit_time) or (quit_time - get_utc() > 3600 * 5):
         log_txt("Trying to determine orientation of camera")
-        orientationCalc.orientationCalc(CAMERA_ID, get_utc(), quit_time)
+        orientationCalc.orientationCalc(installation_info.local_conf['observatoryName'], get_utc(), quit_time)
 except:
     log_txt("Unexpected error while determining camera orientation")
 
 # Update database hwm
 for cameraId, utc in hwm_new.iteritems():
-    log_txt("Updating high water mark of camera <%s> to UTC %d (%s)" % (cameraId, utc, UTC2datetime(utc)))
-    db.set_high_water_mark(utc, cameraId)
+    log_txt("Updating high water mark of camera <%s> to UTC %d (%s)" % (cameraId, utc, mod_astro.time_print(utc)))
+    db.set_high_water_mark(mark_type="observing", time=utc, obstory_name=cameraId)
 
 # Export data to remote server(s)
 try:
@@ -243,7 +249,7 @@ os.system("rm -Rf %s/t*" % (mod_settings.settings['dataPath']))
 # Twiddle our thumbs
 if quit_time:
     time_left = quit_time - get_utc()
-    if (time_left > 0):
+    if time_left > 0:
         log_txt("Finished daytimeJobs. Now twiddling our thumbs for %d seconds." % time_left)
         time.sleep(time_left)
     log_txt("Finished daytimeJobs and also finished twiddling thumbs.")

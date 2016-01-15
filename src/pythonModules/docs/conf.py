@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# MeteorPi documentation build configuration file, created by
+# Meteor Pi documentation build configuration file, created by
 # sphinx-quickstart on Fri Jun 12 10:32:16 2015.
 #
 # This file is execfile()d with the current directory set to its
@@ -284,7 +284,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'MeteorPi', u'MeteorPi Documentation',
+    (master_doc, 'MeteorPi', u'Meteor Pi Documentation',
      author, 'MeteorPi', 'One line description of project.',
      'Miscellaneous'),
 ]

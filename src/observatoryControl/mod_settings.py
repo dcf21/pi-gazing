@@ -13,6 +13,9 @@ settings = {
 
     'softwareVersion': 2,
 
+    # The user account user by the Meteor Pi observing code
+    'meteorpiUser': 'system',
+
     # The path to python scripts in the observatoryControl directory
     'pythonPath': path,
 

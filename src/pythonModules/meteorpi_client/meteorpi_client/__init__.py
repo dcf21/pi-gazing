@@ -26,18 +26,18 @@ def _to_encoded_string(o):
 
 
 class MeteorClient(object):
-    """Client for the MeteorPi HTTP API. Use this to access a camera or central server."""
+    """Client for the Meteor Pi HTTP API. Use this to access a camera or central server."""
 
     def __init__(self, base_url):
         """
-        Create a new MeteorPi client, use this to access the data in your MeteorPi server.
+        Create a new Meteor Pi client, use this to access the data in your Meteor Pi server.
 
         :param base_url:
             the URL for the API. For a camera this will be the address of the camera with '/api/' added, so for example
             if your camera website is at 'https://myhost.com/camera' you'd use 'https://myhost.com/camera/api/' here.
             You might see a '#' symbol in your web browser address bar, ignore it and just use the bits of the URL
             before that point.
-        :return: a configured instance of the MeteorPi client
+        :return: a configured instance of the Meteor Pi client
         """
         self.base_url = base_url
 

@@ -1,6 +1,6 @@
 # meteorpi_db
 
-# Classes which interact with the MeteorPi database
+# Classes which interact with the Meteor Pi database
 
 import os
 import sys
@@ -21,7 +21,7 @@ SOFTWARE_VERSION = 2
 
 class MeteorDatabase(object):
     """
-    Class representing a single MeteorPi database and file store.
+    Class representing a single Meteor Pi database and file store.
 
     :ivar con:
         Database connection used to access the db

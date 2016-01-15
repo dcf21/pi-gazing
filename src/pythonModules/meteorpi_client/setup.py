@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='meteorpi_client',
     version='0.1.5',
-    description='Client to the MeteorPi HTTP API',
+    description='Client to the Meteor Pi HTTP API',
     classifiers=['Programming Language :: Python :: 2.7'],
     url='https://github.com/camsci/meteor-pi/',
     author='Tom Oinn',

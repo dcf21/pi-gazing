@@ -1,6 +1,6 @@
 # meteorpi_model
 
-# Classes which represent MeteorPi objects
+# Classes which represent Meteor Pi objects
 
 import numbers
 import time
@@ -96,7 +96,7 @@ class ModelEqualityMixin(object):
 
 class User(ModelEqualityMixin):
     """
-    A single user in an instance of the MeteorPi server
+    A single user in an instance of the Meteor Pi server
 
     Class variables:
 
