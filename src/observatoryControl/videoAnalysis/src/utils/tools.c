@@ -24,7 +24,7 @@ void writeRawVidMetaData(videoMetadata v)
   sprintf(fname,"%s.txt",v.filename);
   FILE *f = fopen(fname,"w");
   if (!f) return;
-  fprintf(f,"cameraId %s\n",v.cameraId);
+  fprintf(f,"obstoryId %s\n",v.obstoryId);
   fprintf(f,"tstart %.1f\n",v.tstart);
   fprintf(f,"tstop %.1f\n",v.tstop);
   fprintf(f,"nframe %d\n",v.nframe);

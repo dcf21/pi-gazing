@@ -14,7 +14,7 @@ typedef struct videoMetadata
  {
   double tstart, tstop, fps, lng, lat;
   int    width, height, flagGPS, flagUpsideDown, nframe;
-  char *cameraId, *videoDevice, *filename, *maskFile;
+  char  *obstoryId, *videoDevice, *filename, *maskFile;
  } videoMetadata;
 
 void  writeRawVidMetaData (videoMetadata v);

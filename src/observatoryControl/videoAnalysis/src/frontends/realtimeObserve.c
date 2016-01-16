@@ -20,7 +20,7 @@
 #include "settings.h"
 #include "settings_webcam.h"
 
-extern char *analysisCameraId;
+extern char *analysisObstoryId;
 
 int utcoffset;
 
@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
   // Initialise video capture process
   if (argc!=15)
    {
-    sprintf(temp_err_string, "ERROR: Command line syntax is:\n\n observe <UTC clock offset> <UTC start> <UTC stop> <cameraId> <video device> <width> <height> <fps> <mask> <lat> <long> <flagGPS> <flagUpsideDown> <output filename>\n\ne.g.:\n\n observe 0 1428162067 1428165667 1 /dev/video0 720 480 24.71 mask.txt 52.2 0.12 0 1 output.h264\n"); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Command line syntax is:\n\n observe <UTC clock offset> <UTC start> <UTC stop> <obstoryId> <video device> <width> <height> <fps> <mask> <lat> <long> <flagGPS> <flagUpsideDown> <output filename>\n\ne.g.:\n\n observe 0 1428162067 1428165667 1 /dev/video0 720 480 24.71 mask.txt 52.2 0.12 0 1 output.h264\n"); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
   videoMetadata vmd;
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
   vmd.tstart              = GetFloat(argv[2],NULL);
   vmd.tstop               = GetFloat(argv[3],NULL);
   vmd.nframe              = 0;
-  vmd.cameraId            = argv[4];
+  vmd.obstoryId           = argv[4];
   vmd.videoDevice         = argv[5];
   vmd.width               = (int)GetFloat(argv[6],NULL);
   vmd.height              = (int)GetFloat(argv[7],NULL);
@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
   fillPolygonsFromFile(maskfile, mask, width, height);
   fclose(maskfile);
 
-  observe((void *)videoIn, vmd.cameraId, utcoffset, vmd.tstart, vmd.tstop, width, height, vmd.fps, "live", mask, Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP, TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_GAIN_BGSUB, STACK_GAIN_NOBGSUB, medianMapUseEveryNthStack, medianMapUseNImages, medianMapReductionCycles, &fetchFrame, &rewindVideo);
+  observe((void *)videoIn, vmd.obstoryId, utcoffset, vmd.tstart, vmd.tstop, width, height, vmd.fps, "live", mask, Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP, TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_GAIN_BGSUB, STACK_GAIN_NOBGSUB, medianMapUseEveryNthStack, medianMapUseNImages, medianMapReductionCycles, &fetchFrame, &rewindVideo);
 
   return 0;
  }

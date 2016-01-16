@@ -20,7 +20,7 @@ import mod_hardwareProps
 if mod_settings.settings['i_am_a_rpi']:
     import mod_relay
 
-obstory_name = installation_info.local_conf['observatoryName']
+obstory_id = installation_info.local_conf['observatoryId']
 
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 hw = mod_hardwareProps.HardwareProps(os.path.join(mod_settings.settings['pythonPath'], "..", "sensorProperties"))
@@ -82,18 +82,20 @@ flag_gps = 0
 obstory_status = None
 
 # If this observatory doesn't exist in the database, create it now with information from installation_info
-if not db.has_obstory_name(obstory_name):
-    log_txt("Observatory '%s' is not set up. Using default settings." % obstory_name)
+if not db.has_obstory_id(obstory_id):
+    log_txt("Observatory '%s' is not set up. Using default settings." % obstory_id)
     db.register_obstory(obstory_id=installation_info.local_conf['observatoryId'],
-                        obstory_name=obstory_name,
+                        obstory_name=installation_info.local_conf['observatoryName'],
                         latitude=latitude,
                         longitude=longitude)
+    obstory_name = installation_info.local_conf['observatoryName']
 else:
+    obstory_name = db.get_obstory_from_id(obstory_id)['name']
     obstory_status = db.get_obstory_status(obstory_name=obstory_name)
 
 # If we don't have any metadata, configure default lens and sensor now
 if (obstory_status is None) or (not obstory_status):
-    log_txt("No observatory status found for '%s'. Using a default." % obstory_name)
+    log_txt("No observatory status found for '%s'. Using a default." % obstory_id)
     hw.update_sensor(db=db, obstory_name=obstory_name, utc=time_now, name="watec_902h2_ultimate")
     hw.update_lens(db=db, obstory_name=obstory_name, utc=time_now, name="VF-DCD-AI-3.5-18-C-2MP")
 obstory_status = db.get_obstory_status(obstory_name=obstory_name)
@@ -192,11 +194,11 @@ while True:
             if obstory_status["sensor_camera_type"] == "gphoto2":
                 binary += "_dslr"
             cmd = "%s %.1f %.1f %.1f \"%s\" \"%s\" %d %d %s %s %s %s %d %d %s/rawvideo/%s_%s" % (
-                binary, get_utc_offset(), time_now, t_stop, obstory_name, mod_settings.settings['videoDev'],
+                binary, get_utc_offset(), time_now, t_stop, obstory_id, mod_settings.settings['videoDev'],
                 obstory_status['sensor_width'], obstory_status['sensor_height'],
                 obstory_status['sensor_fps'], mask_file, latitude, longitude, flag_gps,
                 obstory_status['sensor_upside_down'], mod_settings.settings['dataPath'], time_key,
-                obstory_name)
+                obstory_id)
             log_txt("Running command: %s" % cmd)
             os.system(cmd)
 
@@ -231,10 +233,10 @@ while True:
             cmd = ("timeout %d %s/debug/recordH264 %.1f %.1f %.1f \"%s\" \"%s\" %d %d %s %s %s %d %d %s/rawvideo/%s_%s"
                    % (
                        observing_duration + 30, mod_settings.settings['binaryPath'], get_utc_offset(), time_now, t_stop,
-                       obstory_name, mod_settings.settings['videoDev'],
+                       obstory_id, mod_settings.settings['videoDev'],
                        obstory_status['sensor_width'], obstory_status['sensor_height'],
                        obstory_status['sensor_fps'], latitude, longitude, flag_gps,
-                       obstory_status['sensor_upside_down'], mod_settings.settings['dataPath'], time_key, obstory_name))
+                       obstory_status['sensor_upside_down'], mod_settings.settings['dataPath'], time_key, obstory_id))
             # Use timeout here, because sometime the RPi's openmax encoder hangs...
             log_txt("Running command: %s" % cmd)
             os.system(cmd)

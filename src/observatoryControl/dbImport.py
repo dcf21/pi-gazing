@@ -10,7 +10,7 @@ import time
 import meteorpi_db
 import meteorpi_model as mp
 import mod_log
-from mod_log import log_txt
+from mod_log import log_txt, get_utc
 import mod_settings
 import installation_info
 
@@ -161,13 +161,14 @@ def database_import():
     os.system("./cameraStatusLog.sh > /tmp/cameraStatus.log")
     file_obj = db.register_file(file_path="/tmp/cameraStatus.log", mime_type="text/plain",
                                 semantic_type="logfile",
-                                file_time=time.time(), file_metas=[],
+                                file_time=get_utc(), file_metas=[],
                                 camera_id=my_installation_id(),
-                                file_name="cameraStatus_" + time.strftime("%Y%m%d" + ".log"))
+                                file_name="cameraStatus_" + time.strftime("%Y%m%d",get_utc()) + ".log")
 
     # Remove old data from the local database
-    mod_deleteOldData.delete_old_data(my_installation_id(), 0,
-                                      time.time() - 24 * 2400 * installation_info.local_conf['dataLocalLifetime'])
+    db.clear_database(obstory_names=[installation_info.local_conf['observatoryName']],
+                      tmin=0,
+                      tmax=get_utc() - 24 * 2400 * installation_info.local_conf['dataLocalLifetime'])
     return hwm_new
 
 

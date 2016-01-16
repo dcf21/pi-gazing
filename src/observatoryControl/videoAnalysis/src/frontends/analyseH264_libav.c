@@ -126,7 +126,7 @@ int main(int argc, char **argv)
 
   if (argc!=6)
    {
-    sprintf(temp_err_string, "ERROR: Command line syntax is:\n\n analyseH264_libav <filename> <tstart> <fps> <mask> <cameraId>\n\ne.g.\n\n analyseH264_libav foo.rawvid 1234 24.71 mask.txt xxx\n"); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+    sprintf(temp_err_string, "ERROR: Command line syntax is:\n\n analyseH264_libav <filename> <tstart> <fps> <mask> <obstoryId>\n\ne.g.\n\n analyseH264_libav foo.rawvid 1234 24.71 mask.txt xxx\n"); gnom_fatal(__FILE__,__LINE__,temp_err_string);
    }
 
   ctx.filename = argv[1];

@@ -512,7 +512,7 @@ int main(int argc, char **argv)
     // Initialise video capture process
     if (argc!=14)
      {
-      sprintf(temp_err_string, "ERROR: Command line syntax is:\n\n recordH264 <UTC clock offset> <UTC start> <UTC stop> <cameraId> <video device> <width> <height> <fps> <lat> <long> <flagGPS> <flagUpsideDown> <output filename>\n\ne.g.:\n\n recordH264 0 1428162067 1428165667 1 /dev/video0 720 480 24.71 52.2 0.12 0 1 output.h264\n"); gnom_fatal(__FILE__,__LINE__,temp_err_string);
+      sprintf(temp_err_string, "ERROR: Command line syntax is:\n\n recordH264 <UTC clock offset> <UTC start> <UTC stop> <obstoryId> <video device> <width> <height> <fps> <lat> <long> <flagGPS> <flagUpsideDown> <output filename>\n\ne.g.:\n\n recordH264 0 1428162067 1428165667 1 /dev/video0 720 480 24.71 52.2 0.12 0 1 output.h264\n"); gnom_fatal(__FILE__,__LINE__,temp_err_string);
      }
 
     videoMetadata vmd;
@@ -521,7 +521,7 @@ int main(int argc, char **argv)
     vmd.tstart              = GetFloat(argv[2],NULL);
     vmd.tstop               = GetFloat(argv[3],NULL);
     vmd.nframe              = 0;
-    vmd.cameraId            = argv[4];
+    vmd.obstoryId           = argv[4];
     vmd.videoDevice         = argv[5];
     vmd.width               = (int)GetFloat(argv[6],NULL);
     vmd.height              = (int)GetFloat(argv[7],NULL);
