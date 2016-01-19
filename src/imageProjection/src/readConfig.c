@@ -128,27 +128,29 @@ int readConfig(char *filename, settings *feed_s, settingsIn *si, settingsIn *s_i
         GetWord(feed_s->OutFName, cp, FNAME_LENGTH);
         sprintf(temp_err_string, "Output filename = %s", feed_s->OutFName); gnom_report(temp_err_string);
        }
-      else if (strcmp(key2, "camera")==0)
+      else if (strcmp(key2, "barrel_a")==0)
        {
-        FILE *inc;
         char *cp=keyval;
         while (!isalnum(*cp)&&(*cp!='/')&&(*cp!='\0')) cp++;
-        if ((inc = fopen(cp,"r"))==NULL) { sprintf(temp_err_string, "Stacker could not open input camera file '%s'.", cp); gnom_error(ERR_GENERAL, temp_err_string); return 1; }
-        file_readline(inc, line, LSTR_LENGTH);
-        StrStrip(line,line);
-        cp=line;
         if (!ValidFloat(cp,NULL)) gnom_fatal(__FILE__,__LINE__,"Could not read barrel_a");
         s_in_default->barrel_a = GetFloat(cp,NULL);
-        sprintf(temp_err_string, "barrel_a = %f", s_in_default->barrel_a); gnom_report(temp_err_string);
-        cp=NextWord(cp);
+        sprintf(temp_err_string, "barrel_a = %.6f", s_in_default->barrel_a); gnom_report(temp_err_string);
+       }
+      else if (strcmp(key2, "barrel_b")==0)
+       {
+        char *cp=keyval;
+        while (!isalnum(*cp)&&(*cp!='/')&&(*cp!='\0')) cp++;
         if (!ValidFloat(cp,NULL)) gnom_fatal(__FILE__,__LINE__,"Could not read barrel_b");
         s_in_default->barrel_b = GetFloat(cp,NULL);
-        sprintf(temp_err_string, "barrel_b = %f", s_in_default->barrel_b); gnom_report(temp_err_string);
-        cp=NextWord(cp);
+        sprintf(temp_err_string, "barrel_b = %.6f", s_in_default->barrel_b); gnom_report(temp_err_string);
+       }
+      else if (strcmp(key2, "barrel_c")==0)
+       {
+        char *cp=keyval;
+        while (!isalnum(*cp)&&(*cp!='/')&&(*cp!='\0')) cp++;
         if (!ValidFloat(cp,NULL)) gnom_fatal(__FILE__,__LINE__,"Could not read barrel_c");
         s_in_default->barrel_c = GetFloat(cp,NULL);
-        sprintf(temp_err_string, "barrel_c = %f", s_in_default->barrel_c); gnom_report(temp_err_string);
-        cp=NextWord(cp);
+        sprintf(temp_err_string, "barrel_c = %.6f", s_in_default->barrel_c); gnom_report(temp_err_string);
        }
       else if (strcmp(key2, "backgroundsub")==0)
        {

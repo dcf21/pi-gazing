@@ -3,87 +3,137 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-import sys,os,re,subprocess,time
-from math import *
+# This takes a series of images and uses astrometry.net to try and work out where there are in the sky
+# The command line syntax is:
 
-from lib_astro import *
+# ./align_gnomonic.py <barrel_a> <barrel_b> <barrel_c> <filename_list>
 
-def logtxt(x):
-  print "# %s"%x
-  sys.stderr.write("# [%s] %s\n"%(time.strftime("%a, %d %b %Y %H:%M:%S"),x))
+# The script will then output to stdout a configuration file which can be used by the C program <stack> to stack
+# the images together
 
-def sgn(x):
-  if x<0: return -1
-  if x>0: return  1
-  return 0
+# This script is not normally used by Meteor Pi -- the observatory control software uses
+# <observatoryControl/orientationCalc.py> instead to work out where each camera is pointing.
 
-camera = sys.argv[1]
-fnames = sys.argv[2:]
-fnames.sort()
+import math
+import os
+import re
+import sys
+import time
+
+import mod_gnomonic
+
+
+def log_txt(x):
+    print "# %s" % x
+    sys.stderr.write("# [%s] %s\n" % (time.strftime("%a, %d %b %Y %H:%M:%S"), x))
+
+
+def sgn(val):
+    if val < 0:
+        return -1
+    if val > 0:
+        return 1
+    return 0
+
+
+barrel_a = sys.argv[1]
+barrel_b = sys.argv[2]
+barrel_c = sys.argv[3]
+filenames = sys.argv[4:]
+filenames.sort()
 
 cwd = os.getcwd()
 pid = os.getpid()
-tmp = "/tmp/align_gnomonic_%d"%pid
-os.system("mkdir %s"%tmp)
+tmp = "/tmp/align_gnomonic_%d" % pid
+os.system("mkdir %s" % tmp)
 os.chdir(tmp)
 
-barrelCorrect = os.path.join(cwd,"bin","barrel");
-subtractBinary= os.path.join(cwd,"bin","subtract");
-camera        = os.path.join(cwd,camera);
+python_path = os.path.split(os.path.abspath(__file__))[0]
+
+binary_barrel_correct = os.path.join(python_path, "bin", "barrel")
+binary_subtract_imgs = os.path.join(python_path, "bin", "subtract")
 
 fits = []
 
-count=0
-for f in fnames:
-  logtxt("Working on <%s>"%f)
-  count+=1
-  f = os.path.join(cwd,f)
-  os.system("rm -f *")
-  os.system("%s %s %s tmp2.png"%(barrelCorrect,f,camera)) # Barrel-correct image
-  os.system("%s tmp2.png /tmp/average.png tmp3.png"%(subtractBinary))
-  os.system("convert tmp3.png -crop 360x240+180+120 +repage tmp.png")
-  os.system("timeout 5m solve-field --no-plots --crpix-center --overwrite tmp.png > txt") # Insert --no-plots to speed things up
-  # os.system("mv tmp-ngc.png /tmp/frame%04d.png"%count)
-  fittxt = open("txt").read()
-  test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",fittxt)
-  if not test:
-    logtxt("Cannot read central RA and Dec from %s"%f)
-    continue
-  rasgn = sgn(float(test.group(1)))
-  ra    = abs(float(test.group(1))) + float(test.group(2))/60 + float(test.group(3))/3600
-  if (rasgn<0): ra*=-1
-  decsgn= sgn(float(test.group(4)))
-  dec   = abs(float(test.group(4))) + float(test.group(5))/60 + float(test.group(6))/3600
-  if (decsgn<0): dec*=-1
-  test = re.search(r"up is [+]?([-\d\.]*) degrees (.) of N",fittxt)
-  if not test:
-    logtxt("Cannot read position angle from %s"%f)
-    continue
-  posang = float(test.group(1)) + 180 # This 180 degree rotation appears to be a bug in astrometry.net (pos angles relative to south, not north)
-  while (posang>180): posang-=360
-  if test.group(2)=="W": posang*=-1
-  test = re.search(r"Field size: ([\d\.]*) x ([\d\.]*) deg",fittxt)
-  if not test:
-    logtxt("Cannot read field size from %s"%f)
-    continue
-  scalex=float(test.group(1))
-  scaley=float(test.group(2))
-  d = ImageDimensions(f)
-  fits.append( [f,ra,dec,posang,scalex,scaley,d] )
+count = 0
 
-i = int(floor(len(fits)/2))
+# Loop over each image in the group we have been given
+for f in filenames:
+    log_txt("Working on <%s>" % f)
+    count += 1
+    f = os.path.join(cwd, f)
+    os.system("rm -f *")
 
+    # First correct for the barrel distortion present in each image
+    os.system("%s %s %.6f %.6f %.6f tmp2.png" % (binary_barrel_correct, f, barrel_a, barrel_b, barrel_c))
+
+    # Then subtract the sky background
+    os.system("%s tmp2.png /tmp/average.png tmp3.png" % (binary_subtract_imgs))
+
+    # Crop out the central region of each image. This line probably ought to be commented out.
+    os.system("convert tmp3.png -crop 360x240+180+120 +repage tmp.png")
+
+    # Pass each image to astrometry.net. Use the --no-plots command-line option to speed things up
+    os.system("timeout 5m solve-field --no-plots --crpix-center --overwrite tmp.png > txt")
+
+    # Read the output produced by astrometry.net
+    fit_text = open("txt").read()
+    test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)", fit_text)
+    if not test:
+        log_txt("Cannot read central RA and Dec from %s" % f)
+        continue
+
+    # Read the central RA and Dec returned by astrometry.net
+    ra_sign = sgn(float(test.group(1)))
+    ra = abs(float(test.group(1))) + float(test.group(2)) / 60 + float(test.group(3)) / 3600
+    if (ra_sign < 0): ra *= -1
+    decl_sign = sgn(float(test.group(4)))
+    dec = abs(float(test.group(4))) + float(test.group(5)) / 60 + float(test.group(6)) / 3600
+    if (decl_sign < 0): dec *= -1
+    test = re.search(r"up is [+]?([-\d\.]*) degrees (.) of N", fit_text)
+    if not test:
+        log_txt("Cannot read position angle from %s" % f)
+        continue
+
+    # This 180 degree rotation appears to be a bug in astrometry.net (pos angles relative to south, not north)
+    pos_ang = float(test.group(1)) + 180
+    while pos_ang > 180:
+        pos_ang -= 360
+    if test.group(2) == "W":
+        pos_ang *= -1
+    test = re.search(r"Field size: ([\d\.]*) x ([\d\.]*) deg", fit_text)
+    if not test:
+        log_txt("Cannot read field size from %s" % f)
+        continue
+    scale_x = float(test.group(1))
+    scale_y = float(test.group(2))
+    image_dimensions = mod_gnomonic.image_dimensions(f)
+    fits.append([f, ra, dec, pos_ang, scale_x, scale_y, image_dimensions])
+
+i = int(math.floor(len(fits) / 2))
+
+# Start printing a configuration file.
+# Begin with some headers defining what we know about the camera that took this group of images
 print "SET output /tmp/output.png"
-print "SET camera %s"%camera
+print "SET barrel_a %s" % barrel_a
+print "SET barrel_b %s" % barrel_b
+print "SET barrel_c %s" % barrel_c
 print "SET latitude 0"
 print "SET longitude 0"
-print "SET utc %10d"%(ImageTime(fits[i][0]))
+print "SET utc %10d" % (mod_gnomonic.image_time(fits[i][0]))
 
-# Exposure compensation, xsize, ysize, Central RA, Central Dec, position angle, scalex, scaley
-print "%-102s %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"%("GNOMONIC",1,fits[i][6][0],fits[i][6][1],fits[i][1],fits[i][2],fits[i][3],fits[i][4],fits[i][5])
+# Output files consist of one line for each image file, with the following values separated by spaces
+# Exposure compensation, x_size, y_size, Central RA, Central Dec, position angle, scale_x, scale_y
+print ("%-102s %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"
+       % ("GNOMONIC", 1, fits[i][6][0], fits[i][6][1], fits[i][1], fits[i][2], fits[i][3], fits[i][4], fits[i][5])
+       )
 for i in range(len(fits)):
-  d = ImageDimensions(fits[i][0])
-  # Filename, weight, exposure compensation, Central RA, Central Dec, position angle, scalex, scaley
-  print "ADD %-93s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"%(fits[i][0],1,1,d[0],d[1],fits[i][1],fits[i][2],fits[i][3],fits[i][4],fits[i][5])
+    image_dimensions = mod_gnomonic.image_dimensions(fits[i][0])
+    # Filename, weight, exposure compensation, Central RA, Central Dec, position angle, scale_x, scale_y
+    print ("ADD %-93s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"
+           % (fits[i][0], 1, 1, image_dimensions[0], image_dimensions[1],
+              fits[i][1], fits[i][2], fits[i][3], fits[i][4], fits[i][5])
+           )
 
-os.system("rm -Rf %s"%tmp)
+# Delete temporary directory
+os.system("rm -Rf %s" % tmp)

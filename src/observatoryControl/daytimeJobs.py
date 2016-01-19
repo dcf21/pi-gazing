@@ -9,22 +9,25 @@
 # they are newer than a given high-water mark. The list of tasks to be
 # performed is defined in <mod_daytimejobs>.
 
-import os, time, sys, glob, operator
+import glob
 import math
-
-import mod_log
-from mod_log import log_txt, get_utc
-import mod_settings
-import installation_info
-import mod_daytimejobs
-import mod_astro
-import orientationCalc
-import exportData
-import daytimeJobsClean
+import operator
+import os
+import sys
+import time
 
 import meteorpi_db
 
+import daytimeJobsClean
 import dbImport
+import exportData
+import installation_info
+import mod_astro
+import mod_daytimejobs
+import mod_log
+import mod_settings
+import orientationCalc
+from mod_log import log_txt, get_utc
 
 pid = os.getpid()
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
@@ -152,9 +155,9 @@ try:
                             params.update(params['metadata'])
 
                             # Fetch the status of the observatory which made this observation
-                            obstory_info = db.db.get_obstory_from_id(params['obstoryId'])
+                            obstory_info = db.get_obstory_from_id(params['obstoryId'])
                             if not obstory_info:
-                                print "Error: No observatory status set for id <%s>"%params['obstoryId']
+                                print "Error: No observatory status set for id <%s>" % params['obstoryId']
                                 continue
                             obstory_name = obstory_info['name']
                             obstory_status = db.get_obstory_status(obstory_name=obstory_name, time=utc)
@@ -207,13 +210,13 @@ try:
         for job in job_list:
             obstory_id = job['params']['obstoryId']
             if obstory_id not in obstories_seen:
-                obstory_info = db.db.get_obstory_from_id(params['obstoryId'])
+                obstory_info = db.get_obstory_from_id(params['obstoryId'])
                 if not obstory_info:
-                    print "Error: No observatory status set for id <%s>"%params['obstoryId']
+                    print "Error: No observatory status set for id <%s>" % params['obstoryId']
                     continue
                 obstory_name = obstory_info['name']
                 db.set_high_water_mark(mark_type='observing', time=job['utc'], obstory_name=obstory_name)
-                db.clear_database(obstory_names=[obstory_name], tmin=job['utc']-1, tmax=job['utc']+3600*12)
+                db.clear_database(obstory_names=[obstory_name], tmin=job['utc'] - 1, tmax=job['utc'] + 3600 * 12)
                 obstories_seen.append(obstory_id)
 
         # Now do jobs in order, raising local high level water mark as we do each job
@@ -257,19 +260,14 @@ db.commit()
 # Import events into database (unless we need to start observing again within next five minutes)
 os.chdir(cwd)
 if (not quit_time) or (quit_time - get_utc() > 300):
-    log_txt("Importing events into firebird db")
-    hwm_new = dbImport.database_import()
-
-# Update database hwm
-for cameraId, utc in hwm_new.iteritems():
-    log_txt("Updating high water mark of camera <%s> to UTC %d (%s)" % (cameraId, utc, mod_astro.time_print(utc)))
-    db.set_high_water_mark(mark_type="observing", time=utc, obstory_name=cameraId)
+    log_txt("Importing events into database")
+    dbImport.database_import()
 
 # Figure out orientation of camera -- this may take 5 hours!
 try:
     if (not quit_time) or (quit_time - get_utc() > 3600 * 5):
         log_txt("Trying to determine orientation of camera")
-        orientationCalc.orientationCalc(installation_info.local_conf['observatoryName'], get_utc(), quit_time)
+        orientationCalc.orientation_calc(installation_info.local_conf['observatoryName'], get_utc(), quit_time)
 except:
     log_txt("Unexpected error while determining camera orientation")
 

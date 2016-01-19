@@ -16,35 +16,53 @@
 
 # It tries different barrel distortion coefficients to maximise the degree to which the images overlay one another.
 
-from math import *
+import sys
+import os
 import orientationCalc
-from mod_settings import *
-from mod_time import *
+import mod_settings
+import mod_log
+import installation_info
 
-STACKER_PATH = "%s/../gnomonicStack" % PYTHON_PATH
 
-cameraId = my_installation_id()
-utcNow = time.time()
-if len(sys.argv) > 1:
-    cameraId = sys.argv[1]
-if len(sys.argv) > 2:
-    utcNow = float(sys.argv[2])
-imgListFpath = orientationCalc.orientationCalc(cameraId, utcNow, 0)
+def lens_fit(obstory_name, utc_now):
+    # Run orientationCalc, to select good images around the requested time, and use astrometry.net to
+    # estimate where they are on the sky
+    image_list_path = orientationCalc.orientation_calc(obstory_name, utc_now, 0)
 
-if not imgListFpath:
-    sys.exit(0)
+    # If orientationCalc returned None, we've not got any data we can use
+    if not image_list_path:
+        sys.exit(0)
 
-[tmpDir, imgListFname] = os.path.split(imgListFpath)
+    # Change into the temporary directory orientationCalc created for its output
+    [tmp_dir, image_list_filename] = os.path.split(image_list_path)
 
-cwd = os.getcwd()
-pid = os.getpid()
-os.chdir(tmpDir)
+    cwd = os.getcwd()
+    os.chdir(tmp_dir)
 
-os.system("%s/bin/camfit %s > camFitOutput" % (STACKER_PATH, imgListFname))
+    # Run the C program camfit, which attempts to stack together all of the images used by orientationCalc using
+    # different barrel correction coefficients. If there are no lens distortions, the image should overlay each
+    # other perfectly when they are stacked together. Otherwise, they won't overlay each other, because the
+    # gnomonic transformations won't have properly de-rotated the sky. Iteratively try different barrel corrections
+    # until we find a set which work well
+    os.system("%s/bin/camfit %s > camFitOutput" % (mod_settings.settings['stackerPath'], image_list_filename))
 
-camFitOutput = open("camFitOutput").readlines()
-camFitLastLine = camFitOutput[-1]
+    # The last line of output from camfit will contain the barrel distortion correction parameters a, b, c
+    # separated by spaces
+    camfit_output = open("camFitOutput").readlines()
+    camfit_last_line = camfit_output[-1]
 
-print "Best fitting barrel distortion parameters were:\n%s\n\n" % camFitLastLine
+    print "Best fitting barrel distortion parameters were:\n%s\n\n" % camfit_last_line
 
-os.chdir(cwd)
+    # Change back into the working directory
+    os.chdir(cwd)
+
+
+# If we're called as a script, run the method orientationCalc()
+if __name__ == "__main__":
+    _obstory_name = installation_info.local_conf['observatoryName']
+    _utc_now = mod_log.get_utc()
+    if len(sys.argv) > 1:
+        _obstory_name = sys.argv[1]
+    if len(sys.argv) > 2:
+        _utc_now = float(sys.argv[2])
+    lens_fit(_obstory_name, _utc_now)

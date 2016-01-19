@@ -11,10 +11,26 @@ import meteorpi_db
 import meteorpi_model as mp
 import mod_log
 from mod_log import log_txt, get_utc
+import mod_daytimejobs
 import mod_settings
 import installation_info
 
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+
+# Look up the username we use to add entries into the database
+user = mod_settings.settings['meteorpiUser']
+
+# Dictionary of the observatory statuses of observatories we have seen
+obstories_seen = {}
+
+
+def get_obstory_name_from_id(obstory_id):
+    global obstories_seen
+    if obstory_id in obstories_seen:
+        return obstories_seen[obstory_id]['name']
+    obstory_info = db.get_obstory_from_id(obstory_id)
+    obstories_seen[obstory_id] = obstory_info
+    return obstory_info['name']
 
 
 def dict_tree_append(dict_root, dict_path, value):
@@ -29,25 +45,31 @@ def dict_tree_append(dict_root, dict_path, value):
     d[leaf_name].append(value)
 
 
-def metadata_to_db(db_handle, file_time, obstory_name, file_stub, metadict):
+# Take a dictionary of metadata keys and values (metadict), and turn them into a list of meteorpi_model.Meta objects
+def metadata_to_object_list(db_handle, obs_time, obs_id, meta_dict):
     metadata_objs = []
-    metadata_files = []
-    for metafield in metadict:
-        value = metadict[metafield]
+    for meta_field in meta_dict:
+        value = meta_dict[meta_field]
+
+        # Short string fields get stored as string metadata
         if type(value) != str or len(value) < 250:
-            metadata_objs.append(mp.Meta(metafield, metadict[metafield]))
+            metadata_objs.append(mp.Meta(meta_field, meta_dict[meta_field]))
+
+        # Long strings are turned into separate files
         else:
             fname = os.path.join("/tmp", str(uuid.uuid4()))
             open(fname, "w").write(value)
-            file_obj = db_handle.register_file(file_path=fname, mime_type="application/json",
-                                               semantic_type=metafield, file_time=file_time,
-                                               file_metas=[], obstory_id=obstory_name, file_name=os.path.split(fname)[1])
-            metadata_files.append(file_obj)
-    return [metadata_objs, metadata_files]
+            db_handle.register_file(file_path=fname, mime_type="application/json",
+                                    semantic_type=meta_field, file_time=obs_time,
+                                    file_metas=[], observation_id=obs_id, user_id=user)
+            os.remove(fname)
+    return metadata_objs
 
 
+# Take a file path, and extract the file's semantic type, using the fact that image filenames have the form
+# date_obstoryId_typeCode
 def local_filename_to_semantic_type(fname):
-    # Input e.g. timelapse_img_processed/20150505/20150505220000_cameraId_BS0.png
+    # Input e.g. timelapse_img_processed/20150505/20150505220000_obstoryId_BS0.png
     #  -->       timelapse/BS0
 
     path = [fname.split("_")[0]]  # e.g. "timelapse"
@@ -66,110 +88,146 @@ def local_filename_to_semantic_type(fname):
 def database_import():
     global db
 
+    # Change into the directory where data files are kept
     cwd = os.getcwd()
     os.chdir(mod_settings.settings['dataPath'])
 
-    hwm_old = {}
-    hwm_new = {}
+    # Lists of high water marks, showing where we've previously got up to in importing observations
+    hwm_old = {}  # hwm_old[obstory_id] = old "import" high water mark
+    hwm_new = {}  # hwm_new[obstory_id] = new "import" high water mark
 
-    # Create list of files and events we are importing
-    dirs = ["timelapse_img_processed", "triggers_img_processed"]
-    files = {}
-    imgs = {}
-    for dirname in dirs:
-        files[dirname] = glob.glob(os.path.join(dirname, "*/*.png"))
-        files[dirname].sort()
+    # A list of the trigger observation IDs we've created
+    trigger_obs_list = {}  # trigger_obs_list[obstory_id][utc] = observation_id
 
-    trigger_list = glob.glob("triggers_vid_processed/*/*.mp4")
-    trigger_list.sort()
+    # A list of the still image observation IDs we've created
+    still_img_obs_list = {}
 
-    # Make list of trigger times
-    trigger_times = []
-    for fname in trigger_list:
-        utc = mod_log.filename_to_utc(fname) + 0.01
-        trigger_times.append(utc)
+    # Loop over all of the video files and images we've created locally. For each one, we create a new observation
+    # object if there are no other files from the same observatory with the same time stamp.
 
-    # Import still images
-    for dirname in dirs:
-        for fname in files[dirname]:
-            fstub = fname[:-4]
-            utc = mod_log.filename_to_utc(fname) + 0.01
-            # Video analysis may veto an object after producing trigger maps.
-            # Do not import these orphan files into the database.
-            if (dirname == "triggers_img_processed") and (utc not in trigger_times):
+    # We ignore trigger images if there's no video file with the same time stamp.
+    for [glob_pattern, observation_list, mime_type, create_new_observations] in [
+        ["triggers_vid_processed/*/*.mp4", trigger_obs_list, "video/mp4", True],
+        ["timelapse_img_processed/*/*.png", still_img_obs_list, "image/png", True],
+        ["triggers_img_processed", trigger_obs_list, "image/png", False]]:
+
+        # Create a list of all the files which match this particular wildcard
+        file_list = glob.glob(glob_pattern)
+        file_list.sort()
+
+        # Loop over all the files
+        for file_name in file_list:
+            file_stub = file_name[:-4]
+            utc = mod_log.filename_to_utc(file_name) + 0.01
+
+            # Local images and video all have meta data in a file with a .txt file extension
+            meta_file = "%s.txt" % file_stub  # File containing metadata
+            meta_dict = mod_daytimejobs.file_to_dict(meta_file)  # Dictionary of image metadata
+            assert "obstoryId" in meta_dict, "File <%s> does not have a obstoryId set." % file_name
+
+            # Get the ID and name of the observatory that is responsible for this file
+            obstory_id = meta_dict["obstoryId"]
+            obstory_name = get_obstory_name_from_id(obstory_id)
+            if obstory_id not in hwm_old:
+                hwm_new[obstory_id] = hwm_old[obstory_id] = db.get_high_water_mark("import", obstory_name)
+
+            # If this file is older than the pre-existing high water mark for files we've imported, ignore it
+            # We've probably already imported it before
+            if utc < hwm_old[obstory_id]:
                 continue
-            metafile = "%s.txt" % fstub  # File containing metadata
-            metadict = mod_hwm.fileToDB(metafile)  # Dictionary of image metadata
-            assert "cameraId" in metadict, "Timelapse photograph <%s> does not have a cameraId set." % fname
-            camera_id = metadict["cameraId"]
-            if camera_id not in hwm_old:
-                hwm_new[camera_id] = hwm_old[camera_id] = db.get_high_water_mark(camera_id)
-            if utc < hwm_old[camera_id]:
-                continue
-            file_name = os.path.split(fname)[1]
-            [metadata_objs, metadata_files] = metadata_to_db(db, utc, camera_id, file_name,
-                                                             metadict)  # List of metadata objects
-            semantic_type = local_filename_to_semantic_type(fname)
-            log_txt("Registering file <%s>, with cameraId <%s>" % (fname, camera_id))
-            file_obj = db.register_file(file_path=fname, mime_type="image/png",
-                                        semantic_type=semantic_type,
-                                        file_time=utc, file_metas=metadata_objs,
-                                        camera_id=camera_id,
-                                        file_name=file_name)
-            if os.path.exists(metafile):
-                os.remove(metafile)  # Clean up metadata files that we've finished with
-            dict_tree_append(imgs, [dirname, utc], file_obj)
-            hwm_new[camera_id] = max(hwm_new[camera_id], utc)
 
-    # Import trigger events
-    for fname in trigger_list:
-        fstub = fname[:-4]
-        utc = mod_log.filename_to_utc(fname) + 0.01
-        metafile = "%s.txt" % fstub  # File containing metadata
-        metadict = mod_hwm.fileToDB(metafile)  # Dictionary of image metadata
-        assert "cameraId" in metadict, "Trigger video <%s> does not have a cameraId set." % fname
-        camera_id = metadict["cameraId"]
-        if camera_id not in hwm_old:
-            hwm_new[camera_id] = hwm_old[camera_id] = db.get_high_water_mark(camera_id)
-        if utc < hwm_old[camera_id]:
-            continue
-        file_name = os.path.split(fname)[1]
-        [metadata_objs, metadata_files] = metadata_to_db(db, utc, camera_id, file_name,
-                                                         metadict)  # List of metadata objects
-        semantic_type = local_filename_to_semantic_type(fname)
-        file_objs = [db.register_file(file_path=fname, mime_type="video/mp4",
-                                      semantic_type=semantic_type,
-                                      file_time=utc, file_metas=metadata_objs,
-                                      camera_id=camera_id,
-                                      file_name=file_name)]
+            log_txt("Registering file <%s>, with obstoryId <%s>." % (file_name, obstory_id))
 
-        if "triggers_img_processed" in imgs:
-            if utc in imgs["triggers_img_processed"]:
-                file_objs.extend(imgs["triggers_img_processed"][utc])
-        file_objs.extend(metadata_files)
-        log_txt("Registering event <%s>, with cameraId <%s> and %d files" % (fname, camera_id, len(file_objs)))
-        event_obj = db.register_event(camera_id=camera_id, event_time=utc,
-                                      event_type="meteorpi", file_records=file_objs,
-                                      event_meta=metadata_objs)
-        if os.path.exists(metafile):
-            os.remove(metafile)  # Clean up metadata files that we've finished with
-        hwm_new[camera_id] = max(hwm_new[camera_id], utc)
+            # See if we already have an observation with this time stamp. If not, create one
+            created_new_observation = False
+            if not ((obstory_id in observation_list) and (utc in observation_list[obstory_id])):
+                if not create_new_observations:
+                    continue
+                obs_obj = db.register_observation(obstory_name=obstory_name, obs_time=utc,
+                                                  obs_type="movingObject", user_id=user,
+                                                  obs_meta=[])
+                obs_id = obs_obj.id
+                dict_tree_append(observation_list, [obstory_id, utc], obs_id)
+                created_new_observation = True
+            else:
+                obs_id = observation_list[obstory_id][utc]
+
+            # Compile a list of metadata objects to associate with this file
+            metadata_objs = metadata_to_object_list(db, utc, obs_id, meta_dict)
+
+            # If we've newly created an observation object for this file, we transfer the file's metadata
+            # to the observation as well
+            if created_new_observation:
+                for metadata_obj in metadata_objs:
+                    db.set_observation_metadata(user, obs_id, metadata_obj)
+
+            # Import the file itself into the database
+            semantic_type = local_filename_to_semantic_type(file_name)
+            db.register_file(file_path=file_name, mime_type=mime_type,
+                             semantic_type=semantic_type,
+                             file_time=utc, file_metas=metadata_objs,
+                             observation_id=obs_id)
+
+            # Update this observatory's "import" high water mark to the time of the file just imported
+            hwm_new[obstory_id] = max(hwm_new[obstory_id], utc)
 
     os.chdir(cwd)
 
-    # Create a camera status log file
-    os.system("./cameraStatusLog.sh > /tmp/cameraStatus.log")
-    file_obj = db.register_file(file_path="/tmp/cameraStatus.log", mime_type="text/plain",
-                                semantic_type="logfile",
-                                file_time=get_utc(), file_metas=[],
-                                camera_id=my_installation_id(),
-                                file_name="cameraStatus_" + time.strftime("%Y%m%d",get_utc()) + ".log")
+    # Now do some housekeeping tasks on the local database
 
-    # Remove old data from the local database
+    # Create a status log file for this observatory (so the health of this system can be checked remotely)
+
+    # Use a file in /tmp to record the latest time we created a log file. It contains a unix time.
+    last_update_filename = "/tmp/obstoryStatus_last"
+    last_update_time = 0
+    try:
+        last_update_time = float(open(last_update_filename, "r").read())
+    except IOError:
+        pass
+    except OSError:
+        pass
+    except ValueError:
+        pass
+
+    # Only create a new log file if we haven't created one within the past 12 hours
+    if mod_log.get_utc() - last_update_time > 12 * 3600:
+        # Give the log file a human-readable filename
+        log_file_name = "/tmp/obstoryStatus_" + time.strftime("%Y%m%d", get_utc()) + ".log"
+        os.system("./cameraStatusLog.sh > %s" % log_file_name)
+
+        # Create an observation object to associate with this log file
+        logfile_obs = db.register_observation(obstory_name=installation_info.local_conf['observatoryName'],
+                                              user_id=user,
+                                              obs_time=mod_log.get_utc(),
+                                              obs_type="logging",
+                                              obs_meta=[]
+                                              )
+
+        # Register the log file in the database and associate it with the observation above
+        db.register_file(file_path=log_file_name, mime_type="text/plain",
+                         semantic_type="logfile",
+                         file_time=get_utc(), file_metas=[],
+                         obs_id=logfile_obs.id)
+
+        # Update the local record of when we last created a log file observation
+        open(last_update_filename, "w").write("%s" % mod_log.get_utc())
+
+    # Remove old data from the local database, if it is older than the local data lifetime
     db.clear_database(obstory_names=[installation_info.local_conf['observatoryName']],
                       tmin=0,
                       tmax=get_utc() - 24 * 2400 * installation_info.local_conf['dataLocalLifetime'])
-    return hwm_new
+
+    # Update the "import" high water marks for each obstory_name
+    for obstory_name in hwm_new.keys():
+        db.set_high_water_mark(obstory_name=obstory_name,
+                               mark_type="import",
+                               time=hwm_new[obstory_name]
+                               )
+
+    # Commit our changes to the database
+    db.commit()
+    os.chdir(cwd)
+    return
 
 
 # Do import into firebird right away if we're run as a script

@@ -188,7 +188,7 @@ for item in files:
         obs = db.register_observation(obstory_name=obstory_id,
                                       user_id="migrate",
                                       obs_time=utc,
-                                      obs_type="timelapse",
+                                      obs_type=semantic_type,
                                       obs_meta=meta_list)
         created_observations[utc_floor] = obs.obs_id
         file_obj = db.register_file(observation_id=obs.obs_id,
