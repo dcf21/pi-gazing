@@ -12,7 +12,7 @@ import meteorpi_db
 from meteorpi_db.exporter import MeteorExporter
 
 import mod_log
-from mod_log import log_txt
+from mod_log import log_txt, get_utc
 import mod_settings
 
 
@@ -21,7 +21,7 @@ def export_data(utc_now, utc_must_stop=0):
 
     # Work out how long we can do exporting for
     state = None
-    utc_stop = time.time() + (utc_must_stop - utc_now)
+    utc_stop = get_utc() + (utc_must_stop - utc_now)
 
     # Open a database handle
     db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])

@@ -83,6 +83,24 @@ if obstory not in obstory_list:
                         obstory_name=obstory,
                         latitude=latitude,
                         longitude=longitude)
+    db.register_obstory_metadata(obstory_name=obstory_name,
+                                 key="latitude",
+                                 value=installation_info.local_conf['latitude'],
+                                 metadata_time=get_utc(),
+                                 time_created=get_utc(),
+                                 user_created=mod_settings.settings['meteorpiUser'])
+    db.register_obstory_metadata(obstory_name=obstory_name,
+                                 key="longitude",
+                                 value=installation_info.local_conf['longitude'],
+                                 metadata_time=get_utc(),
+                                 time_created=get_utc(),
+                                 user_created=mod_settings.settings['meteorpiUser'])
+    db.register_obstory_metadata(obstory_name=obstory_name,
+                                 key="location_source",
+                                 value="manual",
+                                 metadata_time=get_utc(),
+                                 time_created=get_utc(),
+                                 user_created=mod_settings.settings['meteorpiUser'])
     obstory_status = {}
 else:
     obstory_status = db.get_obstory_status(obstory_id=obstory)

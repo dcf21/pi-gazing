@@ -49,6 +49,7 @@ def dict_tree_append(dict_root, dict_path, value):
 def metadata_to_object_list(db_handle, obs_time, obs_id, meta_dict):
     metadata_objs = []
     for meta_field in meta_dict:
+        meta_field = "meteorpi:" + meta_field
         value = meta_dict[meta_field]
 
         # Short string fields get stored as string metadata
@@ -82,7 +83,7 @@ def local_filename_to_semantic_type(fname):
             path.append("lensCorr")
         else:
             path.append(ext)
-    return "/".join(path)
+    return "meteorpi:"+("/".join(path))
 
 
 def database_import():
