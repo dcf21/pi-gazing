@@ -11,7 +11,7 @@
 // Create a symlink in the meteor-pi root directory to where images should be stored, e.g.:
 // dcf21@ganymede:~/camsci/meteor-pi$ ln -s /mnt/harddisk/pi/meteorCam datadir
 
-#define OUTPUT_PATH  SRCDIR "/../../../datadir"
+#define OUTPUT_PATH  SRCDIR "/../../../../datadir"
 
 // Size of buffer used for storing filenames
 #define FNAME_BUFFER 4096

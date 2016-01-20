@@ -83,7 +83,7 @@ def local_filename_to_semantic_type(fname):
             path.append("lensCorr")
         else:
             path.append(ext)
-    return "meteorpi:"+("/".join(path))
+    return "meteorpi:" + ("/".join(path))
 
 
 def database_import():
@@ -130,7 +130,11 @@ def database_import():
             obstory_id = meta_dict["obstoryId"]
             obstory_name = get_obstory_name_from_id(obstory_id)
             if obstory_id not in hwm_old:
-                hwm_new[obstory_id] = hwm_old[obstory_id] = db.get_high_water_mark("import", obstory_name)
+                hwm_old[obstory_id] = db.get_high_water_mark(mark_type="import",
+                                                             obstory_name=obstory_name)
+                if hwm_old[obstory_id] is None:
+                    hwm_old[obstory_id] = 0
+                hwm_new[obstory_id] = hwm_old[obstory_id]
 
             # If this file is older than the pre-existing high water mark for files we've imported, ignore it
             # We've probably already imported it before
@@ -193,7 +197,7 @@ def database_import():
     # Only create a new log file if we haven't created one within the past 12 hours
     if mod_log.get_utc() - last_update_time > 12 * 3600:
         # Give the log file a human-readable filename
-        log_file_name = "/tmp/obstoryStatus_" + time.strftime("%Y%m%d", get_utc()) + ".log"
+        log_file_name = "/tmp/obstoryStatus_" + time.strftime("%Y%m%d", time.gmtime(get_utc())) + ".log"
         os.system("./cameraStatusLog.sh > %s" % log_file_name)
 
         # Create an observation object to associate with this log file

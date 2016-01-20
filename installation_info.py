@@ -12,7 +12,7 @@ local_conf = {
     'relayOnGPIOState': True,
 
     # This flag sets how long we keep data locally on the SD card for (days)
-    'dataLocalLifetime': 10,
+    'dataLocalLifetime': 14,
 
     # Configure export of data to a remote server
     'exportURL': "https://meteorpi.cambridgesciencecentre.org/api/import",

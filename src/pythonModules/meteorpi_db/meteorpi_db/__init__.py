@@ -637,7 +637,7 @@ VALUES
                                      obs_time=obs_time,
                                      obs_id=observation_id,
                                      obs_type=obs_type,
-                                     file_records=None,
+                                     file_records=[],
                                      meta=obs_meta)
         return observation
 
@@ -818,7 +818,7 @@ VALUES
                                         obs_time=obs_time,
                                         user_id=user_id,
                                         set_time=set_time,
-                                        obs_records=None,
+                                        obs_records=[],
                                         meta=grp_meta)
         return obs_group
 

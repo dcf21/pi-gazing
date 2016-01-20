@@ -55,7 +55,7 @@ os.chdir(mod_settings.settings['dataPath'])
 # Run a list of shell commands in parallel
 # Pass a list of job descriptor dictionaries, each having a cmd template, and a dictionary of params to substitute
 def run_job_group(job_group):
-    if (len(job_group) < 1):
+    if len(job_group) < 1:
         return
 
     # Run shell commands associated with this group of jobs
@@ -87,13 +87,30 @@ class TimeOut(Exception):
 # Count the number of jobs we have done
 job_counter = 0
 
+# Look up old high-water mark for each task group, which may be different for different observatories
+all_obstories_seen = []
+obstory_list = db.get_obstory_ids()
+obstory_infos = {}
+hwm_old = {}
+hwm_new = {}
+for obstory_id in obstory_list:
+    obstory_infos[obstory_id] = db.get_obstory_from_id(obstory_id)
+    hwm_old[obstory_id] = {}
+    hwm_new[obstory_id] = {}
+
 try:
     # Loop over task groups, e.g. PNG encoding timelapse images, or encoding trigger videos to MP4
     for task_group in mod_daytimejobs.dayTimeTasks:
         [hwm_output, n_max, task_list] = task_group
-        if db.get_high_water_mark(mark_type=hwm_output) is None:
-            db.set_high_water_mark(mark_type=hwm_output, time=0)
         log_txt("Working on task group <%s>" % hwm_output)
+
+        # Look up old high-water marks for each observatory
+        for obstory_id in obstory_list:
+            hwm_old[obstory_id][hwm_output] = db.get_high_water_mark(obstory_name=obstory_infos[obstory_id]['name'],
+                                                                     mark_type=hwm_output)
+            if hwm_old[obstory_id][hwm_output] is None:
+                hwm_old[obstory_id][hwm_output] = 0
+            hwm_new[obstory_id][hwm_output] = hwm_old[obstory_id][hwm_output]
 
         # Some tasks produce output files with different timestamps to the input file. Specifically, non-live
         # observing produces output over the entire length of a video. hwm_margin is the maximum size of this span
@@ -114,92 +131,96 @@ try:
                     # Input files must have correct extension and non-zero size to be processed
                     if f.endswith(".%s" % in_ext) and (os.path.getsize(input_file) > 0):
 
-                        # Only operate on input files which are newer than HWM
+                        # Extract observation time from image filename. If this fails, reject the file.
                         utc = mod_log.filename_to_utc(f)
                         if utc < 0:
                             continue
-                        if utc > db.get_high_water_mark(mark_type=hwm_output):
 
-                            # Add this job to our list of things to do
-                            job_counter += 1
-                            mask_file = "/tmp/triggermask_%d_%d.txt" % (os.getpid(), job_counter)
+                        # Add this job to our list of things to do
+                        job_counter += 1
+                        mask_file = "/tmp/triggermask_%d_%d.txt" % (os.getpid(), job_counter)
 
-                            # Fix to stop floating point jitter creating lots of files with timestamps like 23:59:59
-                            utc += 0.1
+                        # Fix to stop floating point jitter creating lots of files with timestamps like 23:59:59
+                        utc += 0.1
 
-                            # Job will be run as a shell command taken from mod_daytimejobs. Each shell command
-                            # template has variables substituted into it. These are some default values, many of which
-                            # will be overwritten with metadata associated with the input file.
-                            params = {'binary_path': mod_settings.settings['binaryPath'],
-                                      'input': input_file,
-                                      'outdir': out_dirs[0],
-                                      'filename': f[:-(len(in_ext) + 1)],
-                                      'inExt': in_ext,
-                                      'outExt': out_ext,
-                                      'date': mod_log.fetch_day_name_from_filename(f),
-                                      'tstamp': utc,
-                                      'obstoryId': installation_info.local_conf['observatoryId'],
-                                      'pid': pid,
-                                      'triggermask': mask_file,
-                                      'opm': ('_openmax' if mod_settings.settings['i_am_a_rpi'] else ''),
+                        # Job will be run as a shell command taken from mod_daytimejobs. Each shell command
+                        # template has variables substituted into it. These are some default values, many of which
+                        # will be overwritten with metadata associated with the input file.
+                        params = {'binary_path': mod_settings.settings['binaryPath'],
+                                  'input': input_file,
+                                  'outdir': out_dirs[0],
+                                  'filename': f[:-(len(in_ext) + 1)],
+                                  'inExt': in_ext,
+                                  'outExt': out_ext,
+                                  'date': mod_log.fetch_day_name_from_filename(f),
+                                  'tstamp': utc,
+                                  'obstoryId': installation_info.local_conf['observatoryId'],
+                                  'pid': pid,
+                                  'triggermask': mask_file,
+                                  'opm': ('_openmax' if mod_settings.settings['i_am_a_rpi'] else ''),
 
-                                      # Produce non-lens-corrected images once every 2 mins
-                                      'produceFilesWithoutLC': int(math.floor(utc % 120) < 24),
-                                      }
-                            params['filename_out'] = "%(outdir)s/%(date)s/%(filename)s" % params
+                                  # Produce non-lens-corrected images once every 2 mins
+                                  'produceFilesWithoutLC': int(math.floor(utc % 120) < 24),
+                                  }
+                        params['filename_out'] = "%(outdir)s/%(date)s/%(filename)s" % params
 
-                            # Overwrite the default parameters above with those output from the videoAnalysis C code
-                            # Store a copy of the input file's metadata as params['params']
-                            params['metadata'] = mod_daytimejobs.file_to_dict(
-                                    in_filename="%s.txt" % os.path.join(dir_name, params['filename']))
-                            params.update(params['metadata'])
+                        # Overwrite the default parameters above with those output from the videoAnalysis C code
+                        # Store a copy of the input file's metadata as params['params']
+                        params['metadata'] = mod_daytimejobs.file_to_dict(
+                                in_filename="%s.txt" % os.path.join(dir_name, params['filename']))
+                        params.update(params['metadata'])
 
-                            # Fetch the status of the observatory which made this observation
-                            obstory_info = db.get_obstory_from_id(params['obstoryId'])
-                            if not obstory_info:
-                                print "Error: No observatory status set for id <%s>" % params['obstoryId']
-                                continue
-                            obstory_name = obstory_info['name']
-                            obstory_status = db.get_obstory_status(obstory_name=obstory_name, time=utc)
+                        # Fetch the status of the observatory which made this observation
+                        obstory_id = params['obstoryId']
+                        if obstory_id not in obstory_infos:
+                            print "Error: No observatory status set for id <%s>" % obstory_id
+                            continue
+                        obstory_info = obstory_infos[obstory_id]
+                        obstory_name = obstory_info['name']
+                        obstory_status = db.get_obstory_status(obstory_name=obstory_name, time=utc)
 
-                            if 'fps' not in params:
-                                params['fps'] = obstory_status["sensor_fps"]
+                        if 'fps' not in params:
+                            params['fps'] = obstory_status["sensor_fps"]
 
-                            # Read barrel-correction parameters
-                            params['barrel_a'] = obstory_status["lens_barrel_a"]
-                            params['barrel_b'] = obstory_status["lens_barrel_b"]
-                            params['barrel_c'] = obstory_status["lens_barrel_c"]
+                        # Only operate on input files which are newer than HWM
+                        if utc < hwm_old[obstory_id][hwm_output]:
+                            continue
 
-                            # Create clipping region mask file
-                            open(mask_file, "w").write(
-                                    "\n\n".join(
-                                            ["\n".join(["%(x)d %(y)d" % p for p in pointList])
-                                             for pointList in obstory_status['clippingRegions']]
-                                    )
-                            )
+                        # Read barrel-correction parameters
+                        params['barrel_a'] = obstory_status["lens_barrel_a"]
+                        params['barrel_b'] = obstory_status["lens_barrel_b"]
+                        params['barrel_c'] = obstory_status["lens_barrel_c"]
 
-                            # Calculate metadata about the position of Sun at the time of observation
-                            sunPos = mod_astro.sun_pos(utc)
-                            sunAltAz = mod_astro.alt_az(sunPos[0], sunPos[1], utc,
-                                                        obstory_status['latitude'], obstory_status['longitude'])
-                            params['metadata']['sunRA'] = sunPos[0]
-                            params['metadata']['sunDecl'] = sunPos[1]
-                            params['metadata']['sunAlt'] = sunAltAz[0]
-                            params['metadata']['sunAz'] = sunAltAz[1]
+                        # Create clipping region mask file
+                        open(mask_file, "w").write(
+                                "\n\n".join(
+                                        ["\n".join(["%(x)d %(y)d" % p for p in pointList])
+                                         for pointList in obstory_status['clippingRegions']]
+                                )
+                        )
 
-                            # Apply a metadata tag 'highlight' to a few images, which will get shown by the
-                            # 'show fewer results' option in the web interface. Select roughly one image every
-                            # ten minutes
-                            params['metadata']['highlight'] = int((math.floor(utc % 600) < 24) or ('outExt' == 'mp4'))
+                        # Calculate metadata about the position of Sun at the time of observation
+                        sunPos = mod_astro.sun_pos(utc)
+                        sunAltAz = mod_astro.alt_az(sunPos[0], sunPos[1], utc,
+                                                    obstory_status['latitude'], obstory_status['longitude'])
+                        params['metadata']['sunRA'] = sunPos[0]
+                        params['metadata']['sunDecl'] = sunPos[1]
+                        params['metadata']['sunAlt'] = sunAltAz[0]
+                        params['metadata']['sunAz'] = sunAltAz[1]
 
-                            # Make sure that output directory exists
-                            for out_dir in out_dirs:
-                                os.system("mkdir -p %s" % (os.path.join(out_dir, params['date'])))
+                        # Apply a metadata tag 'highlight' to a few images, which will get shown by the
+                        # 'show fewer results' option in the web interface. Select roughly one image every
+                        # ten minutes
+                        params['metadata']['highlight'] = int((math.floor(utc % 600) < 24) or ('outExt' == 'mp4'))
 
-                            # Add job to list, but don't do it yet as we want to do jobs in time order
-                            # Do jobs in time order means we can stop part way and be able to record where we
-                            # got up to.
-                            job_list.append({'utc': utc, 'cmd': cmd, 'params': params})
+                        # Make sure that output directory exists
+                        for out_dir in out_dirs:
+                            os.system("mkdir -p %s" % (os.path.join(out_dir, params['date'])))
+
+                        # Add job to list, but don't do it yet as we want to do jobs in time order
+                        # Do jobs in time order means we can stop part way and be able to record where we
+                        # got up to.
+                        job_list.append({'utc': utc, 'cmd': cmd, 'params': params})
 
         # Sort jobs in order of timestamp
         job_list.sort(key=operator.itemgetter('utc'))
@@ -209,14 +230,20 @@ try:
         obstories_seen = []
         for job in job_list:
             obstory_id = job['params']['obstoryId']
+
+            # Make a complete list of all of the observatories we have seen data from
+            if obstory_id not in all_obstories_seen:
+                all_obstories_seen.append(obstory_id)
+
+            # If this is the first time we've seen this observatory within this job group, delete any newer data
             if obstory_id not in obstories_seen:
-                obstory_info = db.get_obstory_from_id(params['obstoryId'])
-                if not obstory_info:
-                    print "Error: No observatory status set for id <%s>" % params['obstoryId']
+                if obstory_id not in obstory_infos:
+                    print "Error: No observatory status set for id <%s>" % obstory_id
                     continue
+                obstory_info = obstory_infos[obstory_id]
                 obstory_name = obstory_info['name']
                 db.set_high_water_mark(mark_type='observing', time=job['utc'], obstory_name=obstory_name)
-                db.clear_database(obstory_names=[obstory_name], tmin=job['utc'] - 1, tmax=job['utc'] + 3600 * 12)
+                db.clear_database(obstory_names=[obstory_name], tmin=job['utc'] - 0.1, tmax=job['utc'] + 3600 * 12)
                 obstories_seen.append(obstory_id)
 
         # Now do jobs in order, raising local high level water mark as we do each job
@@ -233,19 +260,13 @@ try:
                     job_group = []
 
                     # Set HWM so that next job is marked as not yet done (it may have the same timestamp as present job)
-                    if i < job_list_len - 1:
-                        db.set_high_water_mark(mark_type=hwm_output,
-                                               obstory_name=obstory_name,
-                                               time=job_list[i + 1]['utc'] - 0.1)
-
-                    # Set HWM so it's just past the job we've just done
-                    else:
-                        db.set_high_water_mark(mark_type=hwm_output,
-                                               obstory_name=obstory_name,
-                                               time=job['utc'] + hwm_margin)
+                    for job_done in job_group:
+                        obstory_id = job_done['params']['obstoryId']
+                        hwm_new[obstory_id][hwm_output] = job_list[i]['utc'] - 0.1
 
             run_job_group(job_group)
-            db.set_high_water_mark(mark_type=hwm_output, time=job_list[job_list_len - 1]['utc'] + hwm_margin)
+            for obstory_id in obstories_seen:
+                hwm_new[obstory_id][hwm_output] = job_list[job_list_len - 1]['utc'] + hwm_margin
             log_txt("Completed %d jobs" % len(job_list))
 
             # Delete trigger masks that we've finished with
@@ -253,6 +274,16 @@ try:
 
 except TimeOut:
     log_txt("Interrupting processing as we've run out of time")
+
+# Commit new high-water marks to the database
+for obstory_id in all_obstories_seen:
+    if obstory_id in hwm_new:
+        for hwm_output in hwm_new[obstory_id].keys():
+            obstory_info = obstory_infos[obstory_id]
+            db.set_high_water_mark(mark_type=hwm_output,
+                                   obstory_name=obstory_info['name'],
+                                   time=hwm_new[obstory_id][hwm_output]
+                                   )
 
 # Commit changes to database
 db.commit()
@@ -263,28 +294,34 @@ if (not quit_time) or (quit_time - get_utc() > 300):
     log_txt("Importing events into database")
     dbImport.database_import()
 
-# Figure out orientation of camera -- this may take 5 hours!
-try:
-    if (not quit_time) or (quit_time - get_utc() > 3600 * 5):
-        log_txt("Trying to determine orientation of camera")
-        orientationCalc.orientation_calc(installation_info.local_conf['observatoryName'], get_utc(), quit_time)
-except:
-    log_txt("Unexpected error while determining camera orientation")
-
 # Export data to remote server(s)
 try:
     if (not quit_time) or (quit_time - get_utc() > 3600):
         log_txt("Exporting data to remote servers")
-        exportData.export_data(get_utc(), quit_time)
+        exportData.export_data(utc_now=get_utc(),
+                               utc_must_stop=quit_time)
 except:
     log_txt("Unexpected error while trying to export data")
+
+# Figure out orientation of camera -- this may take 5 hours!
+try:
+    for obstory_id in all_obstories_seen:
+        if (not quit_time) or (quit_time - get_utc() > 3600 * 5):
+            log_txt("Trying to determine orientation of camera <%s>" % obstory_id)
+            obstory_name = obstory_infos[obstory_id]['name']
+            orientationCalc.orientation_calc(obstory_name=obstory_name,
+                                             utc_to_study=get_utc(),
+                                             utc_now=get_utc(),
+                                             utc_must_stop=quit_time)
+except:
+    log_txt("Unexpected error while determining camera orientation")
 
 # Clean up temporary files
 os.system("rm -Rf /tmp/tmp.* /tmp/dcf21_orientationCalc_*")
 
 # This deletes all data not imported into the database.
 # Should be uncommented on production systems where unattended operation needed.
-os.system("rm -Rf %s/t*" % (mod_settings.settings['dataPath']))
+# os.system("rm -Rf %s/t*" % (mod_settings.settings['dataPath']))
 
 # Twiddle our thumbs
 if quit_time:

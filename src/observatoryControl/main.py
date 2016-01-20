@@ -40,31 +40,37 @@ def get_gps_fix():
     os.system("killall gpsd ; gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock")
 
     # Run gpsFix.py, which returns JSON output to stdout
-    cmd = os.path.join(mod_settings.settings['pythonPath'], "gpdFix.py")
+    cmd = os.path.join(mod_settings.settings['pythonPath'], "gpsFix.py")
     gps_process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
     gps_fix_json = gps_process.stdout.read()
-    gps_fix = json.loads(gps_fix_json)
+    try:
+        gps_result = json.loads(gps_fix_json)
+    except ValueError:
+        log_txt("Could not read valid JSON response from gpsFix.py")
+        gps_result = False
 
     # If true, we get a structure with fields "offset", "latitude" and "longitude"
-    if gps_fix:
-        t_offset = gps_fix['offset']
-        latitude = gps_fix['latitude']
-        longitude = gps_fix['longitude']
+    if gps_result:
+        t_offset = gps_result['offset']
+        gps_latitude = gps_result['latitude']
+        gps_longitude = gps_result['longitude']
         log_txt("GPS link achieved")
-        log_txt("Longitude = %.6f ; Latitude = %.6f ; Clock offset: %.2f sec behind." % (longitude, latitude, t_offset))
+        log_txt("Longitude = %.6f ; Latitude = %.6f ; Clock offset: %.2f sec behind." % (gps_longitude,
+                                                                                         gps_latitude,
+                                                                                         t_offset))
         set_utc_offset(t_offset)
 
         # Use the time shell command to update the system clock (required root access)
         log_txt("Trying to update system clock")
-        time_now = get_utc()
-        os.system("date -s @%d" % time_now)
+        utc_now = get_utc()
+        os.system("date -s @%d" % utc_now)
 
         # Because the above may fail if we don't have root access, as a fallback we recalculate the clock offset
-        t_offset = time.time() - time_now
+        t_offset = time.time() - utc_now
         log_txt("Revised clock offset after trying to set the system clock: %.2f sec behind." % t_offset)
         set_utc_offset(t_offset)
 
-        return {'latitude': latitude, 'longitude': longitude}
+        return {'latitude': gps_latitude, 'longitude': gps_longitude}
 
     # If false, we didn't manage to establish a GPS link
     else:
@@ -143,11 +149,14 @@ if "clippingRegion" not in obstory_status:
                                  user_created=mod_settings.settings['meteorpiUser'])
 obstory_status = db.get_obstory_status(obstory_name=obstory_name)
 
+# Commit updates to the database
+db.commit()
+
 mask_file = "/tmp/triggermask_%d.txt" % os.getpid()
 open(mask_file, "w").write(
         "\n\n".join(
-                ["\n".join(["%(x)d %(y)d" % p for p in pointList])
-                 for pointList in obstory_status["clippingRegion"]]
+                ["\n".join([("%d %d" % tuple(p)) for p in point_list])
+                 for point_list in json.loads(obstory_status["clippingRegion"])]
         )
 )
 
@@ -173,11 +182,15 @@ while True:
             db.register_obstory_metadata(obstory_name=obstory_name, key="location_source", value="gps",
                                          metadata_time=get_utc(), time_created=get_utc(),
                                          user_created=mod_settings.settings['meteorpiUser'])
+            db.commit()
 
     # Decide whether we should observe, or do some day time jobs
     log_txt("Camera controller considering what to do next.")
     time_now = get_utc()
-    sun_times = mod_astro.sun_times(time_now, longitude, latitude)
+    sun_times = mod_astro.sun_times(unix_time=time_now, longitude=longitude, latitude=latitude)
+    log_txt("Sunrise at %s" % mod_astro.time_print(sun_times[0]))
+    log_txt("Sunset  at %s" % mod_astro.time_print(sun_times[2]))
+
     seconds_till_sunrise = sun_times[0] - time_now
     seconds_till_sunset = sun_times[2] - time_now
     sun_margin = mod_settings.settings['sunMargin']

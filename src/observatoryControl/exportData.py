@@ -30,6 +30,7 @@ def export_data(utc_now, utc_must_stop=0):
     for export_config in db.get_export_configurations():
         if export_config.enabled:
             db.mark_entities_to_export(export_config)
+    db.commit()
 
     # Create an exporter instance
     exporter = MeteorExporter(db=db)
@@ -37,6 +38,7 @@ def export_data(utc_now, utc_must_stop=0):
     # Loop until either we run out of time, or we run out of files to export
     while (not utc_must_stop) or (time.time() < utc_stop):
         state = exporter.handle_next_export()
+        db.commit()
         if not state:
             log_txt("Finished export of images and events")
             break

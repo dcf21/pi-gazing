@@ -30,7 +30,7 @@ settings = {
     'dataPath': data_path,
 
     # The directory where meteorpi_db stores its files
-    'dbFilestore': os.path.join(data_path, "filestore"),
+    'dbFilestore': os.path.join(data_path, "db_filestore"),
 
     # Flag telling us whether to hunt for meteors in real time, or record H264 video for subsequent analysis
     'realTime': True,

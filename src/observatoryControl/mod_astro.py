@@ -4,15 +4,12 @@
 
 from math import *
 from exceptions import KeyError
-from mod_log import log_txt, get_utc
 
 deg = pi / 180
 
 
 # Return the [RA, Dec] of the Sun at a given Unix time. See Jean Meeus, Astronomical Algorithms, pp 163-4
-def sun_pos(utc=0):
-    if not utc:
-        utc = get_utc()
+def sun_pos(utc):
 
     jd = utc / 86400.0 + 2440587.5
 
@@ -106,15 +103,9 @@ def rs_time_s(unixtime, ra, dec, longitude, latitude, angle_below_horizon):
 
 
 # Returns unix times for [sunrise , sun culmination , sunset]
-def sun_times(unixtime=0, longitude=0.12, latitude=52.2):
-    if not unixtime:
-        unixtime = get_utc()
-
-    s = sun_pos(unixtime)
-    r = rs_time_s(unixtime, s[0], s[1], longitude, latitude, -0.5)
-
-    log_txt("Sunrise at %s" % time_print(r[0]))
-    log_txt("Sunset  at %s" % time_print(r[2]))
+def sun_times(unix_time, longitude=0.12, latitude=52.2):
+    s = sun_pos(unix_time)
+    r = rs_time_s(unix_time, s[0], s[1], longitude, latitude, -0.5)
     return r
 
 

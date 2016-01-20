@@ -58,7 +58,7 @@ def orientation_calc(obstory_name, utc_to_study, utc_now, utc_must_stop=0):
     db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
     # Fetch observatory status
-    obstory_status = db.get_camera_status(camera_id=obstory_name, time=utc_now)
+    obstory_status = db.get_obstory_status(obstory_name=obstory_name, time=utc_now)
     if not obstory_status:
         log_txt("Aborting -- no camera status set for camera <%s>" % obstory_name)
         return
@@ -282,4 +282,7 @@ if __name__ == "__main__":
         _utc_now = float(sys.argv[2])
     _utc_to_study = _utc_now - 3600 * 24  # By default, study images taken over past 24 hours
     mod_log.set_utc_offset(_utc_now - time.time())
-    orientation_calc(_obstory_name, _utc_to_study, _utc_now, 0)
+    orientation_calc(obstory_name=_obstory_name,
+                     utc_to_study=_utc_to_study,
+                     utc_now=_utc_now,
+                     utc_must_stop=0)

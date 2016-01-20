@@ -15,12 +15,12 @@ import mod_hardwareProps
 import meteorpi_model as mp
 import meteorpi_db
 
-db = meteorpi_db.MeteorDatabase(file_store_path="../../datadir/db_filestore")
+db = meteorpi_db.MeteorDatabase(file_store_path=mod_settings.settings['dbFilestore'])
 hw = mod_hardwareProps.HardwareProps(os.path.join(mod_settings.settings['pythonPath'], "..", "sensorProperties"))
 
 
 def if3(a, b, c):
-    if (a):
+    if a:
         return b
     else:
         return c
