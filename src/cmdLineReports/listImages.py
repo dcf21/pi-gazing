@@ -19,7 +19,7 @@ utc_min = time.time() - 3600 * 24
 utc_max = time.time()
 obstory_name = installation_info.local_conf['observatoryName']
 label = ""
-img_type = "timelapse/frame/bgrdSub/lensCorr"
+img_type = "meteorpi:timelapse/frame/bgrdSub/lensCorr"
 stride = 5
 
 if len(sys.argv) > 1:
@@ -63,7 +63,9 @@ for file_item in files:
     count += 1
     if not (count % stride == 0):
         continue
-    sky_clarity = db.get_file_metadata(file_item.id, 'skyClarity')
+    sky_clarity = db.get_file_metadata(file_item.id, 'meteorpi:skyClarity')
+    if sky_clarity is None:
+        sky_clarity = -1
     [year, month, day, h, m, s] = mod_astro.inv_julian_day(mod_astro.jd_from_utc(file_item.file_time))
     print "  * Date %04d/%02d/%02d %02d:%02d:%02d UTC   Sky clarity %8.1f   Filename <%s>" % (
         year, month, day, h, m, s, sky_clarity, file_item.id)

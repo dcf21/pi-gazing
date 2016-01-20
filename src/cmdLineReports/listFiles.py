@@ -32,7 +32,7 @@ for obstory_name in obstory_list:
     title = "Observatory <%s>" % obstory_name
     print "\n\n%s\n%s" % (title, "-" * len(title))
 
-    search = mp.FileRecordSearch(obstory_ids=[obstory_name], time_min=utc_max, time_max=utc_min)
+    search = mp.FileRecordSearch(obstory_ids=[obstory_name], time_min=utc_min, time_max=utc_max)
     files = db.search_files(search)
     files = files['files']
     files.sort(key=lambda x: x.file_time)

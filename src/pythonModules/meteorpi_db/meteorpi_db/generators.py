@@ -67,6 +67,7 @@ class MeteorDatabaseGenerators(object):
         output = []
         for result in results:
             file_record = mp.FileRecord(obstory_id=result['obstory_id'], obstory_name=result['obstory_name'],
+                                        observation_id=result['observationId'],
                                         repository_fname=result['repositoryFname'],
                                         file_time=result['fileTime'], file_size=result['fileSize'],
                                         file_name=result['fileName'], mime_type=result['mimeType'],

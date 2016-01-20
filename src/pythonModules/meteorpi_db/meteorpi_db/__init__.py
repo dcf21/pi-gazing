@@ -331,7 +331,8 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
         search = mp.FileRecordSearch(repository_fname=repository_fname)
         b = search_files_sql_builder(search)
         sql = b.get_select_sql(columns='f.uid, f.observationId, f.mimeType, f.fileName, f.semanticType, f.fileTime, '
-                                       'f.fileSize, f.fileMD5, l.publicId AS obstory_id, l.name AS obstory_name',
+                                       'f.fileSize, f.fileMD5, l.publicId AS obstory_id, l.name AS obstory_name, '
+                                       'f.repositoryFname',
                                skip=0, limit=1, order='f.fileTime DESC')
         files = list(self.generators.file_generator(sql=sql, sql_args=b.sql_args))
         if not files:
@@ -351,7 +352,8 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
         """
         b = search_files_sql_builder(search)
         sql = b.get_select_sql(columns='f.uid, f.observationId, f.mimeType, f.fileName, f.semanticType, f.fileTime, '
-                                       'f.fileSize, f.fileMD5, l.publicId AS obstory_id, l.name AS obstory_name',
+                                       'f.fileSize, f.fileMD5, l.publicId AS obstory_id, l.name AS obstory_name, '
+                                       'f.repositoryFname',
                                skip=search.skip,
                                limit=search.limit,
                                order='f.fileTime DESC')
@@ -360,7 +362,7 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
         total_rows = rows_returned + search.skip
         if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
             self.con.execute(b.get_count_sql(), b.sql_args)
-            total_rows = self.con.fetchone()[0]
+            total_rows = self.con.fetchone()['COUNT(*)']
         return {"count": total_rows,
                 "files": files}
 
@@ -585,7 +587,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
         total_rows = rows_returned + search.skip
         if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
             self.con.execute(b.get_count_sql(), b.sql_args)
-            total_rows = self.con.fetchone()[0]
+            total_rows = self.con.fetchone()['COUNT(*)']
         return {"count": total_rows,
                 "obs": obs}
 
@@ -770,7 +772,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
         total_rows = rows_returned + search.skip
         if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
             self.con.execute(b.get_count_sql(), b.sql_args)
-            total_rows = self.con.fetchone()[0]
+            total_rows = self.con.fetchone()['COUNT(*)']
         return {"count": total_rows,
                 "obsgroups": obs_groups}
 

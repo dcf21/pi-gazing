@@ -171,8 +171,8 @@ for item in files:
                                     semantic_type=item[5],
                                     file_md5=item[10],
                                     file_meta=meta_list)
-    elif utc_floor in created_observations:
-        file_obj = db.register_file(observation_id=created_observations[utc_floor],
+    elif (obstory_id in created_observations) and (utc_floor in created_observations[obstory_id]):
+        file_obj = db.register_file(observation_id=created_observations[obstory_id][utc_floor],
                                     user_id="migrate",
                                     file_path=file_path_tmp,
                                     file_time=utc,
@@ -190,7 +190,9 @@ for item in files:
                                       obs_time=utc,
                                       obs_type=semantic_type,
                                       obs_meta=meta_list)
-        created_observations[utc_floor] = obs.obs_id
+        if obstory_id not in created_observations:
+            created_observations[obstory_id] = {}
+        created_observations[obstory_id][utc_floor] = obs.obs_id
         file_obj = db.register_file(observation_id=obs.obs_id,
                                     user_id="migrate",
                                     file_path=file_path_tmp,

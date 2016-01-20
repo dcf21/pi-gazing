@@ -35,22 +35,30 @@ print "# ./triggerRate.py %f %f \"%s\"\n" % (utc_min, utc_max, obstory_name)
 
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
+
+# Get file metadata, turning NULL data into zeros
+def get_file_metadata(db, id, key):
+    val = db.get_file_metadata(id,key)
+    if val is None:
+        return 0
+    return val
+
 s = db.get_obstory_status(obstory_name=obstory_name)
 if not s:
     print "Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
           obstory_name
     sys.exit(0)
 
-search = mp.FileRecordSearch(obstory_ids=[obstory_name], semantic_type="timelapse/frame/lensCorr",
+search = mp.FileRecordSearch(obstory_ids=[obstory_name], semantic_type="meteorpi:timelapse/frame/lensCorr",
                              time_min=utc_min, time_max=utc_max, limit=1000000)
 files = db.search_files(search)
 files = files['files']
 files.sort(key=lambda x: x.file_time)
 
-search = mp.EventSearch(obstory_ids=[obstory_name], semantic_type="movingObject",
-                        time_min=utc_min, time_max=utc_max, limit=1000000)
+search = mp.ObservationSearch(obstory_ids=[obstory_name], observation_type="movingObject",
+                              time_min=utc_min, time_max=utc_max, limit=1000000)
 events = db.search_observations(search)
-events = events['events']
+events = events['obs']
 
 histogram = {}
 
@@ -91,8 +99,10 @@ while hour_start <= utc_max:
         sun_alt = "---"
         sky_clarity = "---"
         if d['images']:
-            sun_alt = "%.1f" % (sum(db.get_file_metadata(i, 'sunAlt') for i in d['images']) / len(d['images']))
-            sky_clarity = "%.1f" % (sum(db.get_file_metadata(i, 'skyClarity') for i in d['images']) / len(d['images']))
+            sun_alt = "%.1f" % (sum(get_file_metadata(db, i.id, 'meteorpi:sunAlt') for i in d['images']) /
+                                len(d['images']))
+            sky_clarity = "%.1f" % (sum(get_file_metadata(db, i.id, 'meteorpi:skyClarity') for i in d['images']) /
+                                    len(d['images']))
         if d['images'] or d['events']:
             out.write("%12s %12s %12s %12s\n" % (len(d['images']), len(d['events']), sky_clarity, sun_alt))
             printed_blank_line = False
