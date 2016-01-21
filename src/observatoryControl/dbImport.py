@@ -196,7 +196,7 @@ def database_import(db):
     if mod_log.get_utc() - last_update_time > 12 * 3600:
         # Give the log file a human-readable filename
         log_file_name = "/tmp/obstoryStatus_" + time.strftime("%Y%m%d", time.gmtime(get_utc())) + ".log"
-        os.system("./cameraStatusLog.sh > %s" % log_file_name)
+        os.system("./observatoryStatusLog.sh > %s" % log_file_name)
 
         # Create an observation object to associate with this log file
         logfile_obs = db.register_observation(obstory_name=installation_info.local_conf['observatoryName'],
