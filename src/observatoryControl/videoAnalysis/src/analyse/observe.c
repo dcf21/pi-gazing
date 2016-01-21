@@ -440,7 +440,7 @@ void registerTriggerEnds(observeStatus *os)
         double pixel_tracklen = hypot( os->eventList[i].detections[N0].x - os->eventList[i].detections[N2].x,
                                        os->eventList[i].detections[N0].y - os->eventList[i].detections[N2].y );
 
-        if ((duration>0.8)&&(pixel_tracklen<3)) continue; // Reject events that last a long time and don't move -- probably a twinkling star
+        if (pixel_tracklen<4) continue; // Reject events that don't move much -- probably a twinkling star
 
         // Update counter for trigger rate throttling
         os->triggerThrottleCounter++;
