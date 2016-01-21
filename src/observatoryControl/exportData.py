@@ -16,15 +16,12 @@ from mod_log import log_txt, get_utc
 import mod_settings
 
 
-def export_data(utc_now, utc_must_stop=0):
+def export_data(db, utc_now, utc_must_stop=0):
     log_txt("Starting export of images and events")
 
     # Work out how long we can do exporting for
     state = None
     utc_stop = get_utc() + (utc_must_stop - utc_now)
-
-    # Open a database handle
-    db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
     # Search for items which need exporting
     for export_config in db.get_export_configurations():
@@ -57,4 +54,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         _utc_now = float(sys.argv[1])
     mod_log.set_utc_offset(_utc_now - time.time())
-    export_data(_utc_now, 0)
+    _db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+    export_data(db=_db,
+                utc_now=_utc_now,
+                utc_must_stop=0)

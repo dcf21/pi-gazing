@@ -15,7 +15,7 @@ local_conf = {
     'dataLocalLifetime': 14,
 
     # Configure export of data to a remote server
-    'exportURL': "https://meteorpi.cambridgesciencecentre.org/api/import",
+    'exportURL': "https://meteorpi.cambridgesciencecentre.org/api/importv2",
     'exportUsername': "",  # The username used to log in to the remote server
     'exportPassword': "",  # Corresponding password
 

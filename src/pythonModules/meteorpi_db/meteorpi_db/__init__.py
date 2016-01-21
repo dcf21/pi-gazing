@@ -1233,7 +1233,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
             obstory_name = self.obstory_name
 
         obstory = self.get_obstory_from_name(obstory_name)
-        key_id = self.get_metadata_key_id(mark_type)
+        key_id = self.get_hwm_key_id(mark_type)
 
         self.con.execute('SELECT time FROM archive_highWaterMarks WHERE markType=%s AND observatoryId=%s',
                          (key_id, obstory['uid']))
@@ -1247,7 +1247,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
             obstory_name = self.obstory_name
 
         obstory = self.get_obstory_from_name(obstory_name)
-        key_id = self.get_metadata_key_id(mark_type)
+        key_id = self.get_hwm_key_id(mark_type)
 
         self.con.execute('DELETE FROM archive_highWaterMarks WHERE markType=%s AND observatoryId=%s',
                          (key_id, obstory['uid']))

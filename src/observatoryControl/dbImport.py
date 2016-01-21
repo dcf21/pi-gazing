@@ -15,8 +15,6 @@ import mod_daytimejobs
 import mod_settings
 import installation_info
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
-
 # Look up the username we use to add entries into the database
 user = mod_settings.settings['meteorpiUser']
 
@@ -24,7 +22,7 @@ user = mod_settings.settings['meteorpiUser']
 obstories_seen = {}
 
 
-def get_obstory_name_from_id(obstory_id):
+def get_obstory_name_from_id(db, obstory_id):
     global obstories_seen
     if obstory_id in obstories_seen:
         return obstories_seen[obstory_id]['name']
@@ -49,12 +47,11 @@ def dict_tree_append(dict_root, dict_path, value):
 def metadata_to_object_list(db_handle, obs_time, obs_id, meta_dict):
     metadata_objs = []
     for meta_field in meta_dict:
-        meta_field = "meteorpi:" + meta_field
         value = meta_dict[meta_field]
 
         # Short string fields get stored as string metadata
         if type(value) != str or len(value) < 250:
-            metadata_objs.append(mp.Meta(meta_field, meta_dict[meta_field]))
+            metadata_objs.append(mp.Meta("meteorpi:" + meta_field, meta_dict[meta_field]))
 
         # Long strings are turned into separate files
         else:
@@ -62,8 +59,7 @@ def metadata_to_object_list(db_handle, obs_time, obs_id, meta_dict):
             open(fname, "w").write(value)
             db_handle.register_file(file_path=fname, mime_type="application/json",
                                     semantic_type=meta_field, file_time=obs_time,
-                                    file_metas=[], observation_id=obs_id, user_id=user)
-            os.remove(fname)
+                                    file_meta=[], observation_id=obs_id, user_id=user)
     return metadata_objs
 
 
@@ -86,8 +82,7 @@ def local_filename_to_semantic_type(fname):
     return "meteorpi:" + ("/".join(path))
 
 
-def database_import():
-    global db
+def database_import(db):
 
     # Change into the directory where data files are kept
     cwd = os.getcwd()
@@ -110,11 +105,13 @@ def database_import():
     for [glob_pattern, observation_list, mime_type, create_new_observations] in [
         ["triggers_vid_processed/*/*.mp4", trigger_obs_list, "video/mp4", True],
         ["timelapse_img_processed/*/*.png", still_img_obs_list, "image/png", True],
-        ["triggers_img_processed", trigger_obs_list, "image/png", False]]:
+        ["triggers_img_processed/*/*.png", trigger_obs_list, "image/png", False]]:
+
 
         # Create a list of all the files which match this particular wildcard
         file_list = glob.glob(glob_pattern)
         file_list.sort()
+        log_txt("Registering files which match the wildcard <%s> -- %d files." % (glob_pattern, len(file_list)))
 
         # Loop over all the files
         for file_name in file_list:
@@ -128,7 +125,7 @@ def database_import():
 
             # Get the ID and name of the observatory that is responsible for this file
             obstory_id = meta_dict["obstoryId"]
-            obstory_name = get_obstory_name_from_id(obstory_id)
+            obstory_name = get_obstory_name_from_id(db=db, obstory_id=obstory_id)
             if obstory_id not in hwm_old:
                 hwm_old[obstory_id] = db.get_high_water_mark(mark_type="import",
                                                              obstory_name=obstory_name)
@@ -154,6 +151,7 @@ def database_import():
                 obs_id = obs_obj.id
                 dict_tree_append(observation_list, [obstory_id, utc], obs_id)
                 created_new_observation = True
+                log_txt("Created new observation with ID <%s>."%obs_id)
             else:
                 obs_id = observation_list[obstory_id][utc]
 
@@ -168,9 +166,9 @@ def database_import():
 
             # Import the file itself into the database
             semantic_type = local_filename_to_semantic_type(file_name)
-            db.register_file(file_path=file_name, mime_type=mime_type,
+            db.register_file(file_path=file_name, user_id=user, mime_type=mime_type,
                              semantic_type=semantic_type,
-                             file_time=utc, file_metas=metadata_objs,
+                             file_time=utc, file_meta=metadata_objs,
                              observation_id=obs_id)
 
             # Update this observatory's "import" high water mark to the time of the file just imported
@@ -209,10 +207,10 @@ def database_import():
                                               )
 
         # Register the log file in the database and associate it with the observation above
-        db.register_file(file_path=log_file_name, mime_type="text/plain",
+        db.register_file(file_path=log_file_name, user_id=user, mime_type="text/plain",
                          semantic_type="logfile",
-                         file_time=get_utc(), file_metas=[],
-                         obs_id=logfile_obs.id)
+                         file_time=get_utc(), file_meta=[],
+                         observation_id=logfile_obs.id)
 
         # Update the local record of when we last created a log file observation
         open(last_update_filename, "w").write("%s" % mod_log.get_utc())
@@ -223,10 +221,11 @@ def database_import():
                       tmax=get_utc() - 24 * 2400 * installation_info.local_conf['dataLocalLifetime'])
 
     # Update the "import" high water marks for each obstory_name
-    for obstory_name in hwm_new.keys():
+    for obstory_id in hwm_new.keys():
+        obstory_name = get_obstory_name_from_id(db=db, obstory_id=obstory_id)
         db.set_high_water_mark(obstory_name=obstory_name,
                                mark_type="import",
-                               time=hwm_new[obstory_name]
+                               time=hwm_new[obstory_id]
                                )
 
     # Commit our changes to the database
@@ -237,4 +236,5 @@ def database_import():
 
 # Do import into firebird right away if we're run as a script
 if __name__ == "__main__":
-    database_import()
+    _db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+    database_import(_db)

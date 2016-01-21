@@ -15,6 +15,8 @@ import operator
 import os
 import sys
 import time
+import json
+import traceback
 
 import meteorpi_db
 
@@ -194,8 +196,8 @@ try:
                         # Create clipping region mask file
                         open(mask_file, "w").write(
                                 "\n\n".join(
-                                        ["\n".join(["%(x)d %(y)d" % p for p in pointList])
-                                         for pointList in obstory_status['clippingRegions']]
+                                        ["\n".join([("%d %d" % p) for p in pointList])
+                                         for pointList in json.loads(obstory_status['clippingRegion'])]
                                 )
                         )
 
@@ -290,18 +292,25 @@ db.commit()
 
 # Import events into database (unless we need to start observing again within next five minutes)
 os.chdir(cwd)
-if (not quit_time) or (quit_time - get_utc() > 300):
-    log_txt("Importing events into database")
-    dbImport.database_import()
+try:
+    if (not quit_time) or (quit_time - get_utc() > 300):
+        log_txt("Importing events into database")
+        dbImport.database_import(db)
+        log_txt("Finished importing events into database")
+except:
+    log_txt("Unexpected error while trying to import data into database")
+    traceback.print_exc()
 
 # Export data to remote server(s)
 try:
     if (not quit_time) or (quit_time - get_utc() > 3600):
         log_txt("Exporting data to remote servers")
-        exportData.export_data(utc_now=get_utc(),
+        exportData.export_data(db=db,
+                               utc_now=get_utc(),
                                utc_must_stop=quit_time)
 except:
     log_txt("Unexpected error while trying to export data")
+    traceback.print_exc()
 
 # Figure out orientation of camera -- this may take 5 hours!
 try:
@@ -315,6 +324,7 @@ try:
                                              utc_must_stop=quit_time)
 except:
     log_txt("Unexpected error while determining camera orientation")
+    traceback.print_exc()
 
 # Clean up temporary files
 os.system("rm -Rf /tmp/tmp.* /tmp/dcf21_orientationCalc_*")
