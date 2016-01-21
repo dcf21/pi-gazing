@@ -25,7 +25,7 @@ utc_min = time.time() - 3600 * 24
 utc_max = time.time()
 obstory_name = installation_info.local_conf['observatoryName']
 label = ""
-img_type = "timelapse/frame/bgrdSub/lensCorr"
+img_type = "meteorpi:timelapse/frame/bgrdSub/lensCorr"
 stride = 5
 
 if len(sys.argv) > 1:
@@ -48,17 +48,24 @@ print "# ./viewImages.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utc_min, utc_max, o
 
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
-s = db.get_obstory_status(obstory_name=obstory_name)
-if not s:
+try:
+    obstory_info = db.get_obstory_from_name(obstory_name=obstory_name)
+except ValueError:
     print "Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
           obstory_name
     sys.exit(0)
 
-search = mp.FileRecordSearch(obstory_ids=[obstory_name], semantic_type=img_type,
+obstory_id = obstory_info['publicId']
+
+search = mp.FileRecordSearch(obstory_ids=[obstory_id], semantic_type=img_type,
                              time_min=utc_min, time_max=utc_max, limit=1000000)
 files = db.search_files(search)
 files = files['files']
 files.sort(key=lambda x: x.file_time)
+
+print "  * %d matching files in time range %s --> %s" % (len(files),
+                                                         mod_astro.time_print(utc_min),
+                                                         mod_astro.time_print(utc_max))
 
 cmdLine = "qiv "
 
@@ -69,7 +76,7 @@ for file_item in files:
         continue
     [year, month, day, h, m, s] = mod_astro.inv_julian_day(mod_astro.jd_from_utc(file_item.file_time))
     fn = "img___%04d_%02d_%02d___%02d_%02d_%02d___%08d.png" % (year, month, day, h, m, s, count)
-    os.system("ln -s %s %s/%s" % (file_item.get_path(), tmp, fn))
+    os.system("ln -s %s %s/%s" % (db.file_path_for_id(file_item.id), tmp, fn))
     cmdLine += " %s/%s" % (tmp, fn)
 
 # print "  * Running command: %s"%cmdLine

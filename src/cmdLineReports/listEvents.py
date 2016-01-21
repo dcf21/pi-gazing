@@ -42,13 +42,16 @@ print "# ./listEvents.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utc_min, utc_max, o
 
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
-s = db.get_obstory_status(obstory_name=obstory_name)
-if not s:
+try:
+    obstory_info = db.get_obstory_from_name(obstory_name=obstory_name)
+except ValueError:
     print "Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
           obstory_name
     sys.exit(0)
 
-search = mp.ObservationSearch(obstory_ids=[obstory_name],
+obstory_id = obstory_info['publicId']
+
+search = mp.ObservationSearch(obstory_ids=[obstory_id],
                               time_min=utc_min, time_max=utc_max, limit=1000000)
 triggers = db.search_observations(search)
 triggers = triggers['obs']

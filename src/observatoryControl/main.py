@@ -195,13 +195,13 @@ while True:
     seconds_till_sunset = sun_times[2] - time_now
     sun_margin = mod_settings.settings['sunMargin']
 
-    # We may have been given the time for yesterday's sunrise. Assume tomorrow's will be exactly 24 hours later.
+    # We may have been given the time for yesterday's sunrise. Assume tomorrow's will be 23h55m later.
     if seconds_till_sunrise < 0:
         seconds_till_sunrise += 3600 * 24 - 300
 
     # If sunset was well in the past, and sunrise is well in the future, we should observe!
     minimum_time_worth_observing = 600
-    if (seconds_till_sunset < -sun_margin) or (seconds_till_sunrise > (sun_margin + minimum_time_worth_observing)):
+    if (seconds_till_sunset < -sun_margin) and (seconds_till_sunrise > (sun_margin + minimum_time_worth_observing)):
 
         # Calculate how long to observe for
         observing_duration = seconds_till_sunrise - sun_margin

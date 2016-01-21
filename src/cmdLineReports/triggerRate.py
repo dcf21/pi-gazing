@@ -43,19 +43,22 @@ def get_file_metadata(db, id, key):
         return 0
     return val
 
-s = db.get_obstory_status(obstory_name=obstory_name)
-if not s:
+try:
+    obstory_info = db.get_obstory_from_name(obstory_name=obstory_name)
+except ValueError:
     print "Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
           obstory_name
     sys.exit(0)
 
-search = mp.FileRecordSearch(obstory_ids=[obstory_name], semantic_type="meteorpi:timelapse/frame/lensCorr",
+obstory_id = obstory_info['publicId']
+
+search = mp.FileRecordSearch(obstory_ids=[obstory_id], semantic_type="meteorpi:timelapse/frame/lensCorr",
                              time_min=utc_min, time_max=utc_max, limit=1000000)
 files = db.search_files(search)
 files = files['files']
 files.sort(key=lambda x: x.file_time)
 
-search = mp.ObservationSearch(obstory_ids=[obstory_name], observation_type="movingObject",
+search = mp.ObservationSearch(obstory_ids=[obstory_id], observation_type="movingObject",
                               time_min=utc_min, time_max=utc_max, limit=1000000)
 events = db.search_observations(search)
 events = events['obs']

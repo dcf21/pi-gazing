@@ -35,16 +35,18 @@ if utc_max == 0:
 
 print "# ./observatoryStatus.py %f %f \"%s\"\n" % (utc_min, utc_max, obstory_name)
 
-s = db.get_obstory_status(obstory_name=obstory_name)
-if not s:
+try:
+ obstory_info = db.get_obstory_from_name(obstory_name=obstory_name)
+except ValueError:
     print "Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
           obstory_name
     sys.exit(0)
 
+obstory_id = obstory_info['publicId']
 title = "Observatory <%s>" % obstory_name
 print "\n\n%s\n%s" % (title, "-" * len(title))
 
-search = mp.ObservatoryMetadataSearch(obstory_ids=[obstory_name], time_min=utc_min, time_max=utc_max)
+search = mp.ObservatoryMetadataSearch(obstory_ids=[obstory_id], time_min=utc_min, time_max=utc_max)
 data = db.search_obstory_metadata(search)
 data = data['items']
 data.sort(key=lambda x: x.time)
