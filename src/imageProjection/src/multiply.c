@@ -1,4 +1,4 @@
-// subtract.c
+// multiply.c
 // Meteor Pi, Cambridge Science Centre 
 // Dominic Ford
 
@@ -30,18 +30,18 @@ int main(int argc, char **argv)
   image_ptr  OutputImage;
 
   // Initialise sub-modules
-  if (DEBUG) gnom_log("Initialising image subtractor.");
+  if (DEBUG) gnom_log("Initialising image multiplier.");
 
   // Turn off GSL's automatic error handler
   gsl_set_error_handler_off();
 
   // Make help and version strings
-  sprintf(version_string, "Image Subtractor %s", VERSION);
+  sprintf(version_string, "Image Pixel Value Multiplier %s", VERSION);
 
-  sprintf(help_string   , "Image Subtractor %s\n\
+  sprintf(help_string   , "Image Pixel Value Multiplier %s\n\
 %s\n\
 \n\
-Usage: subtract.bin <filename1> <filename2> <output filename>\n\
+Usage: multiply.bin <filename1> <factor> <output filename>\n\
   -h, --help:       Display this help.\n\
   -v, --version:    Display version number.", VERSION, StrUnderline(version_string, version_string_underline));
 
@@ -54,7 +54,7 @@ Usage: subtract.bin <filename1> <filename2> <output filename>\n\
      {
       if (HaveFilename > 2)
        {
-        sprintf(temp_err_string, "subtract.bin should be provided with three filenames on the command line to act upon. Too many filenames appear to have been supplied. Type 'subtract.bin -help' for a list of available commandline options.");
+        sprintf(temp_err_string, "multiply.bin should be called with the following commandline syntax:\n\nmultiply.bin <filename1> <factor> <output filename>\n\nToo many filenames appear to have been supplied. Type 'multiply.bin -help' for a list of available commandline options.");
         gnom_error(ERR_GENERAL, temp_err_string);
         return 1;
        }
@@ -74,7 +74,7 @@ Usage: subtract.bin <filename1> <filename2> <output filename>\n\
      }
     else
     {
-     sprintf(temp_err_string, "Received switch '%s' which was not recognised.\nType 'subtract.bin -help' for a list of available commandline options.", argv[i]);
+     sprintf(temp_err_string, "Received switch '%s' which was not recognised.\nType 'multiply.bin -help' for a list of available commandline options.", argv[i]);
      gnom_error(ERR_GENERAL, temp_err_string);
      return 1;
     }
@@ -83,38 +83,32 @@ Usage: subtract.bin <filename1> <filename2> <output filename>\n\
   // Check that we have been provided with exactly one filename on the command line
   if (HaveFilename < 3)
    {
-    sprintf(temp_err_string, "subtract.bin should be provided with three filenames on the command line to act upon. Type 'subtract.bin -help' for a list of available commandline options.");
+    sprintf(temp_err_string, "multiply.bin should be called with the following commandline syntax:\n\nmultiply.bin <filename1> <factor> <output filename>\n\nToo few filenames appear to have been supplied. Type 'multiply.bin -help' for a list of available commandline options.");
     gnom_error(ERR_GENERAL, temp_err_string);
     return 1;
    }
 
    {
-    image_ptr InputImage1, InputImage2;
+    image_ptr InputImage;
 
     // Read image
     strcpy(s_in_default.InFName, filename[0]);
-    InputImage1 = image_get(filename[0]);
-    if (InputImage1.data_red==NULL) gnom_fatal(__FILE__,__LINE__,"Could not read input image file 1");
+    InputImage = image_get(filename[0]);
+    if (InputImage.data_red==NULL) gnom_fatal(__FILE__,__LINE__,"Could not read input image file 1");
 
-    strcpy(s_in_default.InFName, filename[1]);
-    InputImage2 = image_get(filename[1]);
-    if (InputImage2.data_red==NULL) gnom_fatal(__FILE__,__LINE__,"Could not read input image file 2");
-
-    if (InputImage1.xsize!=InputImage2.xsize) gnom_fatal(__FILE__,__LINE__,"Images must have the same dimensions");
-    if (InputImage1.ysize!=InputImage2.ysize) gnom_fatal(__FILE__,__LINE__,"Images must have the same dimensions");
+    double factor = GetFloat(filename[1], NULL);
 
     // Malloc output image
-    image_alloc(&OutputImage, InputImage1.xsize, InputImage1.ysize);
+    image_alloc(&OutputImage, InputImage.xsize, InputImage.ysize);
 
     // Process image
     #define CLIPCHAR(color) (unsigned char)(((color)>0xFF)?0xff:(((color)<0)?0:(color)))
-    for (i=0; i<InputImage1.xsize*InputImage1.ysize; i++) OutputImage.data_red[i] = CLIPCHAR(InputImage1.data_red[i] - InputImage2.data_red[i] + 2);
-    for (i=0; i<InputImage1.xsize*InputImage1.ysize; i++) OutputImage.data_grn[i] = CLIPCHAR(InputImage1.data_grn[i] - InputImage2.data_grn[i] + 2);
-    for (i=0; i<InputImage1.xsize*InputImage1.ysize; i++) OutputImage.data_blu[i] = CLIPCHAR(InputImage1.data_blu[i] - InputImage2.data_blu[i] + 2);
+    for (i=0; i<InputImage.xsize*InputImage.ysize; i++) OutputImage.data_red[i] = CLIPCHAR(InputImage.data_red[i] * factor);
+    for (i=0; i<InputImage.xsize*InputImage.ysize; i++) OutputImage.data_grn[i] = CLIPCHAR(InputImage.data_grn[i] * factor);
+    for (i=0; i<InputImage.xsize*InputImage.ysize; i++) OutputImage.data_blu[i] = CLIPCHAR(InputImage.data_blu[i] * factor);
     
     // Free image
-    image_dealloc(&InputImage1);
-    image_dealloc(&InputImage2);
+    image_dealloc(&InputImage);
    }
 
   // Write image
