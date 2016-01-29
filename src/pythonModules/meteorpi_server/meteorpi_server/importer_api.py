@@ -34,7 +34,7 @@ class MeteorDatabaseImportReceiver(object):
 
     def receive_observation(self, import_request):
         obs = import_request.entity
-        if not self.db.has_event_id(obs.id):
+        if not self.db.has_observation_id(obs.id):
             self.db.import_observation(observation=obs, user_id=self.get_importing_user_id())
             self.db.commit()
         return import_request.response_complete()
@@ -42,8 +42,8 @@ class MeteorDatabaseImportReceiver(object):
     def receive_file_record(self, import_request):
         file_record = import_request.entity
         if not self.db.has_file_id(file_record.id):
-            if not path.isfile(self.db.file_path_for_id(file_record.file_id)):
-                return import_request.response_need_file_data(file_id=file_record.file_id)
+            if not path.isfile(self.db.file_path_for_id(file_record.id)):
+                return import_request.response_need_file_data(file_id=file_record.id)
             self.db.import_file(file_item=file_record, user_id=self.get_importing_user_id())
             self.db.commit()
         return import_request.response_complete()
@@ -173,13 +173,13 @@ class ImportRequest(object):
         """
         Signal the exporter that we need the binary data associated with a given file ID
 
-        :param uuid.UUID file_id:
+        :param string file_id:
             the UUID of the :class:`meteorpi_model.FileRecord` for which we don't currently have data
         :return:
             A response that can be returned from a Flask service method
         """
-        ImportRequest.logger.debug("Sending: need_file_data, id={0}".format(file_id.hex))
-        return jsonify({'state': 'need_file_data', 'file_id': file_id.hex})
+        ImportRequest.logger.debug("Sending: need_file_data, id={0}".format(file_id))
+        return jsonify({'state': 'need_file_data', 'file_id': file_id})
 
     @staticmethod
     def process_request():
@@ -220,7 +220,7 @@ class ImportRequest(object):
         elif entity_type == 'metadata':
             return model.ObservatoryMetadata.from_dict(g.request_dict['metadata'])
         elif entity_type == 'observation':
-            return model.Observation.from_dict(g.request_dict['obs'])
+            return model.Observation.from_dict(g.request_dict['observation'])
         else:
             return None
 
@@ -262,18 +262,21 @@ def add_routes(meteor_app, handler=None, url_path='/importv2'):
             return import_request.response_continue()
         if import_request.entity_type == 'file':
             response = handler.receive_file_record(import_request)
+            handler.db.commit()
             if response is not None:
                 return response
             else:
                 return import_request.response_complete()
         elif import_request.entity_type == 'observation':
             response = handler.receive_observation(import_request)
+            handler.db.commit()
             if response is not None:
                 return response
             else:
                 return import_request.response_complete()
         elif import_request.entity_type == 'metadata':
             response = handler.receive_metadata(import_request)
+            handler.db.commit()
             if response is not None:
                 return response
             else:

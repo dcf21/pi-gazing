@@ -36,7 +36,7 @@ if not user_id:
 password = raw_input('Enter password: ')
 
 # Enter roles
-defaultRoles = "user obstory_admin import"
+defaultRoles = "user voter obstory_admin import"
 roles = raw_input('Enter roles <default %s>: ' % defaultRoles).split()
 if not roles:
     roles = defaultRoles.split()

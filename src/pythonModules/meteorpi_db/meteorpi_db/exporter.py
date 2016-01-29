@@ -83,12 +83,12 @@ class MeteorExporter(object):
                 return export_state.fully_processed()
             elif state == 'need_file_data':
                 file_id = json['file_id']
-                file_record = self.db.get_file(file_id=file_id)
+                file_record = self.db.get_file(repository_fname=file_id)
                 if file_record is None:
                     return export_state.failed()
                 with open(self.db.file_path_for_id(file_id), 'rb') as file_content:
                     multi = MultipartEncoder(fields={'file': ('file', file_content, file_record.mime_type)})
-                    post(url="{0}/data/{1}/{2}".format(target_url, file_id.hex, file_record.md5),
+                    post(url="{0}/data/{1}/{2}".format(target_url, file_id, file_record.md5),
                          data=multi, verify=False,
                          headers={'Content-Type': multi.content_type},
                          auth=auth)
