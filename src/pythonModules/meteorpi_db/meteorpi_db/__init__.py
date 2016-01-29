@@ -332,7 +332,8 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
         """
         search = mp.FileRecordSearch(repository_fname=repository_fname)
         b = search_files_sql_builder(search)
-        sql = b.get_select_sql(columns='f.uid, f.observationId, f.mimeType, f.fileName, f.semanticType, f.fileTime, '
+        sql = b.get_select_sql(columns='f.uid, o.publicId AS observationId, f.mimeType, '
+                                       'f.fileName, f.semanticType, f.fileTime, '
                                        'f.fileSize, f.fileMD5, l.publicId AS obstory_id, l.name AS obstory_name, '
                                        'f.repositoryFname',
                                skip=0, limit=1, order='f.fileTime DESC')
@@ -353,7 +354,8 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
             :class:`meteorpi_model.FileRecord`}
         """
         b = search_files_sql_builder(search)
-        sql = b.get_select_sql(columns='f.uid, f.observationId, f.mimeType, f.fileName, f.semanticType, f.fileTime, '
+        sql = b.get_select_sql(columns='f.uid, o.publicId AS observationId, f.mimeType, '
+                                       'f.fileName, f.semanticType, f.fileTime, '
                                        'f.fileSize, f.fileMD5, l.publicId AS obstory_id, l.name AS obstory_name, '
                                        'f.repositoryFname',
                                skip=search.skip,
