@@ -67,8 +67,8 @@ def get_gps_fix():
 
         # Because the above may fail if we don't have root access, as a fallback we recalculate the clock offset
         t_offset = time.time() - utc_now
-        log_txt("Revised clock offset after trying to set the system clock: %.2f sec behind." % t_offset)
         set_utc_offset(t_offset)
+        log_txt("Revised clock offset after trying to set the system clock: %.2f sec behind." % t_offset)
 
         return {'latitude': gps_latitude, 'longitude': gps_longitude}
 
@@ -162,6 +162,10 @@ open(mask_file, "w").write(
 
 # Start main observing loop
 while True:
+
+    # Get a new MySQL connection because old one may not be connected any longer
+    del db
+    db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
     # Get a GPS fix on the current time and our location
     gps_fix = get_gps_fix()

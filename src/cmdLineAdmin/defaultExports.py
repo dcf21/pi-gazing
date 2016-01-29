@@ -38,7 +38,7 @@ search = mp.ObservatoryMetadataSearch(limit=None)
 config = mp.ExportConfiguration(target_url=installation_info.local_conf['exportURL'],
                                 user_id=installation_info.local_conf['exportUsername'],
                                 password=installation_info.local_conf['exportPassword'],
-                                search=search, name="event_export",
+                                search=search, name="metadata_export",
                                 description="Export all observatory metadata to remote server", enabled=True)
 db.create_or_update_export_configuration(config)
 
@@ -47,7 +47,7 @@ search = mp.ObservationSearch(limit=None)
 config = mp.ExportConfiguration(target_url=installation_info.local_conf['exportURL'],
                                 user_id=installation_info.local_conf['exportUsername'],
                                 password=installation_info.local_conf['exportPassword'],
-                                search=search, name="event_export",
+                                search=search, name="obs_export",
                                 description="Export all observation objects to remote server", enabled=True)
 db.create_or_update_export_configuration(config)
 

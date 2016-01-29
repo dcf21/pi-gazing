@@ -63,7 +63,7 @@ def run_job_group(job_group):
     # Run shell commands associated with this group of jobs
     shell_cmds = [" ".join((job['cmd'] % job['params']).split()) for job in job_group]
     for cmd in shell_cmds:
-        log_txt("Running command: %s" % cmd)
+        print "Running command: %s" % cmd
     if len(shell_cmds) == 1:
         cmd = shell_cmds[0]
     else:
