@@ -7,8 +7,14 @@ local_conf = {
     'observatoryId': "obs1",
     'observatoryName': "Cambridge-South-East",
 
+    # Set which GPIO pins we are using
+    'gpioPinRelay': 12,  # This pin is using to control the relay
+    'gpioLedA': 18,  # This pin is used for indicator LED A
+    'gpioLedB': 22,  # This pin is used for indicator LED B
+    'gpioLedC': 24,  # This pin is used for indicator LED C
+
     # This flag sets the polarity of the relay used to turn the camera on
-    # GPIO line 12 is set to this state to turn the camera ON
+    # GPIO line is set to this state to turn the camera ON
     'relayOnGPIOState': True,
 
     # This flag sets how long we keep data locally on the SD card for (days)

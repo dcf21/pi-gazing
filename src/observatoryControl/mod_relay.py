@@ -12,13 +12,13 @@ def camera_on():
     log_txt("Turning camera on.")
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(12, GPIO.OUT)
-    GPIO.output(12, installation_info.local_conf['relayOnGPIOState'])
+    GPIO.setup(installation_info.local_conf['gpioPinRelay'], GPIO.OUT)
+    GPIO.output(installation_info.local_conf['gpioPinRelay'], installation_info.local_conf['relayOnGPIOState'])
 
 
 def camera_off():
     log_txt("Turning camera off.")
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(12, GPIO.OUT)
-    GPIO.output(12, not installation_info.local_conf['relayOnGPIOState'])
+    GPIO.setup(installation_info.local_conf['gpioPinRelay'], GPIO.OUT)
+    GPIO.output(installation_info.local_conf['gpioPinRelay'], not installation_info.local_conf['relayOnGPIOState'])

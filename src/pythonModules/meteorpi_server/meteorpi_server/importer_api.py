@@ -225,7 +225,7 @@ class ImportRequest(object):
             return None
 
 
-def add_routes(meteor_app, handler=None, url_path='/import'):
+def add_routes(meteor_app, handler=None, url_path='/importv2'):
     """
     Add two routes to the specified instance of :class:`meteorpi_server.MeteorApp` to implement the import API and allow
     for replication of data to this server.

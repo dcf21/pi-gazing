@@ -10,6 +10,7 @@ import time
 import math
 
 import mod_settings
+import installation_info
 
 # Set up GPIO lines as outputs. But only if we're running on a RPi, as otherwise we don't have any lines to configure...
 if mod_settings.settings['i_am_a_rpi']:
@@ -17,17 +18,19 @@ if mod_settings.settings['i_am_a_rpi']:
 
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(18, GPIO.OUT)
-    GPIO.setup(22, GPIO.OUT)
-    GPIO.output(18, True)
-    GPIO.output(22, True)
+    GPIO.setup(installation_info.local_conf['gpioLedA'], GPIO.OUT)
+    GPIO.setup(installation_info.local_conf['gpioLedB'], GPIO.OUT)
+    GPIO.setup(installation_info.local_conf['gpioLedC'], GPIO.OUT)
+    GPIO.output(installation_info.local_conf['gpioLedA'], True)
+    GPIO.output(installation_info.local_conf['gpioLedB'], True)
+    GPIO.output(installation_info.local_conf['gpioLedC'], True)
 
 
 # Set the two LEDs according to whether x and y are true or false
 def set_lights(x, y):
     if mod_settings.settings['i_am_a_rpi']:
-        GPIO.output(18, x)
-        GPIO.output(22, y)
+        GPIO.output(installation_info.local_conf['gpioLedA'], x)
+        GPIO.output(installation_info.local_conf['gpioLedB'], y)
     else:
         print "%10s %10s" % (x, y)
 
