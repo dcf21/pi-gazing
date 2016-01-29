@@ -122,7 +122,7 @@ WHERE m.observationId=%s
             sql = "SELECT f.repositoryFname FROM archive_files f WHERE f.observationId=%s"
             self.con.execute(sql, (result['uid'],))
             for item in self.con.fetchall():
-                observation.file_records.append(self.db.get_observation(item['repositoryFname']))
+                observation.file_records.append(self.db.get_file(item['repositoryFname']))
 
             # Count votes for observation
             self.con.execute("SELECT COUNT(*) FROM archive_obs_likes WHERE observationId="

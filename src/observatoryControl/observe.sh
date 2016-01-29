@@ -20,4 +20,10 @@ source ../../virtual-env/bin/activate # Need this so that astrometry.net uses ri
 ./loadMonitor.py &
 
 # The script main.py actually observes the night sky. We catch any python exceptions which may occur in a log file.
-./main.py &>> /home/pi/meteor-pi/datadir/python.log
+# This script should never exit, so if it does, it's broken. Back off for 5 mins and try again.
+
+while true
+ do
+  ./main.py &>> ../../datadir/python.log
+  sleep 300
+ done

@@ -1079,7 +1079,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
         export_config_id = self.con.fetchall()
         if len(export_config_id) < 1:
             raise ValueError("Attempt to run export on ExportConfiguration not in database")
-        export_config_id = export_config_id[0]['internalId']
+        export_config_id = export_config_id[0]['uid']
 
         # If the export is inactive then do nothing
         if not export_config.enabled:
@@ -1102,13 +1102,13 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
                 rows_created += 1
 
         # Handle FileSearch
-        if isinstance(export_config.search, mp.FileRecordSearch):
+        elif isinstance(export_config.search, mp.FileRecordSearch):
             # Create a deep copy of the search and set the properties required when creating exports
             search = mp.FileRecordSearch.from_dict(export_config.search.as_dict())
             search.exclude_export_to = export_config.config_id
             b = search_files_sql_builder(search)
 
-            self.con.execute(b.get_select_sql(columns='o.uid'), b.sql_args)
+            self.con.execute(b.get_select_sql(columns='f.uid'), b.sql_args)
             for result in self.con.fetchall():
                 self.con.execute('INSERT INTO archive_fileExport (fileId, exportConfig, exportState) '
                                  'VALUES (%s,%s,%s)', (result['uid'], export_config_id, 1))
@@ -1121,7 +1121,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
             search.exclude_export_to = export_config.config_id
             b = search_metadata_sql_builder(search)
 
-            self.con.execute(b.get_select_sql(columns='f.internalID'), b.sql_args)
+            self.con.execute(b.get_select_sql(columns='m.uid'), b.sql_args)
             for result in self.con.fetchall():
                 self.con.execute('INSERT INTO archive_metadataExport (metadataId, exportConfig, exportState) '
                                  'VALUES (%s,%s,%s)', (result['uid'], export_config_id, 1))
@@ -1130,7 +1130,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
         # Complain if it's anything other than these two (nothing should be at the moment but we might introduce
         # more search types in the future
         else:
-            raise ValueError("Unknown search type")
+            raise ValueError("Unknown search type %s" % str(type(export_config.search)))
         return rows_created
 
     def get_next_entity_to_export(self):

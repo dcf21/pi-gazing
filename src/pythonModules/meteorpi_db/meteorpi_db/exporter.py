@@ -2,6 +2,7 @@
 
 # Functions which export database objects to an external server
 
+import traceback
 from requests import post
 from requests.exceptions import HTTPError, ConnectionError
 from requests_toolbelt.multipart.encoder import MultipartEncoder
@@ -98,8 +99,10 @@ class MeteorExporter(object):
             else:
                 return export_state.confused()
         except HTTPError:
+            traceback.print_exc()
             return export_state.failed()
         except ConnectionError:
+            traceback.print_exc()
             return export_state.failed()
 
     class ExportState(object):
