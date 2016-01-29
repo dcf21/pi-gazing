@@ -1,3 +1,6 @@
+# importer_api.py
+# Meteor Pi, Cambridge Science Centre
+# Dominic Ford, Tom Oinn
 
 from logging import getLogger
 
@@ -8,9 +11,9 @@ from flask.ext.jsonpify import jsonify
 from flask import request, g
 
 
-class MeteorDatabaseImportReceiver(BaseImportReceiver):
+class MeteorDatabaseImportReceiver(object):
     """
-    An implementation of :class:`meteorpi_server.import_api.BaseImportReceiver` that connects to a
+    Connects to a
     :class:`meteorpi_db.MeteorDatabase` and pushes any data to it on import, including managing the acquisition of any
     additional information (camera status, binary file data) required in the process.
     """
@@ -29,25 +32,35 @@ class MeteorDatabaseImportReceiver(BaseImportReceiver):
         """
         return g.user.user_id
 
-
-    def receive_event(self, import_request):
-        event = import_request.entity
-        if not self.db.has_event_id(event.event_id):
-            for file_record in event.file_records:
-                if not path.isfile(self.db.file_path_for_id(file_record.file_id)):
-                    return import_request.response_need_file_data(file_id=file_record.file_id)
-            self.db.import_event(event=event, user_id=self.get_importing_user_id())
+    def receive_observation(self, import_request):
+        obs = import_request.entity
+        if not self.db.has_event_id(obs.id):
+            self.db.import_observation(observation=obs, user_id=self.get_importing_user_id())
+            self.db.commit()
+        return import_request.response_complete()
 
     def receive_file_record(self, import_request):
         file_record = import_request.entity
-        if not self.db.has_file_id(file_record.file_id):
+        if not self.db.has_file_id(file_record.id):
             if not path.isfile(self.db.file_path_for_id(file_record.file_id)):
                 return import_request.response_need_file_data(file_id=file_record.file_id)
-            self.db.import_file_record(file_record=file_record, user_id=self.get_importing_user_id())
+            self.db.import_file(file_item=file_record, user_id=self.get_importing_user_id())
+            self.db.commit()
+        return import_request.response_complete()
 
-    def receive_status(self, import_request):
-        if not self.db.has_status_id(import_request.entity.status_id):
-            self.db.import_camera_status(import_request.entity)
+    def receive_metadata(self, import_request):
+        entity = import_request.entity
+        if not self.db.has_obstory_metadata(entity.id):
+            if not self.db.has_obstory_name(entity.obstory_name):
+                self.db.register_obstory(obstory_id=entity.obstory_id, obstory_name=entity.obstory_name,
+                                         latitude=entity.obstory_lat, longitude=entity.obstory_lng)
+            self.db.import_obstory_metadata(obstory_name=entity.obstory_name,
+                                            key=entity.key, value=entity.value, metadata_time=entity.time,
+                                            time_created=entity.time_created,
+                                            user_created=self.get_importing_user_id(),
+                                            item_id=entity.id)
+            self.db.commit()
+        return import_request.response_complete()
 
     def receive_file_data(self, file_id, file_data, md5_hex):
         file_path = self.db.file_path_for_id(file_id)
@@ -61,14 +74,11 @@ class ImportRequest(object):
     """
     Helper used when importing, makes use of the 'cached_request' request transparent to the importing party.
 
-    :cvar entity_cache:
-        LRU cache used to stash entities being imported.
     :cvar logger:
         Logs to 'meteorpi.server.import'
     :ivar entity_type:
         The type of the ID being imported, which will be one of 'file', 'status', 'event' or 'none'.
     """
-    entity_cache = lru_cache(maxsize=128, typed=False)
 
     logger = getLogger("meteorpi.server.import")
 
@@ -88,12 +98,12 @@ class ImportRequest(object):
         self.entity = entity
         if entity is None:
             self.entity_type = 'none'
-        elif isinstance(entity, model.Event):
-            self.entity_type = 'event'
+        elif isinstance(entity, model.Observation):
+            self.entity_type = 'observation'
         elif isinstance(entity, model.FileRecord):
             self.entity_type = 'file'
-        elif isinstance(entity, model.CameraStatus):
-            self.entity_type = 'status'
+        elif isinstance(entity, model.ObservatoryMetadata):
+            self.entity_type = 'metadata'
         else:
             raise ValueError("Unknown entity type, cannot continue.")
 
@@ -187,7 +197,7 @@ class ImportRequest(object):
         """
         g.request_dict = safe_load(request.get_data())
         entity_type = g.request_dict['type']
-        entity_id = UUID(g.request_dict[entity_type]['id'])
+        entity_id = g.request_dict[entity_type]['id']
         ImportRequest.logger.debug("Received request, type={0}, id={1}".format(entity_type, entity_id))
         entity = ImportRequest._get_entity(entity_id)
         ImportRequest.logger.debug("Entity with id={0} was {1}".format(entity_id, entity))
@@ -207,10 +217,10 @@ class ImportRequest(object):
         entity_type = g.request_dict['type']
         if entity_type == 'file':
             return model.FileRecord.from_dict(g.request_dict['file'])
-        elif entity_type == 'status':
-            return model.CameraStatus.from_dict(g.request_dict['status'])
-        elif entity_type == 'event':
-            return model.Event.from_dict(g.request_dict['event'])
+        elif entity_type == 'metadata':
+            return model.ObservatoryMetadata.from_dict(g.request_dict['metadata'])
+        elif entity_type == 'observation':
+            return model.Observation.from_dict(g.request_dict['obs'])
         else:
             return None
 
@@ -256,14 +266,14 @@ def add_routes(meteor_app, handler=None, url_path='/import'):
                 return response
             else:
                 return import_request.response_complete()
-        elif import_request.entity_type == 'event':
-            response = handler.receive_event(import_request)
+        elif import_request.entity_type == 'observation':
+            response = handler.receive_observation(import_request)
             if response is not None:
                 return response
             else:
                 return import_request.response_complete()
-        elif import_request.entity_type == 'status':
-            response = handler.receive_status(import_request)
+        elif import_request.entity_type == 'metadata':
+            response = handler.receive_metadata(import_request)
             if response is not None:
                 return response
             else:
@@ -280,7 +290,7 @@ def add_routes(meteor_app, handler=None, url_path='/import'):
         :param string file_id_hex:
             The hex representation of the :class:`meteorpi_model.FileRecord` to which this data belongs.
         """
-        file_id = uuid.UUID(hex=file_id_hex)
+        file_id = file_id_hex
         file_data = request.files['file']
         if file_data:
             handler.receive_file_data(file_id=file_id, file_data=file_data, md5_hex=md5_hex)

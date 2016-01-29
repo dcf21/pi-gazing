@@ -1,4 +1,13 @@
-activate_this = '/home/pi/meteor-pi/virtual-env/bin/activate_this.py'
+# meteorapplication.wsgi
+# Meteor Pi, Cambridge Science Centre
+# Dominic Ford
+
+# Find path to this file
+from os import path
+www_path = path.split(path.abspath(__file__))[0]
+
+# Activate python virtual environment with all the packages we need
+activate_this = path.join(www_path,'../virtual-env/bin/activate_this.py')
 execfile(activate_this, dict(__file__=activate_this))
 
 import logging, sys

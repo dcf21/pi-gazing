@@ -16,7 +16,7 @@ setup(
         'flask-cors',
         'tornado',
         'flask-jsonpify',
-        'backports.functools_lru_cache'],
+        'pyyaml'],
     include_package_data=True,
     test_suite='nose.collector',
     tests_require=['nose',

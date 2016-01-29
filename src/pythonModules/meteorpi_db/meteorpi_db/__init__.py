@@ -1,4 +1,6 @@
 # meteorpi_db
+# Meteor Pi, Cambridge Science Centre
+# Dominic Ford, Tom Oinn
 
 # Classes which interact with the Meteor Pi database
 
@@ -11,7 +13,7 @@ import numbers
 
 from passlib.hash import pbkdf2_sha256
 import meteorpi_model as mp
-from meteorpi_db.generators import first_from_generator, first_non_null, MeteorDatabaseGenerators
+from meteorpi_db.generators import first_from_generator, MeteorDatabaseGenerators
 from meteorpi_db.sql_builder import search_observations_sql_builder, search_files_sql_builder, \
     search_metadata_sql_builder, search_obsgroups_sql_builder
 from meteorpi_db.exporter import ObservationExportTask, FileExportTask, MetadataExportTask
