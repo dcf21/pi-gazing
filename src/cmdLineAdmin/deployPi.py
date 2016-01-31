@@ -1,3 +1,4 @@
+#!../../virtual-env/bin/python
 # deployPi.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
@@ -16,6 +17,11 @@ import installation_info
 # Make sure we are running on a RPi. We don't want to overwrite the contents of </etc> on a PC...
 if not mod_settings.settings['i_am_a_rpi']:
     print "This is not running on a Raspberry Pi. You should not run this on a PC!"
+    sys.exit(1)
+
+# Make sure we are running as root
+if os.geteuid() != 0:
+    print "This script must be run as root!"
     sys.exit(1)
 
 # Change into directory containing this script, so we can use relative paths
