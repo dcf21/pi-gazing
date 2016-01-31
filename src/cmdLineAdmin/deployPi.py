@@ -76,7 +76,7 @@ obstory_name = user_input("observatory name", installation_info.local_conf['obse
 obstory_lat = user_input("observatory latitude", installation_info.local_conf['latitude'])
 obstory_lng = user_input("observatory longitude", installation_info.local_conf['longitude'])
 file_substitute("../../installation_info.py", "52.19", obstory_lat)
-file_substitute("../../installation_info.py", "0.15", obstory_lat)
+file_substitute("../../installation_info.py", "0.15", obstory_lng)
 file_substitute("../../installation_info.py", "obs0", obstory_id)
 file_substitute("../../installation_info.py", "Observatory-Dummy", obstory_name)
 
@@ -91,11 +91,11 @@ relay_state = user_input("relay on state True/False", str(installation_info.loca
 file_substitute("../../installation_info.py", "'relayOnGPIOState': True", "'relayOnGPIOState': %s" % relay_state)
 
 led_a_pin = user_input("GPIO pin which LED A is connected to", installation_info.local_conf['gpioLedA'])
-file_substitute("../../installation_info.py", "'gpioLedA': 18", led_a_pin)
+file_substitute("../../installation_info.py", "'gpioLedA': 18", "'gpioLedA': %s" % led_a_pin)
 led_b_pin = user_input("GPIO pin which LED A is connected to", installation_info.local_conf['gpioLedB'])
-file_substitute("../../installation_info.py", "'gpioLedB': 22", led_b_pin)
+file_substitute("../../installation_info.py", "'gpioLedB': 22", "'gpioLedB': %s" % led_b_pin)
 led_c_pin = user_input("GPIO pin which LED A is connected to", installation_info.local_conf['gpioLedC'])
-file_substitute("../../installation_info.py", "'gpioLedC': 24", led_c_pin)
+file_substitute("../../installation_info.py", "'gpioLedC': 24", "'gpioLedC': %s" % led_c_pin)
 
 # Set up database
 print "STEP 3: Set up database"
