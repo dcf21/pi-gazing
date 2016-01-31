@@ -1,3 +1,8 @@
+/** chart-triggerrate.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['knockout', 'text!./chart-triggerrate.html', 'utils', 'jquery', 'client', 'dcfplot'], function (ko, templateMarkup, utils, jQuery, client, dcfplot) {
 
     function TriggerRatePlot(params, componentInfo) {

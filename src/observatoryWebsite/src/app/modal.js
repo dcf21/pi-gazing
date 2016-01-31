@@ -1,4 +1,7 @@
-/**
+/** modal.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ *
  * Created by tom on 03/06/15.
  *
  * Helper used to create and show modals with knockout.js bindings, in effect any component can be shown as a modal,
@@ -6,6 +9,7 @@
  * utility class will handle instantiation of the component viewModel, passing of parameters to it, cope with the
  * asynchronous display and binding of the modal itself and return of values to the caller via a jquery deferred.
  */
+
 define(["jquery", "knockout"], function (jquery, ko) {
 
     return new ModalHelper();

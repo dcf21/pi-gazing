@@ -1,3 +1,8 @@
+/** search-editor.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['knockout', 'text!./search-editor.html', 'utils', 'jquery', 'client'], function (ko, templateMarkup, utils, jquery, client) {
 
     function SearchEditor(params, componentInfo) {

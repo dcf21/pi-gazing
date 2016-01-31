@@ -1,3 +1,8 @@
+/** page-footer.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['knockout', 'text!./page-footer.html', 'client', "modal", "../login-modal/login-modal"], function (ko, template, client, modal, login) {
 
     function PageFooterViewModel(params) {

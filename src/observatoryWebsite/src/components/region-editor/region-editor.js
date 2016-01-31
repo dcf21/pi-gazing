@@ -1,3 +1,8 @@
+/** region-editor.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['knockout', 'text!./region-editor.html', 'jquery'], function (ko, templateMarkup, jquery) {
 
         /** Pixel width of the margin around the loaded image */

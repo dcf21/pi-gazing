@@ -1,3 +1,8 @@
+/** home.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(["knockout", "text!./home.html", "client", "router", "utils"], function (ko, homeTemplate, client, router, utils) {
 
     function HomeViewModel(route) {

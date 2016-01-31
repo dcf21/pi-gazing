@@ -1,3 +1,8 @@
+/** chart-skyclarity.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['knockout', 'text!./chart-skyclarity.html', 'utils', 'jquery', 'client', 'dcfplot'], function (ko, templateMarkup, utils, jquery, client, dcfplot) {
 
     function SkyClarityPlot(params, componentInfo) {

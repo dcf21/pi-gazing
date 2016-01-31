@@ -1,3 +1,8 @@
+/** admin-camera-page.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['knockout', 'text!./admin-camera-page.html', 'client'], function (ko, templateMarkup, client) {
 
     function AdminCameraPage(route) {

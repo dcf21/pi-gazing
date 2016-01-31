@@ -20,7 +20,6 @@ def export_data(db, utc_now, utc_must_stop=0):
     log_txt("Starting export of images and events")
 
     # Work out how long we can do exporting for
-    state = None
     utc_stop = get_utc() + (utc_must_stop - utc_now)
 
     # Search for items which need exporting
@@ -33,7 +32,9 @@ def export_data(db, utc_now, utc_must_stop=0):
     exporter = MeteorExporter(db=db)
 
     # Loop until either we run out of time, or we run out of files to export
-    while (not utc_must_stop) or (time.time() < utc_stop):
+    max_failures = 5
+    fail_count = 0
+    while ((not utc_must_stop) or (time.time() < utc_stop)) and (fail_count < max_failures):
         state = exporter.handle_next_export()
         db.commit()
         if not state:
@@ -42,10 +43,12 @@ def export_data(db, utc_now, utc_must_stop=0):
         print "Export status: %s" % state.state
         if state.state == "failed":
             log_txt("Backing off, because an export failed")
-            time.sleep(300)
+            time.sleep(600)
+            fail_count += 1
 
     # Exit
-    return state
+    if fail_count >= max_failures:
+        log_txt("Exceeded maximum allowed number of failures: giving up.")
 
 
 # If we're called as a script, run the method exportData()

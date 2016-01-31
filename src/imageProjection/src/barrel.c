@@ -24,7 +24,7 @@
 int main(int argc, char **argv)
  {
   char       help_string[LSTR_LENGTH], version_string[FNAME_LENGTH], version_string_underline[FNAME_LENGTH];
-  char      *filename[3];
+  char      *filename[6];
   int        i, HaveFilename=0;
   settings   s_model,  *feed_s = &s_model;
   settingsIn s_in_default;

@@ -1,3 +1,8 @@
+/** search-editor-modal.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['knockout', 'text!./search-editor-modal.html', 'utils'], function (ko, templateMarkup, utils) {
 
     function SearchEditorModal(exportConfig) {

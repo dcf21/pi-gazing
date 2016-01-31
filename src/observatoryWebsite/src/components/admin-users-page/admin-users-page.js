@@ -1,3 +1,8 @@
+/** admin-users-page.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['knockout', 'text!./admin-users-page.html', 'client', 'modal', '../change-password-modal/change-password-modal', 'jquery'], function (ko, templateMarkup, client, modal, changeModal, jquery) {
 
     function AdminUsersPage(params) {

@@ -40,8 +40,8 @@ def get_gps_fix():
     os.system("killall gpsd ; gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock")
 
     # Run gpsFix.py, which returns JSON output to stdout
-    cmd = os.path.join(mod_settings.settings['pythonPath'], "gpsFix.py")
-    gps_process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    cmd_ = os.path.join(mod_settings.settings['pythonPath'], "gpsFix.py")
+    gps_process = subprocess.Popen(cmd_, shell=True, stdout=subprocess.PIPE)
     gps_fix_json = gps_process.stdout.read()
     try:
         gps_result = json.loads(gps_fix_json)
@@ -50,7 +50,7 @@ def get_gps_fix():
         gps_result = False
 
     # If true, we get a structure with fields "offset", "latitude" and "longitude"
-    if gps_result:
+    if isinstance(gps_result, dict):
         t_offset = gps_result['offset']
         gps_latitude = gps_result['latitude']
         gps_longitude = gps_result['longitude']
@@ -117,11 +117,26 @@ else:
     obstory_name = db.get_obstory_from_id(obstory_id)['name']
     obstory_status = db.get_obstory_status(obstory_name=obstory_name)
 
-# If we don't have any metadata, configure default lens and sensor now
-if (obstory_status is None) or (not obstory_status):
-    log_txt("No observatory status found for '%s'. Using a default." % obstory_id)
+# If we don't have complete metadata regarding sensor / lens, ensure we have it now
+if ((not isinstance(obstory_status, dict)) or
+        ('sensor' not in obstory_status) or
+        ('sensor_width' not in obstory_status) or
+        ('sensor_height' not in obstory_status) or
+        ('sensor_fps' not in obstory_status) or
+        ('sensor_upside_down' not in obstory_status) or
+        ('sensor_camera_type' not in obstory_status)):
+    log_txt("No sensor information found for '%s'. Using a default." % obstory_id)
     hw.update_sensor(db=db, obstory_name=obstory_name, utc=time_now, name="watec_902h2_ultimate")
+
+if ((not isinstance(obstory_status, dict)) or
+        ('lens' not in obstory_status) or
+        ('lens_fov' not in obstory_status) or
+        ('lens_barrel_a' not in obstory_status) or
+        ('lens_barrel_b' not in obstory_status) or
+        ('lens_barrel_c' not in obstory_status)):
+    log_txt("No lens information found for '%s'. Using a default." % obstory_id)
     hw.update_lens(db=db, obstory_name=obstory_name, utc=time_now, name="VF-DCD-AI-3.5-18-C-2MP")
+
 obstory_status = db.get_obstory_status(obstory_name=obstory_name)
 
 # Get most recent estimate of observatory location

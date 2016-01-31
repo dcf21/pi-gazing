@@ -1,3 +1,8 @@
+/** search-page.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'utils'], function (jQuery, ko, templateMarkup, client, router, utils) {
 
 

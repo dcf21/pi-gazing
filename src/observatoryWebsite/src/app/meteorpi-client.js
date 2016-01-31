@@ -1,3 +1,8 @@
+/** meteorpi-client.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
 
     return new MeteorPiClient({

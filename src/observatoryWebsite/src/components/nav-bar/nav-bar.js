@@ -1,3 +1,8 @@
+/** nav-bar.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['knockout', 'text!./nav-bar.html', 'client', "modal", "../login-modal/login-modal"], function (ko, template, client, modal, login) {
 
     function NavBarViewModel(params) {

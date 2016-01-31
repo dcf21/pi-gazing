@@ -1,3 +1,8 @@
+/** status-page.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['jquery', 'knockout', 'text!./status-page.html', 'client', 'utils'], function ($, ko, templateMarkup, client, utils) {
 
     function StatusPage(params) {

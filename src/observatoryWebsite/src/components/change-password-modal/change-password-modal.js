@@ -1,3 +1,8 @@
+/** change-password-page.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['knockout', 'text!./change-password-modal.html', 'client'], function (ko, templateMarkup, client) {
 
     function ChangePasswordModal(props) {

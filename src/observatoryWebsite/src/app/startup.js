@@ -1,3 +1,8 @@
+/** startup.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['jquery', 'knockout', 'router', 'client', 'bootstrap', 'knockout-projections', 'kendo', 'kendobindings', 'chart', 'knockout-postbox'], function ($, ko, router, client) {
 
     // Components can be packaged as AMD modules, such as the following:

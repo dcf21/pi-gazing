@@ -1,3 +1,8 @@
+/** chart-test.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['knockout', 'text!./chart-test.html', 'jquery', 'chart'], function (ko, templateMarkup, jquery, Chart) {
 
     /*

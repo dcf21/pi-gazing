@@ -1,3 +1,8 @@
+/** router.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(["knockout", "crossroads", "hasher", "client"], function (ko, crossroads, hasher, client) {
 
     // This module configures crossroads.js, a routing library. If you prefer, you

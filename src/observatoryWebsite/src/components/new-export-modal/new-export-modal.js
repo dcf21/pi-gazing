@@ -1,3 +1,8 @@
+/** new-export-modal.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['knockout', 'text!./new-export-modal.html'], function (ko, templateMarkup) {
 
 

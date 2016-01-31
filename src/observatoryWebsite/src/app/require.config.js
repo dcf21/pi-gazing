@@ -1,4 +1,10 @@
+/** require.config.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 // require.js looks for the following global when initializing
+
 var require = {
     baseUrl: ".",
     paths: {

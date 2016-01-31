@@ -11,7 +11,7 @@ COMPILE = $(CC) -Wall -g -fopenmp `gsl-config --cflags` -c -I $(CWD)/src
 LINK    = $(CC) -Wall -g -fopenmp
 LIBS    = `gsl-config --libs` -lpng -lm
 
-OPTIMISATION = -O1
+OPTIMISATION = -O3
 
 DEBUG   = -D DEBUG=1
 NODEBUG = -D DEBUG=0

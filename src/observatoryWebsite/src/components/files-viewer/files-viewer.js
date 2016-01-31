@@ -1,3 +1,8 @@
+/** files-viewer.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['knockout', 'text!./files-viewer.html', 'client', 'router', 'utils'], function (ko, templateMarkup, client, router, utils) {
 
 

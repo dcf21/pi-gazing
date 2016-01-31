@@ -1,3 +1,8 @@
+/** login-modal.js
+ * Meteor Pi, Cambridge Science Centre
+ * Dominic Ford, Tom Oinn
+ */
+
 define(['knockout', 'text!./login-modal.html', 'client'], function (ko, templateMarkup, client) {
 
     function LoginModal(params) {
