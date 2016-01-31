@@ -83,7 +83,7 @@ if obstory not in obstory_list:
                         obstory_name=obstory,
                         latitude=latitude,
                         longitude=longitude)
-    db.register_obstory_metadata(obstory_name=obstory_name,
+    db.register_obstory_metadata(obstory_name=obstory,
                                  key="latitude",
                                  value=installation_info.local_conf['latitude'],
                                  metadata_time=get_utc(),
