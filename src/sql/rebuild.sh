@@ -1,4 +1,10 @@
 #!/bin/bash
+
+# Change into the sql directory
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+cd $DIR
+
+
 read -p "This will destroy and rebuild the meteorpi databases, hit 'y' to confirm or any other key to cancel." -n 1 -r
 echo 
 if [[ $REPLY =~ ^[Yy]$ ]]
