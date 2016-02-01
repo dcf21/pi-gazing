@@ -87,6 +87,9 @@ file_substitute("../../installation_info.py", "export_url", export_url)
 file_substitute("../../installation_info.py", "export_user", export_user)
 file_substitute("../../installation_info.py", "export_password", export_pw)
 
+relay_pin = user_input("GPIO pin which the relay is connected to", installation_info.local_conf['gpioRelay'])
+file_substitute("../../installation_info.py", "'gpioPinRelay': 12", "'gpioPinRelay': %s" % relay_pin)
+
 relay_state = user_input("relay on state True/False", str(installation_info.local_conf['relayOnGPIOState']))
 file_substitute("../../installation_info.py", "'relayOnGPIOState': True", "'relayOnGPIOState': %s" % relay_state)
 
