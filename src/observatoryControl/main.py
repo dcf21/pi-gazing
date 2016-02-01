@@ -223,19 +223,35 @@ while True:
     seconds_till_sunrise = 0
     # It is night time is we are between yesterday's sunset and today's sunrise
     if (time_now > sun_times_yesterday[2] + sun_margin) and (time_now < sun_times_today[0] - sun_margin):
+        log_txt("It is night time. We are between yesterday's sunset and today's sunrise.")
         is_night_time = True
         seconds_till_sunrise = sun_times_today[0] - time_now
-        log_txt("It is night time. We are between yesterday's sunset and today's sunrise.")
+    elif (time_now > sun_times_yesterday[2]) and (time_now < sun_times_today[0]):
+        next_observing_time = sun_times_yesterday[2] + sun_margin - time_now
+        if next_observing_time > 0:
+            log_txt("We are between yesterday's sunset and today's sunrise, but sun has recently set. "
+                    "Waiting %d seconds to start observing." % next_observing_time)
+            time.sleep(next_observing_time + 2)
+            continue
 
     # It is also night time if we are between today's sunrise and tomorrow's sunset
     elif (time_now > sun_times_today[2] + sun_margin) and (time_now < sun_times_tomorrow[0] - sun_margin):
+        log_txt("It is night time. We are between today's sunset and tomorrow's sunrise.")
         is_night_time = True
         seconds_till_sunrise = sun_times_tomorrow[0] - time_now
-        log_txt("It is night time. We are between today's sunset and tomorrow's sunrise.")
+    elif (time_now > sun_times_today[2]) and (time_now < sun_times_tomorrow[0]):
+        next_observing_time = sun_times_today[2] + sun_margin - time_now
+        if next_observing_time > 0:
+            log_txt("We are between today's sunset and yesterday's sunrise, but sun has recently set. "
+                    "Waiting %d seconds to start observing." % next_observing_time)
+            time.sleep(next_observing_time + 2)
+            continue
 
     # Calculate time until the next sunset
-    seconds_till_sunset = sun_times_today[2] - time_now
-    if seconds_till_sunset < 0:
+    seconds_till_sunset = sun_times_yesterday[2] - time_now
+    if seconds_till_sunset < -sun_margin:
+        seconds_till_sunset = sun_times_today[2] - time_now
+    if seconds_till_sunset < -sun_margin:
         seconds_till_sunset = sun_times_tomorrow[2] - time_now
 
     # If sunset was well in the past, and sunrise is well in the future, we should observe!
@@ -320,8 +336,6 @@ while True:
 
     # Estimate roughly when we're next going to be able to observe (i.e. shortly after sunset)
     next_observing_time = seconds_till_sunset + sun_margin
-    if next_observing_time < 0:
-        next_observing_time += 3600 * 24 - 300
 
     # If we've got more than an hour, it's worth doing some day time tasks
     # Do daytimejobs on a RPi only if we are doing real-time observation
@@ -333,6 +347,9 @@ while True:
         log_txt("Finished snoozing.")
         os.system("cd %s ; ./daytimeJobs.py %d %d" % (mod_settings.settings['pythonPath'], get_utc_offset(), t_stop))
     else:
+        if next_observing_time < 0:
+            next_observing_time = 0
+        next_observing_time += 30
         log_txt("Not quite time to start observing yet, so let's sleep for %d seconds." % next_observing_time)
         time.sleep(next_observing_time)
     time.sleep(10)
