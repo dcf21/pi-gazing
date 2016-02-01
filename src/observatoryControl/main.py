@@ -206,21 +206,41 @@ while True:
     # Decide whether we should observe, or do some day time jobs
     log_txt("Camera controller considering what to do next.")
     time_now = get_utc()
-    sun_times = mod_astro.sun_times(unix_time=time_now, longitude=longitude, latitude=latitude)
-    log_txt("Sunrise at %s" % mod_astro.time_print(sun_times[0]))
-    log_txt("Sunset  at %s" % mod_astro.time_print(sun_times[2]))
+    sun_times_yesterday = mod_astro.sun_times(unix_time=time_now - 3600 * 24, longitude=longitude, latitude=latitude)
+    sun_times_today = mod_astro.sun_times(unix_time=time_now, longitude=longitude, latitude=latitude)
+    sun_times_tomorrow = mod_astro.sun_times(unix_time=time_now + 3600 * 24, longitude=longitude, latitude=latitude)
+    log_txt("Sunrise at %s" % mod_astro.time_print(sun_times_yesterday[0]))
+    log_txt("Sunset  at %s" % mod_astro.time_print(sun_times_yesterday[2]))
+    log_txt("Sunrise at %s" % mod_astro.time_print(sun_times_today[0]))
+    log_txt("Sunset  at %s" % mod_astro.time_print(sun_times_today[2]))
+    log_txt("Sunrise at %s" % mod_astro.time_print(sun_times_tomorrow[0]))
+    log_txt("Sunset  at %s" % mod_astro.time_print(sun_times_tomorrow[2]))
 
-    seconds_till_sunrise = sun_times[0] - time_now
-    seconds_till_sunset = sun_times[2] - time_now
     sun_margin = mod_settings.settings['sunMargin']
 
-    # We may have been given the time for yesterday's sunrise. Assume tomorrow's will be 23h55m later.
-    if seconds_till_sunrise < 0:
-        seconds_till_sunrise += 3600 * 24 - 300
+    # Calculate whether it's currently night time, and how long until the next sunrise
+    is_night_time = False
+    seconds_till_sunrise = 0
+    # It is night time is we are between yesterday's sunset and today's sunrise
+    if (time_now > sun_times_yesterday[2] + sun_margin) and (time_now < sun_times_today[0] - sun_margin):
+        is_night_time = True
+        seconds_till_sunrise = sun_times_today[0] - time_now
+        log_txt("It is night time. We are between yesterday's sunset and today's sunrise.")
+
+    # It is also night time if we are between today's sunrise and tomorrow's sunset
+    elif (time_now > sun_times_today[2] + sun_margin) and (time_now < sun_times_tomorrow[0] - sun_margin):
+        is_night_time = True
+        seconds_till_sunrise = sun_times_tomorrow[0] - time_now
+        log_txt("It is night time. We are between today's sunset and tomorrow's sunrise.")
+
+    # Calculate time until the next sunset
+    seconds_till_sunset = sun_times_today[2] - time_now
+    if seconds_till_sunset < 0:
+        seconds_till_sunset = sun_times_tomorrow[2] - time_now
 
     # If sunset was well in the past, and sunrise is well in the future, we should observe!
     minimum_time_worth_observing = 600
-    if (seconds_till_sunset < -sun_margin) and (seconds_till_sunrise > (sun_margin + minimum_time_worth_observing)):
+    if is_night_time and (seconds_till_sunrise > (sun_margin + minimum_time_worth_observing)):
 
         # Calculate how long to observe for
         observing_duration = seconds_till_sunrise - sun_margin
@@ -307,9 +327,10 @@ while True:
     # Do daytimejobs on a RPi only if we are doing real-time observation
     if (next_observing_time > 3600) and (mod_settings.settings['realTime'] or not mod_settings.settings['i_am_a_rpi']):
         t_stop = time_now + next_observing_time
-        time.sleep(300)
         log_txt("Starting daytime jobs until %s (running for %d seconds)." % (mod_astro.time_print(t_stop),
                                                                               next_observing_time))
+        time.sleep(300)
+        log_txt("Finished snoozing.")
         os.system("cd %s ; ./daytimeJobs.py %d %d" % (mod_settings.settings['pythonPath'], get_utc_offset(), t_stop))
     else:
         log_txt("Not quite time to start observing yet, so let's sleep for %d seconds." % next_observing_time)
