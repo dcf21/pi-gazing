@@ -36,9 +36,6 @@ os.system("mkdir -p %s/rawvideo" % mod_settings.settings['dataPath'])
 def get_gps_fix():
     log_txt("Waiting for GPS link")
 
-    # gpsd isn't very reliable. Restart it to be on the safe side. This requires root access.
-    os.system("killall gpsd ; gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock")
-
     # Run gpsFix.py, which returns JSON output to stdout
     cmd_ = os.path.join(mod_settings.settings['pythonPath'], "gpsFix.py")
     gps_process = subprocess.Popen(cmd_, shell=True, stdout=subprocess.PIPE)
