@@ -118,22 +118,22 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
         };
 
         /**
-         * Get all currently active cameras for this installation
+         * Get all observatories with data stored on this server
          *
          * @param callback called with (err:string, [cameraID:string])
          */
-        self.listCameras = function (callback) {
-            applyCallback(ajax("cameras", "GET"), "cameras", callback)
+        self.listObstories = function (callback) {
+            applyCallback(ajax("obstories", "GET"), null, callback)
         };
 
         /**
-         * Search for Event objects from the API
+         * Search for Observation objects from the API
          *
-         * @param search an EventSearch used to define the search
+         * @param search an ObservationSearch used to define the search
          * @param callback callback called with (err:string, [event:{}])
          */
-        self.searchEvents = function (search, callback) {
-            applyCallback(ajax("events/" + utils.encodeString(search), "GET"), null, callback);
+        self.searchObservations = function (search, callback) {
+            applyCallback(ajax("obs/" + utils.encodeString(search), "GET"), null, callback);
         };
 
         /**
@@ -148,28 +148,40 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
 
 
         /**
-         * Get the camera status for a given camera and time. If the time is not specified (is null) this
+         * Get the status of a given observatory at a given time. If the time is not specified (is null) this
          * is interpreted to mean 'now'.
          *
-         * @param cameraID camera ID for which status should be retrieved
-         * @param date the time at which the status applies
+         * @param obstoryID observatory ID for which status should be retrieved
+         * @param date the unix time at which the status applies
          * @param callback callback called with (err:string, status:{})
          */
-        self.getStatus = function (cameraID, date, callback) {
-            applyCallback(ajax("cameras/" + cameraID + "/status" + (date == null ? "" : "/" + date.getTime()), "GET"),
+        self.getObstoryStatus = function (obstoryID, date, callback) {
+            applyCallback(ajax("obstory/" + obstoryID + "/statusdict" + (date == null ? "" : "/" + date), "GET"),
                 "status", callback)
         };
 
         /**
-         * Update the manually modifiable parts of the camera status, specifically the installation URL and name and the
-         * visible regions array. Requires a current users with camera_admin role.
+         * Get all status updates for a given observatory.
+         *
+         * @param obstoryID observatory ID for which status should be retrieved
+         * @param callback callback called with (err:string, status:{})
+         */
+        self.getObstoryStatusAll = function (obstoryID, callback) {
+            applyCallback(ajax("obstory/" + obstoryID + "/metadata", "GET"), "status", callback)
+        };
+
+        /**
+         * Add a new piece of metadata to an observatory. Requires a current users with camera_admin role.
          *
          * @param cameraID ID of the camera for which status is to be updated.
-         * @param newStatus the updated values.
+         * @param key the metadata key to add.
+         * @param value the value to set this metadata key to.
+         * @param time the unix time this metadata item should apply to.
          * @param callback called with the updated camera status.
          */
-        self.updateCameraStatus = function (cameraID, newStatus, callback) {
-            applyCallback(ajaxAuth("cameras/" + cameraID + "/status", "POST", newStatus), "status", callback)
+        self.updateObstoryStatus = function (cameraID, key, value, time, callback) {
+            var newStatus = {'key': key, 'value': value, 'time': time};
+            applyCallback(ajaxAuth("obstory/" + cameraID + "/status", "POST", newStatus), "status", callback)
         };
 
 
@@ -181,9 +193,9 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
          */
         self.urlForFile = function (file) {
             if (file['file_name'] == null) {
-                return config.urlPrefix + "files/content/" + file['file_id']
+                return config.urlPrefix + "files/content/" + file['id']
             } else {
-                return config.urlPrefix + "files/content/" + file['file_id'] + "/" + self.filenameForFile(file);
+                return config.urlPrefix + "files/content/" + file['id'] + "/" + self.filenameForFile(file);
             }
         };
 
@@ -196,7 +208,7 @@ define(["jquery", "knockout", "utils"], function (jquery, ko, utils) {
          */
         self.filenameForFile = function (file) {
             if (file['file_name'] == null || file['file_name'].length == 0) {
-                return file['file_id'];
+                return file['id'];
             }
             else {
                 return file['file_name'];

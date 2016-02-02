@@ -99,7 +99,7 @@ def add_routes(meteor_app, url_path=''):
 
     @app.route('{0}/obstory/<obstory_id>/status'.format(url_path), methods=['POST'])
     @meteor_app.requires_auth(roles=['obstory_admin'])
-    def update_camera_status(obstory_id):
+    def update_obstory_status(obstory_id):
         update = safe_load(request.get_data())
 
         obstory_info = db.get_obstory_from_id(obstory_id)
