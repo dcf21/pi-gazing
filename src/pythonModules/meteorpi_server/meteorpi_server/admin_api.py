@@ -9,7 +9,7 @@ from yaml import safe_load
 
 import meteorpi_model as model
 from flask.ext.jsonpify import jsonify
-from flask import request
+from flask import request, g
 
 
 def add_routes(meteor_app, url_path=''):
@@ -115,5 +115,5 @@ def add_routes(meteor_app, url_path=''):
                                      user_created=g.user.user_id
                                      )
 
-        status = db.get_obstory_status(obstory_name=obstory_name, time=float(unix_time))
+        status = db.get_obstory_status(obstory_name=obstory_name, time=float(update['time']))
         return jsonify({'status': status})
