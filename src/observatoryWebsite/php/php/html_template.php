@@ -208,10 +208,13 @@ __HTML__;
         <div class="bannerfade"></div>
 
         <?php
-        print <<<__HTML__
-<div class="container mainpage">
-__HTML__;
+        print "<div class='container mainpage'>";
+        HTMLtemplate::breadcrumb($pageInfo["breadcrumb"], $pageInfo["activeTab"], $pageInfo["postbreadcrumb"]);
+        ?>
 
+        <h2><?php echo $pageInfo["pageTitle"]; ?></h2>
+
+        <?php
     }
 
     public function footer($pageInfo)
@@ -264,6 +267,21 @@ __HTML__;
 
         <?php
         print "</body></html>";
+    }
+
+    static public function listObstories($obstories, $urlstub)
+    {
+        ?>
+        <h4 style="padding:20px 0;">Our cameras</h4>
+
+        <?php foreach ($obstories as $obstory): ?>
+        <p class="select-list">
+            <a href="<?php echo $urlstub . $obstory['publicId']; ?>">
+                <?php echo $obstory['name']; ?>
+            </a>
+        </p>
+    <?php endforeach; ?>
+        <?php
     }
 }
 
