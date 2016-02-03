@@ -6,7 +6,7 @@ import os
 import shutil
 
 
-def php_preprocess(db, fname, infile, outfile):
+def php_preprocess(fname, infile, outfile):
     print "Working on file <%s>" % fname
     shutil.copyfile(infile, outfile)
 

@@ -10,10 +10,13 @@ require_once $php_path . "/utils.php";
 
 class constants
 {
-    public $path;
+    public $path, $server, $server_json;
 
     public function __construct()
     {
+        $this->server = "/";
+        $this->server_json = "/";
+
         // Path to PHP modules directory
         $this->path = realpath(dirname(__FILE__));
 
@@ -43,6 +46,7 @@ class constants
         $this->db = new PDO("mysql:host=" . $this->mysqlHost . ";dbname=" . $this->mysqlDB, $this->mysqlUser,
             $this->mysqlPassword) or die ("Can't connect to SQL database.");
         $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-       }
+    }
+}
 
 $const = new constants();

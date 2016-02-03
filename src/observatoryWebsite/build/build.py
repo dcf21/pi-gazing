@@ -22,7 +22,7 @@ def makehtml():
     # Paths from where we get web content
     python_path = os.path.split(os.path.abspath(__file__))[0]
     root1 = os.path.join(python_path, "..", "php")
-    root_list = [root1, root2]
+    root_list = [root1]
 
     # Path to which we output processed web content
     output = os.path.join(python_path, "..", "dist")
@@ -30,7 +30,7 @@ def makehtml():
     os.system("mkdir -p %s" % output)
     os.system("rm -Rf %s/*" % output)
 
-    # Create an htaccess file for the root directory of webserver
+    # Create an htaccess file for the root directory of web server
     make_htaccess.make_htaccess(output)
 
     # Walk through source directory structure
@@ -94,7 +94,7 @@ def makehtml():
                     print cmd
                     os.system(cmd)
                 elif fname.endswith('.php'):
-                    php_preprocess.php_preprocess(c, fname, infile, outfile)
+                    php_preprocess.php_preprocess(fname, infile, outfile)
                 else:
                     # print "Copying file <%s>"%fname
                     shutil.copyfile(infile, outfile)
@@ -104,22 +104,16 @@ def makehtml():
     if minify:
         cmd = "cd %s ; uglifyjs *.js */*.js " % (os.path.join(output, "js"))
         cmd += " --compress --mangle --mangle-props "
-        # cmd += " --source-map " + os.path.join(output, "js", "inthesky.min.map")
-        cmd += " --output " + os.path.join(output, "js", "inthesky.min.js")
+        # cmd += " --source-map " + os.path.join(output, "js", "meteorpi.min.map")
+        cmd += " --output " + os.path.join(output, "js", "meteorpi.min.js")
         print cmd
         os.system(cmd)
         for js in javascripts:
             os.unlink(js)
     else:
-        cmd = "cat %s > %s"%(" ".join(javascripts),os.path.join(output, "js", "inthesky.min.js"))
+        cmd = "cat %s > %s"%(" ".join(javascripts),os.path.join(output, "js", "meteorpi.min.js"))
         print cmd
         os.system(cmd)
-    # Close database handle
-    db.commit()
-    db.close()
-
-    os.system("ln -s ../../data/imagedump %s" % output)
-
 
 # Do it right away if we're run as a script
 if __name__ == "__main__":
