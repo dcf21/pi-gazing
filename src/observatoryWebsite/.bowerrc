@@ -1,3 +1,4 @@
 {
-  "directory": "src/bower_modules"
+  "directory": "php/vendor"
 }
+

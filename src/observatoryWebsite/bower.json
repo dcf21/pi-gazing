@@ -1,26 +1,24 @@
 {
-  "name": "meteorpi-camera-control",
-  "version": "0.0.0",
-  "private": true,
+  "name": "meteorpi",
+  "version": "2.0.0",
+  "authors": [
+    "Dominic Ford <dominic@cambridgesciencecentre.org>"
+  ],
+  "license": "GSL",
+  "homepage": "https://meteorpi.cambridgesciencecentre.org",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "php/vendor"
+  ],
   "dependencies": {
-    "components-bootstrap": "~3.3.4",
-    "crossroads": "~0.12.0",
-    "hasher": "~1.2.0",
-    "requirejs": "~2.1.11",
-    "requirejs-text": "~2.0.10",
-    "knockout": "~3.3.0",
-    "knockout-projections": "~1.1.0",
+    "bootstrap": "~3.3.5",
+    "html5shiv": "~3.7.3",
+    "jquery": "~1.11.3",
+    "jquery-ui": "~1.11.4",
     "kendo-ui-core": "~2015.1.515",
-    "knockout-kendo": "~0.9.4",
-    "chartjs": "~1.0.2",
-    "knockout-postbox": "~0.5.1",
-    "knockout-mapping": "~2.4.1",
-    "jquery": "~2.1.4",
-    "leaflet": "~0.7.3",
-    "requirejs-plugins": "~1.0.3"
+    "requirejs": "~2.1.20"
   },
-  "resolutions": {
-    "knockout": "~3.3.0",
-    "jquery": "2.1.4"
-  }
 }
+

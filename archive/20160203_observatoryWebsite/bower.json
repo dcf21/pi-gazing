@@ -1,0 +1,26 @@
+{
+  "name": "meteorpi-camera-control",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "components-bootstrap": "~3.3.4",
+    "crossroads": "~0.12.0",
+    "hasher": "~1.2.0",
+    "requirejs": "~2.1.11",
+    "requirejs-text": "~2.0.10",
+    "knockout": "~3.3.0",
+    "knockout-projections": "~1.1.0",
+    "kendo-ui-core": "~2015.1.515",
+    "knockout-kendo": "~0.9.4",
+    "chartjs": "~1.0.2",
+    "knockout-postbox": "~0.5.1",
+    "knockout-mapping": "~2.4.1",
+    "jquery": "~2.1.4",
+    "leaflet": "~0.7.3",
+    "requirejs-plugins": "~1.0.3"
+  },
+  "resolutions": {
+    "knockout": "~3.3.0",
+    "jquery": "2.1.4"
+  }
+}
