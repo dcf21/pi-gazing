@@ -8,13 +8,13 @@ define(['knockout', 'text!./admin-camera-page.html', 'client'], function (ko, te
     function AdminCameraPage(route) {
         var self = this;
         // Available cameras
-        self.cameras = ko.observableArray();
+        self.obstoryIds = ko.observableArray();
         // The selected value in the camera drop-down
-        self.selectedCamera = ko.observable();
+        self.selectedObstory = ko.observable();
 
         // Get the cameras
         client.listCameras(function (err, cameras) {
-            self.cameras(cameras);
+            self.obstoryIds(obstoryIds);
         });
         self.imageURL = ko.observable("https://placekitten.com/g/600/500");
 
@@ -61,9 +61,9 @@ define(['knockout', 'text!./admin-camera-page.html', 'client'], function (ko, te
      * we can use it to initialise the status panel as well as to respond to
      * any user selections.
      */
-    AdminCameraPage.prototype.setCamera = function () {
+    AdminCameraPage.prototype.setObstory = function () {
         var self = this;
-        var selected = ko.unwrap(self.selectedCamera());
+        var selected = ko.unwrap(self.selectedObstory());
         if (selected != null) {
             client.getStatus(selected, null, function (err, status) {
                 self.setStatus(status);
@@ -76,7 +76,7 @@ define(['knockout', 'text!./admin-camera-page.html', 'client'], function (ko, te
 
     AdminCameraPage.prototype.saveChanges = function () {
         var self = this;
-        client.updateCameraStatus(self.selectedCamera(), ko.toJS(self.status), function (err, updated_status) {
+        client.updateCameraStatus(self.selectedObstory(), ko.toJS(self.status), function (err, updated_status) {
             self.setStatus(updated_status);
         });
     };

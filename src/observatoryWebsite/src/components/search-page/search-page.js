@@ -34,13 +34,13 @@ define(['jquery', 'knockout', 'text!./search-page.html', 'client', 'router', 'ut
         };
 
         // Available cameras
-        self.cameras = ko.observableArray(["Any"]);
+        self.obstoryIds = ko.observableArray(["Any"]);
         // Get the cameras
         client.listCameras(function (err, cameras) {
             var camerasTrimmed = ["Any"];
-            jQuery.each(cameras, function(index,item){camerasTrimmed.push(item.trim())});
+            jQuery.each(obstoryIds, function(index, item){camerasTrimmed.push(item.trim())});
             camerasTrimmed.sort();
-            self.cameras(camerasTrimmed);
+            self.obstoryIds(camerasTrimmed);
             self.inputs.camera(cameraDefault);
         });
 

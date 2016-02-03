@@ -21,7 +21,7 @@ define(['knockout', 'text!./search-editor.html', 'utils', 'jquery', 'client'], f
         });
 
         // Available cameras
-        self.cameras = params.cameras;
+        self.obstoryIds = params.obstoryIds;
         self.searchTypes = params.searchTypes;
 
         self.search = params.search;

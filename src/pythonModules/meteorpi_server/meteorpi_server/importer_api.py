@@ -225,7 +225,7 @@ class ImportRequest(object):
             return None
 
 
-def add_routes(meteor_app, handler=None, url_path='/importv2'):
+def add_routes(meteor_app, url_path='/importv2'):
     """
     Add two routes to the specified instance of :class:`meteorpi_server.MeteorApp` to implement the import API and allow
     for replication of data to this server.
@@ -241,10 +241,7 @@ def add_routes(meteor_app, handler=None, url_path='/importv2'):
         and as import_path/data/<id> for binary data reception. Both paths only respond to POST requests and require
         that the requests are authenticated and that the authenticated user has the 'import' role.
     """
-    db = meteor_app.db
     app = meteor_app.app
-    if handler is None:
-        handler = MeteorDatabaseImportReceiver(db=db)
 
     @app.route(url_path, methods=['POST'])
     @meteor_app.requires_auth(roles=['import'])
@@ -257,6 +254,8 @@ def add_routes(meteor_app, handler=None, url_path='/importv2'):
         :return:
             A response, generally using one of the response_xxx methods in ImportRequest
         """
+        db = meteor_app.get_db()
+        handler = MeteorDatabaseImportReceiver(db=db)
         import_request = ImportRequest.process_request()
         if import_request.entity is None:
             return import_request.response_continue()
@@ -293,6 +292,8 @@ def add_routes(meteor_app, handler=None, url_path='/importv2'):
         :param string file_id_hex:
             The hex representation of the :class:`meteorpi_model.FileRecord` to which this data belongs.
         """
+        db = meteor_app.get_db()
+        handler = MeteorDatabaseImportReceiver(db=db)
         file_id = file_id_hex
         file_data = request.files['file']
         if file_data:

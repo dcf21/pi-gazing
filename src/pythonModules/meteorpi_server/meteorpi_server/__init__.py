@@ -18,16 +18,19 @@ class MeteorApp(object):
         external server such as LigHTTPD or Apache to the application logic.
     """
 
-    def __init__(self, db):
+    def __init__(self, file_store_path):
         """
         Create a new MeteorApp, setting up the internal DB
 
-        :param MeteorDatabase db:
-            An instance of :class:`meteorpi_db.MeteorDatabase` to use when accessing the data and file stores.
+        :param string file_store_path
+            The path to the database file store.
         """
-        self.db = db
+        self.file_store_path = file_store_path
         self.app = Flask(__name__)
         CORS(app=self.app, resources='/*', allow_headers=['authorization', 'content-type'])
+
+    def get_db(self):
+        return MeteorDatabase(file_store_path=self.file_store_path)
 
     @staticmethod
     def success(message='Okay'):
@@ -101,7 +104,8 @@ class MeteorApp(object):
                 user_id = auth.username
                 password = auth.password
                 try:
-                    user = self.db.get_user(user_id=user_id, password=password)
+                    db = self.get_db()
+                    user = db.get_user(user_id=user_id, password=password)
                     if user is None:
                         return MeteorApp.authentication_failure(message='Username and / or password incorrect')
                     if roles is not None:
@@ -116,4 +120,3 @@ class MeteorApp(object):
             return decorated
 
         return requires_auth_inner
-

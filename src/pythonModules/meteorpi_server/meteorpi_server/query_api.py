@@ -23,7 +23,6 @@ def add_routes(meteor_app, url_path=''):
     """
     from meteorpi_server import MeteorApp
 
-    db = meteor_app.db
     app = meteor_app.app
 
     @app.after_request
@@ -35,6 +34,7 @@ def add_routes(meteor_app, url_path=''):
     # A dictionary of basic information is returned for each
     @app.route('{0}/obstories'.format(url_path), methods=['GET'])
     def get_obstories():
+        db = meteor_app.get_db()
         obstories = db.get_obstory_ids()
         output = {}
         for o in obstories:
@@ -64,6 +64,7 @@ def add_routes(meteor_app, url_path=''):
     # Return a list of all of the metadata tags which ever been set on a particular observatory, with time stamp
     @app.route('{0}/obstory/<obstory_id>/metadata'.format(url_path), methods=['GET'])
     def get_obstory_status_all(obstory_id):
+        db = meteor_app.get_db()
         search = mp.ObservatoryMetadataSearch(obstory_ids=[obstory_id], time_min=0, time_max=time.time())
         data = db.search_obstory_metadata(search)['items']
         data.sort(key=lambda x: x.time)
@@ -74,6 +75,7 @@ def add_routes(meteor_app, url_path=''):
     @app.route('{0}/obstory/<obstory_id>/statusdict'.format(url_path), methods=['GET'])
     @app.route('{0}/obstory/<obstory_id>/statusdict/<unix_time>'.format(url_path), methods=['GET'])
     def get_obstory_status_by_time(obstory_id, unix_time=None):
+        db = meteor_app.get_db()
         if unix_time is None:
             unix_time = time.time()
         status = {}
@@ -86,6 +88,7 @@ def add_routes(meteor_app, url_path=''):
     # Search for observations using a YAML search string
     @app.route('{0}/obs/<search_string>'.format(url_path), methods=['GET'], strict_slashes=True)
     def search_events(search_string):
+        db = meteor_app.get_db()
         search = mp.ObservationSearch.from_dict(safe_load(unquote(search_string)))
         observations = db.search_observations(search)
         return jsonify({'obs': list(x.as_dict() for x in observations['obs']), 'count': observations['count']})
@@ -93,6 +96,7 @@ def add_routes(meteor_app, url_path=''):
     # Search for files using a YAML search string
     @app.route('{0}/files/<search_string>'.format(url_path), methods=['GET'])
     def search_files(search_string):
+        db = meteor_app.get_db()
         search = mp.FileRecordSearch.from_dict(safe_load(unquote(search_string)))
         files = db.search_files(search)
         return jsonify({'files': list(x.as_dict() for x in files['files']), 'count': files['count']})
@@ -100,6 +104,7 @@ def add_routes(meteor_app, url_path=''):
     # Return a list of sky clarity measurements for a particular observatory (scale 0-100)
     @app.route('{0}/skyclarity/<obstory_id>/<utc_min>/<utc_max>/<period>'.format(url_path), methods=['GET'])
     def get_skyclarity(obstory_id, utc_min, utc_max, period):
+        db = meteor_app.get_db()
         utc_min = float(utc_min)
         utc_max = float(utc_max)
         period = float(period)
@@ -135,6 +140,7 @@ def add_routes(meteor_app, url_path=''):
     @app.route('{0}/activity/<obstory_id>/<semantic_type>/<utc_min>/<utc_max>/<period>'.format(url_path),
                methods=['GET'])
     def get_activity(obstory_id, semantic_type, utc_min, utc_max, period):
+        db = meteor_app.get_db()
         utc_min = float(utc_min)
         utc_max = float(utc_max)
         period = float(period)
@@ -157,6 +163,7 @@ def add_routes(meteor_app, url_path=''):
     # Return a thumbnail version of an image
     @app.route('{0}/thumbnail/<file_id>/<file_name>'.format(url_path), methods=['GET'])
     def get_thumbnail(file_id, file_name):
+        db = meteor_app.get_db()
         record = db.get_file(repository_fname=file_id)
         if record is None:
             return MeteorApp.not_found(entity_id=file_id)
@@ -206,6 +213,7 @@ def add_routes(meteor_app, url_path=''):
 
             return rv
 
+        db = meteor_app.get_db()
         record = db.get_file(repository_fname=file_id)
         if record is None:
             return MeteorApp.not_found(entity_id=file_id)

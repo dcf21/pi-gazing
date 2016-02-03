@@ -54,7 +54,8 @@
                     <a href="#about">About</a>
                 </li>
                 <li class="dropdown"
-                    data-bind="css: { active: route().page.indexOf('admin')==0 }, if: user()!=null && user().roles.indexOf('camera_admin')>=0">
+                    data-bind="css: { active: route().page.indexOf('admin')==0 },
+                               if: user()!=null && user().roles.indexOf('obstory_admin')>=0">
                     <a href="#" data-toggle="dropdown" class="dropdown-toggle">Admin <b class="caret"></b></a>
                     <ul class="dropdown-menu">
                         <li data-bind="css: { active: route().page === 'admin-camera-page' }">

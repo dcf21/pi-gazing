@@ -1,164 +1,32 @@
 <h2>The Meteor Pi Network</h2>
 
-<p class="text">
-    Use the map below to find where we've installed Meteor Pi cameras. We're often commissioning new cameras, so the date control will let you see
-    which cameras were active on any given night.
-</p>
-
 <div class="row">
-<div class="col-md-3">
-    <h4 style="padding:20px 0;">Cameras active on date</h4>
+<div class="col-md-10">
 
-    <form class="form-horizontal">
-        <div class="form-group">
-            <input class="form-control"
-                   data-bind="kendoDateTimePicker: { format: 'dd/MM/yyyy', value: time }, , event: { change:refreshCamera }"
-                   id="statustime"/>
-        </div>
-    </form>
-    <h4 style="padding:20px 0;">Select camera</h4>
-
-    <p class="select-list"><a data-bind="event: {click:setCamera(null)}, css: {active: selectedCamera()==null}">Show
-        all</a></p>
-
-    <div data-bind="foreach:cameras">
-        <p class="select-list"><a
-                data-bind="text:$data, event: {click:$parent.setCamera($data)}, css: {active: $parent.selectedCamera()==$data}"></a>
-        </p>
-    </div>
-</div>
-<div class="col-md-9">
-    <h3 style="text-align:center;">
-        <span data-bind="if: selectedCamera()">Camera <span data-bind="text:selectedCamera()"></span></span>
-        <span data-bind="if: !selectedCamera()">Map of camera locations</span>
-    </h3>
-
-    <div id="map_holder" style="width:100%; background-color:#eee; display:inline-block; margin: 12px auto;"
-         data-bind="style: {height: (selectedCamera()?300:450)+'px'}">
+    <div id="map_holder"
+         style="width:100%; height:450px; background-color:#eee; display:inline-block; margin: 12px auto;">
         <div id="map_canvas" style="width:100%; height:100%;"></div>
     </div>
-    <div data-bind="if: selectedCamera() && status">
+    <div data-bind="if: selectedObstory()">
         <div class="row">
             <div class="col-sm-6">
                 <h4 style="padding:16px 0 0 0;">Recent sky clarity</h4>
-                <chart-skyclarity params="camera:selectedCamera, time:time"></chart-skyclarity>
+                <chart-skyclarity params="obstory:selectedObstory()"></chart-skyclarity>
             </div>
             <div class="col-sm-6">
                 <h4 style="padding:16px 0 0 0;">Trigger rate</h4>
-                <chart-triggerrate params="camera:selectedCamera, time:time"></chart-triggerrate>
+                <chart-triggerrate params="obstory:selectedObstory()"></chart-triggerrate>
             </div>
         </div>
-        <h4 style="padding:16px 0;">Status of camera <span data-bind="text:selectedCamera()"></span></h4>
-        <table class="table table-bordered">
-            <tbody>
-            <tr>
-                <th>Installation</th>
-                <td>
-                    <table class="table">
-                        <tr>
-                            <td data-bind="text: status().inst_name"></td>
-                        </tr>
-                        <tr>
-                            <td><a data-bind="text: status().inst_url, attr : { href: status().inst_url }"></a></td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-            <tr>
-                <th>Camera type</th>
-                <td><span data-bind="text: status().sensor"></span></td>
-            </tr>
-            <tr>
-                <th>Lens</th>
-                <td><span data-bind="text: status().lens"></span></td>
-            </tr>
-            <tr>
-                <th>Location</th>
-                <td>
-                    <table class="table">
-                        <tr>
-                            <th>Latitude</th>
-                            <td><span data-bind="text: status().location.lat.toFixed(3)"></span>&deg;N</td>
-                        </tr>
-                        <tr>
-                            <th>Longitude</th>
-                            <td><span data-bind="text: status().location.long.toFixed(3)"></span>&deg;E</td>
-                        </tr>
-                        <tr>
-                            <th>Positional error</th>
-                            <td><span
-                                    data-bind="text: status().location.error.toFixed(1)"></span> metres
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Source</th>
-                            <td><span
-                                    data-bind="if: status().location.gps">Attached GPS unit</span>
-                                <span
-                                        data-bind="if: !status().location.gps">Manually entered</span></td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-            <tr>
-                <th>Pointing</th>
-                <td>
-                    <table class="table">
-                        <tr>
-                            <th>Altitude</th>
-                            <td><span data-bind="text: status().orientation.alt.toFixed(3)"></span>&deg; above horizon
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Azimuth</th>
-                            <td><span data-bind="text: status().orientation.az.toFixed(3)"></span>&deg; east of north
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Error</th>
-                            <td><span data-bind="text: status().orientation.error.toFixed(3)"></span>&deg;</td>
-                        </tr>
-                        <tr>
-                            <th>Position angle</th>
-                            <td><span data-bind="text: status().orientation.rot.toFixed(3)"></span>&deg;</td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-            <tr>
-                <th>Field of view</th>
-                <td><span data-bind="text: status().orientation.width.toFixed(2)"></span>&deg; across</td>
-            </tr>
-            <tr>
-                <th>Software version</th>
-                <td><span data-bind="text: status().software_version"></span></td>
-            </tr>
-            <tr>
-                <th>Last updated</th>
-                <td>
-                    <span data-bind="text: new Date(status().valid_from)"></span>
-                    <span data-bind="if: status().valid_from">
-                        (<a class="pointer" data-bind="event: {click: function(){setTime(status().valid_from-100);}}">See
-                        previous status</a>)
-                    </span>
-                </td>
-            </tr>
-            <tr>
-                <th>Status superseded</th>
-                <td>
-                    <span data-bind="if: status().valid_to">
-                        <span data-bind="text: new Date(status().valid_to)"></span>
-                        (<a class="pointer" data-bind="event: {click: function(){setTime(status().valid_to+100);}}">See
-                        next status</a>)
-                    </span>
-                    <span data-bind="ifnot: status().valid_to">
-                        <span>Never</span>
-                    </span>
-                </td>
-            </tr>
-            </tbody>
-        </table>
-        <div data-bind="if: user()!=null && user().roles.indexOf('camera_admin')>=0">
+
+        <h4 style="padding:16px 0;">Status of camera <span data-bind="text:selectedObstory()"></span></h4>
+        <div data-bind="foreach:obstoryMetadata[selectedObstory()]">
+            <p data-bind="text:$data[1]">
+            </p>
+        </div>
+
+
+        <div data-bind="if: user()!=null && user().roles.indexOf('obstory_admin')>=0">
             <h4 style="padding:16px 0;">Camera logs</h4>
 
             <div data-bind="foreach:logFiles">
@@ -167,6 +35,18 @@
         </div>
     </div>
 </div>
+    <div class="col-md-2">
+
+        <h4 style="padding:20px 0;">Our cameras</h4>
+
+        <div data-bind="foreach:obstoryIds">
+            <p class="select-list">
+                <a data-bind="text:$parent.obstoryObjs[$data].name, event: {click:$parent.setObstory($data)},
+                            css: {active: $parent.selectedObstory()==$data}">
+                </a>
+            </p>
+        </div>
+    </div>
 
 
 </div>

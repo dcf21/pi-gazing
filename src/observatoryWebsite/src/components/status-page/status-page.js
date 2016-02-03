@@ -8,16 +8,15 @@ define(['jquery', 'knockout', 'text!./status-page.html', 'client', 'utils'], fun
     function StatusPage(params) {
         var self = this;
         self.user = client.user;
-        self.time = ko.observable(new Date(Date.now()));
         // Available cameras
-        self.cameras = ko.observableArray();
+        self.obstoryIds = ko.observableArray();
         // The selected value in the camera drop-down
-        self.selectedCamera = ko.observable();
+        self.selectedObstory = ko.observable();
         // The status for this current camera
-        self.status = ko.observable();
-        self.statuses = [];
-        self.logFiles = [];
-        self.markers = [];
+        self.obstoryObjs = {};
+        self.obstoryMetadata = {};
+        self.logFiles = ko.observableArray();
+        self.markers = {};
         // Set up Google Map
         self.mapOptions = {
             center: new google.maps.LatLng(52.208602, 0.120618),
@@ -29,25 +28,24 @@ define(['jquery', 'knockout', 'text!./status-page.html', 'client', 'utils'], fun
         self.map = new google.maps.Map(document.getElementById("map_canvas"), self.mapOptions);
 
         // Get the cameras
-        client.listCameras(function (err, cameras) {
-            self.cameras(cameras);
-            $.each(self.cameras(), function (index, camera) {
-                client.getStatus(camera, null, function (err, status) {
-                    self.statuses[camera] = status;
+        client.listObstories(function (err, obstoryObjs) {
+            $.each(obstoryObjs, function (index, obstoryObj) {
+                self.obstoryObjs[obstoryObj.publicId] = obstoryObj;
+                client.getObstoryStatusAll(obstoryObj.publicId, function (err, metadata) {
+                    self.obstoryMetadata[obstoryObj.publicId] = metadata;
                     var marker = new google.maps.Marker({
-                        position: new google.maps.LatLng(status.location.lat, status.location.long),
+                        position: new google.maps.LatLng(obstoryObj.latitude, obstoryObj.longitude),
                         map: self.map,
-                        title: camera
+                        title: obstoryObj.name
                     });
                     marker.addListener('click', function () {
-                        self.setCamera(camera);
+                        self.setObstory(obstoryObj.publicId);
                     });
-                    self.markers[camera] = marker;
+                    self.markers[obstoryObj.publicId] = marker;
+                    self.obstoryIds.push(obstoryObj.publicId);
+                    if (params.obstory && (params.obstory == obstoryObj.publicId)) self.setObstory(obstoryObj.publicId);
                 });
             });
-            if (params.time) self.time(new Date(params.time));
-            if (params.camera && (params.camera in cameras)) self.setCamera(params.camera);
-            else self.setCamera(null);
         });
     }
 
@@ -56,26 +54,13 @@ define(['jquery', 'knockout', 'text!./status-page.html', 'client', 'utils'], fun
      * we can use it to initialise the status panel as well as to respond to
      * any user selections.
      */
-    StatusPage.prototype.setCamera = function (selected) {
+    StatusPage.prototype.setObstory = function (selected) {
         var self = this;
-        self.selectedCamera(selected);
+        if ((selected == null) || !jQuery.inArray(selected,self.obstoryIds)) selected=null;
+        self.selectedObstory(selected);
         if (selected != null) {
-            if (!selected in self.statuses) {
-                self.status(self.statuses[selected]);
-                $.each(self.markers, function (index, marker) {
-                    marker.setMap((index == selected) ? self.map : null);
-                });
-                self.map.setCenter(new google.maps.LatLng(self.status().location.lat, self.status().location.long));
-            }
-            else {
-                client.getStatus(selected, self.time(), function (err, status) {
-                    self.status(status);
-                    $.each(self.markers, function (index, marker) {
-                        marker.setMap((index == selected) ? self.map : null);
-                    });
-                    self.map.setCenter(new google.maps.LatLng(self.status().location.lat, self.status().location.long));
-                });
-            }
+            self.map.setCenter(new google.maps.LatLng(self.obstoryObjs[selected].latitude,
+                self.obstoryObjs[selected].longitude));
 
             // Update list of log files
             self.logSearch = {
@@ -94,26 +79,13 @@ define(['jquery', 'knockout', 'text!./status-page.html', 'client', 'utils'], fun
                     item.url = client.urlForFile(item);
                     item.title = new Date(item.file_time);
                 });
-                self.logFiles = results.files;
+                self.logFiles(results.files);
             });
         }
         else {
-            $.each(self.markers, function (index, marker) {
-                marker.setMap(self.map);
-            });
+            self.logFiles([]);
         }
         google.maps.event.trigger(self.map, "resize");
-    };
-
-    StatusPage.prototype.refreshCamera = function () {
-        var self = this;
-        self.setCamera(self.selectedCamera());
-    };
-
-    StatusPage.prototype.setTime = function (ut) {
-        var self = this;
-        self.time(new Date(ut));
-        self.refreshCamera();
     };
 
     StatusPage.prototype.dispose = function () {
