@@ -83,7 +83,6 @@ def local_filename_to_semantic_type(fname):
 
 
 def database_import(db):
-
     # Change into the directory where data files are kept
     cwd = os.getcwd()
     os.chdir(mod_settings.settings['dataPath'])
@@ -102,11 +101,10 @@ def database_import(db):
     # object if there are no other files from the same observatory with the same time stamp.
 
     # We ignore trigger images if there's no video file with the same time stamp.
-    for [glob_pattern, observation_list, mime_type, create_new_observations] in [
-        ["triggers_vid_processed/*/*.mp4", trigger_obs_list, "video/mp4", True],
-        ["timelapse_img_processed/*/*.png", still_img_obs_list, "image/png", True],
-        ["triggers_img_processed/*/*.png", trigger_obs_list, "image/png", False]]:
-
+    for [glob_pattern, observation_list, mime_type, obs_type, create_new_observations] in [
+        ["triggers_vid_processed/*/*.mp4", trigger_obs_list, "video/mp4", "movingObject", True],
+        ["timelapse_img_processed/*/*.png", still_img_obs_list, "image/png", "timelapse", True],
+        ["triggers_img_processed/*/*.png", trigger_obs_list, "image/png", "", False]]:
 
         # Create a list of all the files which match this particular wildcard
         file_list = glob.glob(glob_pattern)
@@ -146,7 +144,7 @@ def database_import(db):
                 if not create_new_observations:
                     continue
                 obs_obj = db.register_observation(obstory_name=obstory_name, obs_time=utc,
-                                                  obs_type="movingObject", user_id=user,
+                                                  obs_type=obs_type, user_id=user,
                                                   obs_meta=[])
                 obs_id = obs_obj.id
                 dict_tree_append(observation_list, [obstory_id, utc], obs_id)

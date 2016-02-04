@@ -20,6 +20,11 @@ $pageInfo = [
     "options" => []
 ];
 
+// Paging options
+$pageSize = 48;
+$pageNum = 1;
+if (in_array("page", $_GET) && is_numeric($_GET["page"])) $pageNum = $_GET["page"];
+
 // Read which time range to cover
 $t2 = time();
 $t1 = $t2 - 3600 * 24 * 5;
@@ -49,7 +54,7 @@ if (in_array("duration_min", $_GET) && is_numeric($_GET["duration_min"])) {
 }
 
 if (in_array("duration_max", $_GET) && is_numeric($_GET["duration_max"])) {
-    $duration_miax = $_GET["duration_max"];
+    $duration_max = $_GET["duration_max"];
     if ($duration_max < 0) $duration_max = 0;
     if ($duration_max > 60) $duration_max = 60;
     $duration_max_str = sprintf("%.2f", $duration_max);
@@ -170,4 +175,64 @@ $pageTemplate->header($pageInfo);
     </form>
 
 <?php
+
+// Search for results
+$where = ['so.name="movingObject"', 'sf.name="meteorpi:maxBrightness"',
+    "o.obsTime<={$tmin['utc']}", "o.obsTime>={$tmax['utc']}",
+    "d.floatValue>={$duration_min}", "d.floatValue<={$duration_max}"];
+
+if ($obstory != "Any") $where[] = 'l.publicId="' . $obstory . '"';
+
+$search = ('
+archive_files f
+INNER JOIN archive_observations o ON f.observationId = o.uid
+INNER JOIN archive_observatories l ON o.observatory = l.uid
+INNER JOIN archive_semanticTypes so ON o.obsType = so.uid
+INNER JOIN archive_semanticTypes sf ON f.semanticType = sf.uid
+INNER JOIN archive_metadata d ON o.uid = d.observationId
+INNER JOIN archive_metadataFields df ON d.fieldId = df.uid AND df.metaKey="duration"
+WHERE ' . implode(' AND ', $where));
+
+$stmt = $const->db->prepare("SELECT COUNT(*) FROM ${search};");
+$stmt->execute([]);
+$result_count = $stmt->fetchAll()[0]['COUNT(*)'];
+$lastPage = ceil($result_count / $pageSize);
+if ($pageNum < 1) $pageNum = 1;
+if ($pageNum > $lastPage) $pageNum = $lastPage;
+$pageSkip = $pageNum * $pageSize;
+
+$stmt = $const->db->prepare("
+SELECT f.repositoryFname, o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName
+FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
+$stmt->execute([]);
+$result_list = $stmt->fetchAll();
+
+// Display result counter
+if ($result_count == 0):
+    ?>
+    <div class="alert alert-success">
+        <p><b>No results found</b></p>
+
+        <p>The query completed, but no files were found matching the constraints you specified. Try altering values in
+            the form above and re-running the query.</p>
+    </div>
+    <?php
+elseif ($result_count == count($result_list)):
+    ?>
+    <div class="alert alert-success">
+        <p data-bind="text: 'Showing all '+results().length+' results.'"></p>
+    </div>
+    <?php
+else:
+    ?>
+    <div class="alert alert-success">
+        <p data-bind="text: 'Showing results '+(firstResultIndex()+1)+' to '+(firstResultIndex()+results().length)+' of '+resultCount()+'.'"></p>
+    </div>
+    <?php
+endif;
+
+// Display results
+$pageTemplate->imageGallery($result_count, $result_list, "/moving_obj?id=");
+
+// Page footer
 $pageTemplate->footer($pageInfo);
