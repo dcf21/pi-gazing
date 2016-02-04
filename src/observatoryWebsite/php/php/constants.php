@@ -16,6 +16,8 @@ class constants
     {
         $this->server = "/";
         $this->server_json = "/";
+        $this->yearMin = 2015;
+        $this->yearMax = date("Y");
 
         // Path to PHP modules directory
         $this->path = realpath(dirname(__FILE__));

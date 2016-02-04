@@ -149,7 +149,8 @@ WHERE m.observationId=%s
         output = []
         for result in results:
             obs_group = mp.ObservationGroup(group_id=result['publicId'], title=result['title'],
-                                            obs_time=result['obsTime'], set_time=result['setAtTime'],
+                                            obs_time=result['time'], set_time=result['setAtTime'],
+                                            semantic_type=result['semanticType'],
                                             user_id=result['setByUser'])
 
             # Look up observation group metadata

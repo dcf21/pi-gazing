@@ -84,7 +84,7 @@ foreach ($postbreadcrumb as $c) {
 
     public static function header($pageInfo)
     {
-        global $const, $loc;
+        global $const;
         if (!isset($pageInfo["breadcrumb"])) $pageInfo["breadcrumb"] = [];
         if (!isset($pageInfo["postbreadcrumb"])) $pageInfo["postbreadcrumb"] = null;
         $server = $const->server;
@@ -118,11 +118,9 @@ __HTML__;
 
 
             <script src="<?php echo $server; ?>vendor/jquery/dist/jquery.min.js" type="text/javascript"></script>
-            <link rel="stylesheet" href="<?php echo $server; ?>vendor/bootstrap/dist/css/bootstrap.min.css">
-            <script src="<?php echo $server; ?>vendor/bootstrap/dist/js/bootstrap.min.js"></script>
             <script src="<?php echo $server; ?>vendor/jquery-ui/jquery-ui.min.js" type="text/javascript"></script>
             <link rel="stylesheet" type="text/css"
-                  href="<?php echo $server; ?>vendor/jquery-ui/themes/ui-lightness/jquery-ui.min.css"/>
+                  href="<?php echo $server; ?>vendor/jquery-ui/themes/ui-darkness/jquery-ui.min.css"/>
             <style type="text/css">
                 .ui-slider-horizontal .ui-state-default {
                     background: url(<?php echo $server; ?>/images/sliderarrow.png) no-repeat;
@@ -140,6 +138,8 @@ __HTML__;
                     margin-left: -4px;
                 }
             </style>
+            <link rel="stylesheet" href="<?php echo $server; ?>vendor/bootstrap/dist/css/bootstrap.min.css">
+            <script src="<?php echo $server; ?>vendor/bootstrap/dist/js/bootstrap.min.js"></script>
 
             <link rel="stylesheet" type="text/css" href="<?php echo $server; ?>css/style.css" media="all"/>
 
@@ -183,7 +183,12 @@ __HTML__;
                             <a href="/whattodo.php">What to do</a>
                         </li>
                         <li class="<?php if ($pageInfo["activeTab"] == "search") echo "active "; ?>">
-                            <a href="/search.php">Search the sky</a>
+                            <a class="dropdown-toggle" data-toggle="dropdown" href="#">Search the sky<span
+                                    class="caret"></span></a>
+                            <ul class="dropdown-menu">
+                                <li><a href="<?php echo $server; ?>search_moving.php">Moving objects</a></li>
+                                <li><a href="<?php echo $server; ?>search_still.php">Still photography</a></li>
+                            </ul>
                         </li>
                         <li class="<?php if ($pageInfo["activeTab"] == "projects") echo "active "; ?>">
                             <a href="/projects.php">Projects</a>
@@ -191,8 +196,14 @@ __HTML__;
                         <li class="<?php if ($pageInfo["activeTab"] == "whattodo") echo "active "; ?>">
                             <a href="/whattodo.php">What to do</a>
                         </li>
-                        <li class="<?php if ($pageInfo["activeTab"] == "cameras") echo "active "; ?>">
-                            <a href="/map.php">Cameras</a>
+                        <li class="dropdown <?php if ($pageInfo["activeTab"] == "cameras") echo "active "; ?>">
+                            <a class="dropdown-toggle" data-toggle="dropdown" href="#">Cameras<span
+                                    class="caret"></span></a>
+                            <ul class="dropdown-menu">
+                                <li><a href="<?php echo $server; ?>map.php">Locations</a></li>
+                                <li><a href="<?php echo $server; ?>observatory_activity.php">Activity tracker</a></li>
+                                <li><a href="<?php echo $server; ?>observatory_metadata.php">Status information</a></li>
+                            </ul>
                         </li>
                         <li class="<?php if ($pageInfo["activeTab"] == "faqs") echo "active "; ?>">
                             <a href="/faqs.php">FAQs</a>

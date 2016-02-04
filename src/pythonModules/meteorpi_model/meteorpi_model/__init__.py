@@ -1168,7 +1168,7 @@ class ObservationGroup(ModelEqualityMixin):
         searchable, information about the group.
     """
 
-    def __init__(self, group_id, title, obs_time, set_time, user_id, obs_records=None, meta=None):
+    def __init__(self, group_id, title, obs_time, set_time, user_id, semantic_type, obs_records=None, meta=None):
         """
         Constructor function.
 
@@ -1184,6 +1184,7 @@ class ObservationGroup(ModelEqualityMixin):
         self.obs_time = obs_time
         self.set_time = set_time
         self.user_id = user_id
+        self.semantic_type=semantic_type
 
         # Sequence of Observations
         if obs_records is None:
@@ -1210,6 +1211,7 @@ class ObservationGroup(ModelEqualityMixin):
                 'obs_time': self.obs_time,
                 'set_time': self.set_time,
                 'user_id': self.user_id,
+                'semantic_type': self.semantic_type,
                 'observations': list(obs.as_dict() for obs in self.obs_records),
                 'meta': list(fm.as_dict() for fm in self.meta)}
 
@@ -1220,5 +1222,6 @@ class ObservationGroup(ModelEqualityMixin):
                                 obs_time=_value_from_dict(d, 'obs_time'),
                                 set_time=_value_from_dict(d, 'set_time'),
                                 user_id=_value_from_dict(d, 'user_id'),
+                                semantic_type=_string_from_dict(d, 'semantic_type'),
                                 obs_records=list(Observation.from_dict(obs) for obs in d['observations']),
                                 meta=list((Meta.from_dict(m) for m in d['meta'])))

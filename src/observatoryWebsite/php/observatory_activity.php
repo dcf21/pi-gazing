@@ -9,23 +9,48 @@ require_once "php/html_getargs.php";
 
 $getargs = new html_getargs();
 
+// Read which month to cover
+$tmin = $getargs->readTime('year', 'month', null, null, null, null, $const->yearMin, $const->yearMax);
+
+$days_in_month = date('t', $tmin['utc']);
+$day_offset = date('w', $tmin['utc']);
+$period = 24 * 3600;
+
 $obstories = $getargs->obstory_objlist;
 $obstory = $getargs->readObservatory("id");
 $obstory_name = $getargs->obstory_objs[$obstory]['name'];
 
-// Fetch observatory metadata
-$stmt = $const->db->prepare("
-SELECT m.time, mf.metaKey, m.floatValue, m.stringValue FROM archive_metadata m
-INNER JOIN archive_observatories o ON m.observatory = o.uid
-INNER JOIN archive_metadataFields mf ON m.fieldId = mf.uid
-WHERE o.publicId=:o
-ORDER BY m.time DESC;");
-$stmt->bindParam(':o', $o, PDO::PARAM_STR, strlen($obstory));
-$stmt->execute(['o' => $obstory]);
-$metadata = $stmt->fetchAll();
+$byday = [];
+
+// Fetch observatory activity history
+function get_activity_history($metaKey, $suffix)
+{
+    global $byday, $const, $tmin, $period, $obstory, $days_in_month;
+    $count = 0;
+    while ($count < $days_in_month) {
+        $a = $tmin['utc'] + $period * $count;
+        $b = $a + $period;
+        $count++;
+        $stmt = $const->db->prepare("
+SELECT COUNT(*) FROM archive_observations o
+INNER JOIN archive_observatories l ON o.observatory = l.uid
+INNER JOIN archive_semanticTypes s ON o.obsType = s.uid
+WHERE l.publicId=:o AND s.name=:k AND o.obsTime>=:x AND o.obsTime<:y LIMIT 1");
+        $stmt->bindParam(':o', $o, PDO::PARAM_STR, strlen($obstory));
+        $stmt->bindParam(':k', $k, PDO::PARAM_STR, strlen($metaKey));
+        $stmt->bindParam(':x', $x, PDO::PARAM_INT);
+        $stmt->bindParam(':y', $y, PDO::PARAM_INT);
+        $stmt->execute(['o' => $obstory, 'k' => $metaKey, 'x' => $a, 'y' => $b]);
+        $byday[$count][] = "<span class='cal_number'>".$stmt->fetchAll()[0]['COUNT(*)'].
+            "</span><span class='cal_type'>".$suffix;
+    }
+}
+
+get_activity_history("timelapse", " still images");
+get_activity_history("movingObject", " moving objects");
 
 $pageInfo = [
-    "pageTitle" => "Observatory {$obstory_name}: Status information",
+    "pageTitle" => "Observatory {$obstory_name}: Activity history",
     "pageDescription" => "Meteor Pi",
     "activeTab" => "cameras",
     "teaserImg" => null,
@@ -40,38 +65,88 @@ $pageInfo = [
 $pageTemplate->header($pageInfo);
 
 ?>
-<div class="row">
-    <div class="col-md-10">
+    <div class="row">
+        <div class="col-md-10">
 
-        <table class="metadata">
-            <thead>
-            <tr>
-                <td>Date</td>
-                <td>Setting</td>
-                <td>Value</td>
-            </tr>
-            </thead>
-            <?php
-            $seenKeys = [];
-            foreach ($metadata as $item):
-                $key = $item['metaKey'];
-                $value = $item['stringValue'] ? $item['stringValue'] : $item['floatValue'];
-                $superseded = in_array($key, $seenKeys);
-                if (!$superseded) $seenKeys[] = $key;
+            <div style="padding:4px;overflow-x:scroll;">
+                <table class="dcf_calendar">
+                    <thead>
+                    <tr>
+                        <td>
+                            <?php
+                            print implode("</td><td>", ['Sun', 'Mon', 'Tue', 'Wed', 'Thur', 'Fri', 'Sat']);
+                            ?>
+                        </td>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+
+                        <?php
+                        $box_count=0;
+                        for ($i = 0; $i < $day_offset; $i++)
+                        {
+                            print "<td class='".(($box_count%2==0)?"odd":"even")."'></td>";
+                            $box_count++;
+                        }
+
+                        $nowutc = time();
+                        $nowyear = intval(date("Y", $nowutc));
+                        $nowmc = intval(date("n", $nowutc));
+                        $nowday = intval(date("j", $nowutc));
+                        for ($day = 1; $day <= $days_in_month; $day++) {
+                            print "<td class='".(($box_count%2==0)?"odd":"even")."'>";
+                            $box_count++;
+                            print "<div class=\"cal_day\">${day}</div><div class=\"cal_body\">";
+                            foreach ($byday[$day] as $s) {
+                                print "<div>{$s}</div>";
+                            }
+                            print "</div></td>";
+                            $day_offset++;
+                            if ($day_offset == 7) {
+                                $day_offset = 0;
+                                print "</tr>";
+                                if ($day < $days_in_month) print"<tr>";
+                            }
+                        }
+
+                        if ($day_offset > 0) {
+                            for ($day = $day_offset; $day < 7; $day++)
+                            {
+                                print "<td class='".(($box_count%2==0)?"odd":"even")."'></td>";
+                                $box_count++;
+                            }
+                            print "</tr>";
+                        }
+
+                        ?>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+        <div class="col-md-2">
+            <h4>Select month</h4>
+            <form method="get" action="/observatory_activity.php">
+                <input type="hidden" name="id" value="<?php echo $obstory; ?>">
+                <?php
+                html_getargs::makeFormSelect("month", $tmin['mc'], $getargs->months, 0);
+                html_getargs::makeFormSelect("year", $tmin['year'], range($const->yearMin, $const->yearMax), 0);
                 ?>
-                <tr class="<?php echo $superseded ? 'superseded' : 'active'; ?>">
-                    <td><?php echo date("d M Y - h:i", $item['time']); ?></td>
-                    <td><?php echo $key; ?></td>
-                    <td><?php echo $value; ?></td>
-                </tr>
-            <?php endforeach; ?>
-        </table>
-    </div
+                <br/>
+                <input type="submit" name="Update" value="Update">
+            </form>
 
-    <div class="col-md-2">
-        <?php $pageTemplate->listObstories($obstories, "/observatory_metadata.php?id="); ?>
+            <div style="padding-top:25px;">
+                <?php
+                $pageTemplate->listObstories($obstories,
+                    "/observatory_activity.php?year={$tmin['year']}&month={$tmin['mc']}&id=");
+                ?>
+            </div>
+
+        </div>
     </div>
-</div>
 
 <?php
 $pageTemplate->footer($pageInfo);

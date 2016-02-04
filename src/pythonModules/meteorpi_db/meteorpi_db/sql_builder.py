@@ -51,7 +51,8 @@ def search_obsgroups_sql_builder(search):
     :return:
         A :class:`meteorpi_db.SQLBuilder` configured from the supplied search
     """
-    b = SQLBuilder(tables="archive_obs_groups g", where_clauses=[])
+    b = SQLBuilder(tables="""archive_obs_groups g
+INNER JOIN archive_semanticTypes s ON g.obsType=s.uid""", where_clauses=[])
     b.add_sql(search.obstory_name, """
 EXISTS (SELECT 1 FROM archive_obs_group_members x1
 INNER JOIN archive_observations x2 ON x2.uid=x1.observationId

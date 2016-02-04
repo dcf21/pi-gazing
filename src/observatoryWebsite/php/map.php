@@ -27,10 +27,10 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
-<div class="row camera_list" data-meta='<?php echo json_encode($obstories); ?>'>
+<div class="row camera_map" data-meta='<?php echo json_encode($obstories); ?>'>
     <div class="col-md-10">
         <div class="map_holder"
-             style="width:100%; height:450px; background-color:#eee; display:inline-block; margin: 12px auto;">
+             style="width:100%; height:550px; background-color:#eee; display:inline-block; margin: 12px auto;">
             <div class="map_canvas" style="width:100%; height:100%;"></div>
         </div>
     </div>

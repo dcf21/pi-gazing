@@ -103,10 +103,11 @@ CREATE TABLE archive_obs_groups (
   uid       INTEGER PRIMARY KEY AUTO_INCREMENT,
   publicId  CHAR(32) NOT NULL,
   title     TEXT,
-  obsTime   REAL,
+  semanticType INTEGER,
   time      REAL,
   setAtTime REAL, /* time that metadata was computed */
   setByUser VARCHAR(16),
+  FOREIGN KEY (semanticType) REFERENCES archive_semanticTypes (uid),
   INDEX (time),
   INDEX (setAtTime)
 );

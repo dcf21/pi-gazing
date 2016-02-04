@@ -24,9 +24,11 @@ class html_getargs
         return;
     }
 
-    public function __construct()
+    public function __construct($allow_any_camera)
     {
         global $const;
+
+        if (!isset($allow_any_camera)) $allow_any_camera=false;
 
         // Create list of hours and minutes
         $this->hours = [];
@@ -40,13 +42,19 @@ class html_getargs
         $this->months = $output;
 
         // Fetch list of observatories from database
-        $stmt = $const->db->prepare("SELECT publicId,name FROM archive_observatories;");
+        $stmt = $const->db->prepare("SELECT publicId,name,latitude,longitude FROM archive_observatories;");
         $stmt->execute([]);
         $results = $stmt->fetchAll();
+        $this->allow_any_camera = $allow_any_camera;
         $this->obstory_list = [];
         $this->obstory_objlist = [];
         $this->obstory_objs = [];
         $this->obstories = [];
+        if ($allow_any_camera)
+        {
+            $this->obstory_list[] = "Any";
+            $this->obstories["Any"] = ["Any","Any"];
+        }
         foreach ($results as $r)
         {
             $this->obstory_list[] = $r["publicId"];
@@ -71,7 +79,8 @@ class html_getargs
     public function readObservatory($argName)
     {
         if (array_key_exists($argName, $_GET)) $obs = $_GET[$argName];
-        else                                   $obs = $obs = $this->obstory_list[0];
+        else if ($this->allow_any_camera) $obs = "Any";
+        else $obs = $this->obstory_list[0];
         if (!array_key_exists($obs, $this->obstories)) $obs = $this->obstory_list[0];
         if (!array_key_exists($obs, $this->obstories)) die ("Could not find any observatories.");
         return $obs;

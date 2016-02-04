@@ -333,7 +333,7 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
         search = mp.FileRecordSearch(repository_fname=repository_fname)
         b = search_files_sql_builder(search)
         sql = b.get_select_sql(columns='f.uid, o.publicId AS observationId, f.mimeType, '
-                                       'f.fileName, f.semanticType, f.fileTime, '
+                                       'f.fileName, s2.name AS semanticType, f.fileTime, '
                                        'f.fileSize, f.fileMD5, l.publicId AS obstory_id, l.name AS obstory_name, '
                                        'f.repositoryFname',
                                skip=0, limit=1, order='f.fileTime DESC')
@@ -355,7 +355,7 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
         """
         b = search_files_sql_builder(search)
         sql = b.get_select_sql(columns='f.uid, o.publicId AS observationId, f.mimeType, '
-                                       'f.fileName, f.semanticType, f.fileTime, '
+                                       'f.fileName, s2.name AS semanticType, f.fileTime, '
                                        'f.fileSize, f.fileMD5, l.publicId AS obstory_id, l.name AS obstory_name, '
                                        'f.repositoryFname',
                                skip=search.skip,
@@ -562,7 +562,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
         search = mp.ObservationSearch(observation_id=observation_id)
         b = search_observations_sql_builder(search)
         sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
-                                       'o.obsTime, o.obsType, o.publicId, o.uid',
+                                       'o.obsTime, s.name AS obsType, o.publicId, o.uid',
                                skip=0, limit=1, order='o.obsTime DESC')
         obs = list(self.generators.observation_generator(sql=sql, sql_args=b.sql_args))
         if not obs:
@@ -582,7 +582,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
         """
         b = search_observations_sql_builder(search)
         sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
-                                       'o.obsTime, o.obsType, o.publicId, o.uid',
+                                       'o.obsTime, s.name AS obsType, o.publicId, o.uid',
                                skip=search.skip,
                                limit=search.limit,
                                order='o.obsTime DESC')
@@ -748,7 +748,8 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
         """
         search = mp.ObservationGroupSearch(group_id=group_id)
         b = search_obsgroups_sql_builder(search)
-        sql = b.get_select_sql(columns='g.uid, g.obsTime, g.setAtTime, g.setByUser, g.publicId, g.title',
+        sql = b.get_select_sql(columns='g.uid, g.obsTime, g.setAtTime, g.setByUser, g.publicId, g.title,'
+                                       's.name AS semanticType',
                                skip=0, limit=1, order='g.obsTime DESC')
         obs_groups = list(self.generators.obsgroup_generator(sql=sql, sql_args=b.sql_args))
         if not obs_groups:
@@ -780,7 +781,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
         return {"count": total_rows,
                 "obsgroups": obs_groups}
 
-    def register_obsgroup(self, title, user_id, obs_time, set_time, obs=None, grp_meta=None):
+    def register_obsgroup(self, title, user_id, semantic_type, obs_time, set_time, obs=None, grp_meta=None):
         """
         Register a new observation, updating the database and returning the corresponding Observation object
 
@@ -822,6 +823,7 @@ VALUES
                                         obs_time=obs_time,
                                         user_id=user_id,
                                         set_time=set_time,
+                                        semantic_type=semantic_type,
                                         obs_records=[],
                                         meta=grp_meta)
         return obs_group
