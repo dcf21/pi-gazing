@@ -41,8 +41,16 @@ WHERE l.publicId=:o AND s.name=:k AND o.obsTime>=:x AND o.obsTime<:y LIMIT 1");
         $stmt->bindParam(':x', $x, PDO::PARAM_INT);
         $stmt->bindParam(':y', $y, PDO::PARAM_INT);
         $stmt->execute(['o' => $obstory, 'k' => $metaKey, 'x' => $a, 'y' => $b]);
-        $byday[$count][] = "<span class='cal_number'>".$stmt->fetchAll()[0]['COUNT(*)'].
-            "</span><span class='cal_type'>".$suffix;
+        $items = $stmt->fetchAll()[0]['COUNT(*)'];
+        if ($items > 0)
+         {
+          $text = "<span class='cal_number'>{$items}</span><span class='cal_type'>{$suffix}</span>";
+         }
+        else
+         {
+          $text = "";
+         }
+        $byday[$count][] = $text;
     }
 }
 
@@ -83,11 +91,9 @@ $pageTemplate->header($pageInfo);
                     <tr>
 
                         <?php
-                        $box_count=0;
                         for ($i = 0; $i < $day_offset; $i++)
                         {
-                            print "<td class='".(($box_count%2==0)?"odd":"even")."'></td>";
-                            $box_count++;
+                            print "<td class='even'></td>";
                         }
 
                         $nowutc = time();
@@ -95,13 +101,16 @@ $pageTemplate->header($pageInfo);
                         $nowmc = intval(date("n", $nowutc));
                         $nowday = intval(date("j", $nowutc));
                         for ($day = 1; $day <= $days_in_month; $day++) {
-                            print "<td class='".(($box_count%2==0)?"odd":"even")."'>";
-                            $box_count++;
+                            print "<td class='odd'>";
                             print "<div class=\"cal_day\">${day}</div><div class=\"cal_body\">";
+                            $all_blank = true;
+                            $output = "";
                             foreach ($byday[$day] as $s) {
-                                print "<div>{$s}</div>";
+                                if (strlen($s)>0) $all_blank = false;
+                                $output.="<div style='height:55px;'>{$s}</div>";
                             }
-                            print "</div></td>";
+                            if ($all_blank) $output = "<div style='height:55px;'><span class='cal_type'>No data</span></div>";
+                            print "{$output}</div></td>";
                             $day_offset++;
                             if ($day_offset == 7) {
                                 $day_offset = 0;
@@ -113,8 +122,7 @@ $pageTemplate->header($pageInfo);
                         if ($day_offset > 0) {
                             for ($day = $day_offset; $day < 7; $day++)
                             {
-                                print "<td class='".(($box_count%2==0)?"odd":"even")."'></td>";
-                                $box_count++;
+                                print "<td class='even'></td>";
                             }
                             print "</tr>";
                         }
