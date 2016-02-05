@@ -231,7 +231,6 @@ __HTML__;
     public function footer($pageInfo)
     {
         global $const;
-        $server = $const->server;
         echo "</div>";  // mainpage
 
         ?>
@@ -293,6 +292,49 @@ __HTML__;
         </p>
     <?php endforeach; ?>
         <?php
+    }
+
+    static public function imageGallery($result_count, $result_list, $url_stub)
+    {
+        ?>
+        <div class="row">
+            <?php foreach ($result_list as $item): ?>
+                <div class="col-md-3 gallery_item">
+                    <a href="<?php echo $url_stub . $item['repositoryFname']; ?>">
+                        <div class="gallery_image">
+                            <img alt="" title="" src="/api/thumbnail/<?php
+                            echo $item['repositoryFname'] . "/" . $item['fileName'];
+                            ?>"/>
+                        </div>
+                        <div class="gallery_text">
+                            <?php echo $item['obstoryName'] ?>
+                            <br/>
+                            <?php echo date("d M Y \\a\\t H:i", $item['obsTime']); ?>
+                        </div>
+                    </a>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <?php
+    }
+
+    static public function showPager($result_count, $pageNum, $pageSize, $self_url)
+    {
+        $Npages = floor($result_count / $pageSize);
+        $pageMin = max($pageNum - 5, 1);
+        $pageMax = min($pageMin + 9, $Npages + 1);
+
+        print "<div class='pager'>Page ";
+        for ($p = $pageMin; $p <= $pageMax; $p++) {
+            print "<span class='page'>";
+            if ($p != $pageNum) print "<a href='{$self_url}&page={$p}'>";
+            else print "<b>";
+            print $p;
+            if ($p != $pageNum) print "</a>";
+            else print "</b>";
+            print "</span>";
+        }
+        print "</div>";
     }
 }
 

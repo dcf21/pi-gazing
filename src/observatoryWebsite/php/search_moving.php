@@ -21,9 +21,9 @@ $pageInfo = [
 ];
 
 // Paging options
-$pageSize = 48;
+$pageSize = 24;
 $pageNum = 1;
-if (in_array("page", $_GET) && is_numeric($_GET["page"])) $pageNum = $_GET["page"];
+if (array_key_exists("page", $_GET) && is_numeric($_GET["page"])) $pageNum = $_GET["page"];
 
 // Read which time range to cover
 $t2 = time();
@@ -31,11 +31,13 @@ $t1 = $t2 - 3600 * 24 * 5;
 $tmin = $getargs->readTime('year1', 'month1', 'day1', 'hour1', 'minute1', null, $const->yearMin, $const->yearMax, $t1);
 $tmax = $getargs->readTime('year2', 'month2', 'day2', 'hour2', 'minute2', null, $const->yearMin, $const->yearMax, $t2);
 
+print_r($tmin);
+print_r($tmax);
 // Which observatory are we searching for images from?
-$obstory = $getargs->readObservatory("id");
+$obstory = $getargs->readObservatory("obstory");
 
 // Swap times if they are the wrong way round
-if ($tmax['utc'] > $tmin['utc']) {
+if ($tmax['utc'] < $tmin['utc']) {
     $tmp = $tmax;
     $tmax = $tmin;
     $tmin = $tmp;
@@ -46,14 +48,14 @@ $duration_min = 0;
 $duration_max = 100;
 $duration_min_str = $duration_max_str = "";
 
-if (in_array("duration_min", $_GET) && is_numeric($_GET["duration_min"])) {
+if (array_key_exists("duration_min", $_GET) && is_numeric($_GET["duration_min"])) {
     $duration_min = $_GET["duration_min"];
     if ($duration_min < 0) $duration_min = 0;
     if ($duration_min > 60) $duration_min = 60;
     $duration_min_str = sprintf("%.2f", $duration_min);
 }
 
-if (in_array("duration_max", $_GET) && is_numeric($_GET["duration_max"])) {
+if (array_key_exists("duration_max", $_GET) && is_numeric($_GET["duration_max"])) {
     $duration_max = $_GET["duration_max"];
     if ($duration_max < 0) $duration_max = 0;
     if ($duration_max > 60) $duration_max = 60;
@@ -89,9 +91,9 @@ $pageTemplate->header($pageInfo);
                         $getargs->makeFormSelect("month1", $tmin['mc'], $getargs->months, 0);
                         $getargs->makeFormSelect("year1", $tmin['year'], range($const->yearMin, $const->yearMax), 0);
                         print "</span><span>";
-                        $getargs->makeFormSelect("hour1", $tmin['hour'], range(0, 23), 0);
+                        $getargs->makeFormSelect("hour1", $tmin['hour'], $getargs->hours, 0);
                         print "&nbsp;<b>:</b>&nbsp;";
-                        $getargs->makeFormSelect("min1", $tmin['min'], range(0, 59), 0);
+                        $getargs->makeFormSelect("min1", $tmin['min'], $getargs->mins, 0);
                         ?>
                         </span>
                     </div>
@@ -110,9 +112,9 @@ $pageTemplate->header($pageInfo);
                         $getargs->makeFormSelect("month2", $tmax['mc'], $getargs->months, 0);
                         $getargs->makeFormSelect("year2", $tmax['year'], range($const->yearMin, $const->yearMax), 0);
                         print "</span><span>";
-                        $getargs->makeFormSelect("hour2", $tmax['hour'], range(0, 23), 0);
+                        $getargs->makeFormSelect("hour2", $tmax['hour'], $getargs->hours, 0);
                         print "&nbsp;<b>:</b>&nbsp;";
-                        $getargs->makeFormSelect("min2", $tmax['min'], range(0, 59), 0);
+                        $getargs->makeFormSelect("min2", $tmax['min'], $getargs->mins, 0);
                         ?>
                         </span>
                     </div>
@@ -154,8 +156,7 @@ $pageTemplate->header($pageInfo);
                         title="Search for objects visible for less than this period. Set to around 5 sec to filter out planes and satellites, which are visible for long periods."
                     >
                         <span class="formlabel2">Maximum</span>
-                    <input id="maxduration"
-                           class="form-control-dcf form-inline-number"
+                    <input class="form-control-dcf form-inline-number"
                            name="duration_max"
                            style="width:70px;"
                            type="text"
@@ -167,7 +168,7 @@ $pageTemplate->header($pageInfo);
             </div>
         </div>
 
-        <div style="padding:16px 0;">
+        <div style="padding:30px 0 40px 0;">
             <span class="formlabel2"></span>
             <button type="submit" class="btn btn-primary" data-bind="click: performSearch">Search</button>
         </div>
@@ -176,63 +177,87 @@ $pageTemplate->header($pageInfo);
 
 <?php
 
-// Search for results
-$where = ['so.name="movingObject"', 'sf.name="meteorpi:maxBrightness"',
-    "o.obsTime<={$tmin['utc']}", "o.obsTime>={$tmax['utc']}",
-    "d.floatValue>={$duration_min}", "d.floatValue<={$duration_max}"];
+// Display results if and only if we are searching
+if (array_key_exists('obstory', $_GET)) {
 
-if ($obstory != "Any") $where[] = 'l.publicId="' . $obstory . '"';
+    // Search for results
+    $where = ['so.name="movingObject"', 'sf.name="meteorpi:triggers/event/maxBrightness/lensCorr"',
+        "o.obsTime>={$tmin['utc']}", "o.obsTime<={$tmax['utc']}",
+        "d.floatValue>={$duration_min}", "d.floatValue<={$duration_max}"];
 
-$search = ('
+    if ($obstory != "Any") $where[] = 'l.publicId="' . $obstory . '"';
+
+    $search = ('
 archive_files f
 INNER JOIN archive_observations o ON f.observationId = o.uid
 INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_semanticTypes so ON o.obsType = so.uid
 INNER JOIN archive_semanticTypes sf ON f.semanticType = sf.uid
 INNER JOIN archive_metadata d ON o.uid = d.observationId
-INNER JOIN archive_metadataFields df ON d.fieldId = df.uid AND df.metaKey="duration"
+INNER JOIN archive_metadataFields df ON d.fieldId = df.uid AND df.metaKey="meteorpi:duration"
 WHERE ' . implode(' AND ', $where));
 
-$stmt = $const->db->prepare("SELECT COUNT(*) FROM ${search};");
-$stmt->execute([]);
-$result_count = $stmt->fetchAll()[0]['COUNT(*)'];
-$lastPage = ceil($result_count / $pageSize);
-if ($pageNum < 1) $pageNum = 1;
-if ($pageNum > $lastPage) $pageNum = $lastPage;
-$pageSkip = $pageNum * $pageSize;
+    $stmt = $const->db->prepare("SELECT COUNT(*) FROM ${search};");
+    $stmt->execute([]);
+    $result_count = $stmt->fetchAll()[0]['COUNT(*)'];
+    $result_list = [];
 
-$stmt = $const->db->prepare("
-SELECT f.repositoryFname, o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName
+    $lastPage = ceil($result_count / $pageSize);
+    if ($pageNum < 1) $pageNum = 1;
+    if ($pageNum > $lastPage) $pageNum = $lastPage;
+    $pageSkip = ($pageNum-1) * $pageSize;
+
+    if ($result_count > 0) {
+        $stmt = $const->db->prepare("
+SELECT f.repositoryFname, f.fileName, o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName
 FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
-$stmt->execute([]);
-$result_list = $stmt->fetchAll();
+        $stmt->execute([]);
+        $result_list = $stmt->fetchAll();
+    }
 
-// Display result counter
-if ($result_count == 0):
-    ?>
-    <div class="alert alert-success">
-        <p><b>No results found</b></p>
+    // Display result counter
+    if ($result_count == 0):
+        ?>
+        <div class="alert alert-success">
+            <p><b>No results found</b></p>
 
-        <p>The query completed, but no files were found matching the constraints you specified. Try altering values in
-            the form above and re-running the query.</p>
-    </div>
-    <?php
-elseif ($result_count == count($result_list)):
-    ?>
-    <div class="alert alert-success">
-        <p data-bind="text: 'Showing all '+results().length+' results.'"></p>
-    </div>
-    <?php
-else:
-    ?>
-    <div class="alert alert-success">
-        <p data-bind="text: 'Showing results '+(firstResultIndex()+1)+' to '+(firstResultIndex()+results().length)+' of '+resultCount()+'.'"></p>
-    </div>
-    <?php
-endif;
+            <p>
+                The query completed, but no files were found matching the constraints you specified. Try altering values
+                in the form above and re-running the query.
+            </p>
+        </div>
+        <?php
+    elseif ($result_count == count($result_list)):
+        ?>
+        <div class="alert alert-success">
+            <p>Showing all <?php echo $result_count; ?> results.</p>
+        </div>
+        <?php
+    else:
+        ?>
+        <div class="alert alert-success">
+            <p>
+                Showing results <?php echo $pageSkip+1; ?> to <?php echo $pageSkip+1+count($result_list); ?>
+                of <?php echo $result_count; ?>.
+            </p>
+        </div>
+        <?php
+    endif;
 
-// Display results
-$pageTemplate->imageGallery($result_count, $result_list, "/moving_obj?id=");
+    // Display results
+    $pageTemplate->imageGallery($result_count, $result_list, "/moving_obj.php?id=");
+
+    // Display pager
+    if (count($result_list) < $result_count) {
+        $self_url = "search_moving.php?obstory={$obstory}&year1={$tmin['year']}&month1={$tmin['mc']}&day1={$tmin['day']}&" .
+            "hour1={$tmin['hour']}&minute1={$tmin['min']}" .
+            "year2={$tmax['year']}&month2={$tmax['mc']}&day2={$tmax['day']}&" .
+            "hour2={$tmax['hour']}&minute2={$tmax['min']}&" .
+            "duration_min={$duration_min_str}&duration_max={$duration_min_str}";
+        $pageTemplate->showPager($result_count, $pageNum, $pageSize, $self_url);
+    }
+
+}
 
 // Page footer
 $pageTemplate->footer($pageInfo);

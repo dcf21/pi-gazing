@@ -172,7 +172,7 @@ def add_routes(meteor_app, url_path=''):
         file_path = db.file_path_for_id(record.id)
         thumb_path = os.path.join(db.file_store_path, "../thumbnails", record.id)
         if not os.path.exists(thumb_path):
-            os.system("convert %s -scale 300 %s" % (file_path, thumb_path))
+            os.system("convert %s -scale 220 %s" % (file_path, thumb_path))
         return send_file(filename_or_fp=thumb_path, mimetype=record.mime_type)
 
     # Return a file from the repository

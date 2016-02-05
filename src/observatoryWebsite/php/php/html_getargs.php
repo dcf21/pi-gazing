@@ -90,7 +90,7 @@ class html_getargs
     {
 
         if (is_null($defaultUTC)) $defaultUTC = time();
-        $mc = $this->readMonth($argMonth);
+        $mc = $this->readMonth($argMonth, $defaultUTC);
 
         if ($argDay && array_key_exists($argDay, $_GET) && is_numeric($_GET[$argDay]) &&
             $_GET[$argDay] >= 1 && $_GET[$argDay] <= 31

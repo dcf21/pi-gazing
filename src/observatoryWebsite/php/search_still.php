@@ -20,6 +20,11 @@ $pageInfo = [
     "options" => []
 ];
 
+// Paging options
+$pageSize = 24;
+$pageNum = 1;
+if (array_key_exists("page", $_GET) && is_numeric($_GET["page"])) $pageNum = $_GET["page"];
+
 // Read which time range to cover
 $t2 = time();
 $t1 = $t2 - 3600 * 24 * 5;
@@ -27,10 +32,10 @@ $tmin = $getargs->readTime('year1', 'month1', 'day1', 'hour1', 'minute1', null, 
 $tmax = $getargs->readTime('year2', 'month2', 'day2', 'hour2', 'minute2', null, $const->yearMin, $const->yearMax, $t2);
 
 // Which observatory are we searching for images from?
-$obstory = $getargs->readObservatory("id");
+$obstory = $getargs->readObservatory("obstory");
 
 // Swap times if they are the wrong way round
-if ($tmax['utc'] > $tmin['utc']) {
+if ($tmax['utc'] < $tmin['utc']) {
     $tmp = $tmax;
     $tmax = $tmin;
     $tmin = $tmp;
@@ -41,10 +46,10 @@ $flag_bgsub = false;
 $flag_lenscorr = false;
 $flag_highlights = false;
 
-if (in_array("flag_bgsub", $_GET)) $flag_bgsub = true;
-if (in_array("flag_lenscorr", $_GET)) $flag_lenscorr = true;
-if (in_array("flag_highlights", $_GET)) $flag_highlights = true;
-if (in_array("defaults", $_GET)) $flag_lenscorr = $flag_highlights = true;
+if (array_key_exists("flag_bgsub", $_GET)) $flag_bgsub = true;
+if (array_key_exists("flag_lenscorr", $_GET)) $flag_lenscorr = true;
+if (array_key_exists("flag_highlights", $_GET)) $flag_highlights = true;
+if (array_key_exists("defaults", $_GET)) $flag_lenscorr = $flag_highlights = true;
 
 $pageTemplate->header($pageInfo);
 
@@ -75,9 +80,9 @@ $pageTemplate->header($pageInfo);
                         $getargs->makeFormSelect("month1", $tmin['mc'], $getargs->months, 0);
                         $getargs->makeFormSelect("year1", $tmin['year'], range($const->yearMin, $const->yearMax), 0);
                         print "</span><span>";
-                        $getargs->makeFormSelect("hour1", $tmin['hour'], range(0, 23), 0);
+                        $getargs->makeFormSelect("hour1", $tmin['hour'], $getargs->hours, 0);
                         print "&nbsp;<b>:</b>&nbsp;";
-                        $getargs->makeFormSelect("min1", $tmin['min'], range(0, 59), 0);
+                        $getargs->makeFormSelect("min1", $tmin['min'], $getargs->mins, 0);
                         ?>
                         </span>
                     </div>
@@ -96,9 +101,9 @@ $pageTemplate->header($pageInfo);
                         $getargs->makeFormSelect("month2", $tmax['mc'], $getargs->months, 0);
                         $getargs->makeFormSelect("year2", $tmax['year'], range($const->yearMin, $const->yearMax), 0);
                         print "</span><span>";
-                        $getargs->makeFormSelect("hour2", $tmax['hour'], range(0, 23), 0);
+                        $getargs->makeFormSelect("hour2", $tmax['hour'], $getargs->hours, 0);
                         print "&nbsp;<b>:</b>&nbsp;";
-                        $getargs->makeFormSelect("min2", $tmax['min'], range(0, 59), 0);
+                        $getargs->makeFormSelect("min2", $tmax['min'], $getargs->mins, 0);
                         ?>
                         </span>
                     </div>
@@ -162,7 +167,7 @@ $pageTemplate->header($pageInfo);
             </div>
         </div>
 
-        <div style="padding:16px 0;">
+        <div style="padding:30px 0 40px 0;">
             <span class="formlabel2"></span>
             <button type="submit" class="btn btn-primary" data-bind="click: performSearch">Search</button>
         </div>
@@ -170,4 +175,103 @@ $pageTemplate->header($pageInfo);
     </form>
 
 <?php
+
+// Display results if and only if we are searching
+if (array_key_exists('obstory', $_GET)) {
+
+    // Work out which semantic type to search for
+    if ($flag_lenscorr)
+    {
+        if ($flag_bgsub) $semantic_type="meteorpi:timelapse/frame/bgrdSub/lensCorr";
+        else $semantic_type="meteorpi:timelapse/frame/lensCorr";
+    }
+    else
+    {
+        if ($flag_bgsub) $semantic_type="meteorpi:timelapse/frame/bgrdSubr";
+        else $semantic_type="meteorpi:timelapse/frame";
+    }
+
+    // Search for results
+    $where = ['so.name="timelapse"', "sf.name=\"{$semantic_type}\"",
+        "o.obsTime>={$tmin['utc']}", "o.obsTime<={$tmax['utc']}"];
+
+    if ($flag_highlights)
+        $where[] = "d.floatValue>0.5";
+
+    if ($obstory != "Any") $where[] = 'l.publicId="' . $obstory . '"';
+
+    $search = ('
+archive_files f
+INNER JOIN archive_observations o ON f.observationId = o.uid
+INNER JOIN archive_observatories l ON o.observatory = l.uid
+INNER JOIN archive_semanticTypes so ON o.obsType = so.uid
+INNER JOIN archive_semanticTypes sf ON f.semanticType = sf.uid
+INNER JOIN archive_metadata d ON o.uid = d.observationId
+INNER JOIN archive_metadataFields df ON d.fieldId = df.uid AND df.metaKey="meteorpi:highlight"
+WHERE ' . implode(' AND ', $where));
+
+    $stmt = $const->db->prepare("SELECT COUNT(*) FROM ${search};");
+    $stmt->execute([]);
+    $result_count = $stmt->fetchAll()[0]['COUNT(*)'];
+    $result_list = [];
+
+    $lastPage = ceil($result_count / $pageSize);
+    if ($pageNum < 1) $pageNum = 1;
+    if ($pageNum > $lastPage) $pageNum = $lastPage;
+    $pageSkip = ($pageNum-1) * $pageSize;
+
+    if ($result_count > 0) {
+        $stmt = $const->db->prepare("
+SELECT f.repositoryFname, f.fileName, o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName
+FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
+        $stmt->execute([]);
+        $result_list = $stmt->fetchAll();
+    }
+
+    // Display result counter
+    if ($result_count == 0):
+        ?>
+        <div class="alert alert-success">
+            <p><b>No results found</b></p>
+
+            <p>
+                The query completed, but no files were found matching the constraints you specified. Try altering values
+                in the form above and re-running the query.
+            </p>
+        </div>
+        <?php
+    elseif ($result_count == count($result_list)):
+        ?>
+        <div class="alert alert-success">
+            <p>Showing all <?php echo $result_count; ?> results.</p>
+        </div>
+        <?php
+    else:
+        ?>
+        <div class="alert alert-success">
+            <p>
+                Showing results <?php echo $pageSkip+1; ?> to <?php echo $pageSkip+1+count($result_list); ?>
+                of <?php echo $result_count; ?>.
+            </p>
+        </div>
+        <?php
+    endif;
+
+    // Display results
+    $pageTemplate->imageGallery($result_count, $result_list, "/image.php?id=");
+
+    // Display pager
+    if (count($result_list) < $result_count) {
+        $self_url = "search_still.php?obstory={$obstory}&year1={$tmin['year']}&month1={$tmin['mc']}&day1={$tmin['day']}&" .
+            "hour1={$tmin['hour']}&minute1={$tmin['min']}" .
+            "year2={$tmax['year']}&month2={$tmax['mc']}&day2={$tmax['day']}&" .
+            "hour2={$tmax['hour']}&minute2={$tmax['min']}";
+        if ($flag_bgsub) $self_url .= "&flag_bgsub=1";
+        if ($flag_lenscorr) $self_url .= "&flag_lenscorr=1";
+        if ($flag_highlights) $self_url .= "&flag_highlight=1";
+        $pageTemplate->showPager($result_count, $pageNum, $pageSize, $self_url);
+    }
+
+}
+
 $pageTemplate->footer($pageInfo);
