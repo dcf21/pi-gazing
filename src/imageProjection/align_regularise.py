@@ -68,7 +68,7 @@ for line in config_in_lines:
         continue
 
     # If we reach here, we have an ADD command in the config file. This lists an image file and associated fit
-    [add, filename, weight, expcomp, size_x, size_y, ra, dec, pa, scalex, scaley] = line.split()
+    [add, filename, weight, expcomp, img_size_x, img_size_y, ra, dec, pa, scalex, scaley] = line.split()
     utc = mod_gnomonic.image_time(filename)
 
     # If the proposed location of this file on the sky is very different from the previous image, assume the camera
@@ -91,7 +91,7 @@ for line in config_in_lines:
     previous_dec = float(dec)
     previous_pa = float(pa)
     image_list.append(
-            [add, filename, float(weight), float(expcomp), float(size_x), float(size_y), float(ra), float(dec),
+            [add, filename, float(weight), float(expcomp), float(img_size_x), float(img_size_y), float(ra), float(dec),
              float(pa), float(scalex), float(scaley), utc])
 if image_list:
     fits.append(image_list)
@@ -130,8 +130,8 @@ for image_list in fits:
         [filename, utc] = x
         if (utc > image_list[0][11]) and (utc < image_list[-1][11]):
             ra = ((theta + utc / (23.9344696 * 3600) * (2 * pi)) / pi * 12) % 24
-            [size_x, size_y] = mod_gnomonic.image_dimensions(filename)
-            image_list.append(["ADD", x[0], 1, 1, size_x, size_y, ra, mean_declination, mean_pa,
+            [img_size_x, img_size_y] = mod_gnomonic.image_dimensions(filename)
+            image_list.append(["ADD", x[0], 1, 1, img_size_x, img_size_y, ra, mean_declination, mean_pa,
                                mean_scale_x, mean_scale_y, utc])
             image_list.sort(sort_on_utc)
 
@@ -143,8 +143,8 @@ for line in config_out_lines:
 # Then display a list of the orientations we've inferred for each image
 for i in range(len(fits)):
     for j in range(len(fits[i])):
-        [add, filename, weight, expcomp, size_x, size_y, ra, dec, pa, scalex, scaley, utc] = fits[i][j]
+        [add, filename, weight, expcomp, img_size_x, img_size_y, ra, dec, pa, scalex, scaley, utc] = fits[i][j]
         # Filename, weight, expcomp, Central RA, Central Dec, position angle, scalex, scaley
         print ("ADD %-93s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"
-               % (filename, weight, expcomp, size_x, size_y, ra, dec, pa, scalex, scaley)
+               % (filename, weight, expcomp, img_size_x, img_size_y, ra, dec, pa, scalex, scaley)
                )
