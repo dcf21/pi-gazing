@@ -26,7 +26,7 @@ for config in configs:
 print "\n"
 
 confirm = raw_input('Replace with default configuration? (Y/N) ')
-if not confirm in 'Yy':
+if confirm not in 'Yy':
     sys.exit(0)
 
 # Delete all export config

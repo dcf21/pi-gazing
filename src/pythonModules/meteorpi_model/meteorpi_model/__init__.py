@@ -4,6 +4,7 @@
 
 import numbers
 import time
+import random
 import hashlib
 
 
@@ -49,7 +50,7 @@ def now():
 
 def get_hash(utc, str1, str2):
     tstr = time.strftime("%Y%m%d_%H%M%S", time.gmtime(utc))
-    key = "%s_%s_%s" % (str1, str2, time.time())
+    key = "%s_%s_%s_%s" % (str1, str2, time.time(), random.random())
     uid = hashlib.md5(key.encode()).hexdigest()
     return ("%s_%s" % (tstr, uid))[0:32]
 
@@ -452,7 +453,7 @@ class ObservationGroupSearch(ModelEqualityMixin):
     the database. If parameters are set to None this means they won't be used to restrict the possible set of results.
     """
 
-    def __init__(self, obstory_name=None, time_min=None, group_id=None,
+    def __init__(self, obstory_name=None, semantic_type=None, time_min=None, group_id=None,
                  time_max=None, observation_id=None, meta_constraints=None, limit=100,
                  skip=0):
         """
@@ -485,6 +486,7 @@ class ObservationGroupSearch(ModelEqualityMixin):
         if time_min is not None and time_max is not None and time_max < time_min:
             raise ValueError('Time min cannot be after before time max')
         self.obstory_name = obstory_name
+        self.semantic_type = semantic_type
         self.time_min = time_min
         self.time_max = time_max
         self.group_id = group_id
@@ -514,6 +516,7 @@ class ObservationGroupSearch(ModelEqualityMixin):
         """
         d = {}
         _add_string(d, 'obstory_name', self.obstory_name)
+        _add_string(d, 'semantic_type', self.semantic_type)
         _add_value(d, 'time_min', self.time_min)
         _add_value(d, 'time_max', self.time_max)
         _add_string(d, 'group_id', self.group_id)
@@ -526,6 +529,7 @@ class ObservationGroupSearch(ModelEqualityMixin):
     @staticmethod
     def from_dict(d):
         obstory_name = _value_from_dict(d, 'obstory_name')
+        semantic_type = _string_from_dict(d, 'semantic_type')
         time_min = _value_from_dict(d, 'time_min')
         time_max = _value_from_dict(d, 'time_max')
         group_id = _string_from_dict(d, 'group_id')
@@ -536,7 +540,8 @@ class ObservationGroupSearch(ModelEqualityMixin):
             meta_constraints = list((MetaConstraint.from_dict(x) for x in d['meta']))
         else:
             meta_constraints = []
-        return ObservationGroupSearch(obstory_name=obstory_name, time_min=time_min, time_max=time_max,
+        return ObservationGroupSearch(obstory_name=obstory_name, semantic_type=semantic_type,
+                                      time_min=time_min, time_max=time_max,
                                       meta_constraints=meta_constraints, observation_id=observation_id,
                                       group_id=group_id,
                                       limit=limit, skip=skip)

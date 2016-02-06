@@ -748,9 +748,9 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
         """
         search = mp.ObservationGroupSearch(group_id=group_id)
         b = search_obsgroups_sql_builder(search)
-        sql = b.get_select_sql(columns='g.uid, g.obsTime, g.setAtTime, g.setByUser, g.publicId, g.title,'
+        sql = b.get_select_sql(columns='g.uid, g.time, g.setAtTime, g.setByUser, g.publicId, g.title,'
                                        's.name AS semanticType',
-                               skip=0, limit=1, order='g.obsTime DESC')
+                               skip=0, limit=1, order='g.time DESC')
         obs_groups = list(self.generators.obsgroup_generator(sql=sql, sql_args=b.sql_args))
         if not obs_groups:
             return None
@@ -768,10 +768,11 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
             :class:`meteorpi_model.ObservationGroup`}
         """
         b = search_obsgroups_sql_builder(search)
-        sql = b.get_select_sql(columns='g.uid, g.obsTime, g.setAtTime, g.setByUser, g.publicId, g.title',
+        sql = b.get_select_sql(columns='g.uid, g.time, g.setAtTime, g.setByUser, g.publicId, g.title,'
+                                       's.name AS semanticType',
                                skip=search.skip,
                                limit=search.limit,
-                               order='g.obsTime DESC')
+                               order='g.time DESC')
         obs_groups = list(self.generators.obsgroup_generator(sql=sql, sql_args=b.sql_args))
         rows_returned = len(obs_groups)
         total_rows = rows_returned + search.skip
@@ -794,11 +795,11 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
         :param float set_time:
             The UTC date/time that this group was created
         :param list obs:
-            A list of :class: `meteorpi_model.Observation` which are members of this group
+            A list of :class: publicIds of observations which are members of this group
         :param list grp_meta:
             A list of :class:`meteorpi_model.Meta` used to provide additional information about this observation
         :return:
-            The :class:`meteorpi_model.Observation` as stored in the database
+            The :class:`meteorpi_model.ObservationGroup` as stored in the database
         """
 
         if grp_meta is None:
@@ -807,13 +808,23 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
         # Create a unique ID for this observation
         group_id = mp.get_hash(set_time, title, user_id)
 
+        # Get ID code for semantic_type
+        semantic_type_id = self.get_obs_type_id(semantic_type)
+
         # Insert into database
         self.con.execute("""
-INSERT INTO archive_obs_groups (publicId, title, obsTime, setByUser, setAtTime)
+INSERT INTO archive_obs_groups (publicId, title, time, setByUser, setAtTime, semanticType)
 VALUES
-(%s, %s, %s, %s, %s);
-""", (group_id, title, obs_time, user_id, set_time))
+(%s, %s, %s, %s, %s, %s);
+""", (group_id, title, obs_time, user_id, set_time, semantic_type_id))
 
+        # Store list of observations into the database
+        for item in obs:
+            self.con.execute("""
+INSERT INTO archive_obs_group_members (groupId, observationId)
+VALUES
+((SELECT uid FROM archive_obs_groups WHERE publicId=%s), (SELECT uid FROM archive_observations WHERE publicId=%s));
+""", (group_id, item))
         # Store the observation metadata
         for meta in grp_meta:
             self.set_obsgroup_metadata(user_id, group_id, meta, obs_time)
