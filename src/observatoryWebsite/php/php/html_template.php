@@ -4,6 +4,8 @@
 // Meteor Pi, Cambridge Science Centre
 // Dominic Ford
 
+require_once "constants.php";
+
 class HTMLtemplate
 {
     public static function breadcrumb($items, $area, $postbreadcrumb = null)
@@ -193,8 +195,8 @@ __HTML__;
                         <li class="<?php if ($pageInfo["activeTab"] == "projects") echo "active "; ?>">
                             <a href="/projects.php">Projects</a>
                         </li>
-                        <li class="<?php if ($pageInfo["activeTab"] == "whattodo") echo "active "; ?>">
-                            <a href="/whattodo.php">What to do</a>
+                        <li class="<?php if ($pageInfo["activeTab"] == "howitworks") echo "active "; ?>">
+                            <a href="/howitworks.php">How it works</a>
                         </li>
                         <li class="dropdown <?php if ($pageInfo["activeTab"] == "cameras") echo "active "; ?>">
                             <a class="dropdown-toggle" data-toggle="dropdown" href="#">Cameras<span
@@ -230,7 +232,6 @@ __HTML__;
 
     public function footer($pageInfo)
     {
-        global $const;
         echo "</div>";  // mainpage
 
         ?>
@@ -294,24 +295,36 @@ __HTML__;
         <?php
     }
 
-    static public function imageGallery($result_count, $result_list, $url_stub)
+    static public function imageGallery($result_list, $url_stub)
     {
+        global $const;
         ?>
         <div class="row">
             <?php foreach ($result_list as $item): ?>
                 <div class="col-md-3 gallery_item">
-                    <a href="<?php echo $url_stub . $item['repositoryFname']; ?>">
+                    <a href="<?php echo $url_stub . $item['linkId']; ?>">
                         <div class="gallery_image">
-                            <img alt="" title="" src="/api/thumbnail/<?php
-                            echo $item['repositoryFname'] . "/" . $item['fileName'];
-                            ?>"/>
+                            <?php if ($item['mimeType'] == 'image/png'): ?>
+                                <img class="gallery_img" alt="" title="" src="/api/thumbnail/<?php
+                                echo $item['fileId'] . "/" . $item['filename'];
+                                ?>"/>
+                            <?php elseif (array_key_exists($item['mimeType'], $const->mimeTypes)): ?>
+                                <div class="image_substitute gallery_img">
+                                    <div class="mimetype">
+                                        <?php echo $const->mimeTypes[$item['mimeType']]; ?>
+                                    </div>
+                                    </div>
+                            <?php else: ?>
+                                <div class="image_substitute"><div class="mimetype">FILE</div></div>
+                            <?php endif; ?>
                         </div>
                         <div class="gallery_text">
-                            <?php echo $item['obstoryName'] ?>
-                            <br/>
-                            <?php echo date("d M Y \\a\\t H:i", $item['obsTime']); ?>
+                            <?php echo $item['caption'] ?>
                         </div>
                     </a>
+                         <div class="gallery_extra">
+                             <?php echo $item['hover']; ?>
+                             </div>
                 </div>
             <?php endforeach; ?>
         </div>

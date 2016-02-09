@@ -51,6 +51,17 @@ if (array_key_exists("flag_lenscorr", $_GET)) $flag_lenscorr = true;
 if (array_key_exists("flag_highlights", $_GET)) $flag_highlights = true;
 if (array_key_exists("defaults", $_GET)) $flag_lenscorr = $flag_highlights = true;
 
+// Read sky clarity options
+$sky_clarity_min = 0;
+$sky_clarity_min_str = "";
+
+if (array_key_exists("clarity", $_GET) && is_numeric($_GET["clarity"])) {
+    $sky_clarity_min = $_GET["clarity"];
+    if ($sky_clarity_min < 0) $sky_clarity_min = 0;
+    if ($sky_clarity_min > 100) $sky_clarity_min = 100;
+    $sky_clarity_min_str = sprintf("%.2f", $sky_clarity_min);
+}
+
 $pageTemplate->header($pageInfo);
 
 ?>
@@ -123,14 +134,19 @@ $pageTemplate->header($pageInfo);
                     </div>
                 </div>
 
+                <div style="padding:40px 0 40px 0;">
+                    <span class="formlabel2"></span>
+                    <button type="submit" class="btn btn-primary" data-bind="click: performSearch">Search</button>
+                </div>
+
             </div>
             <div class="search-form-column col-lg-6">
 
                 <div style="margin-top:25px;"><span class="formlabel">Image options</span></div>
 
                 <div class="tooltip-holder" style="display:inline-block;">
-                    <div class="checkbox" data-toggle="tooltip" data-pos="tooltip-right"
-                         title="Automatically remove light pollution from images. In clear conditions, this make more stars visible. In cloudy conditions, it can lead to strange artifacts."
+                    <div class="checkbox" data-toggle="tooltip" data-pos="tooltip-top"
+                         title="Automatically remove light pollution. In clear conditions this makes more stars visible, but it can lead to strange artifacts when cloudy."
                     >
                         <label>
                             <input type="checkbox" name="flag_bgsub"
@@ -140,10 +156,9 @@ $pageTemplate->header($pageInfo);
                     </div>
                 </div>
                 <br/>
-                <div class="tooltip-holder" style="padding-top:36px; display:inline-block;">
+                <div class="tooltip-holder" style="padding-top:24px; display:inline-block;">
                     <div class="checkbox" data-toggle="tooltip" data-pos="tooltip-right"
-                         title="Reduce the number of similar results to show a range of different images seen through the
-                        night. If unticked, you will see large numbers of similar images."
+                         title="Show only one image per ten-minute interval. Without this, you will see large numbers of similar images."
                     >
                         <label>
                             <input type="checkbox" name="flag_highlights"
@@ -153,9 +168,9 @@ $pageTemplate->header($pageInfo);
                     </div>
                 </div>
                 <br/>
-                <div class="tooltip-holder" style="padding-top:36px; display:inline-block;">
+                <div class="tooltip-holder" style="padding-top:24px; display:inline-block;">
                     <div class="checkbox" data-toggle="tooltip" data-pos="tooltip-right"
-                         title="Correct lens distortions in the images (recommended)."
+                         title="Automatically correct lens distortions in the images (recommended)."
                     >
                         <label>
                             <input type="checkbox" <?php if ($flag_lenscorr) echo 'checked="checked"'; ?> >
@@ -164,12 +179,23 @@ $pageTemplate->header($pageInfo);
                     </div>
                 </div>
 
-            </div>
-        </div>
+                <div style="margin-bottom:30px;">
+                    <div style="margin-top:25px;"><span class="formlabel">Sky clarity</span></div>
+                    <div class="tooltip-holder"><span
+                            data-toggle="tooltip" data-pos="tooltip-right"
+                            title="Search for images with a sky clarity rating better than a certain value."
+                        >
+                        <span class="formlabel2">Minimum</span>
+                    <input class="form-control-dcf form-inline-number"
+                           name="clarity"
+                           style="width:70px;"
+                           type="text"
+                           value="<?php echo $sky_clarity_min_str; ?>"
+                    />&nbsp;(scale 0&ndash;100)
+                </span></div>
+                </div>
 
-        <div style="padding:30px 0 40px 0;">
-            <span class="formlabel2"></span>
-            <button type="submit" class="btn btn-primary" data-bind="click: performSearch">Search</button>
+            </div>
         </div>
 
     </form>
@@ -180,15 +206,12 @@ $pageTemplate->header($pageInfo);
 if (array_key_exists('obstory', $_GET)) {
 
     // Work out which semantic type to search for
-    if ($flag_lenscorr)
-    {
-        if ($flag_bgsub) $semantic_type="meteorpi:timelapse/frame/bgrdSub/lensCorr";
-        else $semantic_type="meteorpi:timelapse/frame/lensCorr";
-    }
-    else
-    {
-        if ($flag_bgsub) $semantic_type="meteorpi:timelapse/frame/bgrdSubr";
-        else $semantic_type="meteorpi:timelapse/frame";
+    if ($flag_lenscorr) {
+        if ($flag_bgsub) $semantic_type = "meteorpi:timelapse/frame/bgrdSub/lensCorr";
+        else $semantic_type = "meteorpi:timelapse/frame/lensCorr";
+    } else {
+        if ($flag_bgsub) $semantic_type = "meteorpi:timelapse/frame/bgrdSubr";
+        else $semantic_type = "meteorpi:timelapse/frame";
     }
 
     // Search for results
@@ -197,6 +220,9 @@ if (array_key_exists('obstory', $_GET)) {
 
     if ($flag_highlights)
         $where[] = "d.floatValue>0.5";
+
+    if ($sky_clarity_min > 0)
+        $where[] = "d2.floatValue>{$sky_clarity_min}";
 
     if ($obstory != "Any") $where[] = 'l.publicId="' . $obstory . '"';
 
@@ -208,6 +234,8 @@ INNER JOIN archive_semanticTypes so ON o.obsType = so.uid
 INNER JOIN archive_semanticTypes sf ON f.semanticType = sf.uid
 INNER JOIN archive_metadata d ON o.uid = d.observationId
 INNER JOIN archive_metadataFields df ON d.fieldId = df.uid AND df.metaKey="meteorpi:highlight"
+INNER JOIN archive_metadata d2 ON o.uid = d2.observationId
+INNER JOIN archive_metadataFields df2 ON d2.fieldId = df2.uid AND df2.metaKey="meteorpi:skyClarity"
 WHERE ' . implode(' AND ', $where));
 
     $stmt = $const->db->prepare("SELECT COUNT(*) FROM ${search};");
@@ -218,14 +246,24 @@ WHERE ' . implode(' AND ', $where));
     $lastPage = ceil($result_count / $pageSize);
     if ($pageNum < 1) $pageNum = 1;
     if ($pageNum > $lastPage) $pageNum = $lastPage;
-    $pageSkip = ($pageNum-1) * $pageSize;
+    $pageSkip = ($pageNum - 1) * $pageSize;
 
     if ($result_count > 0) {
         $stmt = $const->db->prepare("
-SELECT f.repositoryFname, f.fileName, o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName
+SELECT f.repositoryFname, f.fileName, o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType
 FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
         $stmt->execute([]);
         $result_list = $stmt->fetchAll();
+    }
+
+    $gallery_items = [];
+    foreach ($result_list as $item) {
+        $gallery_items[] = ["fileId" => $item['repositoryFname'],
+            "filename" => $item["fileName"],
+            "caption" => $item['obstoryName'] . "<br/>" . date("d M Y \\a\\t H:i", $item['obsTime']),
+            "hover" => null,
+            "linkId" => $item['repositoryFname'],
+            "mimeType" => $item['mimeType']];
     }
 
     // Display result counter
@@ -250,7 +288,7 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
         ?>
         <div class="alert alert-success">
             <p>
-                Showing results <?php echo $pageSkip+1; ?> to <?php echo $pageSkip+1+count($result_list); ?>
+                Showing results <?php echo $pageSkip + 1; ?> to <?php echo $pageSkip + 1 + count($result_list); ?>
                 of <?php echo $result_count; ?>.
             </p>
         </div>
@@ -258,7 +296,7 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
     endif;
 
     // Display results
-    $pageTemplate->imageGallery($result_count, $result_list, "/image.php?id=");
+    $pageTemplate->imageGallery($gallery_items, "/image.php?id=");
 
     // Display pager
     if (count($result_list) < $result_count) {

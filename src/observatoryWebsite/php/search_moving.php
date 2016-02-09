@@ -205,14 +205,25 @@ WHERE ' . implode(' AND ', $where));
     $lastPage = ceil($result_count / $pageSize);
     if ($pageNum < 1) $pageNum = 1;
     if ($pageNum > $lastPage) $pageNum = $lastPage;
-    $pageSkip = ($pageNum-1) * $pageSize;
+    $pageSkip = ($pageNum - 1) * $pageSize;
 
     if ($result_count > 0) {
         $stmt = $const->db->prepare("
-SELECT f.repositoryFname, f.fileName, o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName
+SELECT f.repositoryFname, f.fileName, o.publicId AS observationId,
+o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType
 FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
         $stmt->execute([]);
         $result_list = $stmt->fetchAll();
+    }
+
+    $gallery_items = [];
+    foreach ($result_list as $item) {
+        $gallery_items[] = ["fileId" => $item['repositoryFname'],
+            "filename" => $item["fileName"],
+            "caption" => $item['obstoryName'] . "<br/>" . date("d M Y \\a\\t H:i", $item['obsTime']),
+            "hover" => null,
+            "linkId" => $item['observationId'],
+            "mimeType" => $item['mimeType']];
     }
 
     // Display result counter
@@ -237,7 +248,7 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
         ?>
         <div class="alert alert-success">
             <p>
-                Showing results <?php echo $pageSkip+1; ?> to <?php echo $pageSkip+1+count($result_list); ?>
+                Showing results <?php echo $pageSkip + 1; ?> to <?php echo $pageSkip + 1 + count($result_list); ?>
                 of <?php echo $result_count; ?>.
             </p>
         </div>
@@ -245,7 +256,7 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
     endif;
 
     // Display results
-    $pageTemplate->imageGallery($result_count, $result_list, "/moving_obj.php?id=");
+    $pageTemplate->imageGallery($gallery_items, "/moving_obj.php?id=");
 
     // Display pager
     if (count($result_list) < $result_count) {

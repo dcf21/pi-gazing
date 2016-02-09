@@ -55,7 +55,7 @@ $pageTemplate->header($pageInfo);
             Items shown in green are still current. Items shown in red have been superseded by newer updates.
         </p>
 
-        <table class="metadata">
+        <table class="metadata" style="margin:8px auto;">
             <thead>
             <tr>
                 <td>Date</td>
@@ -67,7 +67,8 @@ $pageTemplate->header($pageInfo);
             $seenKeys = [];
             foreach ($metadata as $item):
                 $key = $item['metaKey'];
-                $value = $item['stringValue'] ? $item['stringValue'] : $item['floatValue'];
+                if (array_key_exists($key, $const->metadataFields)) $key = $const->metadataFields[$key];
+                $value = $item['stringValue'] ? $item['stringValue'] : sprintf("%.2f", $item['floatValue']);
                 $superseded = in_array($key, $seenKeys);
                 if (!$superseded) $seenKeys[] = $key;
                 ?>

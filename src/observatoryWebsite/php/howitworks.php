@@ -1,0 +1,78 @@
+<?php
+
+// howitworks.php
+// Meteor Pi, Cambridge Science Centre
+// Dominic Ford
+
+require "php/imports.php";
+
+$pageInfo = [
+    "pageTitle" => "How Meteor Pi Works",
+    "pageDescription" => "Meteor Pi",
+    "activeTab" => "howitworks",
+    "teaserImg" => null,
+    "cssextra" => null,
+    "includes" => [],
+    "linkRSS" => null,
+    "options" => []
+];
+
+$pageTemplate->header($pageInfo);
+
+?>
+
+    <p class="text">
+        The night sky is an awe-inspiring sight. The ability to see objects that are billions of kilometres away. The
+        patterns of stars, which have remained unchanged for thousands of years and would have been perfectly recognisable
+        to our distant ancestors. The wonderous question of whether there might be other planets out there, with somebody
+        looking back at us.
+    </p>
+
+    <p class="text">
+        Meteor Pi makes the night sky a lot more accessible. To see it for real, you need to go out to a dark place, late at
+        night. We've installed cameras which take pictures all through the night, which you can browse at whatever time is
+        convenient.
+    </p>
+
+    <p class="text">
+        As well as taking still pictures through the night, our cameras are also motion sensitive, snapping pictures of any
+        planes, satellites, meteors or other unidentified objects that fly over!
+    </p>
+
+    <h3>What do the cameras look like?</h3>
+
+    <div class="rightimg">
+        <img src="/img/IMG_20150316_160453.jpg" /><br />
+        <b>Meteor Pi cameras are similar to CCTV cameras, but they point upwards at the sky!</b>
+    </div>
+
+    <p class="text">
+        Each Meteor Pi camera looks very much like a CCTV camera you might see in the street. The most obvious difference is
+        that ours point upwards at the sky.
+        There’s also a lot of electronics packed inside each Meteor Pi observatory.
+    </p><p class="text">
+    The camera we use is a Watec 902H2 Ultimate &ndash; a Japanese CCTV camera which is designed to work in incredibly
+    dark
+    places. These cameras need only look at
+    the sky for a few seconds to detect stars hundreds of times fainter than the human eye can see.
+</p><p class="text">
+    Also in the box is a Raspberry Pi computer, which analyses the pictures to look for moving objects. A
+    GPS receiver records the observatory’s exact location, and tells the Raspberry Pi exactly what the time is.
+</p>
+
+    <div class="rightimg">
+        <img src="/img/IMG_20150805_142114.jpg" /><br />
+        <b>The electronics in a Meteor Pi observatory. A Raspberry Pi Mk 2 analyses the pictures to look for moving objects.</b>
+    </div>
+
+    <p class="text">
+        At around lunchtime each day, each observatory transmits all the video clips of the moving objects it has seen to
+        this website.
+        It also transmits a series of still images, taken at one-minute intervals through the night, allowing you to call up
+        a picture
+        of how the night sky appeared at any given time.
+    </p>
+
+<?php
+$pageTemplate->footer($pageInfo);
+
