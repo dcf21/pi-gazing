@@ -14,7 +14,11 @@ $id = "";
 if (array_key_exists("id", $_GET)) $id = $_GET["id"];
 
 // Get the observation
-$stmt = $const->db->prepare("SELECT * FROM archive_observations WHERE publicId=:i;");
+$stmt = $const->db->prepare("
+SELECT o.uid, o.observatory, o.obsTime, s.name AS semanticType
+FROM archive_observations o
+INNER JOIN archive_semanticTypes s ON o.obsType = s.uid
+WHERE publicId=:i;");
 $stmt->bindParam(':i', $i, PDO::PARAM_INT);
 $stmt->execute(['i' => $id]);
 $observations = $stmt->fetchAll();
@@ -53,12 +57,23 @@ $stmt->bindParam(':i', $i, PDO::PARAM_INT);
 $stmt->execute(['i' => $uid]);
 $file_list = $stmt->fetchAll();
 
+// Build dictionary of files by semantic type
+$files_by_type = [];
+foreach ($file_list as $item) {
+    $item_type = $item['semanticType'];
+    $files_by_type[$item_type] = $item;
+}
+
 // Get list of simultaneous detections
 $stmt = $const->db->prepare("
-SELECT m.observationId FROM archive_obs_group_members m
+SELECT m.observationId, l.name AS obstory, f.repositoryFname, f.mimeType, f.fileName
+FROM archive_obs_group_members m
+INNER JOIN archive_observations o ON m.observationId = o.uid
+INNER JOIN archive_files f ON f.observationId=m.observationId
+INNER JOIN archive_semanticTypes fs ON f.semanticType = fs.uid AND fs.name=\"meteorpi:triggers/event/maxBrightness\"
+INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_obs_groups g ON g.uid=m.groupId
-INNER JOIN archive_obs_group_members m2 ON m2.groupId=g.uid
-INNER JOIN archive_observations o ON o.uid=m2.observationId AND o.publicId=:i;");
+INNER JOIN archive_obs_group_members m2 ON m2.groupId=g.uid AND m2.observationId=:i;");
 $stmt->bindParam(':i', $i, PDO::PARAM_INT);
 $stmt->execute(['i' => $uid]);
 $simultaneous_events = $stmt->fetchAll();
@@ -80,8 +95,58 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
-    <h3>Files associated with this detection</h3>
+<?php
+if (array_key_exists("meteorpi:triggers/event", $files_by_type)):
+    $video = $files_by_type["meteorpi:triggers/event"];
+    $file_url = "/api/files/content/{$video['repositoryFname']}/{$video['fileName']}";
+    ?>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="gallery_still">
+                <video class="gallery_still_img" controls>
+                    <source src="<?php echo $file_url; ?>" type="video/mp4"/>
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <h5>Observation type</h5>
+            <p><?php echo $const->semanticTypes[$observation['semanticType']][1]; ?></p>
+            <h5>Observatory</h5>
+            <p><a href="observatory.php?id=<?php echo $obstory['publicId']; ?>"><?php echo $obstory['name']; ?></a></p>
+            <h5>Time</h5>
+            <p><?php echo date("d M Y - h:i", $observation['obsTime']); ?></p>
+        </div>
+    </div>
+
+<?php endif; ?>
+
+<?php
+if (count($simultaneous_events)>0)
+{
+    ?>
+    <h3>Other possible detections of the same object</h3>
+    <?php
+
+    $gallery_items = [];
+    foreach ($simultaneous_events as $item)
+    {
+        $gallery_items[] = ["fileId" => $item['repositoryFname'],
+            "filename" => $item["fileName"],
+            "caption" => $item["obstory"],
+            "hover" => "",
+            "linkId" => $item['repositoryFname'],
+            "mimeType" => $item['mimeType']];
+    }
+    $pageTemplate->imageGallery($gallery_items, "/image.php?id=");
+
+}
+?>
+
 <?php if (count($file_list) > 0): ?>
+    <h3>Other files associated with this event</h3>
+
     <div class="moving-obj-files">
 
         <?php

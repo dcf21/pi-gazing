@@ -7,7 +7,7 @@
 require "php/imports.php";
 require_once "php/html_getargs.php";
 
-$getargs = new html_getargs();
+$getargs = new html_getargs(false);
 
 // Fetch list of observatories
 $obstories = $getargs->obstory_objlist;

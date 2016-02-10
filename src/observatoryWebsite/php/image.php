@@ -71,9 +71,13 @@ $stmt->bindParam(':i', $i, PDO::PARAM_INT);
 $stmt->execute(['i' => $result['observationId']]);
 $other_files = $stmt->fetchAll();
 
+// Check mime type
+$mime_type = $result['mimeType'];
+$file_url = "/api/files/content/{$result['repositoryFname']}/{$result['fileName']}";
+
 // Information about this event
 $pageInfo = [
-    "pageTitle" => "Image recorded at " . date("d M Y - h:i", $observation['obsTime']),
+    "pageTitle" => "{$const->mimeTypes[$mime_type]} recorded at " . date("d M Y - h:i", $observation['obsTime']),
     "pageDescription" => "Meteor Pi",
     "activeTab" => "search",
     "teaserImg" => null,
@@ -91,9 +95,21 @@ $pageTemplate->header($pageInfo);
     <div class="row">
         <div class="col-md-8">
             <div class="gallery_still">
-                <img alt="" title="" src="/api/files/content/<?php
-                echo $result['repositoryFname'] . "/" . $result['fileName'];
-                ?>"/>
+                <?php if ($mime_type == "image/png"): ?>
+                    <img class="gallery_still_img" alt="" title="" src="<?php echo $file_url; ?>"/>
+                <?php elseif ($mime_type == "video/mp4"): ?>
+                    <video class="gallery_still_img" controls>
+                        <source src="<?php echo $file_url; ?>" type="video/mp4"/>
+                        Your browser does not support the video tag.
+                    </video>
+                <?php else: ?>
+                    <div class="gallery_still_img scrolling_text_container">
+                        <?php
+                        $file_path = $const->datapath . $result['repositoryFname'];
+                        if (file_exists($file_path)) echo htmlentities(file_get_contents($file_path));
+                        ?>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
         <div class="col-md-4">
@@ -103,19 +119,22 @@ $pageTemplate->header($pageInfo);
             <p><a href="observatory.php?id=<?php echo $obstory['publicId']; ?>"><?php echo $obstory['name']; ?></a></p>
             <h5>Time</h5>
             <p><?php echo date("d M Y - h:i", $observation['obsTime']); ?></p>
-            <h5>Image Type</h5>
+            <h5><?php echo $const->mimeTypes[$mime_type]; ?> type</h5>
             <?php
             $semantic_type = $result['semanticType'];
-            if (array_key_exists($semantic_type, $const->semanticTypes))
-            {
-              print "<p><b>".$const->semanticTypes[$semantic_type][0]."</b>. ";
-              print $const->semanticTypes[$semantic_type][1]."</p>";
+            if (array_key_exists($semantic_type, $const->semanticTypes)) {
+                print "<p><b>" . $const->semanticTypes[$semantic_type][0] . "</b>. ";
+                print $const->semanticTypes[$semantic_type][1] . "</p>";
             }
             ?>
         </div>
     </div>
 
-    <h3>Other versions of this image</h3>
+    <h3>
+        <?php if ($observation['semanticType']=="timelapse"): ?>Other versions of this image
+        <?php else: ?>Other files associated with this event
+        <?php endif; ?>
+    </h3>
 <?php if (count($other_files) > 0): ?>
     <div class="moving-obj-files">
 
@@ -129,7 +148,7 @@ $pageTemplate->header($pageInfo);
                 $caption = $const->semanticTypes[$semantic_type];
             else
                 continue;
-            if ($caption==null) continue;
+            if ($caption == null) continue;
             $gallery_items[] = ["fileId" => $item['repositoryFname'],
                 "filename" => $item["fileName"],
                 "caption" => $caption[0],

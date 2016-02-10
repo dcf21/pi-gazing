@@ -7,10 +7,12 @@ function ObstoryMap(parent) {
     var self = this;
     self.parent = parent;
 
+    self.obstories = self.parent.data('meta');
+
     // Set up Google Map
     self.mapOptions = {
-        center: new google.maps.LatLng(52.208602, 0.120618),
-        zoom: 7,
+        center: new google.maps.LatLng(52.20, 0.12),
+        zoom: (self.obstories.length>1) ? 7 : 9,
         mapTypeId: google.maps.MapTypeId.HYBRID,
         streetViewControl: false,
         mapTypeControl: false
@@ -18,7 +20,6 @@ function ObstoryMap(parent) {
     self.mapCanvas = $(".map_canvas", self.parent)[0];
     self.map = new google.maps.Map(self.mapCanvas, self.mapOptions);
 
-    self.obstories = self.parent.data('meta');
     self.markers = {};
     $.each(self.obstories, function (index, obstory) {
         var marker = new google.maps.Marker({

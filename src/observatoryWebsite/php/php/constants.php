@@ -22,6 +22,7 @@ class constants
 
         // Path to PHP modules directory
         $this->path = realpath(dirname(__FILE__));
+        $this->datapath = $this->path."/../../../../datadir/db_filestore/";
 
         // Time we started execution
         $this->timeStart = microtime(True);
