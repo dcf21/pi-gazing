@@ -195,6 +195,7 @@ __HTML__;
                             <ul class="dropdown-menu">
                                 <li><a href="<?php echo $server; ?>search_moving.php">Moving objects</a></li>
                                 <li><a href="<?php echo $server; ?>search_still.php">Still photography</a></li>
+                                <li><a href="<?php echo $server; ?>search_multi.php">Multi-camera detections</a></li>
                             </ul>
                         </li>
                         <li class="<?php if ($pageInfo["activeTab"] == "projects") echo "active "; ?>">

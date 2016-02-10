@@ -91,7 +91,7 @@ for item in coincidences:
                                                          item['time_spread'])
 
 # Get user confirmation to proceed
-confirm = raw_input('Replace with default configuration? (Y/N) ')
+confirm = raw_input('Replace with newly found coincident detections? (Y/N) ')
 if confirm not in 'Yy':
     sys.exit(0)
 

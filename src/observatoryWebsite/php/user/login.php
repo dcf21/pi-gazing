@@ -46,7 +46,7 @@ $pageTemplate->header($pageInfo);
 <?php if (!is_null($user->username)): ?>
 
     <div class="alert alert-success">
-    Welcome, <?php echo $user->username; ?>
+    Welcome, <?php echo $user->username; ?>.
     </div>
 
     <div class="newsbody">
@@ -54,15 +54,13 @@ $pageTemplate->header($pageInfo);
             Click here to <a href="/user/logout.php">log out</a>.
         </p>
         <?php if (in_array("obstory_admin", $user->roles)): ?>
+            <h5>Administration links</h5>
             <p>
-                Administration links:<br/>
                 <a href="activity.php">Recent activity</a><br/>
                 <a href="userlist.php">List of users</a><br/>
             </p>
         <?php endif; ?>
-        <p>
-            Your recent activity:
-        </p>
+        <h5>Your recent activity</h5>
     </div>
 
     <?php
@@ -106,6 +104,7 @@ $pageTemplate->header($pageInfo);
                 </tbody>
             </table>
         </div>
+        </div>
     <?php else: ?>
         <div class="newsbody">
             <i>None</i>
@@ -144,7 +143,7 @@ $pageTemplate->header($pageInfo);
                 </tr>
                 <tr>
                     <td>
-                        <span class="btn"><input class="btn" type="submit" value="Log in"/></span>
+                        <span class="btn"><input class="btn btn-primary" type="submit" value="Log in"/></span>
                     </td>
                 </tr>
             </table>

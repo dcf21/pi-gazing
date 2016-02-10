@@ -36,13 +36,7 @@ $pageTemplate->header($pageInfo);
 
 <?php if (in_array("obstory_admin",$user->roles)): ?>
 
-    <p class="widetitle">Recent site activity</p>
-
-    <div class="newsbody">
-        <p>
-            Recent activity:
-        </p>
-    </div>
+    <p>Recent log ins to this server:</p>
 
     <?php
     $stmt = $const->db->prepare("
@@ -86,6 +80,7 @@ ORDER BY logIn LIMIT 10;");
                 <?php endforeach; ?>
                 </tbody>
             </table>
+        </div>
         </div>
     <?php else: ?>
         <div class="newsbody">

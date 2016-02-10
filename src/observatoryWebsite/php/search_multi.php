@@ -1,6 +1,6 @@
 <?php
 
-// search_moving.php
+// search_multi.php
 // Meteor Pi, Cambridge Science Centre
 // Dominic Ford
 
@@ -10,7 +10,7 @@ require_once "php/html_getargs.php";
 $getargs = new html_getargs(true);
 
 $pageInfo = [
-    "pageTitle" => "Search for moving objects",
+    "pageTitle" => "Search for multi-camera detections",
     "pageDescription" => "Meteor Pi",
     "activeTab" => "search",
     "teaserImg" => null,
@@ -21,7 +21,7 @@ $pageInfo = [
 ];
 
 // Paging options
-$pageSize = 24;
+$pageSize = 5;
 $pageNum = 1;
 if (array_key_exists("page", $_GET) && is_numeric($_GET["page"])) $pageNum = $_GET["page"];
 
@@ -41,30 +41,12 @@ if ($tmax['utc'] < $tmin['utc']) {
     $tmin = $tmp;
 }
 
-// Read duration options
-$duration_min = 0;
-$duration_max = 100;
-$duration_min_str = $duration_max_str = "";
-
-if (array_key_exists("duration_min", $_GET) && is_numeric($_GET["duration_min"])) {
-    $duration_min = $_GET["duration_min"];
-    if ($duration_min < 0) $duration_min = 0;
-    if ($duration_min > 60) $duration_min = 60;
-    $duration_min_str = sprintf("%.2f", $duration_min);
-}
-
-if (array_key_exists("duration_max", $_GET) && is_numeric($_GET["duration_max"])) {
-    $duration_max = $_GET["duration_max"];
-    if ($duration_max < 0) $duration_max = 0;
-    if ($duration_max > 60) $duration_max = 60;
-    $duration_max_str = sprintf("%.2f", $duration_max);
-}
 
 $pageTemplate->header($pageInfo);
 
 ?>
 
-    <form class="form-horizontal search-form" method="get" action="/search_moving.php">
+    <form class="form-horizontal search-form" method="get" action="/search_multi.php">
 
         <div style="cursor:pointer;text-align:right;">
             <button type="button" class="btn btn-default btn-md help-toggle">
@@ -134,35 +116,6 @@ $pageTemplate->header($pageInfo);
 
             </div>
             <div class="search-form-column col-lg-6">
-
-                <div style="margin-top:25px;"><span class="formlabel">Duration of appearance</span></div>
-                <div class="tooltip-holder"><span
-                        data-toggle="tooltip" data-pos="tooltip-right"
-                        title="Search for objects visible for longer than this period. Set to around 5 sec to see only planes and satellites."
-                    >
-                        <span class="formlabel2">Minimum</span>
-                    <input class="form-control-dcf form-inline-number"
-                           name="duration_min"
-                           style="width:70px;"
-                           type="text"
-                           value="<?php echo $duration_min_str; ?>"
-                    />&nbsp;seconds
-                </span></div>
-
-                <div class="tooltip-holder"><span
-                        data-toggle="tooltip" data-pos="tooltip-right"
-                        title="Search for objects visible for less than this period. Set to around 5 sec to filter out planes and satellites, which are visible for long periods."
-                    >
-                        <span class="formlabel2">Maximum</span>
-                    <input class="form-control-dcf form-inline-number"
-                           name="duration_max"
-                           style="width:70px;"
-                           type="text"
-                           value="<?php echo $duration_max_str; ?>"
-                    />&nbsp;seconds
-                </span></div>
-
-
             </div>
         </div>
 
@@ -179,20 +132,16 @@ $pageTemplate->header($pageInfo);
 if (array_key_exists('obstory', $_GET)) {
 
     // Search for results
-    $where = ['so.name="movingObject"', 'sf.name="meteorpi:triggers/event/maxBrightness/lensCorr"',
-        "o.obsTime>={$tmin['utc']}", "o.obsTime<={$tmax['utc']}",
-        "d.floatValue>={$duration_min}", "d.floatValue<={$duration_max}"];
+    $where = ['s.name="coincidence"', "g.time>={$tmin['utc']}", "g.time<={$tmax['utc']}"];
 
-    if ($obstory != "Any") $where[] = 'l.publicId="' . $obstory . '"';
+    if ($obstory != "Any") $where[] = 'EXISTS (SELECT 1 FROM archive_obs_group_members x1
+INNER JOIN archive_observations x2 ON x2.uid=x1.observationId
+INNER JOIN archive_observatories x3 ON x3.uid=x2.observatory
+WHERE x1.groupId=g.uid AND x3.publicId=%s)'%$obstory;
 
     $search = ('
-archive_files f
-INNER JOIN archive_observations o ON f.observationId = o.uid
-INNER JOIN archive_observatories l ON o.observatory = l.uid
-INNER JOIN archive_semanticTypes so ON o.obsType = so.uid
-INNER JOIN archive_semanticTypes sf ON f.semanticType = sf.uid
-INNER JOIN archive_metadata d ON o.uid = d.observationId
-INNER JOIN archive_metadataFields df ON d.fieldId = df.uid AND df.metaKey="meteorpi:duration"
+archive_obs_groups g
+INNER JOIN archive_semanticTypes s ON g.semanticType=s.uid
 WHERE ' . implode(' AND ', $where));
 
     $stmt = $const->db->prepare("SELECT COUNT(*) FROM ${search};");
@@ -207,21 +156,10 @@ WHERE ' . implode(' AND ', $where));
 
     if ($result_count > 0) {
         $stmt = $const->db->prepare("
-SELECT f.repositoryFname, f.fileName, o.publicId AS observationId,
-o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType
-FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
+SELECT g.uid, g.time, g.setAtTime, g.setByUser, g.publicId, g.title
+FROM ${search} ORDER BY g.time DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
         $stmt->execute([]);
         $result_list = $stmt->fetchAll();
-    }
-
-    $gallery_items = [];
-    foreach ($result_list as $item) {
-        $gallery_items[] = ["fileId" => $item['repositoryFname'],
-            "filename" => $item["fileName"],
-            "caption" => $item['obstoryName'] . "<br/>" . date("d M Y \\a\\t H:i", $item['obsTime']),
-            "hover" => null,
-            "linkId" => $item['observationId'],
-            "mimeType" => $item['mimeType']];
     }
 
     // Display result counter
@@ -254,15 +192,48 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
     endif;
 
     // Display results
-    $pageTemplate->imageGallery($gallery_items, "/moving_obj.php?id=");
+    foreach ($result_list as $grp) {
+        $where = ["gm.groupId = {$grp['uid']}"];
+
+    $search = ('
+archive_obs_group_members gm
+INNER JOIN archive_observations o ON gm.observationId = o.uid
+INNER JOIN archive_files f ON f.observationId = o.uid
+INNER JOIN archive_observatories l ON o.observatory = l.uid
+INNER JOIN archive_semanticTypes so ON o.obsType = so.uid
+   AND so.name="movingObject"
+INNER JOIN archive_semanticTypes sf ON f.semanticType = sf.uid
+   AND sf.name="meteorpi:triggers/event/maxBrightness/lensCorr"
+WHERE ' . implode(' AND ', $where));
+
+        $stmt = $const->db->prepare("
+SELECT f.repositoryFname, f.fileName, o.publicId AS observationId,
+o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType
+FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
+        $stmt->execute([]);
+        $obs_list = $stmt->fetchAll();
+
+        print "<h3>Object observed at ".date("d M Y \\a\\t H:i", $grp['time'])."</h3>";
+
+        $gallery_items = [];
+        foreach ($obs_list as $obs) {
+                $gallery_items[] = ["fileId" => $obs['repositoryFname'],
+                    "filename" => $obs["fileName"],
+                    "caption" => $obs['obstoryName'],
+                    "hover" => null,
+                    "linkId" => $obs['observationId'],
+                    "mimeType" => $obs['mimeType']];
+        }
+
+        $pageTemplate->imageGallery($gallery_items, "/moving_obj.php?id=");
+    }
 
     // Display pager
     if (count($result_list) < $result_count) {
-        $self_url = "search_moving.php?obstory={$obstory}&year1={$tmin['year']}&month1={$tmin['mc']}&day1={$tmin['day']}&" .
+        $self_url = "search_multi.php?obstory={$obstory}&year1={$tmin['year']}&month1={$tmin['mc']}&day1={$tmin['day']}&" .
             "hour1={$tmin['hour']}&minute1={$tmin['min']}" .
             "year2={$tmax['year']}&month2={$tmax['mc']}&day2={$tmax['day']}&" .
-            "hour2={$tmax['hour']}&minute2={$tmax['min']}&" .
-            "duration_min={$duration_min_str}&duration_max={$duration_min_str}";
+            "hour2={$tmax['hour']}&minute2={$tmax['min']}";
         $pageTemplate->showPager($result_count, $pageNum, $pageSize, $self_url);
     }
 

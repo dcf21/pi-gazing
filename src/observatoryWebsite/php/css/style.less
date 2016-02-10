@@ -106,6 +106,9 @@ table.table table.table {
 }
 
 .pointer { cursor:pointer;}
+.position_relative { position:relative; top:0; left:0; }
+
+select.slt { box-shadow: 3px 3px 2px #e0e0e0; padding:2px; border: 1px solid #aaa; background-color:#fff; border-radius: 2px; margin: 2px; }
 
 // Basic styling
 div.contentwrapper p { max-width:500px; }
@@ -230,6 +233,28 @@ table.metadata
 
 // Coloured boxes
 .csc_blue_box { background-color: @light_blue; }
+
+// Scrollable table
+div.scrolltable { .position_relative; display: inline-block; max-width:100%; overflow: hidden; }
+div.scrolltable table { table-layout: fixed; }
+div.scrolltable_tbody { height: 550px; overflow-y: scroll; overflow-x:scroll; }
+div.scrolltable_tbody thead { display: none; }
+div.scrolltable_thead { .position_relative; }
+div.scrolltable_thead table { border-bottom: 0; }
+
+@media screen and (max-height: 650px)
+{
+ div.scrolltable_tbody { height: 350px; }
+}
+
+// Table styles
+table.stripy thead { font-weight: bold; background-color: white; text-align: center; }
+table.stripy tbody tr:nth-child( odd) { background-color: #eee; }
+
+table.bordered { border: 2px solid #888; border-collapse:collapse; }
+table.bordered2 { border-top: 0; }
+table.bordered thead td { border: 1px solid #888; }
+table.bordered td { border-left: 1px solid #888; border-right: 1px solid #888; border-top: 0; border-bottom: 0; padding: 8px 6px; }
 
 // FAQs
 div.faq_item { margin:16px 8px; background-color: #e4e4e4; border: 1px solid #aaa; border-radius:4px; padding:8px; }

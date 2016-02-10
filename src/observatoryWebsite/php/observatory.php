@@ -15,15 +15,25 @@ $obstory = $getargs->readObservatory("id");
 $obstory_name = $getargs->obstory_objs[$obstory]['name'];
 
 // Get oldest observation
-$stmt = $const->db->prepare("SELECT obsTime FROM archive_observations ORDER BY obsTime ASC LIMIT 1;");
-$stmt->execute([]);
+$stmt = $const->db->prepare("
+SELECT o.obsTime FROM archive_observations o
+INNER JOIN archive_observatories l ON o.observatory = l.uid
+WHERE l.publicId=:o
+ORDER BY obsTime ASC LIMIT 1;");
+$stmt->bindParam(':o', $o, PDO::PARAM_STR, strlen($obstory));
+$stmt->execute(["o"=>$obstory]);
 $oldest_obs = $stmt->fetch();
 if ($oldest_obs) $oldest_obs_date = date("d M Y - h:i", $oldest_obs['obsTime']);
 else $oldest_obs_date = "&ndash;";
 
 // Get newest observation
-$stmt = $const->db->prepare("SELECT obsTime FROM archive_observations ORDER BY obsTime DESC LIMIT 1;");
-$stmt->execute([]);
+$stmt = $const->db->prepare("
+SELECT obsTime FROM archive_observations o
+INNER JOIN archive_observatories l ON o.observatory = l.uid
+WHERE l.publicId=:o
+ORDER BY obsTime DESC LIMIT 1;");
+$stmt->bindParam(':o', $o, PDO::PARAM_STR, strlen($obstory));
+$stmt->execute(["o"=>$obstory]);
 $newest_obs = $stmt->fetch();
 if ($newest_obs) $newest_obs_date = date("d M Y - h:i", $newest_obs['obsTime']);
 else $newest_obs_date = "&ndash;";
@@ -31,19 +41,23 @@ else $newest_obs_date = "&ndash;";
 // Total image count
 $stmt = $const->db->prepare("
 SELECT COUNT(*) FROM archive_observations o
+INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_semanticTypes s ON o.obsType = s.uid
-WHERE s.name=\"timelapse\"
+WHERE l.publicId=:o AND s.name=\"timelapse\"
 ORDER BY obsTime DESC LIMIT 1;");
-$stmt->execute([]);
+$stmt->bindParam(':o', $o, PDO::PARAM_STR, strlen($obstory));
+$stmt->execute(["o"=>$obstory]);
 $image_count = $stmt->fetch()['COUNT(*)'];
 
 // Moving object count
 $stmt = $const->db->prepare("
 SELECT COUNT(*) FROM archive_observations o
+INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_semanticTypes s ON o.obsType = s.uid
-WHERE s.name=\"movingObject\"
+WHERE l.publicId=:o AND s.name=\"movingObject\"
 ORDER BY obsTime DESC LIMIT 1;");
-$stmt->execute([]);
+$stmt->bindParam(':o', $o, PDO::PARAM_STR, strlen($obstory));
+$stmt->execute(["o"=>$obstory]);
 $moving_count = $stmt->fetch()['COUNT(*)'];
 
 $pageInfo = [
@@ -77,6 +91,9 @@ $pageTemplate->header($pageInfo);
         <?php echo $image_count; ?>
         <h5>Total moving objects</h5>
         <?php echo $moving_count; ?>
+        <h5>More information</h5>
+        <p><a href="/observatory_activity.php?id=<?php echo $obstory; ?>">Calendar of observations</a></p>
+        <p><a href="/observatory_metadata.php?id=<?php echo $obstory; ?>">Status messages</a></p>
     </div>
     </div>
 

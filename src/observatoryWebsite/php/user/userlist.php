@@ -36,7 +36,7 @@ $pageTemplate->header($pageInfo);
 
 <?php if (in_array("obstory_admin",$user->roles)): ?>
 
-    <p class="widetitle">List of user accounts</p>
+    <p>The following users are registered on this server:</p>
 
     <?php
     $stmt = $const->db->prepare("
@@ -74,6 +74,7 @@ FROM archive_users u ORDER BY u.userId LIMIT 500;");
                 <?php endforeach; ?>
                 </tbody>
             </table>
+        </div>
         </div>
     <?php else: ?>
         <div class="newsbody">

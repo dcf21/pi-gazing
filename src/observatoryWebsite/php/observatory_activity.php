@@ -159,7 +159,7 @@ $pageTemplate->header($pageInfo);
                 html_getargs::makeFormSelect("year", $tmin['year'], range($const->yearMin, $const->yearMax), 0);
                 ?>
                 <br/>
-                <input type="submit" name="Update" value="Update">
+                <input class="btn btn-primary" style="margin:12px;" type="submit" name="Update" value="Update">
             </form>
 
             <div style="padding-top:25px;">
