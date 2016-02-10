@@ -5,6 +5,7 @@
 // Dominic Ford
 
 require_once "constants.php";
+require_once "user.php";
 
 class HTMLtemplate
 {
@@ -86,7 +87,7 @@ foreach ($postbreadcrumb as $c) {
 
     public static function header($pageInfo)
     {
-        global $const;
+        global $const, $user;
         if (!isset($pageInfo["breadcrumb"])) $pageInfo["breadcrumb"] = [];
         if (!isset($pageInfo["postbreadcrumb"])) $pageInfo["postbreadcrumb"] = null;
         $server = $const->server;
@@ -218,6 +219,17 @@ __HTML__;
                             <a href="/about.php">About</a>
                         </li>
                     </ul>
+                    <ul class="nav navbar-nav navbar-right">
+                        <li class="<?php if ($pageInfo["activeTab"] == "login") echo "active "; ?>">
+                            <a href="/user/login.php">
+                                <?php if (is_null($user->username)): ?>
+                                    <span class="glyphicon glyphicon-log-in"></span>&nbsp;Log in
+                                    <?php else: ?>
+                                    <span class="glyphicon glyphicon-user"></span>&nbsp;Your account
+                                <?php endif; ?>
+                            </a>
+                        </li>
+                    </ul>
                 </div>
             </div>
         </nav>
@@ -254,7 +266,7 @@ __HTML__;
 
                         <p class="copyright">
                             For more information about Meteor Pi, <a href="#about">click here</a>.<br/>
-                            Website designed by Dominic Ford &amp; Tom Oinn.<br/>
+                            Website designed by Dominic Ford.<br/>
                         </p>
 
                         <p class="copyright">
@@ -317,18 +329,20 @@ __HTML__;
                                     <div class="mimetype">
                                         <?php echo $const->mimeTypes[$item['mimeType']]; ?>
                                     </div>
-                                    </div>
+                                </div>
                             <?php else: ?>
-                                <div class="image_substitute"><div class="mimetype">FILE</div></div>
+                                <div class="image_substitute">
+                                    <div class="mimetype">FILE</div>
+                                </div>
                             <?php endif; ?>
                         </div>
                         <div class="gallery_text">
                             <?php echo $item['caption'] ?>
                         </div>
                     </a>
-                         <div class="gallery_extra">
-                             <?php echo $item['hover']; ?>
-                             </div>
+                    <div class="gallery_extra">
+                        <?php echo $item['hover']; ?>
+                    </div>
                 </div>
             <?php endforeach; ?>
         </div>

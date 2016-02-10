@@ -11,7 +11,7 @@ import shutil
 import json
 import numbers
 
-from passlib.hash import pbkdf2_sha256
+import passlib.hash
 import meteorpi_model as mp
 from meteorpi_db.generators import first_from_generator, MeteorDatabaseGenerators
 from meteorpi_db.sql_builder import search_observations_sql_builder, search_files_sql_builder, \
@@ -910,7 +910,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
             raise ValueError("No such user")
         pw_hash = results[0]['pwHash']
         # Check the password
-        if not pbkdf2_sha256.verify(password, pw_hash):
+        if not passlib.hash.bcrypt.verify(password, pw_hash):
             raise ValueError("Incorrect password")
 
         # Fetch list of roles
@@ -961,13 +961,13 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
                 raise ValueError("Must specify an initial password when creating a new user!")
             action = "create"
             self.con.execute('INSERT INTO archive_users (userId, pwHash) VALUES (%s,%s)',
-                             (user_id, pbkdf2_sha256.encrypt(password)))
+                             (user_id, passlib.hash.bcrypt.encrypt(password)))
 
         if password is None and roles is None:
             action = "none"
         if password is not None:
             self.con.execute('UPDATE archive_users SET pwHash = %s WHERE userId = %s',
-                             (pbkdf2_sha256.encrypt(password), user_id))
+                             (passlib.hash.bcrypt.encrypt(password), user_id))
         if roles is not None:
 
             # Clear out existing roles, and delete any unused roles
@@ -984,9 +984,9 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
                     self.con.execute("SELECT uid FROM archive_roles WHERE name=%s;", (role,))
                     results = self.con.fetchall()
 
-                    self.con.execute('INSERT INTO archive_user_roles (userId, roleId) VALUES '
-                                     '((SELECT u.uid FROM archive_users u WHERE u.userId=%s),'
-                                     '%s)', (user_id, results[0]['uid']))
+                self.con.execute('INSERT INTO archive_user_roles (userId, roleId) VALUES '
+                                 '((SELECT u.uid FROM archive_users u WHERE u.userId=%s),'
+                                 '%s)', (user_id, results[0]['uid']))
             return action
 
     def delete_user(self, user_id):

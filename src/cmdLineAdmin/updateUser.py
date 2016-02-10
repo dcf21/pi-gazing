@@ -20,7 +20,7 @@ print "Current web interface accounts"
 print "------------------------------"
 users = db.get_users()
 for user in users:
-    print "%20s -- roles: %s\n" % (user.user_id, " ".join(user.roles))
+    print "%20s -- roles: %s" % (user.user_id, " ".join(user.roles))
 print "\n"
 
 # Select user to update
@@ -41,7 +41,7 @@ roles = raw_input('Enter roles <default %s>: ' % defaultRoles).split()
 if not roles:
     roles = defaultRoles.split()
 
-db.create_or_update_user(user_id=user_id, password=password, roles=roles)
+db.create_or_update_user(user_id=user_id.strip(), password=password.strip(), roles=roles)
 
 # Commit changes to database
 db.commit()
