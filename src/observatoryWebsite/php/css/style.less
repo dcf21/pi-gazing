@@ -233,6 +233,7 @@ table.metadata
 
 // Coloured boxes
 .csc_blue_box { background-color: @light_blue; }
+.grey_box { background-color: #eee; border: 1px solid #ddd; border-radius: 4px; padding: 4px; margin: 10px 0; div.form-section { padding:8px; } }
 
 // Scrollable table
 div.scrolltable { .position_relative; display: inline-block; max-width:100%; overflow: hidden; }
@@ -255,6 +256,20 @@ table.bordered { border: 2px solid #888; border-collapse:collapse; }
 table.bordered2 { border-top: 0; }
 table.bordered thead td { border: 1px solid #888; }
 table.bordered td { border-left: 1px solid #888; border-right: 1px solid #888; border-top: 0; border-bottom: 0; padding: 8px 6px; }
+
+// Galleries of images, e.g. the charts front page
+@img_gallery_width: 400px;
+@img_gallery_height: 250px;
+@img_framewidth: 3px;
+div.overlay_host { .position_relative; display:block; border: 1px solid #c0c0c0; padding: @img_framewidth; box-sizing: content-box; }
+.chartsgalleryitem { width:100%; max-width:500px; margin:3px 0; }
+.chartsgalleryitem div.overlay_host:before { content:""; display:block; padding-top:62.5%; }
+.chartsgalleryitem div.overlay_host { box-sizing:border-box; width:100%; margin:5px auto; }
+.chartsgalleryitem div.holder { box-sizing: border-box; padding: @img_framewidth; position:absolute;top:0;left:0;width:100%; overflow:hidden; }
+.chartsgalleryitem div.img_overcaption { bottom:@img_framewidth; right:@img_framewidth; }
+.chartsgalleryitem img { width:100%; }
+.img_overcaption  { background-color:#ddd; }
+.img_overcaption  { position:absolute;bottom:0;right:0;width:60%;background-color:rgba(232,232,232,0.9);color:#111;font-size:14px;padding: 8px 12px; border-top: 2px solid #4444ff; }
 
 // FAQs
 div.faq_item { margin:16px 8px; background-color: #e4e4e4; border: 1px solid #aaa; border-radius:4px; padding:8px; }

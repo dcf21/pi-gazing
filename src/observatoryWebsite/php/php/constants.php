@@ -51,6 +51,9 @@ class constants
             $this->mysqlPassword) or die ("Can't connect to SQL database.");
         $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
+        // Categories of image
+        $this->item_categories = ["Not set","Plane","Satellite","Meteor","Junk","Pretty sky"];
+
         // Known mime types
         $this->mimeTypes = ["image/png" => "Image",
             "video/mp4" => "Video",

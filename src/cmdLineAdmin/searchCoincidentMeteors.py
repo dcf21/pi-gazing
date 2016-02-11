@@ -22,7 +22,7 @@ def fetch_option(title, default):
         value = default
     return value
 
-semantic_type = "coincidence"
+semantic_type = "simultaneous"
 
 # Fetch default search parameters
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])

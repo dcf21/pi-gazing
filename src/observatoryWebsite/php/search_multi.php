@@ -46,6 +46,11 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
+    <p>
+        Use this form to search for simultaneous detections of moving objects by multiple cameras at the same time. In
+        some cases, the same object may have been seen by more than one camera, allowing its altitude and speed to be
+        triangulated. In other cases, two different objects may coincidentally have been seen at the same time.
+    </p>
     <form class="form-horizontal search-form" method="get" action="/search_multi.php">
 
         <div style="cursor:pointer;text-align:right;">
@@ -132,12 +137,12 @@ $pageTemplate->header($pageInfo);
 if (array_key_exists('obstory', $_GET)) {
 
     // Search for results
-    $where = ['s.name="coincidence"', "g.time>={$tmin['utc']}", "g.time<={$tmax['utc']}"];
+    $where = ['s.name="simultaneous"', "g.time>={$tmin['utc']}", "g.time<={$tmax['utc']}"];
 
     if ($obstory != "Any") $where[] = 'EXISTS (SELECT 1 FROM archive_obs_group_members x1
 INNER JOIN archive_observations x2 ON x2.uid=x1.observationId
 INNER JOIN archive_observatories x3 ON x3.uid=x2.observatory
-WHERE x1.groupId=g.uid AND x3.publicId=%s)'%$obstory;
+WHERE x1.groupId=g.uid AND x3.publicId=%s)' % $obstory;
 
     $search = ('
 archive_obs_groups g
@@ -195,7 +200,7 @@ FROM ${search} ORDER BY g.time DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
     foreach ($result_list as $grp) {
         $where = ["gm.groupId = {$grp['uid']}"];
 
-    $search = ('
+        $search = ('
 archive_obs_group_members gm
 INNER JOIN archive_observations o ON gm.observationId = o.uid
 INNER JOIN archive_files f ON f.observationId = o.uid
@@ -213,16 +218,16 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
         $stmt->execute([]);
         $obs_list = $stmt->fetchAll();
 
-        print "<h3>Object observed at ".date("d M Y \\a\\t H:i", $grp['time'])."</h3>";
+        print "<h3>Object observed at " . date("d M Y \\a\\t H:i", $grp['time']) . "</h3>";
 
         $gallery_items = [];
         foreach ($obs_list as $obs) {
-                $gallery_items[] = ["fileId" => $obs['repositoryFname'],
-                    "filename" => $obs["fileName"],
-                    "caption" => $obs['obstoryName'],
-                    "hover" => null,
-                    "linkId" => $obs['observationId'],
-                    "mimeType" => $obs['mimeType']];
+            $gallery_items[] = ["fileId" => $obs['repositoryFname'],
+                "filename" => $obs["fileName"],
+                "caption" => $obs['obstoryName'],
+                "hover" => null,
+                "linkId" => $obs['observationId'],
+                "mimeType" => $obs['mimeType']];
         }
 
         $pageTemplate->imageGallery($gallery_items, "/moving_obj.php?id=");

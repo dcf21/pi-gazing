@@ -225,7 +225,7 @@ __HTML__;
                             <a href="/user/login.php">
                                 <?php if (is_null($user->username)): ?>
                                     <span class="glyphicon glyphicon-log-in"></span>&nbsp;Log in
-                                    <?php else: ?>
+                                <?php else: ?>
                                     <span class="glyphicon glyphicon-user"></span>&nbsp;Your account
                                 <?php endif; ?>
                             </a>
@@ -311,6 +311,35 @@ __HTML__;
     <?php endforeach; ?>
         <?php
     }
+
+    public static function pageGallery($itemList)
+    {
+        global $const;
+        ?>
+        <div class="row">
+        <?php
+        foreach ($itemList as $item) {
+            ?>
+            <div class="col-md-6">
+                <h3>
+                    <a href="<?php echo $item['link']; ?>"><?php echo $item['title']; ?></a>
+                </h3>
+                <div class="chartsgalleryitem">
+                    <div class="overlay_host">
+                        <div class="holder">
+                            <a href="<?php echo $item['link']; ?>">
+                                <img src="<?php echo $const->server . $item['teaser']; ?>" alt="icon"/>
+                            </a>
+                            <div class="img_overcaption"><?php echo $item['caption']; ?></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php
+        }
+        ?></div><?php
+    }
+
 
     static public function imageGallery($result_list, $url_stub)
     {
