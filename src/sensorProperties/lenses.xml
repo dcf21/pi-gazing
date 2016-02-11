@@ -32,6 +32,14 @@
   <barrel_c>0</barrel_c>
  </lens>
  <lens>
+  <name>HG3Z4512FCS</name>
+  <comment>Lens in use on shed-1 at Peverel Road</comment>
+  <fov>77</fov>
+  <barrel_a>0</barrel_a>
+  <barrel_b>0</barrel_b>
+  <barrel_c>0</barrel_c>
+ </lens>
+ <lens>
   <name>eos1000d</name>
   <comment>Canon 1000D DSLR kit lens</comment>
   <fov>53</fov>
