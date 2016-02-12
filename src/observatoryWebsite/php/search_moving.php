@@ -66,7 +66,7 @@ $pageTemplate->header($pageInfo);
 
     <p>
         Use this form to search for bright moving objects spotted by our cameras. Most of the objects you'll see here
-        are aircraft, satellites, shooting stars, and other airbourne lights.
+        are aircraft, satellites, shooting stars, and other airborne lights.
     </p>
     <form class="form-horizontal search-form" method="get" action="/search_moving.php">
 
