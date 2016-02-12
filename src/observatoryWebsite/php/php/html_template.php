@@ -312,6 +312,39 @@ __HTML__;
         <?php
     }
 
+    public static function slidingPanes($itemList)
+    {
+        ?>
+        <div class="slidingPane">
+            <div class="overlay_host">
+                <div class="holder">
+                    <div class="mp-back" style="left: 18px;">
+                        <div class="mp-img mp-img-leftB slidingPane_prev"></div>
+                    </div>
+                    <div class="mp-back" style="right:18px;">
+                        <div class="mp-img mp-img-rightB slidingPane_next"></div>
+                    </div>
+                    <img src="/<?php echo $itemList[0]['teaser']; ?>" alt="" style="width:100%; z-index:-999;"/>
+                    <?php
+                    foreach ($itemList as $item) {
+                        ?>
+                        <div class="slidingPane_item" style="visibility:hidden;">
+                            <a href="<?php echo $item['link']; ?>"><img
+                                    src="/<?php echo $item['teaser']; ?>"
+                                    alt="" style="width:100%;"/></a>
+
+                            <div class="img_overcaption"><?php echo $item['caption']; ?></div>
+                        </div>
+                        <?php
+                    }
+                    ?>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+
     public static function pageGallery($itemList)
     {
         global $const;

@@ -172,7 +172,12 @@ table.developers td:nth-child(2) { text-align: left; }
 div.supporters div { padding: 2px 32px; text-align:center; font-size:22px; color:#aaa; }
 div.supporters img { height:100px; }
 
-/* Images */
+// Formatting of icons that are taken from site sprite
+.mp-back      { background-color: #aaa; border-radius: 10px; z-index:98; box-sizing: content-box; width:25px;height:25px;position:absolute;top:18px;padding:7px;}
+.mp-back      { background-color: rgba(240,240,240,0.7); }
+.mp-back div  { z-index:99; }
+
+// Images
 .mp-img       { display:inline-block;vertical-align:middle;background-image: url(../img/sprite.png);background-position: 0 0; background-repeat: no-repeat;text-indent: -99999px;}
 .mp-img-fb    { width: 32px;height: 32px;background-position: -77px -10px;}
 .mp-img-tweet { width: 32px;height: 32px;background-position: -119px -10px;}
@@ -270,6 +275,14 @@ div.overlay_host { .position_relative; display:block; border: 1px solid #c0c0c0;
 .chartsgalleryitem img { width:100%; }
 .img_overcaption  { background-color:#ddd; }
 .img_overcaption  { position:absolute;bottom:0;right:0;width:60%;background-color:rgba(232,232,232,0.9);color:#111;font-size:14px;padding: 8px 12px; border-top: 2px solid #4444ff; }
+
+// Sliding panes
+.slidingPane { margin:10px auto; width:100%; max-width:500px; }
+.slidingPane div.overlay_host:before { content:""; display:block; }
+.slidingPane div.overlay_host { box-sizing:border-box; width:100%; margin:5px auto; }
+.slidingPane div.holder { box-sizing: border-box; padding: @img_framewidth; width:100%; overflow:hidden; }
+.slidingPane div.img_overcaption { bottom:0; right:0; }
+.slidingPane_item { position:absolute; top:@img_framewidth; left:@img_framewidth; bottom:@img_framewidth; right:@img_framewidth;}
 
 // FAQs
 div.faq_item { margin:16px 8px; background-color: #e4e4e4; border: 1px solid #aaa; border-radius:4px; padding:8px; }
