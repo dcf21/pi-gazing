@@ -32,7 +32,7 @@ def export_data(db, utc_now, utc_must_stop=0):
     exporter = MeteorExporter(db=db)
 
     # Loop until either we run out of time, or we run out of files to export
-    max_failures = 5
+    max_failures = 4
     fail_count = 0
     while ((not utc_must_stop) or (time.time() < utc_stop)) and (fail_count < max_failures):
         state = exporter.handle_next_export()
@@ -43,8 +43,10 @@ def export_data(db, utc_now, utc_must_stop=0):
         print "Export status: %s" % state.state
         if state.state == "failed":
             log_txt("Backing off, because an export failed")
-            time.sleep(600)
+            time.sleep( [30,300,600,1200,2400][fail_count] )
             fail_count += 1
+        else:
+            fail_count = 0
 
     # Exit
     if fail_count >= max_failures:
