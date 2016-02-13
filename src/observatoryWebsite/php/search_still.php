@@ -299,7 +299,7 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
     endif;
 
     // Display results
-    $pageTemplate->imageGallery($gallery_items, "/image.php?id=");
+    $pageTemplate->imageGallery($gallery_items, "/image.php?id=", false);
 
     // Display pager
     if (count($result_list) < $result_count) {

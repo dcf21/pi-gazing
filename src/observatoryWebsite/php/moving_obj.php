@@ -85,14 +85,19 @@ foreach ($file_list as $item) {
 
 // Get list of simultaneous detections
 $stmt = $const->db->prepare("
-SELECT m.observationId, l.name AS obstory, f.repositoryFname, f.mimeType, f.fileName
+SELECT m.observationId, l.name AS obstory, f.repositoryFname, f.mimeType, f.fileName,
+d2.stringValue AS path
 FROM archive_obs_group_members m
 INNER JOIN archive_observations o ON m.observationId = o.uid
 INNER JOIN archive_files f ON f.observationId=m.observationId
-INNER JOIN archive_semanticTypes fs ON f.semanticType = fs.uid AND fs.name=\"meteorpi:triggers/event/maxBrightness\"
+    AND f.semanticType = (SELECT uid FROM archive_semanticTypes WHERE name=\"meteorpi:triggers/event/maxBrightness\")
 INNER JOIN archive_observatories l ON o.observatory = l.uid
-INNER JOIN archive_obs_groups g ON g.uid=m.groupId
-INNER JOIN archive_obs_group_members m2 ON m2.groupId=g.uid AND m2.observationId=:i;");
+INNER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
+    d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"meteorpi:path\")
+WHERE m.uid IN
+    (SELECT groupId FROM archive_obs_groups g
+     INNER JOIN archive_obs_group_members m2 ON m2.groupId=g.uid AND m2.observationId=:i);
+");
 $stmt->bindParam(':i', $i, PDO::PARAM_INT);
 $stmt->execute(['i' => $uid]);
 $simultaneous_events = $stmt->fetchAll();
@@ -186,11 +191,12 @@ if (count($simultaneous_events)>0)
         $gallery_items[] = ["fileId" => $item['repositoryFname'],
             "filename" => $item["fileName"],
             "caption" => $item["obstory"],
-            "hover" => "",
+            "hover" => null,
+            "path" => $item['path'],
             "linkId" => $item['repositoryFname'],
             "mimeType" => $item['mimeType']];
     }
-    $pageTemplate->imageGallery($gallery_items, "/image.php?id=");
+    $pageTemplate->imageGallery($gallery_items, "/image.php?id=", true);
 
 }
 ?>
@@ -215,10 +221,11 @@ if (count($simultaneous_events)>0)
                 "filename" => $item["fileName"],
                 "caption" => $caption[0],
                 "hover" => $caption[1],
+                "path" => $metadata_by_key['path'],
                 "linkId" => $item['repositoryFname'],
                 "mimeType" => $item['mimeType']];
         }
-        $pageTemplate->imageGallery($gallery_items, "/image.php?id=");
+        $pageTemplate->imageGallery($gallery_items, "/image.php?id=", true);
         ?>
     </div>
 <?php else: ?>

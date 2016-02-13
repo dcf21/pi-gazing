@@ -197,6 +197,8 @@ INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_metadata d ON o.uid = d.observationId AND
     d.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"meteorpi:duration\") AND
     d.floatValue>={$duration_min} AND d.floatValue<={$duration_max}
+INNER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
+    d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"meteorpi:path\")
 WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"movingObject\")
     AND " . implode(' AND ', $where));
 
@@ -213,7 +215,8 @@ WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"movingObje
     if ($result_count > 0) {
         $stmt = $const->db->prepare("
 SELECT f.repositoryFname, f.fileName, o.publicId AS observationId,
-o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType
+o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType,
+d2.stringValue AS path
 FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
         $stmt->execute([]);
         $result_list = $stmt->fetchAll();
@@ -225,6 +228,7 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
             "filename" => $item["fileName"],
             "caption" => $item['obstoryName'] . "<br/>" . date("d M Y \\a\\t H:i", $item['obsTime']),
             "hover" => null,
+            "path" => $item["path"],
             "linkId" => $item['observationId'],
             "mimeType" => $item['mimeType']];
     }
@@ -259,7 +263,7 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
     endif;
 
     // Display results
-    $pageTemplate->imageGallery($gallery_items, "/moving_obj.php?id=");
+    $pageTemplate->imageGallery($gallery_items, "/moving_obj.php?id=", true);
 
     // Display pager
     if (count($result_list) < $result_count) {

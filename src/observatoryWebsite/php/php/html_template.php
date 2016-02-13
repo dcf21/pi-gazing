@@ -374,40 +374,63 @@ __HTML__;
     }
 
 
-    static public function imageGallery($result_list, $url_stub)
+    static public function imageGallery($result_list, $url_stub, $show_paths)
     {
         global $const;
+
+        $holder_class = "";
+        if ($show_paths) $holder_class = "gallery_with_markers";
         ?>
-        <div class="row">
-            <?php foreach ($result_list as $item): ?>
-                <div class="col-md-3 gallery_item">
-                    <a href="<?php echo $url_stub . $item['linkId']; ?>">
-                        <div class="gallery_image">
-                            <?php if ($item['mimeType'] == 'image/png'): ?>
-                                <img class="gallery_img" alt="" title="" src="/api/thumbnail/<?php
-                                echo $item['fileId'] . "/" . $item['filename'];
-                                ?>"/>
-                            <?php elseif (array_key_exists($item['mimeType'], $const->mimeTypes)): ?>
-                                <div class="image_substitute gallery_img">
-                                    <div class="mimetype">
-                                        <?php echo $const->mimeTypes[$item['mimeType']]; ?>
-                                    </div>
-                                </div>
-                            <?php else: ?>
-                                <div class="image_substitute">
-                                    <div class="mimetype">FILE</div>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="gallery_text">
-                            <?php echo $item['caption'] ?>
-                        </div>
-                    </a>
-                    <div class="gallery_extra">
-                        <?php echo $item['hover']; ?>
-                    </div>
+
+        <div class="<?php echo $holder_class; ?>">
+
+            <?php if ($show_paths): ?>
+                <div style="cursor:pointer;text-align:right;margin:16px 0;">
+                    <button type="button" class="btn btn-default btn-md paths-toggle">
+                        <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+                        Show position markers
+                    </button>
                 </div>
-            <?php endforeach; ?>
+
+            <?php endif; ?>
+            <div class="row">
+                <?php
+                foreach ($result_list as $item):
+                    $path_attribute = "";
+                    if (array_key_exists("path", $item)) $path_attribute = "data-path=\"{$item['path']}\"";
+                    ?>
+                    <div class="col-md-3 gallery_item">
+                        <a href="<?php echo $url_stub . $item['linkId']; ?>">
+                            <div class="gallery_image" <?php echo $path_attribute; ?> >
+                                <?php if ($item['mimeType'] == 'image/png'): ?>
+                                    <img class="gallery_img" alt="" title="" src="/api/thumbnail/<?php
+                                    echo $item['fileId'] . "/" . $item['filename'];
+                                    ?>"/>
+                                    <?php if ($show_paths): ?>
+                                        <img class="gallery_path_marker" alt="" title="" src="/img/crosshair.gif"/>
+                                    <?php endif; ?>
+                                <?php elseif (array_key_exists($item['mimeType'], $const->mimeTypes)): ?>
+                                    <div class="image_substitute gallery_img">
+                                        <div class="mimetype">
+                                            <?php echo $const->mimeTypes[$item['mimeType']]; ?>
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="image_substitute">
+                                        <div class="mimetype">FILE</div>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                            <div class="gallery_text">
+                                <?php echo $item['caption'] ?>
+                            </div>
+                        </a>
+                        <div class="gallery_extra">
+                            <?php echo $item['hover']; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
         </div>
         <?php
     }

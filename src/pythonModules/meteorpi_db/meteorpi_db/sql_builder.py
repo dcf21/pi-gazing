@@ -104,9 +104,9 @@ INNER JOIN archive_observatories l ON o.observatory=l.uid""", where_clauses=[])
         b.where_clauses.append('NOT EXISTS (SELECT * FROM archive_observationImport i WHERE i.observationId = o.uid')
     if search.exclude_export_to is not None:
         b.where_clauses.append("""
-        NOT EXISTS (SELECT * FROM archive_observationExport ex
+        NOT EXISTS (SELECT * FROM archive_fileExport ex
         INNER JOIN archive_exportConfig c ON ex.exportConfig = c.uid
-        WHERE ex.observationId = o.uid  AND c.exportConfigID = %s)
+        WHERE ex.fileId = f.uid  AND c.exportConfigID = %s)
         """)
         b.sql_args.append(SQLBuilder.map_value(search.exclude_export_to))
 
