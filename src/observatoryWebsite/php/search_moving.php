@@ -197,7 +197,7 @@ INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_metadata d ON o.uid = d.observationId AND
     d.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"meteorpi:duration\") AND
     d.floatValue>={$duration_min} AND d.floatValue<={$duration_max}
-INNER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
+LEFT OUTER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
     d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"meteorpi:path\")
 WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"movingObject\")
     AND " . implode(' AND ', $where));
