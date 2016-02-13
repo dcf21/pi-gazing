@@ -183,21 +183,22 @@ $pageTemplate->header($pageInfo);
 if (array_key_exists('obstory', $_GET)) {
 
     // Search for results
-    $where = ['so.name="movingObject"', 'sf.name="meteorpi:triggers/event/maxBrightness/lensCorr"',
-        "o.obsTime>={$tmin['utc']}", "o.obsTime<={$tmax['utc']}",
-        "d.floatValue>={$duration_min}", "d.floatValue<={$duration_max}"];
+    $semantic_type = "meteorpi:triggers/event/maxBrightness/lensCorr";
+
+    $where = ["o.obsTime BETWEEN {$tmin['utc']} AND {$tmax['utc']}"];
 
     if ($obstory != "Any") $where[] = 'l.publicId="' . $obstory . '"';
 
-    $search = ('
-archive_files f
-INNER JOIN archive_observations o ON f.observationId = o.uid
+    $search = ("
+archive_observations o
+INNER JOIN archive_files f ON f.observationId = o.uid AND
+    f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name=\"{$semantic_type}\")
 INNER JOIN archive_observatories l ON o.observatory = l.uid
-INNER JOIN archive_semanticTypes so ON o.obsType = so.uid
-INNER JOIN archive_semanticTypes sf ON f.semanticType = sf.uid
-INNER JOIN archive_metadata d ON o.uid = d.observationId
-INNER JOIN archive_metadataFields df ON d.fieldId = df.uid AND df.metaKey="meteorpi:duration"
-WHERE ' . implode(' AND ', $where));
+INNER JOIN archive_metadata d ON o.uid = d.observationId AND
+    d.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"meteorpi:duration\") AND
+    d.floatValue>={$duration_min} AND d.floatValue<={$duration_max}
+WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"movingObject\")
+    AND " . implode(' AND ', $where));
 
     $stmt = $const->db->prepare("SELECT COUNT(*) FROM ${search};");
     $stmt->execute([]);

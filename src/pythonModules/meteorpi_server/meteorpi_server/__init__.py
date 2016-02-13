@@ -113,6 +113,7 @@ class MeteorApp(object):
                             if not user.has_role(role):
                                 return MeteorApp.authentication_failure(message='Missing role {0}'.format(role))
                     g.user = user
+                    db.close_db()
                 except ValueError:
                     return MeteorApp.authentication_failure(message='Unrecognized role encountered')
                 return f(*args, **kwargs)

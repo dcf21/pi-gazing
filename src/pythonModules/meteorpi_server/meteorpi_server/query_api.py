@@ -59,6 +59,7 @@ def add_routes(meteor_app, url_path=''):
                 last_seen = results[0]['time']
             output[o]['firstSeen'] = first_seen
             output[o]['lastSeen'] = last_seen
+        db.close_db()
         return jsonify(output)
 
     # Return a list of all of the metadata tags which ever been set on a particular observatory, with time stamp
@@ -69,6 +70,7 @@ def add_routes(meteor_app, url_path=''):
         data = db.search_obstory_metadata(search)['items']
         data.sort(key=lambda x: x.time)
         output = [[i.time, i.key, i.value] for i in data]
+        db.close_db()
         return jsonify({'status': output})
 
     # Return a list of all of the metadata which was valid for a particular observatory at a particular time
@@ -83,6 +85,7 @@ def add_routes(meteor_app, url_path=''):
         if obstory_info:
             obstory_name = obstory_info['name']
             status = db.get_obstory_status(obstory_name=obstory_name, time=float(unix_time))
+        db.close_db()
         return jsonify({'status': status})
 
     # Search for observations using a YAML search string
@@ -91,6 +94,7 @@ def add_routes(meteor_app, url_path=''):
         db = meteor_app.get_db()
         search = mp.ObservationSearch.from_dict(safe_load(unquote(search_string)))
         observations = db.search_observations(search)
+        db.close_db()
         return jsonify({'obs': list(x.as_dict() for x in observations['obs']), 'count': observations['count']})
 
     # Search for files using a YAML search string
@@ -99,6 +103,7 @@ def add_routes(meteor_app, url_path=''):
         db = meteor_app.get_db()
         search = mp.FileRecordSearch.from_dict(safe_load(unquote(search_string)))
         files = db.search_files(search)
+        db.close_db()
         return jsonify({'files': list(x.as_dict() for x in files['files']), 'count': files['count']})
 
     # Return a list of sky clarity measurements for a particular observatory (scale 0-100)
@@ -133,6 +138,7 @@ def add_routes(meteor_app, url_path=''):
                 output.append(0)
             if b >= utc_max:
                 break
+        db.close_db()
         return jsonify(output)
 
     # Return a list of the number of observations of a particular type in a sequence
@@ -158,6 +164,7 @@ def add_routes(meteor_app, url_path=''):
             output.append(db.con.fetchone()['COUNT(*)'])
             if b >= utc_max:
                 break
+        db.close_db()
         return jsonify({"activity": output})
 
     # Return a thumbnail version of an image
@@ -166,13 +173,16 @@ def add_routes(meteor_app, url_path=''):
         db = meteor_app.get_db()
         record = db.get_file(repository_fname=file_id)
         if record is None:
+            db.close_db()
             return MeteorApp.not_found(entity_id=file_id)
         if record.mime_type != "image/png":
+            db.close_db()
             return MeteorApp.not_found(entity_id=file_id)
         file_path = db.file_path_for_id(record.id)
         thumb_path = os.path.join(db.file_store_path, "../thumbnails", record.id)
         if not os.path.exists(thumb_path):
             os.system("convert %s -scale 220 %s" % (file_path, thumb_path))
+        db.close_db()
         return send_file(filename_or_fp=thumb_path, mimetype=record.mime_type)
 
     # Return a file from the repository
@@ -216,6 +226,8 @@ def add_routes(meteor_app, url_path=''):
         db = meteor_app.get_db()
         record = db.get_file(repository_fname=file_id)
         if record is None:
+            db.close_db()
             return MeteorApp.not_found(entity_id=file_id)
         file_path = db.file_path_for_id(record.id)
+        db.close_db()
         return send_file_partial(filename_or_fp=file_path, mimetype=record.mime_type)

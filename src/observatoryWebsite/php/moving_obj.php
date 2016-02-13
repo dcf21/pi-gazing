@@ -6,6 +6,7 @@
 
 require "php/imports.php";
 require_once "php/html_getargs.php";
+require_once "php/set_metadata.php";
 
 $getargs = new html_getargs(true);
 
@@ -34,6 +35,18 @@ $stmt->bindParam(':i', $i, PDO::PARAM_INT);
 $stmt->execute(['i' => $observation['observatory']]);
 $obstory = $stmt->fetch();
 
+// Does user have permission to set metadata on this item?
+$allow_item_to_be_featured = in_array("voter", $user->roles);
+
+// Set categorisation of image based on get data
+if ($allow_item_to_be_featured && array_key_exists("update", $_GET)) {
+    if (array_key_exists("category", $_GET)) {
+        $new_category = $_GET["category"];
+        if ($new_category == "Not set") $new_category = null;
+        set_metadata("web:category", $new_category, $observation['obsTime'], $uid, "observationId");
+    }
+}
+
 // Get list of metadata
 $stmt = $const->db->prepare("
 SELECT m.time, mf.metaKey, m.floatValue, m.stringValue
@@ -43,6 +56,12 @@ WHERE observationId=:i;");
 $stmt->bindParam(':i', $i, PDO::PARAM_INT);
 $stmt->execute(['i' => $uid]);
 $metadata = $stmt->fetchAll();
+
+// Make metadata dictionary
+$metadata_by_key = [];
+foreach ($metadata as $item) {
+    $metadata_by_key[$item['metaKey']] = $item['stringValue'] ? $item['stringValue'] : $item['floatValue'];
+}
 
 // Get list of associated files
 $stmt = $const->db->prepare("
@@ -120,6 +139,38 @@ if (array_key_exists("meteorpi:triggers/event", $files_by_type)):
         </div>
     </div>
 
+<?php endif; ?>
+
+<?php if ($allow_item_to_be_featured): ?>
+    <h3>Administration panel: categorise this detection</h3>
+
+    <?php
+
+    // Look up pre-existing categorisation of this image
+    $item_category = "Not set";
+
+    if (array_key_exists("web:category", $metadata_by_key)) $item_category = $metadata_by_key["web:category"];
+    ?>
+
+    <form class="form-horizontal search-form" method="get" action="/moving_obj.php">
+        <div class="grey_box">
+            <div class="row">
+                <div class="col-sm-8">
+                    <input type="hidden" name="id" value="<?php echo $id; ?>"/>
+                    <input type="hidden" name="update" value="1"/>
+                    <div class="form-section">
+                        <span class="formlabel2">Categorise</span>
+                        <?php $getargs->makeFormSelect("category", $item_category, $const->item_categories, 0); ?>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div style="padding:40px 0 40px 0;">
+                        <button type="submit" class="btn btn-primary">Update</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
 <?php endif; ?>
 
 <?php

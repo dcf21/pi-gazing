@@ -219,8 +219,7 @@ if (array_key_exists('obstory', $_GET)) {
     }
 
     // Search for results
-    $where = ['so.name="timelapse"', "sf.name=\"{$semantic_type}\"",
-        "o.obsTime>={$tmin['utc']}", "o.obsTime<={$tmax['utc']}"];
+    $where = ["o.obsTime BETWEEN {$tmin['utc']} AND {$tmax['utc']}"];
 
     if ($flag_highlights)
         $where[] = "d.floatValue>0.5";
@@ -230,17 +229,17 @@ if (array_key_exists('obstory', $_GET)) {
 
     if ($obstory != "Any") $where[] = 'l.publicId="' . $obstory . '"';
 
-    $search = ('
-archive_files f
-INNER JOIN archive_observations o ON f.observationId = o.uid
+    $search = ("
+archive_observations o
+INNER JOIN archive_files f ON f.observationId = o.uid AND
+    f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name=\"{$semantic_type}\")
 INNER JOIN archive_observatories l ON o.observatory = l.uid
-INNER JOIN archive_semanticTypes so ON o.obsType = so.uid
-INNER JOIN archive_semanticTypes sf ON f.semanticType = sf.uid
-INNER JOIN archive_metadata d ON o.uid = d.observationId
-INNER JOIN archive_metadataFields df ON d.fieldId = df.uid AND df.metaKey="meteorpi:highlight"
-INNER JOIN archive_metadata d2 ON o.uid = d2.observationId
-INNER JOIN archive_metadataFields df2 ON d2.fieldId = df2.uid AND df2.metaKey="meteorpi:skyClarity"
-WHERE ' . implode(' AND ', $where));
+INNER JOIN archive_metadata d ON o.uid = d.observationId AND d.fieldId=
+    (SELECT uid FROM archive_metadataFields WHERE metaKey=\"meteorpi:highlight\")
+INNER JOIN archive_metadata d2 ON o.uid = d2.observationId AND d2.fieldId=
+    (SELECT uid FROM archive_metadataFields WHERE metaKey=\"meteorpi:skyClarity\")
+WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"timelapse\")
+    AND " . implode(' AND ', $where));
 
     $stmt = $const->db->prepare("SELECT COUNT(*) FROM ${search};");
     $stmt->execute([]);

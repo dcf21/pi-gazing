@@ -200,16 +200,14 @@ FROM ${search} ORDER BY g.time DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
     foreach ($result_list as $grp) {
         $where = ["gm.groupId = {$grp['uid']}"];
 
-        $search = ('
+        $search = ("
 archive_obs_group_members gm
 INNER JOIN archive_observations o ON gm.observationId = o.uid
 INNER JOIN archive_files f ON f.observationId = o.uid
 INNER JOIN archive_observatories l ON o.observatory = l.uid
-INNER JOIN archive_semanticTypes so ON o.obsType = so.uid
-   AND so.name="movingObject"
-INNER JOIN archive_semanticTypes sf ON f.semanticType = sf.uid
-   AND sf.name="meteorpi:triggers/event/maxBrightness/lensCorr"
-WHERE ' . implode(' AND ', $where));
+WHERE f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name=\"meteorpi:triggers/event/maxBrightness/lensCorr\")
+   AND o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"movingObject\")
+   AND gm.groupId = {$grp['uid']}");
 
         $stmt = $const->db->prepare("
 SELECT f.repositoryFname, f.fileName, o.publicId AS observationId,

@@ -45,7 +45,6 @@ class utils
 
     public static function getRelativeTime($tdiff, $minuteNull)
     {
-        global $loc;
         $midnight = strtotime("today", strtotime("now"));
         $dayFrac = (strtotime("now") - $midnight) / 24 / 3600;
         $tdiff2 = $tdiff + $dayFrac;

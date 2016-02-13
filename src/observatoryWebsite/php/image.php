@@ -6,6 +6,7 @@
 
 require "php/imports.php";
 require_once "php/html_getargs.php";
+require_once "php/set_metadata.php";
 
 $getargs = new html_getargs(true);
 
@@ -52,79 +53,22 @@ $obstory = $stmt->fetch();
 $mime_type = $result['mimeType'];
 $file_url = "/api/files/content/{$result['repositoryFname']}/{$result['fileName']}";
 
-function get_metadata_key_id($key)
-{
-    global $const;
-    $stmt = $const->db->prepare("SELECT uid FROM archive_metadataFields WHERE metaKey=:k;");
-    $stmt->bindParam(':k', $k, PDO::PARAM_STR, strlen($key));
-    $stmt->execute(['k' => $key]);
-    $results = $stmt->fetchAll();
-    if (count($results) < 1) {
-        $stmt = $const->db->prepare("INSERT INTO archive_metadataFields (metaKey) VALUES (:k);");
-        $stmt->bindParam(':k', $k, PDO::PARAM_STR, strlen($key));
-        $stmt->execute(['k' => $key]);
-        $stmt = $const->db->prepare("SELECT uid FROM archive_metadataFields WHERE metaKey=:k;");
-        $stmt->bindParam(':k', $k, PDO::PARAM_STR, strlen($key));
-        $stmt->execute(['k' => $key]);
-        $results = $stmt->fetchAll();
-    }
-    return $results[0]['uid'];
-}
-
-function set_metadata($key, $value, $time)
-{
-    global $const, $uid, $user;
-
-    $meta_id = get_metadata_key_id($key);
-    $stringValue = $floatValue = null;
-    if (is_numeric($value)) $floatValue = floatval($value);
-    else $stringValue = strval($value);
-
-    $tstr = date("Ymd_His", time());
-    $key = sprintf("%s_%s", time(), rand());
-    $md5 = md5($key);
-    $publicId = substr(sprintf("%s_%s", $tstr, $md5), 0, 32);
-
-    $stmt = $const->db->prepare("
-DELETE m FROM archive_metadata m
-WHERE m.fileId=:i AND m.fieldId=:k;");
-    $stmt->bindParam(':i', $i, PDO::PARAM_INT);
-    $stmt->bindParam(':k', $k, PDO::PARAM_INT);
-    $stmt->execute(['i' => $uid, 'k' => $meta_id]);
-    if ($value == null) return;
-    $stmt = $const->db->prepare("
-INSERT INTO archive_metadata (fileId, fieldId, publicId, time, setAtTime, setByUser, stringValue, floatValue)
-VALUES (:i,:k,:p,:t,:st,:u,:sv,:fv);");
-    $stmt->bindParam(':i', $i, PDO::PARAM_INT);
-    $stmt->bindParam(':k', $k, PDO::PARAM_INT);
-    $stmt->bindParam(':p', $p, PDO::PARAM_INT, 64);
-    $stmt->bindParam(':t', $t, PDO::PARAM_STR, 256);
-    $stmt->bindParam(':st', $st, PDO::PARAM_STR, 256);
-    $stmt->bindParam(':u', $u, PDO::PARAM_STR, strlen($user->userId));
-    $stmt->bindParam(':sv', $sv, PDO::PARAM_STR, 256);
-    $stmt->bindParam(':fv', $fv, PDO::PARAM_STR, 256);
-    $stmt->execute(['i' => $uid,
-        'k' => $meta_id,
-        'p' => $publicId,
-        't' => $time,
-        'st' => time(),
-        'u' => $user->userId,
-        'sv' => $stringValue,
-        'fv' => $floatValue
-    ]);
-}
-
+// Does user have permission to set metadata on this item?
 $allow_item_to_be_featured = (($mime_type == "image/png") && in_array("voter", $user->roles));
 
 // Set categorisation of image based on get data
 if ($allow_item_to_be_featured && array_key_exists("update", $_GET)) {
-    set_metadata("web:featured", array_key_exists("feature", $_GET) ? 1 : null, $observation['obsTime']);
-    if (array_key_exists("caption", $_GET)) set_metadata("web:caption", $_GET["caption"], $observation['obsTime']);
-    if (array_key_exists("category", $_GET)) {
-        $new_category = $_GET["category"];
-        if ($new_category == "Not set") $new_category = null;
-        set_metadata("web:category", $new_category, $observation['obsTime']);
-    }
+    set_metadata("web:featured",
+        array_key_exists("feature", $_GET) ? 1 : null,
+        $observation['obsTime'],
+        $uid,
+        "fileId");
+    if (array_key_exists("caption", $_GET))
+        set_metadata("web:caption",
+            $_GET["caption"],
+            $observation['obsTime'],
+            $uid,
+            "fileId");
 }
 
 // Get list of metadata
@@ -220,11 +164,9 @@ $pageTemplate->header($pageInfo);
     // Look up pre-existing categorisation of this image
     $featured = false;
     $item_caption = "";
-    $item_category = "Not set";
 
     if (array_key_exists("web:featured", $metadata_by_key)) $featured = true;
     if (array_key_exists("web:caption", $metadata_by_key)) $item_caption = $metadata_by_key["web:caption"];
-    if (array_key_exists("web:category", $metadata_by_key)) $item_category = $metadata_by_key["web:category"];
     ?>
 
     <form class="form-horizontal search-form" method="get" action="/image.php">
@@ -250,14 +192,10 @@ $pageTemplate->header($pageInfo);
                                value="<?php echo $item_caption; ?>"
                         />
                     </div>
-                    <div class="form-section">
-                        <span class="formlabel2">Categorise</span>
-                        <?php $getargs->makeFormSelect("category", $item_category, $const->item_categories, 0); ?>
-                    </div>
                 </div>
                 <div class="col-sm-4">
                     <div style="padding:40px 0 40px 0;">
-                        <button type="submit" class="btn btn-primary" data-bind="click: performSearch">Update</button>
+                        <button type="submit" class="btn btn-primary">Update</button>
                     </div>
                 </div>
             </div>

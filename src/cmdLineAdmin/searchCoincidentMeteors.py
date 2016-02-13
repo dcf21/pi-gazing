@@ -22,6 +22,7 @@ def fetch_option(title, default):
         value = default
     return value
 
+
 semantic_type = "simultaneous"
 
 # Fetch default search parameters
@@ -51,8 +52,8 @@ existing_groups = existing_groups['obsgroups']
 # Search for moving objects within time span
 search = mp.ObservationSearch(observation_type="movingObject",
                               time_min=utc_min, time_max=utc_max, limit=1000000)
-triggers = db.search_observations(search)
-triggers = triggers['obs']
+triggers_raw = db.search_observations(search)
+triggers = [x for x in triggers_raw['obs'] if db.get_observation_metadata(x.id, "web:category") != "Junk"]
 triggers.sort(key=lambda x: x.obs_time)
 
 # Search for coincidences
@@ -82,7 +83,8 @@ for i in range(len(triggers)):
         complete_to = group_max
 
 print "%6d existing observation groups within this time period (will be deleted)." % (len(existing_groups))
-print "%6d moving objects seen within this time period" % (len(triggers))
+print "%6d moving objects seen within this time period" % (len(triggers_raw['obs']))
+print "%6d moving objects rejected because tagged as junk" % (len(triggers_raw['obs']) - len(triggers))
 print "%6d coincident detections found." % (len(coincidences))
 
 for item in coincidences:

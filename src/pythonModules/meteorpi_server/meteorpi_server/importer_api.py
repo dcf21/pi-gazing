@@ -262,6 +262,7 @@ def add_routes(meteor_app, url_path='/importv2'):
         if import_request.entity_type == 'file':
             response = handler.receive_file_record(import_request)
             handler.db.commit()
+            db.close_db()
             if response is not None:
                 return response
             else:
@@ -269,6 +270,7 @@ def add_routes(meteor_app, url_path='/importv2'):
         elif import_request.entity_type == 'observation':
             response = handler.receive_observation(import_request)
             handler.db.commit()
+            db.close_db()
             if response is not None:
                 return response
             else:
@@ -276,11 +278,13 @@ def add_routes(meteor_app, url_path='/importv2'):
         elif import_request.entity_type == 'metadata':
             response = handler.receive_metadata(import_request)
             handler.db.commit()
+            db.close_db()
             if response is not None:
                 return response
             else:
                 return import_request.response_continue()
         else:
+            db.close_db()
             return import_request.response_failed("Unknown import request")
 
     @app.route('{0}/data/<file_id_hex>/<md5_hex>'.format(url_path), methods=['POST'])
@@ -298,4 +302,5 @@ def add_routes(meteor_app, url_path='/importv2'):
         file_data = request.files['file']
         if file_data:
             handler.receive_file_data(file_id=file_id, file_data=file_data, md5_hex=md5_hex)
+        db.close_db()
         return ImportRequest.response_continue_after_file()

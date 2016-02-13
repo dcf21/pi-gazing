@@ -95,6 +95,10 @@ class MeteorDatabase(object):
     def commit(self):
         self.db.commit()
 
+    def close_db(self):
+        self.con.close()
+        self.db.close()
+
     # Functions relating to observatories
     def has_obstory_id(self, obstory_id):
         self.con.execute('SELECT 1 FROM archive_observatories WHERE publicId=%s;', (obstory_id,))

@@ -255,4 +255,9 @@ CREATE TABLE archive_metadataImport (
     ON DELETE CASCADE
 );
 
+# Create extra indices
+CREATE INDEX idx_meta_fo ON archive_metadata (fieldId,observationId);
+CREATE INDEX idx_meta_ff ON archive_metadata (fieldId,fileId);
+CREATE INDEX idx_meta_fl ON archive_metadata (fieldId,observatory);
+
 COMMIT;
