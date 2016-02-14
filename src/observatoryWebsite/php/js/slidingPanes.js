@@ -11,25 +11,29 @@ function SlidingPanes(parent) {
     this.number = this.children.length;
     this.current = 0;
     this.auto = true;
+    this.selectPane(0);
     setInterval((function (self) {
         return function () {
             self.alarm();
         }
-    })(this), 8000);
+    })(this), 6000);
 }
 
 SlidingPanes.prototype.prev = function () {
     this.auto = false;
     this.selectPane((this.current + this.number - 1) % this.number);
 };
+
 SlidingPanes.prototype.next = function () {
     this.auto = false;
     this.selectPane((this.current + 1) % this.number);
 };
+
 SlidingPanes.prototype.alarm = function () {
     if (this.auto) {
         this.selectPane((this.current + 1) % this.number);
     }
+    this.auto = true;
 };
 
 SlidingPanes.prototype.selectPane = function (i) {

@@ -206,7 +206,7 @@ INNER JOIN archive_observations o ON gm.observationId = o.uid
 INNER JOIN archive_files f ON f.observationId = o.uid
 INNER JOIN archive_observatories l ON o.observatory = l.uid
 LEFT OUTER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
-    d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"meteorpi:path\")
+    d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"meteorpi:pathBezier\")
 WHERE f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name=\"meteorpi:triggers/event/maxBrightness/lensCorr\")
    AND o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"movingObject\")
    AND gm.groupId = {$grp['uid']}");
