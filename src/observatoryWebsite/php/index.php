@@ -8,16 +8,15 @@ require "php/imports.php";
 
 // Search for featured images
 $stmt = $const->db->prepare("
-SELECT f.repositoryFname, f.fileName,
+SELECT f.repositoryFname, f.fileName, l.name AS obsName, l.publicId AS obsId,
 o.publicId AS obsId, o.obsTime,
 d2.stringValue AS caption, so.name AS obsType
 FROM archive_files f
 INNER JOIN archive_observations o ON f.observationId = o.uid
+INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_semanticTypes so ON o.obsType = so.uid
-INNER JOIN archive_metadata d ON f.uid = d.fileId
-INNER JOIN archive_metadataFields df ON d.fieldId = df.uid AND df.metaKey=\"web:featured\"
-INNER JOIN archive_metadata d2 ON f.uid = d2.fileId
-INNER JOIN archive_metadataFields df2 ON d2.fieldId = df2.uid AND df2.metaKey=\"web:caption\"
+INNER JOIN archive_metadata d ON f.uid = d.fileId AND d.fieldId = (SELECT uid FROM archive_metadataFields WHERE metaKey=\"web:featured\")
+INNER JOIN archive_metadata d2 ON f.uid = d2.fileId AND d2.fieldId = (SELECT uid FROM archive_metadataFields WHERE metaKey=\"web:caption\")
 ORDER BY o.obsTime DESC LIMIT 6;");
 $stmt->execute([]);
 $result_list = $stmt->fetchAll();
@@ -27,7 +26,10 @@ foreach ($result_list as $item) {
     if ($item["obsType"] == "timelapse") $link = "/image.php?id=" . $item['repositoryFname'];
     else $link = "/moving_obj.php?id=" . $item['obsId'];
     $paneList[] = ["link" => $link,
-        "caption" => $item['caption'],
+        "caption" => "<div class='smallcaps'>" .
+            "<a href='/observatory.php?id={$item['obsId']}'>{$item['obsName']}</a>" .
+            "<br />" .
+            date("d M Y - h:i", $item['obsTime']) . "</div>{$item['caption']}",
         "teaser" => "api/files/content/" . $item['repositoryFname'] . "/" . $item['fileName']
     ];
 }
@@ -35,7 +37,9 @@ foreach ($result_list as $item) {
 $pageInfo = [
     "pageTitle" => "Meteor Pi",
     "pageDescription" => "Meteor Pi",
-    "activeTab" => "projects",
+    "noTitle" => true,
+    "activeTab" => "home",
+    "breadcrumb" => null,
     "teaserImg" => null,
     "cssextra" => null,
     "includes" => [],
@@ -47,22 +51,39 @@ $pageTemplate->header($pageInfo);
 
 ?>
     <div class="row">
-        <div class="col-md-6" style="padding:8px;">
-            <p class="text" style="font-size:18px;">Meteor Pi is a network of cameras set up by Cambridge Science Centre
-                to observe the night sky.</p>
+        <div class="col-md-4" style="padding:16px;">
+            <p class="text" style="font-size:18px;">
+                Meteor Pi lets you browse the night sky without stepping outside or having to wait until nightfall.
+            </p>
 
-            <p class="text">They record videos of moving objects, including shooting stars, planes and satellites. They
-                also take time lapse photographs through the night showing the movement of the stars.</p>
+            <p class="text">
+                We've set up a network of cameras which take pictures from dusk till dawn every night.
+            </p>
 
-            <p class="text">All of the images are freely available on this website, and enabling children, amateur
-                astronomers and coders to browse the night sky.</p>
+            <p class="text">
+                As the night progresses they record the constellations circling overhead.
+            </p>
 
-            <p class="text">The images on this page show some of the objects we have picked up in recent weeks. Click on
-                "Search the Skies" to access all the data recorded by Meteor Pi.</p>
+            <p class="text">
+                They're also motion sensitive. Whenever anything flies past, they record a video. Most weeks the cameras spot planes, satellites, and shooting stars. We also see rarer phenomena: lightning strikes, fireworks, and glints of light from solar panels on spacecraft.
+            </p>
+
+            <p class="text">
+                Nothing beats the experience of looking at the night sky for yourself with a pair of binoculars, but Meteor Pi will help you learn what to look out for. And because our motion-sensitive cameras are keeping constant watch, you may see some rare events that you have to be very patient to see for yourself.
+            </p>
+
+            <div style="padding:10px 20px;text-align:right;">
+        <button type="button" class="btn btn-primary" onclick="window.location='/whattodo.php';">
+            What to do &#187;
+        </button>
+        </div>
 
         </div>
-        <div class="col-md-6" style="padding:8px;">
-            <?php $pageTemplate->slidingPanes($paneList); ?>
+        <div class="col-md-8" style="padding:8px;">
+            <div class="grey_box" style="padding: 8px;">
+                <p class="purple-heading">Recent observations</p>
+                <?php $pageTemplate->slidingPanes($paneList); ?>
+            </div>
         </div>
     </div>
 

@@ -16,7 +16,7 @@ function SlidingPanes(parent) {
         return function () {
             self.alarm();
         }
-    })(this), 6000);
+    })(this), 8000);
 }
 
 SlidingPanes.prototype.prev = function () {

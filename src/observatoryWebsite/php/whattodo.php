@@ -7,7 +7,7 @@
 require "php/imports.php";
 
 $pageInfo = [
-    "pageTitle" => "What to do",
+    "pageTitle" => "Getting started with Meteor Pi",
     "pageDescription" => "Meteor Pi",
     "activeTab" => "whattodo",
     "teaserImg" => null,
@@ -20,7 +20,6 @@ $pageInfo = [
 $pageTemplate->header($pageInfo);
 
 ?>
-    <h3>Getting started with Meteor Pi</h3>
 
     <div class="pane-sequence">
         <div class="row">
