@@ -120,47 +120,45 @@ void snapshot(struct vdIn *videoIn, int nfr, int zero, double expComp, char *fna
 
 double calculateSkyClarity(image_ptr *img, double noiseLevel) {
     int i, j, score = 0;
-    const int gridsize = 9;
-    const int threshold = MAX(12, noiseLevel *
-                                  6); // To be counted as a star-like source, must be this much brighter than surroundings
+    const int gridsize = 10;
+    const int search_distance = 4;
+
+    // To be counted as a star-like source, must be this much brighter than surroundings
+    const int threshold = MAX(12, noiseLevel * 4);
     const int stride = img->xsize;
+#pragma omp parallel for private(i,j)
     for (i = 1; i < gridsize; i++)
         for (j = 1; j < gridsize; j++) {
             const int xmin = img->xsize * j / (gridsize + 1);
             const int ymin = img->ysize * i / (gridsize + 1);
             const int xmax = img->xsize * (j + 1) / (gridsize + 1);
             const int ymax = img->ysize * (i + 1) / (gridsize + 1);
-            int x, y, count = 0;
+            int x, y, n_bright_pixels = 0, n_stars = 0;
+            const int n_pixels = (xmax-xmin)*(ymax-ymin);
             for (y = ymin; y < ymax; y++)
                 for (x = xmin; x < xmax; x++) {
-                    int counter = 0;
-                    if (img->data_red[y * stride + x] > img->data_red[(y) * stride + (x + 6)] + threshold) counter++;
-                    if (img->data_red[y * stride + x] > img->data_red[(y + 6) * stride + (x + 6)] + threshold)
-                        counter++;
-                    if (img->data_red[y * stride + x] > img->data_red[(y + 6) * stride + (x)] + threshold) counter++;
-                    if (img->data_red[y * stride + x] > img->data_red[(y + 6) * stride + (x - 6)] + threshold)
-                        counter++;
-                    if (img->data_red[y * stride + x] > img->data_red[(y) * stride + (x - 6)] + threshold) counter++;
-                    if (img->data_red[y * stride + x] > img->data_red[(y - 6) * stride + (x - 6)] + threshold)
-                        counter++;
-                    if (img->data_red[y * stride + x] > img->data_red[(y - 6) * stride + (x)] + threshold) counter++;
-                    if (img->data_red[y * stride + x] > img->data_red[(y - 6) * stride + (x + 6)] + threshold)
-                        counter++;
-                    if (img->data_red[y * stride + x] > img->data_red[(y) * stride + (x + 8)] + threshold) counter++;
-                    if (img->data_red[y * stride + x] > img->data_red[(y + 8) * stride + (x + 8)] + threshold)
-                        counter++;
-                    if (img->data_red[y * stride + x] > img->data_red[(y + 8) * stride + (x)] + threshold) counter++;
-                    if (img->data_red[y * stride + x] > img->data_red[(y + 8) * stride + (x - 8)] + threshold)
-                        counter++;
-                    if (img->data_red[y * stride + x] > img->data_red[(y) * stride + (x - 8)] + threshold) counter++;
-                    if (img->data_red[y * stride + x] > img->data_red[(y - 8) * stride + (x - 8)] + threshold)
-                        counter++;
-                    if (img->data_red[y * stride + x] > img->data_red[(y - 8) * stride + (x)] + threshold) counter++;
-                    if (img->data_red[y * stride + x] > img->data_red[(y - 8) * stride + (x + 8)] + threshold)
-                        counter++;
-                    if (counter > 12) count++;
+                    double pixel_value = img->data_red[y * stride + x];
+                    if (pixel_value > 128) n_bright_pixels++;
+                    int k, counter = 0;
+                    for (k=-search_distance; k<=search_distance; k+=2)
+                        if (pixel_value - threshold <= img->data_red[(y + search_distance) * stride + (x + k)] )
+                            counter++;
+                    for (k=-search_distance; k<=search_distance; k+=2)
+                        if (pixel_value - threshold <= img->data_red[(y - search_distance) * stride + (x + k)] )
+                            counter++;
+                    for (k=-search_distance; k<=search_distance; k+=2)
+                        if (pixel_value - threshold <= img->data_red[(y + k) * stride + (x + search_distance)] )
+                            counter++;
+                    for (k=-search_distance; k<=search_distance; k+=2)
+                        if (pixel_value - threshold <= img->data_red[(y + k) * stride + (x - search_distance)] )
+                            counter++;
+
+                    if (counter <= 1) n_stars++;
                 }
-            if (count >= 5) score++;
+            if ((n_stars >= 4)&&(n_bright_pixels<n_pixels*0.1)) {
+#pragma omp critical (count_stars)
+              { score++; }
+             }
         }
     return (100. * score) / pow(gridsize - 1, 2);
 }
@@ -220,7 +218,8 @@ void medianCalculate(const int width, const int height, const int channels, cons
                 modeSamples = v;
             }
         }
-        medianMap[i] = CLIP256(mode - 3);
+        // This is a slight over-estimate of the background sky brightness, but images look less noisy that way.
+        medianMap[i] = CLIP256(mode + 1);
     }
     return;
 }
