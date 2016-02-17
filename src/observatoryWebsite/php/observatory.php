@@ -84,13 +84,13 @@ $pageTemplate->header($pageInfo);
     </div>
     <div class="col-md-2">
         <h5>Latest images</h5>
-        <?php echo $newest_obs_date; ?>
+        <p class="purple-text"><?php echo $newest_obs_date; ?></p>
         <h5>First active</h5>
-        <?php echo $oldest_obs_date; ?>
+        <p class="purple-text"><?php echo $oldest_obs_date; ?></p>
         <h5>Total images</h5>
-        <?php echo $image_count; ?>
+        <p class="purple-text"><?php echo $image_count; ?></p>
         <h5>Total moving objects</h5>
-        <?php echo $moving_count; ?>
+        <p class="purple-text"><?php echo $moving_count; ?></p>
         <h5>More information</h5>
         <p><a href="/observatory_activity.php?id=<?php echo $obstory; ?>">Calendar of observations</a></p>
         <p><a href="/observatory_metadata.php?id=<?php echo $obstory; ?>">Status messages</a></p>

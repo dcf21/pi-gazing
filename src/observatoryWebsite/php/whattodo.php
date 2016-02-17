@@ -7,7 +7,7 @@
 require "php/imports.php";
 
 $pageInfo = [
-    "pageTitle" => "What to do",
+    "pageTitle" => "Getting started with Meteor Pi",
     "pageDescription" => "Meteor Pi",
     "activeTab" => "whattodo",
     "teaserImg" => null,
@@ -20,7 +20,6 @@ $pageInfo = [
 $pageTemplate->header($pageInfo);
 
 ?>
-    <h3>Getting started with Meteor Pi</h3>
 
     <div class="pane-sequence">
         <div class="row">
@@ -37,7 +36,7 @@ $pageTemplate->header($pageInfo);
                         </div>
 
                         <div class="pane-item" data-title="What can I see?">
-                            <h3>Is it a bird... is it a plane?</h3>
+                            <h4>Is it a bird... is it a plane?</h4>
 
                             <p class="text">
                                 Not all the videos contain real moving objects. Sometimes the cameras trigger because of
@@ -56,6 +55,16 @@ $pageTemplate->header($pageInfo);
                         <div class="pane-item" data-title="Spotting meteors">
                             <h4>Is it a meteor?</h4>
 
+                            <div class="rightimg">
+                                <img style="width:450px;"
+                                     src="https://meteorpi.cambridgesciencecentre.org/api/files/content/00eba2af11f5452cba1ee177c1cc4ebe/20151107213909_Bury-Allman_event_maxBrightness_LC1.png"/>
+                                <p class="caption">An example image of a meteor, as it might appear when you search our
+                                    website.<a
+                                        href="https://meteorpi.cambridgesciencecentre.org/#file/%257B%2522camera_ids%2522%253A%2522Bury-St-Edmunds%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2522%252C%2522searchtype%2522%253A%2522Moving%2520objects%2522%252C%2522before%2522%253A1446932350000%252C%2522after%2522%253A1446932348000%257D">
+                                        Click here to see a full video of the event.
+                                    </a></p>
+                            </div>
+
                             <p class="text">
                                 Meteors are distinctive, because they move much more quickly than planes and satellites,
                                 at
@@ -68,21 +77,21 @@ $pageTemplate->header($pageInfo);
                                 the "Max
                                 duration" field to one second and repeat your search.
                             </p>
-
-                            <div class="rightimg">
-                                <img style="width:450px;"
-                                     src="https://meteorpi.cambridgesciencecentre.org/api/files/content/00eba2af11f5452cba1ee177c1cc4ebe/20151107213909_Bury-Allman_event_maxBrightness_LC1.png"/>
-                                <p class="caption">An example image of a meteor, as it might appear when you search our
-                                    website.<a
-                                        href="https://meteorpi.cambridgesciencecentre.org/#file/%257B%2522camera_ids%2522%253A%2522Bury-St-Edmunds%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2522%252C%2522searchtype%2522%253A%2522Moving%2520objects%2522%252C%2522before%2522%253A1446932350000%252C%2522after%2522%253A1446932348000%257D">
-                                        Click here to see a full video of the event.
-                                    </a></p>
-                            </div>
                             <div class="pane-controls"></div>
                         </div>
 
                         <div class="pane-item" data-title="Spotting planes">
                             <h4>Is it a plane?</h4>
+
+                            <div class="rightimg">
+                                <img style="width:450px;"
+                                     src="https://meteorpi.cambridgesciencecentre.org/api/files/content/00bcb31ce40e4b4ca2db1f25e73e22d1/20151109183940_Bury-Allman_event_maxBrightness_LC1.png"/>
+                                <p class="caption">An example image of a plane, as it might appear when you search our
+                                    website.<a
+                                        href="https://meteorpi.cambridgesciencecentre.org/#file/%257B%2522camera_ids%2522%253A%2522Bury-St-Edmunds%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2522%252C%2522searchtype%2522%253A%2522Moving%2520objects%2522%252C%2522before%2522%253A1446932350000%252C%2522after%2522%253A1446932348000%257D">
+                                        Click here to see a full video of the event.
+                                    </a></p>
+                            </div>
 
                             <p class="text">
                                 Planes are often easy to spot because they have flashing lights. They are usually
@@ -96,20 +105,22 @@ $pageTemplate->header($pageInfo);
                                 objects you'll see will be planes.
                             </p>
 
-                            <div class="rightimg">
-                                <img style="width:450px;"
-                                     src="https://meteorpi.cambridgesciencecentre.org/api/files/content/00bcb31ce40e4b4ca2db1f25e73e22d1/20151109183940_Bury-Allman_event_maxBrightness_LC1.png"/>
-                                <p class="caption">An example image of a plane, as it might appear when you search our
-                                    website.<a
-                                        href="https://meteorpi.cambridgesciencecentre.org/#file/%257B%2522camera_ids%2522%253A%2522Bury-St-Edmunds%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2522%252C%2522searchtype%2522%253A%2522Moving%2520objects%2522%252C%2522before%2522%253A1446932350000%252C%2522after%2522%253A1446932348000%257D">
-                                        Click here to see a full video of the event.
-                                    </a></p>
-                            </div>
                             <div class="pane-controls"></div>
                         </div>
 
                         <div class="pane-item" data-title="Spotting satellites">
                             <h4>Is it satellite?</h4>
+
+                            <div class="rightimg">
+                                <img style="width:450px;"
+                                     src="https://meteorpi.cambridgesciencecentre.org/api/files/content/3f5568248f264477a4fec4f45f8dacda/20151010182540_Bury-Allman_event_maxBrightness_LC1.png"/>
+                                <p class="caption">An example image of a satellite, as it might appear when you search
+                                    our
+                                    website.<a
+                                        href="https://meteorpi.cambridgesciencecentre.org/#file/%257B%2522camera_ids%2522%253A%2522Bury-St-Edmunds%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2522%252C%2522searchtype%2522%253A%2522Moving%2520objects%2522%252C%2522before%2522%253A1444501541000%252C%2522after%2522%253A1444501539000%257D">
+                                        Click here to see a full video of the event.
+                                    </a></p>
+                            </div>
 
                             <p class="text">
                                 Satellites, like planes, are visible for much longer than meteors &ndash; at least 10-30
@@ -138,22 +149,12 @@ $pageTemplate->header($pageInfo);
                                 them up?
                             </p>
 
-                            <div class="rightimg">
-                                <img style="width:450px;"
-                                     src="https://meteorpi.cambridgesciencecentre.org/api/files/content/3f5568248f264477a4fec4f45f8dacda/20151010182540_Bury-Allman_event_maxBrightness_LC1.png"/>
-                                <p class="caption">An example image of a satellite, as it might appear when you search
-                                    our
-                                    website.<a
-                                        href="https://meteorpi.cambridgesciencecentre.org/#file/%257B%2522camera_ids%2522%253A%2522Bury-St-Edmunds%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2520%2522%252C%2522searchtype%2522%253A%2522Moving%2520objects%2522%252C%2522before%2522%253A1444501541000%252C%2522after%2522%253A1444501539000%257D">
-                                        Click here to see a full video of the event.
-                                    </a></p>
-                            </div>
                             <div class="pane-controls"></div>
                         </div>
 
                         <div class="pane-item" data-title="Where next?">
 
-                            <h3 style="clear:both;">What next?</h3>
+                            <h4>What next?</h4>
 
                             <p class="text">
                                 Once you've started looking at Meteor Pi images, you'll want to know what else you can

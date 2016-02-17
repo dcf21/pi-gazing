@@ -25,9 +25,9 @@ function SequentialPanes(parent) {
 
     $(".pane-controls", parent).html(
         '<div style="display:inline-block;padding:10px;">' +
-        '<button type="button" class="spprev btn">Back</button>' +
+        '<button type="button" class="spprev btn">&#171; Back</button>' +
         '</div><div style="display:inline-block;padding:10px;">' +
-        '<button type="button" class="spnext btn btn-primary">Next</button>' +
+        '<button type="button" class="spnext btn btn-primary">Next &#187;</button>' +
         '</div>');
     $(".spprev", parent).click(function () {
         self.prev();

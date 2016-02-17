@@ -15,9 +15,9 @@ class HTMLtemplate
         $server = $const->server;
         if (is_null($items)) return;
         if ($area == "home") {
-            array_unshift($items, ["index.php", "Home"]);
+            return;
         } else if ($area == "whattodo") {
-            array_unshift($items, ["whattodo.php", "What to do"]);
+            array_unshift($items, ["whattodo.php", "Getting started"]);
         } else if ($area == "search") {
             array_unshift($items, ["search.php", "Search the sky"]);
         } else if ($area == "projects") {
@@ -242,7 +242,7 @@ __HTML__;
         HTMLtemplate::breadcrumb($pageInfo["breadcrumb"], $pageInfo["activeTab"], $pageInfo["postbreadcrumb"]);
         ?>
 
-        <h2><?php echo $pageInfo["pageTitle"]; ?></h2>
+        <?php if (!array_key_exists("noTitle", $pageInfo)) echo "<h2>".$pageInfo["pageTitle"]."</h2>"; ?>
 
         <?php
     }

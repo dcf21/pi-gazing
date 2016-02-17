@@ -18,6 +18,10 @@ h3 { padding: 30px 0 10px 0; font-size:20px; color:#888; border-bottom: 1px soli
 h4 { padding-top: 30px; }
 h5 { padding-top: 20px; color: #777; font-size:19px; font-weight: normal; }
 
+p.purple-heading { font-size:22px; font-weight:bold; color: @dark_purple;  a { color: @dark_purple } }
+p.purple-text { font-size: 16px; font-weight:bold; color: @dark_purple;  a { color: @dark_purple } }
+div.smallcaps { font-size: 13px; font-weight:bold; color: @dark_purple; text-transform: uppercase; padding-bottom:4px; a { color: @dark_purple } }
+
 table.table table.table > tbody > tr > * {
     border: none;
     margin-top: 0;
@@ -173,8 +177,8 @@ div.supporters div { padding: 2px 32px; text-align:center; font-size:22px; color
 div.supporters img { height:100px; }
 
 // Formatting of icons that are taken from site sprite
-.mp-back      { background-color: #aaa; border-radius: 10px; z-index:98; box-sizing: content-box; width:25px;height:25px;position:absolute;top:18px;padding:7px;}
-.mp-back      { background-color: rgba(240,240,240,0.7); }
+.mp-back      { background-color: #000; border-radius: 10px; z-index:98; box-sizing: content-box; width:25px;height:25px;position:absolute;top:18px;padding:7px;}
+.mp-back      { background-color: rgba(0,0,0,0.8); }
 .mp-back div  { z-index:99; }
 
 // Images
@@ -212,8 +216,8 @@ table.dcf_calendar td.even { background-color: white; }
 // Image gallery
 div.gallery_item { text-align:center; padding: 5px 5px 26px 5px; }
 div.gallery_image { display:inline-block; .position_relative; }
-div.gallery_image .gallery_img { box-shadow: 10px 10px 5px #ccc; transition:all 0.15s ease-out; }
-div.gallery_image .gallery_img:hover { transform:translate(6px,6px); box-shadow: 4px 4px 5px #ccc; }
+div.gallery_image { box-shadow: 10px 10px 5px #ccc; transition:all 0.15s ease-out; }
+div.gallery_image:hover { transform:translate(6px,6px); box-shadow: 4px 4px 5px #ccc; }
 div.gallery_text { margin-top:8px; }
 div.gallery_extra { font-size: 13px; padding: 5px; color: #888; }
 div.gallery_still .gallery_still_img { box-shadow: 10px 10px 5px #ccc; }
@@ -271,7 +275,7 @@ table.bordered td { border-left: 1px solid #888; border-right: 1px solid #888; b
 @img_gallery_height: 250px;
 @img_framewidth: 3px;
 div.overlay_host { .position_relative; display:block; border: 1px solid #c0c0c0; padding: @img_framewidth; box-sizing: content-box; }
-.chartsgalleryitem { width:100%; max-width:500px; margin:3px 0; }
+.chartsgalleryitem { width:100%; max-width:800px; margin:3px 0; }
 .chartsgalleryitem div.overlay_host:before { content:""; display:block; padding-top:62.5%; }
 .chartsgalleryitem div.overlay_host { box-sizing:border-box; width:100%; margin:5px auto; }
 .chartsgalleryitem div.holder { box-sizing: border-box; padding: @img_framewidth; position:absolute;top:0;left:0;width:100%; overflow:hidden; }
@@ -281,7 +285,7 @@ div.overlay_host { .position_relative; display:block; border: 1px solid #c0c0c0;
 .img_overcaption  { position:absolute;bottom:0;right:0;width:60%;background-color:rgba(232,232,232,0.9);color:#111;font-size:14px;padding: 8px 12px; border-top: 2px solid #4444ff; }
 
 // Sliding panes
-.slidingPane { margin:10px auto; width:100%; max-width:500px; }
+.slidingPane { margin:10px auto; width:100%; max-width:800px; }
 .slidingPane div.overlay_host:before { content:""; display:block; }
 .slidingPane div.overlay_host { box-sizing:border-box; width:100%; margin:5px auto; }
 .slidingPane div.holder { box-sizing: border-box; padding: @img_framewidth; width:100%; overflow:hidden; }
@@ -293,3 +297,6 @@ div.faq_item { margin:16px 8px; background-color: #e4e4e4; border: 1px solid #aa
 div.faq_question { font-size: 20px; margin: 4px; a { color: @dark_purple; } }
 div.faq_answer { border-top: 1px solid #222; padding: 10px; }
 div.faq_answer:after { content:""; clear: both; display: table; }
+
+// Sequential panes
+div.pane-item:after { content:""; clear: both; display: table; }
