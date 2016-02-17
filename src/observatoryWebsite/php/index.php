@@ -29,7 +29,7 @@ foreach ($result_list as $item) {
         "caption" => "<div class='smallcaps'>" .
             "<a href='/observatory.php?id={$item['obsId']}'>{$item['obsName']}</a>" .
             "<br />" .
-            date("d M Y - h:i", $item['obsTime']) . "</div>{$item['caption']}",
+            date("d M Y - H:i", $item['obsTime']) . "</div>{$item['caption']}",
         "teaser" => "api/files/content/" . $item['repositoryFname'] . "/" . $item['fileName']
     ];
 }

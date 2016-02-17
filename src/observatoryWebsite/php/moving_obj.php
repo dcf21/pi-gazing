@@ -104,7 +104,7 @@ $simultaneous_events = $stmt->fetchAll();
 
 // Information about this event
 $pageInfo = [
-    "pageTitle" => "Moving object detected at " . date("d M Y - h:i", $observation['obsTime']),
+    "pageTitle" => "Moving object detected at " . date("d M Y - H:i", $observation['obsTime']),
     "pageDescription" => "Meteor Pi",
     "activeTab" => "search",
     "teaserImg" => null,
@@ -140,7 +140,7 @@ if (array_key_exists("meteorpi:triggers/event", $files_by_type)):
             <h5>Observatory</h5>
             <p><a href="observatory.php?id=<?php echo $obstory['publicId']; ?>"><?php echo $obstory['name']; ?></a></p>
             <h5>Time</h5>
-            <p><?php echo date("d M Y - h:i", $observation['obsTime']); ?></p>
+            <p><?php echo date("d M Y - H:i", $observation['obsTime']); ?></p>
         </div>
     </div>
 

@@ -102,7 +102,7 @@ $other_files = $stmt->fetchAll();
 
 // Information about this event
 $pageInfo = [
-    "pageTitle" => "{$const->mimeTypes[$mime_type]} recorded at " . date("d M Y - h:i", $observation['obsTime']),
+    "pageTitle" => "{$const->mimeTypes[$mime_type]} recorded at " . date("d M Y - H:i", $observation['obsTime']),
     "pageDescription" => "Meteor Pi",
     "activeTab" => "search",
     "teaserImg" => null,
@@ -143,7 +143,7 @@ $pageTemplate->header($pageInfo);
             <h5>Observatory</h5>
             <p><a href="observatory.php?id=<?php echo $obstory['publicId']; ?>"><?php echo $obstory['name']; ?></a></p>
             <h5>Time</h5>
-            <p><?php echo date("d M Y - h:i", $observation['obsTime']); ?></p>
+            <p><?php echo date("d M Y - H:i", $observation['obsTime']); ?></p>
             <h5><?php echo $const->mimeTypes[$mime_type]; ?> type</h5>
             <?php
             $semantic_type = $result['semanticType'];
