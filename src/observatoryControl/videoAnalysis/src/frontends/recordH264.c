@@ -36,16 +36,15 @@
 // Hard coded parameters
 #define VIDEO_BITRATE   6000000
 
-static int want_quit=0;
+static int want_quit = 0;
 
 // Fetch an input frame from v4l2
-int fetchFrame(struct vdIn *videoIn, unsigned char *tmpc, int upsideDown)
- {
-  int status = uvcGrab(videoIn);
-  if (status) return status;
-  Pyuv422to420(videoIn->framebuffer, tmpc, videoIn->width, videoIn->height, upsideDown);
-  return 0;
- }
+int fetchFrame(struct vdIn *videoIn, unsigned char *tmpc, int upsideDown) {
+    int status = uvcGrab(videoIn);
+    if (status) return status;
+    Pyuv422to420(videoIn->framebuffer, tmpc, videoIn->width, videoIn->height, upsideDown);
+    return 0;
+}
 
 // Dunno where this is originally stolen from...
 #define OMX_INIT_STRUCTURE(a) \
@@ -84,6 +83,7 @@ typedef struct {
 // Stolen from video-info.c of gstreamer-plugins-base
 #define ROUND_UP_2(num) (((num)+1)&~1)
 #define ROUND_UP_4(num) (((num)+3)&~3)
+
 static void get_i420_frame_info(int width, int height, int buf_stride, int buf_slice_height, i420_frame_info *info) {
     info->p_stride[0] = ROUND_UP_4(width);
     info->p_stride[1] = ROUND_UP_4(ROUND_UP_2(width) / 2);
@@ -97,15 +97,15 @@ static void get_i420_frame_info(int width, int height, int buf_stride, int buf_s
     info->buf_stride = buf_stride;
     info->buf_slice_height = buf_slice_height;
     info->buf_extra_padding =
-        buf_slice_height >= 0
-        ? ((buf_slice_height && (height % buf_slice_height))
-             ? (buf_slice_height - (height % buf_slice_height))
-             : 0)
-        : -1;
+            buf_slice_height >= 0
+            ? ((buf_slice_height && (height % buf_slice_height))
+               ? (buf_slice_height - (height % buf_slice_height))
+               : 0)
+            : -1;
 }
 
 // Ugly, stupid utility functions
-static void say(const char* message, ...) {
+static void say(const char *message, ...) {
     va_list args;
     char str[1024];
     memset(str, 0, sizeof(str));
@@ -115,18 +115,18 @@ static void say(const char* message, ...) {
     if (DEBUG) gnom_log(str);
 }
 
-static void die(const char* message, ...) {
+static void die(const char *message, ...) {
     va_list args;
     char str[1024];
     memset(str, 0, sizeof(str));
     va_start(args, message);
     vsnprintf(str, sizeof(str), message, args);
     va_end(args);
-    gnom_fatal(__FILE__,__LINE__,str);
+    gnom_fatal(__FILE__, __LINE__, str);
     exit(1);
 }
 
-static void omx_die(OMX_ERRORTYPE error, const char* message, ...) {
+static void omx_die(OMX_ERRORTYPE error, const char *message, ...) {
     va_list args;
     char str[1024];
     char *e;
@@ -134,138 +134,113 @@ static void omx_die(OMX_ERRORTYPE error, const char* message, ...) {
     va_start(args, message);
     vsnprintf(str, sizeof(str), message, args);
     va_end(args);
-    switch(error) {
-        case OMX_ErrorNone:                     e = "no error";                                      break;
-        case OMX_ErrorBadParameter:             e = "bad parameter";                                 break;
-        case OMX_ErrorIncorrectStateOperation:  e = "invalid state while trying to perform command"; break;
-        case OMX_ErrorIncorrectStateTransition: e = "unallowed state transition";                    break;
-        case OMX_ErrorInsufficientResources:    e = "insufficient resource";                         break;
-        case OMX_ErrorBadPortIndex:             e = "bad port index, i.e. incorrect port";           break;
-        case OMX_ErrorHardware:                 e = "hardware error";                                break;
-        /* That's all I've encountered during hacking so let's not bother with the rest... */
-        default:                                e = "(no description)";
+    switch (error) {
+        case OMX_ErrorNone:
+            e = "no error";
+            break;
+        case OMX_ErrorBadParameter:
+            e = "bad parameter";
+            break;
+        case OMX_ErrorIncorrectStateOperation:
+            e = "invalid state while trying to perform command";
+            break;
+        case OMX_ErrorIncorrectStateTransition:
+            e = "unallowed state transition";
+            break;
+        case OMX_ErrorInsufficientResources:
+            e = "insufficient resource";
+            break;
+        case OMX_ErrorBadPortIndex:
+            e = "bad port index, i.e. incorrect port";
+            break;
+        case OMX_ErrorHardware:
+            e = "hardware error";
+            break;
+            /* That's all I've encountered during hacking so let's not bother with the rest... */
+        default:
+            e = "(no description)";
     }
     die("OMX error: %s: 0x%08x %s", str, error, e);
 }
 
 static void dump_frame_info(const char *message, const i420_frame_info *info) {
     say("%s frame info:\n"
-        "\tWidth:\t\t\t%d\n"
-        "\tHeight:\t\t\t%d\n"
-        "\tSize:\t\t\t%d\n"
-        "\tBuffer stride:\t\t%d\n"
-        "\tBuffer slice height:\t%d\n"
-        "\tBuffer extra padding:\t%d\n"
-        "\tPlane strides:\t\tY:%d U:%d V:%d\n"
-        "\tPlane offsets:\t\tY:%d U:%d V:%d\n",
-            message,
-            info->width, info->height, info->size, info->buf_stride, info->buf_slice_height, info->buf_extra_padding,
-            info->p_stride[0], info->p_stride[1], info->p_stride[2],
-            info->p_offset[0], info->p_offset[1], info->p_offset[2]);
+                "\tWidth:\t\t\t%d\n"
+                "\tHeight:\t\t\t%d\n"
+                "\tSize:\t\t\t%d\n"
+                "\tBuffer stride:\t\t%d\n"
+                "\tBuffer slice height:\t%d\n"
+                "\tBuffer extra padding:\t%d\n"
+                "\tPlane strides:\t\tY:%d U:%d V:%d\n"
+                "\tPlane offsets:\t\tY:%d U:%d V:%d\n",
+        message,
+        info->width, info->height, info->size, info->buf_stride, info->buf_slice_height, info->buf_extra_padding,
+        info->p_stride[0], info->p_stride[1], info->p_stride[2],
+        info->p_offset[0], info->p_offset[1], info->p_offset[2]);
 }
 
 static void dump_event(OMX_HANDLETYPE hComponent, OMX_EVENTTYPE eEvent, OMX_U32 nData1, OMX_U32 nData2) {
     char *e;
-    switch(eEvent) {
-        case OMX_EventCmdComplete:          e = "command complete";                   break;
-        case OMX_EventError:                e = "error";                              break;
-        case OMX_EventParamOrConfigChanged: e = "parameter or configuration changed"; break;
-        case OMX_EventPortSettingsChanged:  e = "port settings changed";              break;
-        /* That's all I've encountered during hacking so let's not bother with the rest... */
+    switch (eEvent) {
+        case OMX_EventCmdComplete:
+            e = "command complete";
+            break;
+        case OMX_EventError:
+            e = "error";
+            break;
+        case OMX_EventParamOrConfigChanged:
+            e = "parameter or configuration changed";
+            break;
+        case OMX_EventPortSettingsChanged:
+            e = "port settings changed";
+            break;
+            /* That's all I've encountered during hacking so let's not bother with the rest... */
         default:
             e = "(no description)";
     }
     say("Received event 0x%08x %s, hComponent:0x%08x, nData1:0x%08x, nData2:0x%08x",
-            eEvent, e, hComponent, nData1, nData2);
+        eEvent, e, hComponent, nData1, nData2);
 }
 
-static const char* dump_compression_format(OMX_VIDEO_CODINGTYPE c) {
+static const char *dump_compression_format(OMX_VIDEO_CODINGTYPE c) {
     char *f;
-    switch(c) {
-        case OMX_VIDEO_CodingUnused:     return "not used";
-        case OMX_VIDEO_CodingAutoDetect: return "autodetect";
-        case OMX_VIDEO_CodingMPEG2:      return "MPEG2";
-        case OMX_VIDEO_CodingH263:       return "H.263";
-        case OMX_VIDEO_CodingMPEG4:      return "MPEG4";
-        case OMX_VIDEO_CodingWMV:        return "Windows Media Video";
-        case OMX_VIDEO_CodingRV:         return "RealVideo";
-        case OMX_VIDEO_CodingAVC:        return "H.264/AVC";
-        case OMX_VIDEO_CodingMJPEG:      return "Motion JPEG";
-        case OMX_VIDEO_CodingVP6:        return "VP6";
-        case OMX_VIDEO_CodingVP7:        return "VP7";
-        case OMX_VIDEO_CodingVP8:        return "VP8";
-        case OMX_VIDEO_CodingYUV:        return "Raw YUV video";
-        case OMX_VIDEO_CodingSorenson:   return "Sorenson";
-        case OMX_VIDEO_CodingTheora:     return "OGG Theora";
-        case OMX_VIDEO_CodingMVC:        return "H.264/MVC";
+    switch (c) {
+        case OMX_VIDEO_CodingUnused:
+            return "not used";
+        case OMX_VIDEO_CodingAutoDetect:
+            return "autodetect";
+        case OMX_VIDEO_CodingMPEG2:
+            return "MPEG2";
+        case OMX_VIDEO_CodingH263:
+            return "H.263";
+        case OMX_VIDEO_CodingMPEG4:
+            return "MPEG4";
+        case OMX_VIDEO_CodingWMV:
+            return "Windows Media Video";
+        case OMX_VIDEO_CodingRV:
+            return "RealVideo";
+        case OMX_VIDEO_CodingAVC:
+            return "H.264/AVC";
+        case OMX_VIDEO_CodingMJPEG:
+            return "Motion JPEG";
+        case OMX_VIDEO_CodingVP6:
+            return "VP6";
+        case OMX_VIDEO_CodingVP7:
+            return "VP7";
+        case OMX_VIDEO_CodingVP8:
+            return "VP8";
+        case OMX_VIDEO_CodingYUV:
+            return "Raw YUV video";
+        case OMX_VIDEO_CodingSorenson:
+            return "Sorenson";
+        case OMX_VIDEO_CodingTheora:
+            return "OGG Theora";
+        case OMX_VIDEO_CodingMVC:
+            return "H.264/MVC";
 
         default:
             f = calloc(23, sizeof(char));
-            if(f == NULL) {
-                die("Failed to allocate memory");
-            }
-            snprintf(f, 23 * sizeof(char) - 1, "format type 0x%08x", c);
-            return f;
-    }
-}
-static const char* dump_color_format(OMX_COLOR_FORMATTYPE c) {
-    char *f;
-    switch(c) {
-        case OMX_COLOR_FormatUnused:                 return "OMX_COLOR_FormatUnused: not used";
-        case OMX_COLOR_FormatMonochrome:             return "OMX_COLOR_FormatMonochrome";
-        case OMX_COLOR_Format8bitRGB332:             return "OMX_COLOR_Format8bitRGB332";
-        case OMX_COLOR_Format12bitRGB444:            return "OMX_COLOR_Format12bitRGB444";
-        case OMX_COLOR_Format16bitARGB4444:          return "OMX_COLOR_Format16bitARGB4444";
-        case OMX_COLOR_Format16bitARGB1555:          return "OMX_COLOR_Format16bitARGB1555";
-        case OMX_COLOR_Format16bitRGB565:            return "OMX_COLOR_Format16bitRGB565";
-        case OMX_COLOR_Format16bitBGR565:            return "OMX_COLOR_Format16bitBGR565";
-        case OMX_COLOR_Format18bitRGB666:            return "OMX_COLOR_Format18bitRGB666";
-        case OMX_COLOR_Format18bitARGB1665:          return "OMX_COLOR_Format18bitARGB1665";
-        case OMX_COLOR_Format19bitARGB1666:          return "OMX_COLOR_Format19bitARGB1666";
-        case OMX_COLOR_Format24bitRGB888:            return "OMX_COLOR_Format24bitRGB888";
-        case OMX_COLOR_Format24bitBGR888:            return "OMX_COLOR_Format24bitBGR888";
-        case OMX_COLOR_Format24bitARGB1887:          return "OMX_COLOR_Format24bitARGB1887";
-        case OMX_COLOR_Format25bitARGB1888:          return "OMX_COLOR_Format25bitARGB1888";
-        case OMX_COLOR_Format32bitBGRA8888:          return "OMX_COLOR_Format32bitBGRA8888";
-        case OMX_COLOR_Format32bitARGB8888:          return "OMX_COLOR_Format32bitARGB8888";
-        case OMX_COLOR_FormatYUV411Planar:           return "OMX_COLOR_FormatYUV411Planar";
-        case OMX_COLOR_FormatYUV411PackedPlanar:     return "OMX_COLOR_FormatYUV411PackedPlanar: Planes fragmented when a frame is split in multiple buffers";
-        case OMX_COLOR_FormatYUV420Planar:           return "OMX_COLOR_FormatYUV420Planar: Planar YUV, 4:2:0 (I420)";
-        case OMX_COLOR_FormatYUV420PackedPlanar:     return "OMX_COLOR_FormatYUV420PackedPlanar: Planar YUV, 4:2:0 (I420), planes fragmented when a frame is split in multiple buffers";
-        case OMX_COLOR_FormatYUV420SemiPlanar:       return "OMX_COLOR_FormatYUV420SemiPlanar, Planar YUV, 4:2:0 (NV12), U and V planes interleaved with first U value";
-        case OMX_COLOR_FormatYUV422Planar:           return "OMX_COLOR_FormatYUV422Planar";
-        case OMX_COLOR_FormatYUV422PackedPlanar:     return "OMX_COLOR_FormatYUV422PackedPlanar: Planes fragmented when a frame is split in multiple buffers";
-        case OMX_COLOR_FormatYUV422SemiPlanar:       return "OMX_COLOR_FormatYUV422SemiPlanar";
-        case OMX_COLOR_FormatYCbYCr:                 return "OMX_COLOR_FormatYCbYCr";
-        case OMX_COLOR_FormatYCrYCb:                 return "OMX_COLOR_FormatYCrYCb";
-        case OMX_COLOR_FormatCbYCrY:                 return "OMX_COLOR_FormatCbYCrY";
-        case OMX_COLOR_FormatCrYCbY:                 return "OMX_COLOR_FormatCrYCbY";
-        case OMX_COLOR_FormatYUV444Interleaved:      return "OMX_COLOR_FormatYUV444Interleaved";
-        case OMX_COLOR_FormatRawBayer8bit:           return "OMX_COLOR_FormatRawBayer8bit";
-        case OMX_COLOR_FormatRawBayer10bit:          return "OMX_COLOR_FormatRawBayer10bit";
-        case OMX_COLOR_FormatRawBayer8bitcompressed: return "OMX_COLOR_FormatRawBayer8bitcompressed";
-        case OMX_COLOR_FormatL2:                     return "OMX_COLOR_FormatL2";
-        case OMX_COLOR_FormatL4:                     return "OMX_COLOR_FormatL4";
-        case OMX_COLOR_FormatL8:                     return "OMX_COLOR_FormatL8";
-        case OMX_COLOR_FormatL16:                    return "OMX_COLOR_FormatL16";
-        case OMX_COLOR_FormatL24:                    return "OMX_COLOR_FormatL24";
-        case OMX_COLOR_FormatL32:                    return "OMX_COLOR_FormatL32";
-        case OMX_COLOR_FormatYUV420PackedSemiPlanar: return "OMX_COLOR_FormatYUV420PackedSemiPlanar: Planar YUV, 4:2:0 (NV12), planes fragmented when a frame is split in multiple buffers, U and V planes interleaved with first U value";
-        case OMX_COLOR_FormatYUV422PackedSemiPlanar: return "OMX_COLOR_FormatYUV422PackedSemiPlanar: Planes fragmented when a frame is split in multiple buffers";
-        case OMX_COLOR_Format18BitBGR666:            return "OMX_COLOR_Format18BitBGR666";
-        case OMX_COLOR_Format24BitARGB6666:          return "OMX_COLOR_Format24BitARGB6666";
-        case OMX_COLOR_Format24BitABGR6666:          return "OMX_COLOR_Format24BitABGR6666";
-        case OMX_COLOR_Format32bitABGR8888:          return "OMX_COLOR_Format32bitABGR8888";
-        case OMX_COLOR_Format8bitPalette:            return "OMX_COLOR_Format8bitPalette";
-        case OMX_COLOR_FormatYUVUV128:               return "OMX_COLOR_FormatYUVUV128";
-        case OMX_COLOR_FormatRawBayer12bit:          return "OMX_COLOR_FormatRawBayer12bit";
-        case OMX_COLOR_FormatBRCMEGL:                return "OMX_COLOR_FormatBRCMEGL";
-        case OMX_COLOR_FormatBRCMOpaque:             return "OMX_COLOR_FormatBRCMOpaque";
-        case OMX_COLOR_FormatYVU420PackedPlanar:     return "OMX_COLOR_FormatYVU420PackedPlanar";
-        case OMX_COLOR_FormatYVU420PackedSemiPlanar: return "OMX_COLOR_FormatYVU420PackedSemiPlanar";
-        default:
-            f = calloc(23, sizeof(char));
-            if(f == NULL) {
+            if (f == NULL) {
                 die("Failed to allocate memory");
             }
             snprintf(f, 23 * sizeof(char) - 1, "format type 0x%08x", c);
@@ -273,10 +248,127 @@ static const char* dump_color_format(OMX_COLOR_FORMATTYPE c) {
     }
 }
 
-static void dump_portdef(OMX_PARAM_PORTDEFINITIONTYPE* portdef) {
+static const char *dump_color_format(OMX_COLOR_FORMATTYPE c) {
+    char *f;
+    switch (c) {
+        case OMX_COLOR_FormatUnused:
+            return "OMX_COLOR_FormatUnused: not used";
+        case OMX_COLOR_FormatMonochrome:
+            return "OMX_COLOR_FormatMonochrome";
+        case OMX_COLOR_Format8bitRGB332:
+            return "OMX_COLOR_Format8bitRGB332";
+        case OMX_COLOR_Format12bitRGB444:
+            return "OMX_COLOR_Format12bitRGB444";
+        case OMX_COLOR_Format16bitARGB4444:
+            return "OMX_COLOR_Format16bitARGB4444";
+        case OMX_COLOR_Format16bitARGB1555:
+            return "OMX_COLOR_Format16bitARGB1555";
+        case OMX_COLOR_Format16bitRGB565:
+            return "OMX_COLOR_Format16bitRGB565";
+        case OMX_COLOR_Format16bitBGR565:
+            return "OMX_COLOR_Format16bitBGR565";
+        case OMX_COLOR_Format18bitRGB666:
+            return "OMX_COLOR_Format18bitRGB666";
+        case OMX_COLOR_Format18bitARGB1665:
+            return "OMX_COLOR_Format18bitARGB1665";
+        case OMX_COLOR_Format19bitARGB1666:
+            return "OMX_COLOR_Format19bitARGB1666";
+        case OMX_COLOR_Format24bitRGB888:
+            return "OMX_COLOR_Format24bitRGB888";
+        case OMX_COLOR_Format24bitBGR888:
+            return "OMX_COLOR_Format24bitBGR888";
+        case OMX_COLOR_Format24bitARGB1887:
+            return "OMX_COLOR_Format24bitARGB1887";
+        case OMX_COLOR_Format25bitARGB1888:
+            return "OMX_COLOR_Format25bitARGB1888";
+        case OMX_COLOR_Format32bitBGRA8888:
+            return "OMX_COLOR_Format32bitBGRA8888";
+        case OMX_COLOR_Format32bitARGB8888:
+            return "OMX_COLOR_Format32bitARGB8888";
+        case OMX_COLOR_FormatYUV411Planar:
+            return "OMX_COLOR_FormatYUV411Planar";
+        case OMX_COLOR_FormatYUV411PackedPlanar:
+            return "OMX_COLOR_FormatYUV411PackedPlanar: Planes fragmented when a frame is split in multiple buffers";
+        case OMX_COLOR_FormatYUV420Planar:
+            return "OMX_COLOR_FormatYUV420Planar: Planar YUV, 4:2:0 (I420)";
+        case OMX_COLOR_FormatYUV420PackedPlanar:
+            return "OMX_COLOR_FormatYUV420PackedPlanar: Planar YUV, 4:2:0 (I420), planes fragmented when a frame is split in multiple buffers";
+        case OMX_COLOR_FormatYUV420SemiPlanar:
+            return "OMX_COLOR_FormatYUV420SemiPlanar, Planar YUV, 4:2:0 (NV12), U and V planes interleaved with first U value";
+        case OMX_COLOR_FormatYUV422Planar:
+            return "OMX_COLOR_FormatYUV422Planar";
+        case OMX_COLOR_FormatYUV422PackedPlanar:
+            return "OMX_COLOR_FormatYUV422PackedPlanar: Planes fragmented when a frame is split in multiple buffers";
+        case OMX_COLOR_FormatYUV422SemiPlanar:
+            return "OMX_COLOR_FormatYUV422SemiPlanar";
+        case OMX_COLOR_FormatYCbYCr:
+            return "OMX_COLOR_FormatYCbYCr";
+        case OMX_COLOR_FormatYCrYCb:
+            return "OMX_COLOR_FormatYCrYCb";
+        case OMX_COLOR_FormatCbYCrY:
+            return "OMX_COLOR_FormatCbYCrY";
+        case OMX_COLOR_FormatCrYCbY:
+            return "OMX_COLOR_FormatCrYCbY";
+        case OMX_COLOR_FormatYUV444Interleaved:
+            return "OMX_COLOR_FormatYUV444Interleaved";
+        case OMX_COLOR_FormatRawBayer8bit:
+            return "OMX_COLOR_FormatRawBayer8bit";
+        case OMX_COLOR_FormatRawBayer10bit:
+            return "OMX_COLOR_FormatRawBayer10bit";
+        case OMX_COLOR_FormatRawBayer8bitcompressed:
+            return "OMX_COLOR_FormatRawBayer8bitcompressed";
+        case OMX_COLOR_FormatL2:
+            return "OMX_COLOR_FormatL2";
+        case OMX_COLOR_FormatL4:
+            return "OMX_COLOR_FormatL4";
+        case OMX_COLOR_FormatL8:
+            return "OMX_COLOR_FormatL8";
+        case OMX_COLOR_FormatL16:
+            return "OMX_COLOR_FormatL16";
+        case OMX_COLOR_FormatL24:
+            return "OMX_COLOR_FormatL24";
+        case OMX_COLOR_FormatL32:
+            return "OMX_COLOR_FormatL32";
+        case OMX_COLOR_FormatYUV420PackedSemiPlanar:
+            return "OMX_COLOR_FormatYUV420PackedSemiPlanar: Planar YUV, 4:2:0 (NV12), planes fragmented when a frame is split in multiple buffers, U and V planes interleaved with first U value";
+        case OMX_COLOR_FormatYUV422PackedSemiPlanar:
+            return "OMX_COLOR_FormatYUV422PackedSemiPlanar: Planes fragmented when a frame is split in multiple buffers";
+        case OMX_COLOR_Format18BitBGR666:
+            return "OMX_COLOR_Format18BitBGR666";
+        case OMX_COLOR_Format24BitARGB6666:
+            return "OMX_COLOR_Format24BitARGB6666";
+        case OMX_COLOR_Format24BitABGR6666:
+            return "OMX_COLOR_Format24BitABGR6666";
+        case OMX_COLOR_Format32bitABGR8888:
+            return "OMX_COLOR_Format32bitABGR8888";
+        case OMX_COLOR_Format8bitPalette:
+            return "OMX_COLOR_Format8bitPalette";
+        case OMX_COLOR_FormatYUVUV128:
+            return "OMX_COLOR_FormatYUVUV128";
+        case OMX_COLOR_FormatRawBayer12bit:
+            return "OMX_COLOR_FormatRawBayer12bit";
+        case OMX_COLOR_FormatBRCMEGL:
+            return "OMX_COLOR_FormatBRCMEGL";
+        case OMX_COLOR_FormatBRCMOpaque:
+            return "OMX_COLOR_FormatBRCMOpaque";
+        case OMX_COLOR_FormatYVU420PackedPlanar:
+            return "OMX_COLOR_FormatYVU420PackedPlanar";
+        case OMX_COLOR_FormatYVU420PackedSemiPlanar:
+            return "OMX_COLOR_FormatYVU420PackedSemiPlanar";
+        default:
+            f = calloc(23, sizeof(char));
+            if (f == NULL) {
+                die("Failed to allocate memory");
+            }
+            snprintf(f, 23 * sizeof(char) - 1, "format type 0x%08x", c);
+            return f;
+    }
+}
+
+static void dump_portdef(OMX_PARAM_PORTDEFINITIONTYPE *portdef) {
     say("Port %d is %s, %s, buffers wants:%d needs:%d, size:%d, pop:%d, aligned:%d",
         portdef->nPortIndex,
-        (portdef->eDir ==  OMX_DirInput ? "input" : "output"),
+        (portdef->eDir == OMX_DirInput ? "input" : "output"),
         (portdef->bEnabled == OMX_TRUE ? "enabled" : "disabled"),
         portdef->nBufferCountActual,
         portdef->nBufferCountMin,
@@ -286,37 +378,37 @@ static void dump_portdef(OMX_PARAM_PORTDEFINITIONTYPE* portdef) {
 
     OMX_VIDEO_PORTDEFINITIONTYPE *viddef = &portdef->format.video;
     OMX_IMAGE_PORTDEFINITIONTYPE *imgdef = &portdef->format.image;
-    switch(portdef->eDomain) {
+    switch (portdef->eDomain) {
         case OMX_PortDomainVideo:
             say("Video type:\n"
-                "\tWidth:\t\t%d\n"
-                "\tHeight:\t\t%d\n"
-                "\tStride:\t\t%d\n"
-                "\tSliceHeight:\t%d\n"
-                "\tBitrate:\t%d\n"
-                "\tFramerate:\t%.02f\n"
-                "\tError hiding:\t%s\n"
-                "\tCodec:\t\t%s\n"
-                "\tColor:\t\t%s\n",
+                        "\tWidth:\t\t%d\n"
+                        "\tHeight:\t\t%d\n"
+                        "\tStride:\t\t%d\n"
+                        "\tSliceHeight:\t%d\n"
+                        "\tBitrate:\t%d\n"
+                        "\tFramerate:\t%.02f\n"
+                        "\tError hiding:\t%s\n"
+                        "\tCodec:\t\t%s\n"
+                        "\tColor:\t\t%s\n",
                 viddef->nFrameWidth,
                 viddef->nFrameHeight,
                 viddef->nStride,
                 viddef->nSliceHeight,
                 viddef->nBitrate,
-                ((float)viddef->xFramerate / (float)65536),
+                ((float) viddef->xFramerate / (float) 65536),
                 (viddef->bFlagErrorConcealment == OMX_TRUE ? "yes" : "no"),
                 dump_compression_format(viddef->eCompressionFormat),
                 dump_color_format(viddef->eColorFormat));
             break;
         case OMX_PortDomainImage:
             say("Image type:\n"
-                "\tWidth:\t\t%d\n"
-                "\tHeight:\t\t%d\n"
-                "\tStride:\t\t%d\n"
-                "\tSliceHeight:\t%d\n"
-                "\tError hiding:\t%s\n"
-                "\tCodec:\t\t%s\n"
-                "\tColor:\t\t%s\n",
+                        "\tWidth:\t\t%d\n"
+                        "\tHeight:\t\t%d\n"
+                        "\tStride:\t\t%d\n"
+                        "\tSliceHeight:\t%d\n"
+                        "\tError hiding:\t%s\n"
+                        "\tCodec:\t\t%s\n"
+                        "\tColor:\t\t%s\n",
                 imgdef->nFrameWidth,
                 imgdef->nFrameHeight,
                 imgdef->nStride,
@@ -335,20 +427,21 @@ static void dump_port(OMX_HANDLETYPE hComponent, OMX_U32 nPortIndex, OMX_BOOL du
     OMX_PARAM_PORTDEFINITIONTYPE portdef;
     OMX_INIT_STRUCTURE(portdef);
     portdef.nPortIndex = nPortIndex;
-    if((r = OMX_GetParameter(hComponent, OMX_IndexParamPortDefinition, &portdef)) != OMX_ErrorNone) {
+    if ((r = OMX_GetParameter(hComponent, OMX_IndexParamPortDefinition, &portdef)) != OMX_ErrorNone) {
         omx_die(r, "Failed to get port definition for port %d", nPortIndex);
     }
     dump_portdef(&portdef);
-    if(dumpformats) {
+    if (dumpformats) {
         OMX_VIDEO_PARAM_PORTFORMATTYPE portformat;
         OMX_INIT_STRUCTURE(portformat);
         portformat.nPortIndex = nPortIndex;
         portformat.nIndex = 0;
         r = OMX_ErrorNone;
         say("Port %d supports these video formats:", nPortIndex);
-        while(r == OMX_ErrorNone) {
-        if((r = OMX_GetParameter(hComponent, OMX_IndexParamVideoPortFormat, &portformat)) == OMX_ErrorNone) {
-                say("\t%s, compression: %s", dump_color_format(portformat.eColorFormat), dump_compression_format(portformat.eCompressionFormat));
+        while (r == OMX_ErrorNone) {
+            if ((r = OMX_GetParameter(hComponent, OMX_IndexParamVideoPortFormat, &portformat)) == OMX_ErrorNone) {
+                say("\t%s, compression: %s", dump_color_format(portformat.eColorFormat),
+                    dump_compression_format(portformat.eCompressionFormat));
                 portformat.nIndex++;
             }
         }
@@ -359,9 +452,9 @@ static void dump_port(OMX_HANDLETYPE hComponent, OMX_U32 nPortIndex, OMX_BOOL du
 static void block_until_state_changed(OMX_HANDLETYPE hComponent, OMX_STATETYPE wanted_eState) {
     OMX_STATETYPE eState;
     int i = 0;
-    while(i++ == 0 || eState != wanted_eState) {
+    while (i++ == 0 || eState != wanted_eState) {
         OMX_GetState(hComponent, &eState);
-        if(eState != wanted_eState) {
+        if (eState != wanted_eState) {
             usleep(10000);
         }
     }
@@ -373,11 +466,11 @@ static void block_until_port_changed(OMX_HANDLETYPE hComponent, OMX_U32 nPortInd
     OMX_INIT_STRUCTURE(portdef);
     portdef.nPortIndex = nPortIndex;
     OMX_U32 i = 0;
-    while(i++ == 0 || portdef.bEnabled != bEnabled) {
-        if((r = OMX_GetParameter(hComponent, OMX_IndexParamPortDefinition, &portdef)) != OMX_ErrorNone) {
+    while (i++ == 0 || portdef.bEnabled != bEnabled) {
+        if ((r = OMX_GetParameter(hComponent, OMX_IndexParamPortDefinition, &portdef)) != OMX_ErrorNone) {
             omx_die(r, "Failed to get port definition");
         }
-        if(portdef.bEnabled != bEnabled) {
+        if (portdef.bEnabled != bEnabled) {
             usleep(10000);
         }
     }
@@ -385,14 +478,14 @@ static void block_until_port_changed(OMX_HANDLETYPE hComponent, OMX_U32 nPortInd
 
 static void block_until_flushed(appctx *ctx) {
     int quit;
-    while(!quit) {
+    while (!quit) {
         vcos_semaphore_wait(&ctx->handler_lock);
-        if(ctx->flushed) {
+        if (ctx->flushed) {
             ctx->flushed = 0;
             quit = 1;
         }
         vcos_semaphore_post(&ctx->handler_lock);
-        if(!quit) {
+        if (!quit) {
             usleep(10000);
         }
     }
@@ -400,9 +493,9 @@ static void block_until_flushed(appctx *ctx) {
 
 static void init_component_handle(
         const char *name,
-        OMX_HANDLETYPE* hComponent,
+        OMX_HANDLETYPE *hComponent,
         OMX_PTR pAppData,
-        OMX_CALLBACKTYPE* callbacks) {
+        OMX_CALLBACKTYPE *callbacks) {
     OMX_ERRORTYPE r;
     char fullname[32];
 
@@ -411,28 +504,29 @@ static void init_component_handle(
     strcat(fullname, "OMX.broadcom.");
     strncat(fullname, name, strlen(fullname) - 1);
     say("Initializing component %s", fullname);
-    if((r = OMX_GetHandle(hComponent, fullname, pAppData, callbacks)) != OMX_ErrorNone) {
+    if ((r = OMX_GetHandle(hComponent, fullname, pAppData, callbacks)) != OMX_ErrorNone) {
         omx_die(r, "Failed to get handle for component %s", fullname);
     }
 
     // Disable ports
     OMX_INDEXTYPE types[] = {
-        OMX_IndexParamAudioInit,
-        OMX_IndexParamVideoInit,
-        OMX_IndexParamImageInit,
-        OMX_IndexParamOtherInit
+            OMX_IndexParamAudioInit,
+            OMX_IndexParamVideoInit,
+            OMX_IndexParamImageInit,
+            OMX_IndexParamOtherInit
     };
     OMX_PORT_PARAM_TYPE ports;
     OMX_INIT_STRUCTURE(ports);
     OMX_GetParameter(*hComponent, OMX_IndexParamVideoInit, &ports);
 
     int i;
-    for(i = 0; i < 4; i++) {
-        if(OMX_GetParameter(*hComponent, types[i], &ports) == OMX_ErrorNone) {
+    for (i = 0; i < 4; i++) {
+        if (OMX_GetParameter(*hComponent, types[i], &ports) == OMX_ErrorNone) {
             OMX_U32 nPortIndex;
-            for(nPortIndex = ports.nStartPortNumber; nPortIndex < ports.nStartPortNumber + ports.nPorts; nPortIndex++) {
+            for (nPortIndex = ports.nStartPortNumber;
+                 nPortIndex < ports.nStartPortNumber + ports.nPorts; nPortIndex++) {
                 say("Disabling port %d of component %s", nPortIndex, fullname);
-                if((r = OMX_SendCommand(*hComponent, OMX_CommandPortDisable, nPortIndex, NULL)) != OMX_ErrorNone) {
+                if ((r = OMX_SendCommand(*hComponent, OMX_CommandPortDisable, nPortIndex, NULL)) != OMX_ErrorNone) {
                     omx_die(r, "Failed to disable port %d of component %s", nPortIndex, fullname);
                 }
                 block_until_port_changed(*hComponent, nPortIndex, OMX_FALSE);
@@ -457,12 +551,12 @@ static OMX_ERRORTYPE event_handler(
 
     dump_event(hComponent, eEvent, nData1, nData2);
 
-    appctx *ctx = (appctx *)pAppData;
+    appctx *ctx = (appctx *) pAppData;
 
-    switch(eEvent) {
+    switch (eEvent) {
         case OMX_EventCmdComplete:
             vcos_semaphore_wait(&ctx->handler_lock);
-            if(nData1 == OMX_CommandFlush) {
+            if (nData1 == OMX_CommandFlush) {
                 ctx->flushed = 1;
             }
             vcos_semaphore_post(&ctx->handler_lock);
@@ -482,8 +576,8 @@ static OMX_ERRORTYPE event_handler(
 static OMX_ERRORTYPE empty_input_buffer_done_handler(
         OMX_HANDLETYPE hComponent,
         OMX_PTR pAppData,
-        OMX_BUFFERHEADERTYPE* pBuffer) {
-    appctx *ctx = ((appctx*)pAppData);
+        OMX_BUFFERHEADERTYPE *pBuffer) {
+    appctx *ctx = ((appctx *) pAppData);
     vcos_semaphore_wait(&ctx->handler_lock);
     // The main loop can now fill the buffer from input file
     ctx->encoder_input_buffer_needed = 1;
@@ -496,8 +590,8 @@ static OMX_ERRORTYPE empty_input_buffer_done_handler(
 static OMX_ERRORTYPE fill_output_buffer_done_handler(
         OMX_HANDLETYPE hComponent,
         OMX_PTR pAppData,
-        OMX_BUFFERHEADERTYPE* pBuffer) {
-    appctx *ctx = ((appctx*)pAppData);
+        OMX_BUFFERHEADERTYPE *pBuffer) {
+    appctx *ctx = ((appctx *) pAppData);
     vcos_semaphore_wait(&ctx->handler_lock);
     // The main loop can now flush the buffer to output file
     ctx->encoder_output_buffer_available = 1;
@@ -505,45 +599,52 @@ static OMX_ERRORTYPE fill_output_buffer_done_handler(
     return OMX_ErrorNone;
 }
 
-int main(int argc, char **argv)
- {
+int main(int argc, char **argv) {
     char line[FNAME_BUFFER];
 
     // Initialise video capture process
-    if (argc!=14)
-     {
-      sprintf(temp_err_string, "ERROR: Command line syntax is:\n\n recordH264 <UTC clock offset> <UTC start> <UTC stop> <obstoryId> <video device> <width> <height> <fps> <lat> <long> <flagGPS> <flagUpsideDown> <output filename>\n\ne.g.:\n\n recordH264 0 1428162067 1428165667 1 /dev/video0 720 480 24.71 52.2 0.12 0 1 output.h264\n"); gnom_fatal(__FILE__,__LINE__,temp_err_string);
-     }
+    if (argc != 14) {
+        sprintf(temp_err_string,
+                "ERROR: Command line syntax is:\n\n recordH264 <UTC clock offset> <UTC start> <UTC stop> <obstoryId> <video device> <width> <height> <fps> <lat> <long> <flagGPS> <flagUpsideDown> <output filename>\n\ne.g.:\n\n recordH264 0 1428162067 1428165667 1 /dev/video0 720 480 24.71 52.2 0.12 0 1 output.h264\n");
+        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+    }
 
     videoMetadata vmd;
 
-    const double utcoffset  = GetFloat(argv[1],NULL);  UTC_OFFSET=utcoffset;
-    vmd.tstart              = GetFloat(argv[2],NULL);
-    vmd.tstop               = GetFloat(argv[3],NULL);
-    vmd.nframe              = 0;
-    vmd.obstoryId           = argv[4];
-    vmd.videoDevice         = argv[5];
-    vmd.width               = (int)GetFloat(argv[6],NULL);
-    vmd.height              = (int)GetFloat(argv[7],NULL);
-    vmd.fps                 = GetFloat(argv[8],NULL);
-    vmd.lat                 = GetFloat(argv[9],NULL);
-    vmd.lng                 = GetFloat(argv[10],NULL);
-    vmd.flagGPS             = GetFloat(argv[11],NULL) ? 1 : 0;
-    vmd.flagUpsideDown      = GetFloat(argv[12],NULL) ? 1 : 0;
-    vmd.filename            = argv[13];
+    const double utcoffset = GetFloat(argv[1], NULL);
+    UTC_OFFSET = utcoffset;
+    vmd.tstart = GetFloat(argv[2], NULL);
+    vmd.tstop = GetFloat(argv[3], NULL);
+    vmd.nframe = 0;
+    vmd.obstoryId = argv[4];
+    vmd.videoDevice = argv[5];
+    vmd.width = (int) GetFloat(argv[6], NULL);
+    vmd.height = (int) GetFloat(argv[7], NULL);
+    vmd.fps = GetFloat(argv[8], NULL);
+    vmd.lat = GetFloat(argv[9], NULL);
+    vmd.lng = GetFloat(argv[10], NULL);
+    vmd.flagGPS = GetFloat(argv[11], NULL) ? 1 : 0;
+    vmd.flagUpsideDown = GetFloat(argv[12], NULL) ? 1 : 0;
+    vmd.filename = argv[13];
 
     // Append .h264 suffix to output filename
     char frOut[4096];
     sprintf(frOut, "%s.h264", vmd.filename);
 
-    if (DEBUG) { sprintf(line, "Starting video recording run at %s.", StrStrip(FriendlyTimestring(vmd.tstart),temp_err_string)); gnom_log(line); }
-    if (DEBUG) { sprintf(line, "Video will end at %s.", StrStrip(FriendlyTimestring(vmd.tstop ),temp_err_string)); gnom_log(line); }
+    if (DEBUG) {
+        sprintf(line, "Starting video recording run at %s.", StrStrip(FriendlyTimestring(vmd.tstart), temp_err_string));
+        gnom_log(line);
+    }
+    if (DEBUG) {
+        sprintf(line, "Video will end at %s.", StrStrip(FriendlyTimestring(vmd.tstop), temp_err_string));
+        gnom_log(line);
+    }
 
     initLut();
 
     struct vdIn *videoIn;
 
-    const float fps = nearestMultiple(vmd.fps,1);       // Requested frame rate
+    const float fps = nearestMultiple(vmd.fps, 1);       // Requested frame rate
     const int v4l_format = V4L2_PIX_FMT_YUYV;
     const int grabmethod = 1;
     char *avifilename = "/tmp/foo";
@@ -551,10 +652,11 @@ int main(int argc, char **argv)
     videoIn = (struct vdIn *) calloc(1, sizeof(struct vdIn));
 
     // Fetch the dimensions of the video stream as returned by V4L (which may differ from what we requested)
-    if (init_videoIn(videoIn, vmd.videoDevice, vmd.width, vmd.height, fps, v4l_format, grabmethod, avifilename) < 0) exit(1);
+    if (init_videoIn(videoIn, vmd.videoDevice, vmd.width, vmd.height, fps, v4l_format, grabmethod, avifilename) < 0)
+        exit(1);
     const int width = videoIn->width;
-    const int height= videoIn->height;
-    vmd.width  = width;
+    const int height = videoIn->height;
+    vmd.width = width;
     vmd.height = height;
     writeRawVidMetaData(vmd);
 
@@ -563,27 +665,28 @@ int main(int argc, char **argv)
 
     OMX_ERRORTYPE r;
 
-    if((r = OMX_Init()) != OMX_ErrorNone) {
+    if ((r = OMX_Init()) != OMX_ErrorNone) {
         omx_die(r, "OMX initalization failed");
     }
 
     const int frameSize = width * height;
-    unsigned char *tmpc = malloc(frameSize*1.5); // Temporary frame buffer for converting YUV422 data from v4l2 into YUV420
-    if (!tmpc) gnom_fatal(__FILE__,__LINE__,"Malloc fail");
+    unsigned char *tmpc = malloc(
+            frameSize * 1.5); // Temporary frame buffer for converting YUV422 data from v4l2 into YUV420
+    if (!tmpc) gnom_fatal(__FILE__, __LINE__, "Malloc fail");
 
     // Init context
     appctx ctx;
     memset(&ctx, 0, sizeof(ctx));
-    if(vcos_semaphore_create(&ctx.handler_lock, "handler_lock", 1) != VCOS_SUCCESS) {
+    if (vcos_semaphore_create(&ctx.handler_lock, "handler_lock", 1) != VCOS_SUCCESS) {
         die("Failed to create handler lock semaphore");
     }
 
     // Init component handles
     OMX_CALLBACKTYPE callbacks;
     memset(&ctx, 0, sizeof(callbacks));
-    callbacks.EventHandler    = event_handler;
+    callbacks.EventHandler = event_handler;
     callbacks.EmptyBufferDone = empty_input_buffer_done_handler;
-    callbacks.FillBufferDone  = fill_output_buffer_done_handler;
+    callbacks.FillBufferDone = fill_output_buffer_done_handler;
 
     init_component_handle("video_encode", &ctx.encoder, &ctx, &callbacks);
 
@@ -597,31 +700,33 @@ int main(int argc, char **argv)
     OMX_PARAM_PORTDEFINITIONTYPE encoder_portdef;
     OMX_INIT_STRUCTURE(encoder_portdef);
     encoder_portdef.nPortIndex = 200;
-    if((r = OMX_GetParameter(ctx.encoder, OMX_IndexParamPortDefinition, &encoder_portdef)) != OMX_ErrorNone) {
+    if ((r = OMX_GetParameter(ctx.encoder, OMX_IndexParamPortDefinition, &encoder_portdef)) != OMX_ErrorNone) {
         omx_die(r, "Failed to get port definition for encoder input port 200");
     }
-    encoder_portdef.format.video.nFrameWidth  = width;
+    encoder_portdef.format.video.nFrameWidth = width;
     encoder_portdef.format.video.nFrameHeight = height;
-    encoder_portdef.format.video.xFramerate   = ((int)vmd.fps) << 16;
+    encoder_portdef.format.video.xFramerate = ((int) vmd.fps) << 16;
     // Stolen from gstomxvideodec.c of gst-omx
-    encoder_portdef.format.video.nStride      = (encoder_portdef.format.video.nFrameWidth + encoder_portdef.nBufferAlignment - 1) & (~(encoder_portdef.nBufferAlignment - 1));
+    encoder_portdef.format.video.nStride =
+            (encoder_portdef.format.video.nFrameWidth + encoder_portdef.nBufferAlignment - 1) &
+            (~(encoder_portdef.nBufferAlignment - 1));
     encoder_portdef.format.video.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;
-    if((r = OMX_SetParameter(ctx.encoder, OMX_IndexParamPortDefinition, &encoder_portdef)) != OMX_ErrorNone) {
+    if ((r = OMX_SetParameter(ctx.encoder, OMX_IndexParamPortDefinition, &encoder_portdef)) != OMX_ErrorNone) {
         omx_die(r, "Failed to set port definition for encoder input port 200");
     }
 
     // Copy encoder input port definition as basis encoder output port definition
     OMX_INIT_STRUCTURE(encoder_portdef);
     encoder_portdef.nPortIndex = 200;
-    if((r = OMX_GetParameter(ctx.encoder, OMX_IndexParamPortDefinition, &encoder_portdef)) != OMX_ErrorNone) {
+    if ((r = OMX_GetParameter(ctx.encoder, OMX_IndexParamPortDefinition, &encoder_portdef)) != OMX_ErrorNone) {
         omx_die(r, "Failed to get port definition for encoder input port 200");
     }
     encoder_portdef.nPortIndex = 201;
     encoder_portdef.format.video.eColorFormat = OMX_COLOR_FormatUnused;
     encoder_portdef.format.video.eCompressionFormat = OMX_VIDEO_CodingAVC;
     // Which one is effective, this or the configuration just below?
-    encoder_portdef.format.video.nBitrate     = VIDEO_BITRATE;
-    if((r = OMX_SetParameter(ctx.encoder, OMX_IndexParamPortDefinition, &encoder_portdef)) != OMX_ErrorNone) {
+    encoder_portdef.format.video.nBitrate = VIDEO_BITRATE;
+    if ((r = OMX_SetParameter(ctx.encoder, OMX_IndexParamPortDefinition, &encoder_portdef)) != OMX_ErrorNone) {
         omx_die(r, "Failed to set port definition for encoder output port 201");
     }
     // Configure bitrate
@@ -630,7 +735,7 @@ int main(int argc, char **argv)
     bitrate.eControlRate = OMX_Video_ControlRateVariable;
     bitrate.nTargetBitrate = encoder_portdef.format.video.nBitrate;
     bitrate.nPortIndex = 201;
-    if((r = OMX_SetParameter(ctx.encoder, OMX_IndexParamVideoBitrate, &bitrate)) != OMX_ErrorNone) {
+    if ((r = OMX_SetParameter(ctx.encoder, OMX_IndexParamVideoBitrate, &bitrate)) != OMX_ErrorNone) {
         omx_die(r, "Failed to set bitrate for encoder output port 201");
     }
     // Configure format
@@ -638,24 +743,24 @@ int main(int argc, char **argv)
     OMX_INIT_STRUCTURE(format);
     format.nPortIndex = 201;
     format.eCompressionFormat = OMX_VIDEO_CodingAVC;
-    if((r = OMX_SetParameter(ctx.encoder, OMX_IndexParamVideoPortFormat, &format)) != OMX_ErrorNone) {
+    if ((r = OMX_SetParameter(ctx.encoder, OMX_IndexParamVideoPortFormat, &format)) != OMX_ErrorNone) {
         omx_die(r, "Failed to set video format for encoder output port 201");
     }
 
     // Switch components to idle state
     say("Switching state of the encoder component to idle...");
-    if((r = OMX_SendCommand(ctx.encoder, OMX_CommandStateSet, OMX_StateIdle, NULL)) != OMX_ErrorNone) {
+    if ((r = OMX_SendCommand(ctx.encoder, OMX_CommandStateSet, OMX_StateIdle, NULL)) != OMX_ErrorNone) {
         omx_die(r, "Failed to switch state of the encoder component to idle");
     }
     block_until_state_changed(ctx.encoder, OMX_StateIdle);
 
     // Enable ports
     say("Enabling ports...");
-    if((r = OMX_SendCommand(ctx.encoder, OMX_CommandPortEnable, 200, NULL)) != OMX_ErrorNone) {
+    if ((r = OMX_SendCommand(ctx.encoder, OMX_CommandPortEnable, 200, NULL)) != OMX_ErrorNone) {
         omx_die(r, "Failed to enable encoder input port 200");
     }
     block_until_port_changed(ctx.encoder, 200, OMX_TRUE);
-    if((r = OMX_SendCommand(ctx.encoder, OMX_CommandPortEnable, 201, NULL)) != OMX_ErrorNone) {
+    if ((r = OMX_SendCommand(ctx.encoder, OMX_CommandPortEnable, 201, NULL)) != OMX_ErrorNone) {
         omx_die(r, "Failed to enable encoder output port 201");
     }
     block_until_port_changed(ctx.encoder, 201, OMX_TRUE);
@@ -664,30 +769,32 @@ int main(int argc, char **argv)
     say("Allocating buffers...");
     OMX_INIT_STRUCTURE(encoder_portdef);
     encoder_portdef.nPortIndex = 200;
-    if((r = OMX_GetParameter(ctx.encoder, OMX_IndexParamPortDefinition, &encoder_portdef)) != OMX_ErrorNone) {
+    if ((r = OMX_GetParameter(ctx.encoder, OMX_IndexParamPortDefinition, &encoder_portdef)) != OMX_ErrorNone) {
         omx_die(r, "Failed to get port definition for encoder input port 200");
     }
-    if((r = OMX_AllocateBuffer(ctx.encoder, &ctx.encoder_ppBuffer_in, 200, NULL, encoder_portdef.nBufferSize)) != OMX_ErrorNone) {
+    if ((r = OMX_AllocateBuffer(ctx.encoder, &ctx.encoder_ppBuffer_in, 200, NULL, encoder_portdef.nBufferSize)) !=
+        OMX_ErrorNone) {
         omx_die(r, "Failed to allocate buffer for encoder input port 200");
     }
     OMX_INIT_STRUCTURE(encoder_portdef);
     encoder_portdef.nPortIndex = 201;
-    if((r = OMX_GetParameter(ctx.encoder, OMX_IndexParamPortDefinition, &encoder_portdef)) != OMX_ErrorNone) {
+    if ((r = OMX_GetParameter(ctx.encoder, OMX_IndexParamPortDefinition, &encoder_portdef)) != OMX_ErrorNone) {
         omx_die(r, "Failed to get port definition for encoder output port 201");
     }
-    if((r = OMX_AllocateBuffer(ctx.encoder, &ctx.encoder_ppBuffer_out, 201, NULL, encoder_portdef.nBufferSize)) != OMX_ErrorNone) {
+    if ((r = OMX_AllocateBuffer(ctx.encoder, &ctx.encoder_ppBuffer_out, 201, NULL, encoder_portdef.nBufferSize)) !=
+        OMX_ErrorNone) {
         omx_die(r, "Failed to allocate buffer for encoder output port 201");
     }
 
     // Just use stdin for input and stdout for output
     say("Opening input and output files...");
     FILE *fd_out = fopen(frOut, "w");
-    if (fd_out==NULL) omx_die(r, "Could not open output h264 file <%s>.", frOut);
+    if (fd_out == NULL) omx_die(r, "Could not open output h264 file <%s>.", frOut);
 
     // Switch state of the components prior to starting
     // the video capture and encoding loop
     say("Switching state of the encoder component to executing...");
-    if((r = OMX_SendCommand(ctx.encoder, OMX_CommandStateSet, OMX_StateExecuting, NULL)) != OMX_ErrorNone) {
+    if ((r = OMX_SendCommand(ctx.encoder, OMX_CommandStateSet, OMX_StateExecuting, NULL)) != OMX_ErrorNone) {
         omx_die(r, "Failed to switch state of the encoder component to executing");
     }
     block_until_state_changed(ctx.encoder, OMX_StateExecuting);
@@ -698,134 +805,147 @@ int main(int argc, char **argv)
     dump_port(ctx.encoder, 201, OMX_FALSE);
 
     i420_frame_info frame_info, buf_info;
-    get_i420_frame_info(encoder_portdef.format.image.nFrameWidth, encoder_portdef.format.image.nFrameHeight, encoder_portdef.format.image.nStride, encoder_portdef.format.video.nSliceHeight, &frame_info);
+    get_i420_frame_info(encoder_portdef.format.image.nFrameWidth, encoder_portdef.format.image.nFrameHeight,
+                        encoder_portdef.format.image.nStride, encoder_portdef.format.video.nSliceHeight, &frame_info);
     get_i420_frame_info(frame_info.buf_stride, frame_info.buf_slice_height, -1, -1, &buf_info);
 
     dump_frame_info("Destination frame", &frame_info);
     dump_frame_info("Source buffer", &buf_info);
 
-    if(ctx.encoder_ppBuffer_in->nAllocLen != buf_info.size) {
-        die("Allocated encoder input port 200 buffer size %d doesn't equal to the expected buffer size %d", ctx.encoder_ppBuffer_in->nAllocLen, buf_info.size);
+    if (ctx.encoder_ppBuffer_in->nAllocLen != buf_info.size) {
+        die("Allocated encoder input port 200 buffer size %d doesn't equal to the expected buffer size %d",
+            ctx.encoder_ppBuffer_in->nAllocLen, buf_info.size);
     }
 
     say("Enter encode loop, press Ctrl-C to quit...");
 
-    int frame_in=0, frame_out=0, firstPass=1;
+    int frame_in = 0, frame_out = 0, firstPass = 1;
     size_t input_total_read, output_written;
     // I420 spec: U and V plane span size half of the size of the Y plane span size
     int plane_span_y = ROUND_UP_2(frame_info.height), plane_span_uv = plane_span_y / 2;
 
     ctx.encoder_input_buffer_needed = 1;
 
-    signal(SIGINT,  signal_handler);
+    signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
     signal(SIGQUIT, signal_handler);
 
     while (!want_quit) {
 
         int t = time(NULL) + utcoffset;
-        if (t>=vmd.tstop) break; // Check how we're doing for time; if we've reached the time to stop, stop now!
+        if (t >= vmd.tstop) break; // Check how we're doing for time; if we've reached the time to stop, stop now!
 
 
         // empty_input_buffer_done_handler() has marked that there's
         // a need for a buffer to be filled by us
-        if(ctx.encoder_input_buffer_needed) {
+        if (ctx.encoder_input_buffer_needed) {
             int line;
             input_total_read = 0;
 
-            if (fetchFrame(videoIn, tmpc, vmd.flagUpsideDown)) { want_quit=1; break; }
+            if (fetchFrame(videoIn, tmpc, vmd.flagUpsideDown)) {
+                want_quit = 1;
+                break;
+            }
 
 #pragma omp parallel for private(line)
-            for (line=0; line<height  ; line++) memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[0] + frame_info.buf_stride  *line , tmpc + width*line                     , width);
+            for (line = 0; line < height; line++)
+                memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[0] + frame_info.buf_stride * line,
+                       tmpc + width * line, width);
 #pragma omp parallel for private(line)
-            for (line=0; line<height/2; line++) memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[1] + frame_info.buf_stride/2*line , tmpc + (width/2)*line + frameSize     , width/2);
+            for (line = 0; line < height / 2; line++)
+                memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[1] + frame_info.buf_stride / 2 * line,
+                       tmpc + (width / 2) * line + frameSize, width / 2);
 #pragma omp parallel for private(line)
-            for (line=0; line<height/2; line++) memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[2] + frame_info.buf_stride/2*line , tmpc + (width/2)*line + frameSize*5/4 , width/2);
+            for (line = 0; line < height / 2; line++)
+                memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[2] + frame_info.buf_stride / 2 * line,
+                       tmpc + (width / 2) * line + frameSize * 5 / 4, width / 2);
 
-            input_total_read += (frame_info.p_stride[0] * plane_span_y) + (frame_info.p_stride[1] * plane_span_uv)  + (frame_info.p_stride[2] * plane_span_uv);
+            input_total_read += (frame_info.p_stride[0] * plane_span_y) + (frame_info.p_stride[1] * plane_span_uv) +
+                                (frame_info.p_stride[2] * plane_span_uv);
 
             ctx.encoder_ppBuffer_in->nOffset = 0;
             ctx.encoder_ppBuffer_in->nFilledLen = (buf_info.size - frame_info.size) + input_total_read;
             frame_in++;
             //say("Read from input file and wrote to input buffer %d/%d, frame %d", ctx.encoder_ppBuffer_in->nFilledLen, ctx.encoder_ppBuffer_in->nAllocLen, frame_in);
-            if(input_total_read > 0) {
+            if (input_total_read > 0) {
                 ctx.encoder_input_buffer_needed = 0;
-                if((r = OMX_EmptyThisBuffer(ctx.encoder, ctx.encoder_ppBuffer_in)) != OMX_ErrorNone) {
+                if ((r = OMX_EmptyThisBuffer(ctx.encoder, ctx.encoder_ppBuffer_in)) != OMX_ErrorNone) {
                     omx_die(r, "Failed to request emptying of the input buffer on encoder input port 200");
                 }
             }
         }
         // fill_output_buffer_done_handler() has marked that there's
         // a buffer for us to flush
-        if(ctx.encoder_output_buffer_available) {
-            if(ctx.encoder_ppBuffer_out->nFlags & OMX_BUFFERFLAG_ENDOFFRAME) {
+        if (ctx.encoder_output_buffer_available) {
+            if (ctx.encoder_ppBuffer_out->nFlags & OMX_BUFFERFLAG_ENDOFFRAME) {
                 frame_out++;
             }
             // Flush buffer to output file
-            output_written = fwrite(ctx.encoder_ppBuffer_out->pBuffer + ctx.encoder_ppBuffer_out->nOffset, 1, ctx.encoder_ppBuffer_out->nFilledLen, fd_out);
-            if(output_written != ctx.encoder_ppBuffer_out->nFilledLen) {
+            output_written = fwrite(ctx.encoder_ppBuffer_out->pBuffer + ctx.encoder_ppBuffer_out->nOffset, 1,
+                                    ctx.encoder_ppBuffer_out->nFilledLen, fd_out);
+            if (output_written != ctx.encoder_ppBuffer_out->nFilledLen) {
                 die("Failed to write to output file: %s", strerror(errno));
             }
             //say("Read from output buffer and wrote to output file %d/%d, frame %d", ctx.encoder_ppBuffer_out->nFilledLen, ctx.encoder_ppBuffer_out->nAllocLen, frame_out + 1);
         }
-        if(ctx.encoder_output_buffer_available || firstPass) {
+        if (ctx.encoder_output_buffer_available || firstPass) {
             // Buffer flushed, request a new buffer to be filled by the encoder component
             ctx.encoder_output_buffer_available = 0;
-            if((r = OMX_FillThisBuffer(ctx.encoder, ctx.encoder_ppBuffer_out)) != OMX_ErrorNone) {
+            if ((r = OMX_FillThisBuffer(ctx.encoder, ctx.encoder_ppBuffer_out)) != OMX_ErrorNone) {
                 omx_die(r, "Failed to request filling of the output buffer on encoder output port 201");
             }
         }
         // Would be better to use signaling here but hey this works too
         usleep(10);
-        firstPass=0;
+        firstPass = 0;
     }
     say("Cleaning up...");
 
     // Restore signal handlers
-    signal(SIGINT,  SIG_DFL);
+    signal(SIGINT, SIG_DFL);
     signal(SIGTERM, SIG_DFL);
     signal(SIGQUIT, SIG_DFL);
 
     // Flush the buffers on each component
-    if((r = OMX_SendCommand(ctx.encoder, OMX_CommandFlush, 200, NULL)) != OMX_ErrorNone) {
+    if ((r = OMX_SendCommand(ctx.encoder, OMX_CommandFlush, 200, NULL)) != OMX_ErrorNone) {
         omx_die(r, "Failed to flush buffers of encoder input port 200");
     }
     block_until_flushed(&ctx);
-    if((r = OMX_SendCommand(ctx.encoder, OMX_CommandFlush, 201, NULL)) != OMX_ErrorNone) {
+    if ((r = OMX_SendCommand(ctx.encoder, OMX_CommandFlush, 201, NULL)) != OMX_ErrorNone) {
         omx_die(r, "Failed to flush buffers of encoder output port 201");
     }
     block_until_flushed(&ctx);
 
     // Disable all the ports
-    if((r = OMX_SendCommand(ctx.encoder, OMX_CommandPortDisable, 200, NULL)) != OMX_ErrorNone) {
+    if ((r = OMX_SendCommand(ctx.encoder, OMX_CommandPortDisable, 200, NULL)) != OMX_ErrorNone) {
         omx_die(r, "Failed to disable encoder input port 200");
     }
     block_until_port_changed(ctx.encoder, 200, OMX_FALSE);
-    if((r = OMX_SendCommand(ctx.encoder, OMX_CommandPortDisable, 201, NULL)) != OMX_ErrorNone) {
+    if ((r = OMX_SendCommand(ctx.encoder, OMX_CommandPortDisable, 201, NULL)) != OMX_ErrorNone) {
         omx_die(r, "Failed to disable encoder output port 201");
     }
     block_until_port_changed(ctx.encoder, 201, OMX_FALSE);
 
     // Free all the buffers
-    if((r = OMX_FreeBuffer(ctx.encoder, 200, ctx.encoder_ppBuffer_in)) != OMX_ErrorNone) {
+    if ((r = OMX_FreeBuffer(ctx.encoder, 200, ctx.encoder_ppBuffer_in)) != OMX_ErrorNone) {
         omx_die(r, "Failed to free buffer for encoder input port 200");
     }
-    if((r = OMX_FreeBuffer(ctx.encoder, 201, ctx.encoder_ppBuffer_out)) != OMX_ErrorNone) {
+    if ((r = OMX_FreeBuffer(ctx.encoder, 201, ctx.encoder_ppBuffer_out)) != OMX_ErrorNone) {
         omx_die(r, "Failed to free buffer for encoder output port 201");
     }
 
     // Transition all the components to idle and then to loaded states
-    if((r = OMX_SendCommand(ctx.encoder, OMX_CommandStateSet, OMX_StateIdle, NULL)) != OMX_ErrorNone) {
+    if ((r = OMX_SendCommand(ctx.encoder, OMX_CommandStateSet, OMX_StateIdle, NULL)) != OMX_ErrorNone) {
         omx_die(r, "Failed to switch state of the encoder component to idle");
     }
     block_until_state_changed(ctx.encoder, OMX_StateIdle);
-    if((r = OMX_SendCommand(ctx.encoder, OMX_CommandStateSet, OMX_StateLoaded, NULL)) != OMX_ErrorNone) {
+    if ((r = OMX_SendCommand(ctx.encoder, OMX_CommandStateSet, OMX_StateLoaded, NULL)) != OMX_ErrorNone) {
         omx_die(r, "Failed to switch state of the encoder component to loaded");
     }
     block_until_state_changed(ctx.encoder, OMX_StateLoaded);
 
     // Free the component handles
-    if((r = OMX_FreeHandle(ctx.encoder)) != OMX_ErrorNone) {
+    if ((r = OMX_FreeHandle(ctx.encoder)) != OMX_ErrorNone) {
         omx_die(r, "Failed to free encoder component handle");
     }
 
@@ -833,12 +953,12 @@ int main(int argc, char **argv)
     fclose(fd_out);
 
     vcos_semaphore_delete(&ctx.handler_lock);
-    if((r = OMX_Deinit()) != OMX_ErrorNone) {
+    if ((r = OMX_Deinit()) != OMX_ErrorNone) {
         omx_die(r, "OMX de-initalization failed");
     }
 
     vmd.nframe = frame_in;
-    vmd.tstop  = time(NULL) + utcoffset;
+    vmd.tstop = time(NULL) + utcoffset;
     writeRawVidMetaData(vmd);
     say("Exit!");
 

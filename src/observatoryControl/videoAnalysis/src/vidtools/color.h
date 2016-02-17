@@ -16,69 +16,77 @@
 # along with this program; if not, write to the Free Software               #
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA #
 #                                                                           #
-****************************************************************************/ 
+****************************************************************************/
 typedef struct Myrgb16 {
-	unsigned short blue:5;
-	unsigned short green:6;
-	unsigned short red:5;
+    unsigned short blue:5;
+    unsigned short green:6;
+    unsigned short red:5;
 } Myrgb16;
 typedef struct Myrgb24 {
-	unsigned char blue;
-	unsigned char green;
-	unsigned char red;
+    unsigned char blue;
+    unsigned char green;
+    unsigned char red;
 } Myrgb24;
 typedef struct Myrgb32 {
-	unsigned char blue;
-	unsigned char green;
-	unsigned char red;
-	unsigned char alpha;
+    unsigned char blue;
+    unsigned char green;
+    unsigned char red;
+    unsigned char alpha;
 } Myrgb32;
 
 typedef struct MyYUV422 {
-	unsigned char y0;
-	unsigned char u;
-	unsigned char y1;
-	unsigned char v;
+    unsigned char y0;
+    unsigned char u;
+    unsigned char y1;
+    unsigned char v;
 } MyYUV422;
 
 typedef struct MyYUV444 {
-	unsigned char y;
-	unsigned char u;
-	unsigned char v;
+    unsigned char y;
+    unsigned char u;
+    unsigned char v;
 } MyYUV444;
 
 #define CLIPCHAR(color) (unsigned char)(((color)>0xFF)?0xff:(((color)<0)?0:(color)))
 
 unsigned char
-RGB24_TO_Y(unsigned char r, unsigned char g, unsigned char b);
+        RGB24_TO_Y(unsigned char r, unsigned char g, unsigned char b);
 
 unsigned char
-YR_TO_V(unsigned char r, unsigned char y);
+        YR_TO_V(unsigned char r, unsigned char y);
 
 unsigned char
-YB_TO_U(unsigned char b, unsigned char y);
+        YB_TO_U(unsigned char b, unsigned char y);
 
 unsigned char
-R_FROMYV(unsigned char y, unsigned char v);
+        R_FROMYV(unsigned char y, unsigned char v);
 
 unsigned char
-G_FROMYUV(unsigned char y, unsigned char u, unsigned char v);
+        G_FROMYUV(unsigned char y, unsigned char u, unsigned char v);
 
 unsigned char
-B_FROMYU(unsigned char y, unsigned char u);
+        B_FROMYU(unsigned char y, unsigned char u);
 
-#define YfromRGB(r,g,b) CLIPCHAR((77*(r)+150*(g)+29*(b))>>8)
-#define UfromRGB(r,g,b) CLIPCHAR(((128*(b)-85*(g)-43*(r))>>8 )+128)
-#define VfromRGB(r,g,b) CLIPCHAR(((128*(r)-107*(g)-21*(b))>>8) +128)
+#define YfromRGB(r, g, b) CLIPCHAR((77*(r)+150*(g)+29*(b))>>8)
+#define UfromRGB(r, g, b) CLIPCHAR(((128*(b)-85*(g)-43*(r))>>8 )+128)
+#define VfromRGB(r, g, b) CLIPCHAR(((128*(r)-107*(g)-21*(b))>>8) +128)
 
-#define PACKRGB16(r,g,b) (__u16) ((((b) & 0xF8) << 8 ) | (((g) & 0xFC) << 3 ) | (((r) & 0xF8) >> 3 ))
-#define UNPACK16(pixel,r,g,b) r=((pixel)&0xf800) >> 8; 	g=((pixel)&0x07e0) >> 3; b=(((pixel)&0x001f) << 3)
+#define PACKRGB16(r, g, b) (__u16) ((((b) & 0xF8) << 8 ) | (((g) & 0xFC) << 3 ) | (((r) & 0xF8) >> 3 ))
+#define UNPACK16(pixel, r, g, b) r=((pixel)&0xf800) >> 8;    g=((pixel)&0x07e0) >> 3; b=(((pixel)&0x001f) << 3)
 
 void initLut(void);
+
 void freeLut(void);
 
-void Pyuv422torgbstack(unsigned char * input_ptr, int *outR, int *outG, int *outB, unsigned int width, unsigned int height, const int upsideDown);
-void Pyuv420torgb(unsigned char *Ydata, unsigned char *Udata, unsigned char *Vdata, unsigned char *outR, unsigned char *outG, unsigned char *outB, const unsigned int width, const unsigned int height);
-void Pyuv422toMono(unsigned char * input_ptr, unsigned char * output_ptr, const unsigned int width, const unsigned int height, const int upsideDown);
-void Pyuv422to420(unsigned char * input_ptr, unsigned char * output_ptr, const unsigned int width, const unsigned int height, const int upsideDown);
+void Pyuv422torgbstack(unsigned char *input_ptr, int *outR, int *outG, int *outB, unsigned int width,
+                       unsigned int height, const int upsideDown);
+
+void Pyuv420torgb(unsigned char *Ydata, unsigned char *Udata, unsigned char *Vdata, unsigned char *outR,
+                  unsigned char *outG, unsigned char *outB, const unsigned int width, const unsigned int height);
+
+void Pyuv422toMono(unsigned char *input_ptr, unsigned char *output_ptr, const unsigned int width,
+                   const unsigned int height, const int upsideDown);
+
+void Pyuv422to420(unsigned char *input_ptr, unsigned char *output_ptr, const unsigned int width,
+                  const unsigned int height, const int upsideDown);
 

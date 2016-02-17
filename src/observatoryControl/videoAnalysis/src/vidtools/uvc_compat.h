@@ -9,26 +9,26 @@
 #endif
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 18)
 /*
  * Extended control API
  */
 struct v4l2_ext_control {
-	__u32 id;
-	__u32 reserved2[2];
-	union {
-		__s32 value;
-		__s64 value64;
-		void *reserved;
-	};
+    __u32 id;
+    __u32 reserved2[2];
+    union {
+        __s32 value;
+        __s64 value64;
+        void *reserved;
+    };
 } __attribute__ ((packed));
 
 struct v4l2_ext_controls {
-	__u32 ctrl_class;
-	__u32 count;
-	__u32 error_idx;
-	__u32 reserved[2];
-	struct v4l2_ext_control *controls;
+    __u32 ctrl_class;
+    __u32 count;
+    __u32 error_idx;
+    __u32 reserved[2];
+    struct v4l2_ext_control *controls;
 };
 
 /* Values for ctrl_class field */
@@ -60,77 +60,77 @@ struct v4l2_ext_controls {
 
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
 /*
  * Frame size and frame rate enumeration
  *
  * Included in Linux 2.6.19
  */
 enum v4l2_frmsizetypes {
-	V4L2_FRMSIZE_TYPE_DISCRETE	= 1,
-	V4L2_FRMSIZE_TYPE_CONTINUOUS	= 2,
-	V4L2_FRMSIZE_TYPE_STEPWISE	= 3,
+    V4L2_FRMSIZE_TYPE_DISCRETE	= 1,
+    V4L2_FRMSIZE_TYPE_CONTINUOUS	= 2,
+    V4L2_FRMSIZE_TYPE_STEPWISE	= 3,
 };
 
 struct v4l2_frmsize_discrete {
-	__u32			width;		/* Frame width [pixel] */
-	__u32			height;		/* Frame height [pixel] */
+    __u32			width;		/* Frame width [pixel] */
+    __u32			height;		/* Frame height [pixel] */
 };
 
 struct v4l2_frmsize_stepwise {
-	__u32			min_width;	/* Minimum frame width [pixel] */
-	__u32			max_width;	/* Maximum frame width [pixel] */
-	__u32			step_width;	/* Frame width step size [pixel] */
-	__u32			min_height;	/* Minimum frame height [pixel] */
-	__u32			max_height;	/* Maximum frame height [pixel] */
-	__u32			step_height;	/* Frame height step size [pixel] */
+    __u32			min_width;	/* Minimum frame width [pixel] */
+    __u32			max_width;	/* Maximum frame width [pixel] */
+    __u32			step_width;	/* Frame width step size [pixel] */
+    __u32			min_height;	/* Minimum frame height [pixel] */
+    __u32			max_height;	/* Maximum frame height [pixel] */
+    __u32			step_height;	/* Frame height step size [pixel] */
 };
 
 struct v4l2_frmsizeenum {
-	__u32			index;		/* Frame size number */
-	__u32			pixel_format;	/* Pixel format */
-	__u32			type;		/* Frame size type the device supports. */
+    __u32			index;		/* Frame size number */
+    __u32			pixel_format;	/* Pixel format */
+    __u32			type;		/* Frame size type the device supports. */
 
-	union {					/* Frame size */
-		struct v4l2_frmsize_discrete	discrete;
-		struct v4l2_frmsize_stepwise	stepwise;
-	};
+    union {					/* Frame size */
+        struct v4l2_frmsize_discrete	discrete;
+        struct v4l2_frmsize_stepwise	stepwise;
+    };
 
-	__u32   reserved[2];			/* Reserved space for future use */
+    __u32   reserved[2];			/* Reserved space for future use */
 };
 
 enum v4l2_frmivaltypes {
-	V4L2_FRMIVAL_TYPE_DISCRETE	= 1,
-	V4L2_FRMIVAL_TYPE_CONTINUOUS	= 2,
-	V4L2_FRMIVAL_TYPE_STEPWISE	= 3,
+    V4L2_FRMIVAL_TYPE_DISCRETE	= 1,
+    V4L2_FRMIVAL_TYPE_CONTINUOUS	= 2,
+    V4L2_FRMIVAL_TYPE_STEPWISE	= 3,
 };
 
 struct v4l2_frmival_stepwise {
-	struct v4l2_fract	min;		/* Minimum frame interval [s] */
-	struct v4l2_fract	max;		/* Maximum frame interval [s] */
-	struct v4l2_fract	step;		/* Frame interval step size [s] */
+    struct v4l2_fract	min;		/* Minimum frame interval [s] */
+    struct v4l2_fract	max;		/* Maximum frame interval [s] */
+    struct v4l2_fract	step;		/* Frame interval step size [s] */
 };
 
 struct v4l2_frmivalenum {
-	__u32			index;		/* Frame format index */
-	__u32			pixel_format;	/* Pixel format */
-	__u32			width;		/* Frame width */
-	__u32			height;		/* Frame height */
-	__u32			type;		/* Frame interval type the device supports. */
+    __u32			index;		/* Frame format index */
+    __u32			pixel_format;	/* Pixel format */
+    __u32			width;		/* Frame width */
+    __u32			height;		/* Frame height */
+    __u32			type;		/* Frame interval type the device supports. */
 
-	union {					/* Frame interval */
-		struct v4l2_fract		discrete;
-		struct v4l2_frmival_stepwise	stepwise;
-	};
+    union {					/* Frame interval */
+        struct v4l2_fract		discrete;
+        struct v4l2_frmival_stepwise	stepwise;
+    };
 
-	__u32	reserved[2];			/* Reserved space for future use */
+    __u32	reserved[2];			/* Reserved space for future use */
 };
 
 #define VIDIOC_ENUM_FRAMESIZES		_IOWR('V', 74, struct v4l2_frmsizeenum)
 #define VIDIOC_ENUM_FRAMEINTERVALS	_IOWR('V', 75, struct v4l2_frmivalenum)
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 26)
 /*
  * V4L2 Control identifiers.
  */
@@ -138,9 +138,9 @@ struct v4l2_frmivalenum {
 
 #define V4L2_CID_POWER_LINE_FREQUENCY		(V4L2_CID_BASE+24)
 enum v4l2_power_line_frequency {
-	V4L2_CID_POWER_LINE_FREQUENCY_DISABLED	= 0,
-	V4L2_CID_POWER_LINE_FREQUENCY_50HZ	= 1,
-	V4L2_CID_POWER_LINE_FREQUENCY_60HZ	= 2,
+    V4L2_CID_POWER_LINE_FREQUENCY_DISABLED	= 0,
+    V4L2_CID_POWER_LINE_FREQUENCY_50HZ	= 1,
+    V4L2_CID_POWER_LINE_FREQUENCY_60HZ	= 2,
 };
 
 #define V4L2_CID_HUE_AUTO			(V4L2_CID_BASE+25)
@@ -153,10 +153,10 @@ enum v4l2_power_line_frequency {
 
 #define V4L2_CID_EXPOSURE_AUTO			(V4L2_CID_CAMERA_CLASS_BASE+1)
 enum  v4l2_exposure_auto_type {
-	V4L2_EXPOSURE_MANUAL = 0,
-	V4L2_EXPOSURE_AUTO = 1,
-	V4L2_EXPOSURE_SHUTTER_PRIORITY = 2,
-	V4L2_EXPOSURE_APERTURE_PRIORITY = 3
+    V4L2_EXPOSURE_MANUAL = 0,
+    V4L2_EXPOSURE_AUTO = 1,
+    V4L2_EXPOSURE_SHUTTER_PRIORITY = 2,
+    V4L2_EXPOSURE_APERTURE_PRIORITY = 3
 };
 #define V4L2_CID_EXPOSURE_ABSOLUTE		(V4L2_CID_CAMERA_CLASS_BASE+2)
 #define V4L2_CID_EXPOSURE_AUTO_PRIORITY		(V4L2_CID_CAMERA_CLASS_BASE+3)
@@ -184,10 +184,10 @@ enum  v4l2_exposure_auto_type {
 static inline void *
 kzalloc(size_t size, unsigned int __nocast gfp_flags)
 {
-	void *mem = kmalloc(size, gfp_flags);
-	if (mem)
-		memset(mem, 0, size);
-	return mem;
+    void *mem = kmalloc(size, gfp_flags);
+    if (mem)
+        memset(mem, 0, size);
+    return mem;
 }
 #endif
 
@@ -197,16 +197,16 @@ kzalloc(size_t size, unsigned int __nocast gfp_flags)
  */
 static inline int
 vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
-		struct page *page)
+        struct page *page)
 {
-	/* Not sure if this is needed. remap_pfn_range() sets VM_RESERVED
-	 * in 2.6.14.
-	 */
-	vma->vm_flags |= VM_RESERVED;
+    /* Not sure if this is needed. remap_pfn_range() sets VM_RESERVED
+     * in 2.6.14.
+     */
+    vma->vm_flags |= VM_RESERVED;
 
-	SetPageReserved(page);
-	return remap_pfn_range(vma, addr, page_to_pfn(page), PAGE_SIZE,
-				vma->vm_page_prot);
+    SetPageReserved(page);
+    return remap_pfn_range(vma, addr, page_to_pfn(page), PAGE_SIZE,
+                vma->vm_page_prot);
 }
 #endif
 
@@ -217,18 +217,18 @@ vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
 static inline void
 v4l_printk_ioctl(unsigned int cmd)
 {
-	switch (_IOC_TYPE(cmd)) {
-	case 'v':
-		printk(KERN_DEBUG "ioctl 0x%x (V4L1)\n", cmd);
-		break;
-	case 'V':
-		printk(KERN_DEBUG "ioctl 0x%x (%s)\n",
-			cmd, v4l2_ioctl_names[_IOC_NR(cmd)]);
-		break;
-	default:
-		printk(KERN_DEBUG "ioctl 0x%x (?)\n", cmd);
-		break;
-	}
+    switch (_IOC_TYPE(cmd)) {
+    case 'v':
+        printk(KERN_DEBUG "ioctl 0x%x (V4L1)\n", cmd);
+        break;
+    case 'V':
+        printk(KERN_DEBUG "ioctl 0x%x (%s)\n",
+            cmd, v4l2_ioctl_names[_IOC_NR(cmd)]);
+        break;
+    default:
+        printk(KERN_DEBUG "ioctl 0x%x (?)\n", cmd);
+        break;
+    }
 }
 #endif
 
@@ -254,30 +254,30 @@ v4l_printk_ioctl(unsigned int cmd)
  */
 static inline int usb_endpoint_dir_in(const struct usb_endpoint_descriptor *epd)
 {
-	return ((epd->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN);
+    return ((epd->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN);
 }
 
 static inline int usb_endpoint_xfer_int(const struct usb_endpoint_descriptor *epd)
 {
-	return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		USB_ENDPOINT_XFER_INT);
+    return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+        USB_ENDPOINT_XFER_INT);
 }
 
 static inline int usb_endpoint_xfer_isoc(const struct usb_endpoint_descriptor *epd)
 {
-	return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		USB_ENDPOINT_XFER_ISOC);
+    return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+        USB_ENDPOINT_XFER_ISOC);
 }
 
 static inline int usb_endpoint_xfer_bulk(const struct usb_endpoint_descriptor *epd)
 {
-	return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		USB_ENDPOINT_XFER_BULK);
+    return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+        USB_ENDPOINT_XFER_BULK);
 }
 
 static inline int usb_endpoint_is_int_in(const struct usb_endpoint_descriptor *epd)
 {
-	return (usb_endpoint_xfer_int(epd) && usb_endpoint_dir_in(epd));
+    return (usb_endpoint_xfer_int(epd) && usb_endpoint_dir_in(epd));
 }
 
 /*
@@ -298,7 +298,7 @@ static inline void usb_autopm_put_interface(struct usb_interface *intf)
  * Linked list API
  */
 #define list_first_entry(ptr, type, member) \
-	list_entry((ptr)->next, type, member)
+    list_entry((ptr)->next, type, member)
 #endif
 
 #endif /* __KERNEL__ */

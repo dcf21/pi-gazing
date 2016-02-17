@@ -78,26 +78,44 @@ struct vdIn {
 };
 
 int check_videoIn(struct vdIn *vd, char *device);
-int init_videoIn(struct vdIn *vd, char *device, int width, int height, float fps, int format, int grabmethod, char *avifilename);
+
+int init_videoIn(struct vdIn *vd, char *device, int width, int height, float fps, int format, int grabmethod,
+                 char *avifilename);
+
 int enum_controls(int vd);
+
 int save_controls(int vd);
-	     
+
 int uvcGrab(struct vdIn *vd);
+
 int close_v4l2(struct vdIn *vd);
 
 int v4l2GetControl(struct vdIn *vd, int control);
+
 int v4l2SetControl(struct vdIn *vd, int control, int value);
+
 int v4l2UpControl(struct vdIn *vd, int control);
+
 int v4l2DownControl(struct vdIn *vd, int control);
+
 int v4l2ToggleControl(struct vdIn *vd, int control);
+
 int v4l2ResetControl(struct vdIn *vd, int control);
+
 int v4l2ResetPanTilt(struct vdIn *vd);
+
 int v4L2UpDownPan(struct vdIn *vd, short inc);
-int v4L2UpDownTilt(struct vdIn *vd,short inc);
+
+int v4L2UpDownTilt(struct vdIn *vd, short inc);
+
 int v4L2UpDownPanTilt(struct vdIn *vd, short inc_p, short inc_t);
-int v4l2SetLightFrequencyFilter(struct vdIn *vd,int flt);
+
+int v4l2SetLightFrequencyFilter(struct vdIn *vd, int flt);
+
 int enum_frame_intervals(int dev, __u32 pixfmt, __u32 width, __u32 height);
+
 int enum_frame_sizes(int dev, __u32 pixfmt);
+
 int enum_frame_formats(int dev, unsigned int *supported_formats, unsigned int max_formats);
 
 #endif
