@@ -6,4 +6,4 @@
 */*.log
 */*/*.pyc
 */*/*.log
-
+*/.sconsign.dblite

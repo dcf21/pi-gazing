@@ -1,0 +1,61 @@
+#!/usr/bin/python
+# The line above helps make syntax highlighting detect that SConscript is python...
+
+import os,sys
+
+srcdir = os.path.join( Dir('.').abspath , 'src' )
+
+# Flag telling us whether we're a raspberry pi or a desktop PC
+I_AM_A_RPI  = os.uname()[4].startswith("arm")
+
+# Build options to pass to gcc
+ccFlags   = ['-O3','-Wall','-g','-fopenmp','-D_FILE_OFFSET_BITS=64']
+#ccFlags   = ['-O0','-Wall','-g','-D_FILE_OFFSET_BITS=64'] # Use this version for debugging only
+linkFlags = ['-fopenmp']
+ccDefines = ['DATE=\\"17/02/2016\\"' , 'VERSION=\\"0.0.2\\"' , 'SRCDIR=\\"%s\\"'%srcdir]
+
+# C source files which are common to all binaries we are going to build
+commonFiles = ['asciidouble.c','backgroundSub.c','error.c','gnomonic.c','image_in.c','image_out.c','imageProcess.c','readConfig.c','settings.c']
+
+# List of all the binaries we are going to build
+# [ list of source files  , binary name ]
+targets = [ [commonFiles + ['frontends/barrel.c']    , 'barrel'],
+            [commonFiles + ['frontends/cameraFit.c'] , 'camfit'],
+            [commonFiles + ['frontends/multiply.c']  , 'multiply'],
+            [commonFiles + ['frontends/resize.c']    , 'resize'],
+            [commonFiles + ['frontends/stack.c']     , 'stack'],
+            [commonFiles + ['frontends/subtract.c']  , 'subtract'],
+          ];
+
+subDirs      = ['','frontends']
+includePaths = [ os.path.join('src',i) for i in subDirs ]
+libraries    = ['gsl','gslcblas','png','m']
+libraryPaths = ['/usr/lib']
+
+
+debugOptions = [ [0,''] , [1,'debug'] ]
+
+envNoDebug = Environment()
+for d in subDirs: envNoDebug.VariantDir(variant_dir = os.path.join('obj',d), src_dir = os.path.join('src',d), duplicate = 0)
+envNoDebug.Append(CPPDEFINES = ccDefines+['DEBUG=0'])
+
+envDebug = Environment()
+for d in subDirs: envDebug.VariantDir(variant_dir = os.path.join('obj','debug',d), src_dir = os.path.join('src',d), duplicate = 0)
+envDebug.Append(CPPDEFINES = ccDefines+['DEBUG=1'])
+
+for env in [envDebug,envNoDebug]:
+  env.Append(CCFLAGS   = ccFlags)
+  env.Append(LINKFLAGS = linkFlags)
+  env.Append(CPPPATH   = includePaths)
+  env.Append(LIBS      = libraries)
+  env.Append(LIBPATH   = libraryPaths)
+
+for debugOption in debugOptions:
+  for target in targets:
+     outfname    = os.path.join('bin' , debugOption[1] , target[1] )
+     objPrefix   = 'obj/debug' if debugOption[0] else 'obj';
+     srcs        = [ os.path.join(objPrefix,i) for i in target[0] ]
+     objs        = []
+     env         = (envDebug if debugOption[0] else envNoDebug)
+     for s in srcs: objs.append( env.Object(s) )
+     env.Program(outfname, objs)
