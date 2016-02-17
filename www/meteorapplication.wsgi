@@ -18,7 +18,8 @@ from meteorpi_server import MeteorApp, admin_api, importer_api, query_api
 
 # Configure and create database and server objects
 file_store_path = '/home/pi/meteor-pi/datadir/db_filestore'
-meteor_app = MeteorApp(file_store_path=file_store_path)
+binary_path = '/home/pi/meteor-pi/src/imageProjection/bin'
+meteor_app = MeteorApp(file_store_path=file_store_path, binary_path=binary_path)
 
 # Add routes
 admin_api.add_routes(meteor_app=meteor_app)

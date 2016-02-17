@@ -18,7 +18,7 @@ class MeteorApp(object):
         external server such as LigHTTPD or Apache to the application logic.
     """
 
-    def __init__(self, file_store_path):
+    def __init__(self, file_store_path, binary_path):
         """
         Create a new MeteorApp, setting up the internal DB
 
@@ -26,6 +26,7 @@ class MeteorApp(object):
             The path to the database file store.
         """
         self.file_store_path = file_store_path
+        self.binary_path = binary_path
         self.app = Flask(__name__)
         CORS(app=self.app, resources='/*', allow_headers=['authorization', 'content-type'])
 
