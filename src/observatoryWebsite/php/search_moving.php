@@ -141,7 +141,7 @@ $pageTemplate->header($pageInfo);
 
                 <div style="margin-top:25px;"><span class="formlabel">Duration of appearance</span></div>
                 <div class="tooltip-holder"><span
-                        data-toggle="tooltip" data-pos="tooltip-right"
+                        data-toggle="tooltip" data-pos="tooltip-above"
                         title="Search for objects visible for longer than this period. Set to around 5 sec to see only planes and satellites."
                     >
                         <span class="formlabel2">Minimum</span>
@@ -154,7 +154,7 @@ $pageTemplate->header($pageInfo);
                 </span></div>
 
                 <div class="tooltip-holder"><span
-                        data-toggle="tooltip" data-pos="tooltip-right"
+                        data-toggle="tooltip" data-pos="tooltip-below"
                         title="Search for objects visible for less than this period. Set to around 5 sec to filter out planes and satellites, which are visible for long periods."
                     >
                         <span class="formlabel2">Maximum</span>
@@ -268,7 +268,7 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
     // Display pager
     if (count($result_list) < $result_count) {
         $self_url = "search_moving.php?obstory={$obstory}&year1={$tmin['year']}&month1={$tmin['mc']}&day1={$tmin['day']}&" .
-            "hour1={$tmin['hour']}&minute1={$tmin['min']}" .
+            "hour1={$tmin['hour']}&minute1={$tmin['min']}&" .
             "year2={$tmax['year']}&month2={$tmax['mc']}&day2={$tmax['day']}&" .
             "hour2={$tmax['hour']}&minute2={$tmax['min']}&" .
             "duration_min={$duration_min_str}&duration_max={$duration_max_str}";

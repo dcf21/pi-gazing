@@ -12,7 +12,7 @@ function GalleryMarkers(parent) {
     this.bezier_index = 0;
 
     // Wire up button to toggle whether to display paths
-    $(".paths-toggle").click(function () {
+    $(".paths-toggle",this.parent).click(function () {
         self.show_paths = !self.show_paths;
         self.update();
     });
@@ -103,8 +103,8 @@ GalleryMarkers.prototype.update = function () {
 function galleryMarkersRegister() {
     $(".gallery_with_markers").each(function (i, el) {
         var elj = $(el);
-        var slider = new GalleryMarkers(elj);
-        elj.data("handler", slider);
+        var markers = new GalleryMarkers(elj);
+        elj.data("handler", markers);
     });
 }
 

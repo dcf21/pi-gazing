@@ -62,6 +62,12 @@ if (array_key_exists("clarity", $_GET) && is_numeric($_GET["clarity"])) {
     $sky_clarity_min_str = sprintf("%.2f", $sky_clarity_min);
 }
 
+// Set default options for if we are not searching
+if (!array_key_exists('obstory', $_GET)) {
+    $flag_lenscorr = true;
+    $flag_highlights = true;
+}
+
 $pageTemplate->header($pageInfo);
 
 ?>
@@ -305,7 +311,7 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
     // Display pager
     if (count($result_list) < $result_count) {
         $self_url = "search_still.php?obstory={$obstory}&year1={$tmin['year']}&month1={$tmin['mc']}&day1={$tmin['day']}&" .
-            "hour1={$tmin['hour']}&minute1={$tmin['min']}" .
+            "hour1={$tmin['hour']}&minute1={$tmin['min']}&" .
             "year2={$tmax['year']}&month2={$tmax['mc']}&day2={$tmax['day']}&" .
             "hour2={$tmax['hour']}&minute2={$tmax['min']}";
         if ($flag_bgsub) $self_url .= "&flag_bgsub=1";

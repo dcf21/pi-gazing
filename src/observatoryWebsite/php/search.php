@@ -43,7 +43,11 @@ $pageTemplate->pageGallery([
     ["link" => "/search_multi.php",
         "title" => "Multi-camera detections",
         "teaser" => "img/multistation.png",
-        "caption" => "Search for moving objects which may have been simultaneously seen by multiple cameras."]
+        "caption" => "Search for moving objects which may have been simultaneously seen by multiple cameras."],
+    ["link" => "/search_highlights.php",
+        "title" => "Featured observations",
+        "teaser" => "img/featured.png",
+        "caption" => "Search for the best images, picked by our expert observers."]
 ]);
 
 

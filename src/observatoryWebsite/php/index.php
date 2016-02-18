@@ -83,6 +83,11 @@ $pageTemplate->header($pageInfo);
             <div class="grey_box" style="padding: 8px;">
                 <p class="purple-heading">Recent observations</p>
                 <?php $pageTemplate->slidingPanes($paneList); ?>
+                <div style="text-align: right; padding:12px">
+                    <a href="/search_highlights.php">
+                        See more highlights&nbsp;&#187;
+                    </a>
+                </div>
             </div>
         </div>
     </div>

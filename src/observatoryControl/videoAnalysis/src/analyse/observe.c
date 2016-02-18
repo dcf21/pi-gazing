@@ -622,18 +622,17 @@ void registerTriggerEnds(observeStatus *os) {
                     } // No free event storage space
                     else {
                         sprintf(fname, "%s%s", os->eventList[i].filenameStub, ".vid");
-                        os->videoOutputs[i].width = os->width;
-                        os->videoOutputs[i].height = os->height;
-                        os->videoOutputs[i].buffer1 = video1;
-                        os->videoOutputs[i].buffer1frames = video1frs;
-                        os->videoOutputs[i].buffer2 = video2;
-                        os->videoOutputs[i].buffer2frames = video2frs;
-                        strcpy(os->videoOutputs[i].fName, fname);
-                        os->videoOutputs[i].framesWritten = 0;
-                        os->videoOutputs[i].fileHandle = NULL;
-                        os->videoOutputs[i].active = 1;
+                        os->videoOutputs[k].width = os->width;
+                        os->videoOutputs[k].height = os->height;
+                        os->videoOutputs[k].buffer1 = video1;
+                        os->videoOutputs[k].buffer1frames = video1frs;
+                        os->videoOutputs[k].buffer2 = video2;
+                        os->videoOutputs[k].buffer2frames = video2frs;
+                        strcpy(os->videoOutputs[k].fName, fname);
+                        os->videoOutputs[k].framesWritten = 0;
+                        os->videoOutputs[k].active = 1;
 
-                        os->videoOutputs[i].fileHandle = dumpVideoInit(os->width, os->height, video1, video1frs,
+                        os->videoOutputs[k].fileHandle = dumpVideoInit(os->width, os->height, video1, video1frs,
                                                                        video2, video2frs, fname);
 
                         writeMetaData(fname, "sdsdiiis", "obstoryId", os->obstoryId, "inputNoiseLevel", os->noiseLevel,
