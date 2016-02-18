@@ -181,7 +181,8 @@ def add_routes(meteor_app, url_path=''):
         file_path = db.file_path_for_id(record.id)
         thumb_path = os.path.join(db.file_store_path, "../thumbnails", record.id)
         if not os.path.exists(thumb_path):
-            os.system("convert %s -scale 220 %s" % (file_path, thumb_path))
+            resize_tool = os.path.join(meteor_app.binary_path, "resize")
+            os.system("%s %s 220 %s" % (resize_tool, file_path, thumb_path))
         db.close_db()
         return send_file(filename_or_fp=thumb_path, mimetype=record.mime_type)
 

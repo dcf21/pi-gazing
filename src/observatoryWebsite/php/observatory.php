@@ -23,7 +23,7 @@ ORDER BY obsTime ASC LIMIT 1;");
 $stmt->bindParam(':o', $o, PDO::PARAM_STR, strlen($obstory));
 $stmt->execute(["o"=>$obstory]);
 $oldest_obs = $stmt->fetch();
-if ($oldest_obs) $oldest_obs_date = date("d M Y - h:i", $oldest_obs['obsTime']);
+if ($oldest_obs) $oldest_obs_date = date("d M Y - H:i", $oldest_obs['obsTime']);
 else $oldest_obs_date = "&ndash;";
 
 // Get newest observation
@@ -35,7 +35,7 @@ ORDER BY obsTime DESC LIMIT 1;");
 $stmt->bindParam(':o', $o, PDO::PARAM_STR, strlen($obstory));
 $stmt->execute(["o"=>$obstory]);
 $newest_obs = $stmt->fetch();
-if ($newest_obs) $newest_obs_date = date("d M Y - h:i", $newest_obs['obsTime']);
+if ($newest_obs) $newest_obs_date = date("d M Y - H:i", $newest_obs['obsTime']);
 else $newest_obs_date = "&ndash;";
 
 // Total image count
