@@ -177,7 +177,8 @@ $pageTemplate->header($pageInfo);
                          title="Automatically correct lens distortions in the images (recommended)."
                     >
                         <label>
-                            <input type="checkbox" <?php if ($flag_lenscorr) echo 'checked="checked"'; ?> >
+                            <input type="checkbox" name="flag_lenscorr"
+                                <?php if ($flag_lenscorr) echo 'checked="checked"'; ?> >
                             Correct lens distortions
                         </label>
                     </div>
@@ -214,7 +215,7 @@ if (array_key_exists('obstory', $_GET)) {
         if ($flag_bgsub) $semantic_type = "meteorpi:timelapse/frame/bgrdSub/lensCorr";
         else $semantic_type = "meteorpi:timelapse/frame/lensCorr";
     } else {
-        if ($flag_bgsub) $semantic_type = "meteorpi:timelapse/frame/bgrdSubr";
+        if ($flag_bgsub) $semantic_type = "meteorpi:timelapse/frame/bgrdSub";
         else $semantic_type = "meteorpi:timelapse/frame";
     }
 

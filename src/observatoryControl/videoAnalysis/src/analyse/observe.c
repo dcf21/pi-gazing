@@ -410,7 +410,7 @@ void registerTrigger(observeStatus *os, const int blockId, const int xpos, const
         }
 
     // If it's relatively close, assume this detection is of that object
-    if (closestTriggerDist < 100) {
+    if (closestTriggerDist < 70) {
         const int i = closestTrigger;
         const int N = os->eventList[i].Ndetections - 1;
         if (os->eventList[i].detections[N].frameCount ==
@@ -524,10 +524,10 @@ void registerTriggerEnds(observeStatus *os) {
                 if (x > os->eventList[i].maxStack[j]) os->eventList[i].maxStack[j] = x;
             }
 
-            if ((os->eventList[i].detections[N0].frameCount <
+            if ((os->eventList[i].detections[N0].frameCount <=
                  (os->frameCounter - (os->buffNGroups - os->triggerPrefixNGroups))) ||
                 // Event is exceeding TRIGGER_MAXRECORDLEN?
-                (os->eventList[i].detections[N2].frameCount < (os->frameCounter -
+                (os->eventList[i].detections[N2].frameCount <= (os->frameCounter -
                                                                os->triggerSuffixNGroups))) // ... or event hasn't been seen for TRIGGER_SUFFIXTIME?
             {
                 os->eventList[i].active = 0;
@@ -616,7 +616,7 @@ void registerTriggerEnds(observeStatus *os) {
                 // Start process of exporting video of this event
                 {
                     int k = 0;
-                    for (k = 0; k < MAX_EVENTS; k++) if (!os->videoOutputs[i].active) break;
+                    for (k = 0; k < MAX_EVENTS; k++) if (!os->videoOutputs[k].active) break;
                     if (k >= MAX_EVENTS) {
                         gnom_log("Ignoring video; already writing too many video files at once.");
                     } // No free event storage space

@@ -139,23 +139,23 @@ double calculateSkyClarity(image_ptr *img, double noiseLevel) {
                 for (x = xmin; x < xmax; x++) {
                     double pixel_value = img->data_red[y * stride + x];
                     if (pixel_value > 128) n_bright_pixels++;
-                    int k, counter = 0;
-                    for (k=-search_distance; k<=search_distance; k+=2)
+                    int k, reject=0;
+                    for (k=-search_distance; (k<=search_distance)&&(!reject) ; k+=2)
                         if (pixel_value - threshold <= img->data_red[(y + search_distance) * stride + (x + k)] )
-                            counter++;
-                    for (k=-search_distance; k<=search_distance; k+=2)
+                            reject=1;
+                    for (k=-search_distance; (k<=search_distance)&&(!reject) ; k+=2)
                         if (pixel_value - threshold <= img->data_red[(y - search_distance) * stride + (x + k)] )
-                            counter++;
-                    for (k=-search_distance; k<=search_distance; k+=2)
+                            reject=1;
+                    for (k=-search_distance; (k<=search_distance)&&(!reject) ; k+=2)
                         if (pixel_value - threshold <= img->data_red[(y + k) * stride + (x + search_distance)] )
-                            counter++;
-                    for (k=-search_distance; k<=search_distance; k+=2)
+                            reject=1;
+                    for (k=-search_distance; (k<=search_distance)&&(!reject) ; k+=2)
                         if (pixel_value - threshold <= img->data_red[(y + k) * stride + (x - search_distance)] )
-                            counter++;
+                            reject=1;
 
-                    if (counter <= 1) n_stars++;
+                    if (!reject) n_stars++;
                 }
-            if ((n_stars >= 4)&&(n_bright_pixels<n_pixels*0.1)) {
+            if ((n_stars >= 4)&&(n_bright_pixels<n_pixels*0.05)) {
 #pragma omp critical (count_stars)
               { score++; }
              }
@@ -322,11 +322,18 @@ int dumpVideoFrame(int width, int height, const unsigned char *buffer1, int buff
               int buffer2frames, FILE *outfile, int *framesWritten) {
     const size_t frameSize = (size_t)(width * height * 3/2);
 
-    if (*framesWritten<buffer1frames)
-    fwrite(buffer1 + (*framesWritten)*frameSize, frameSize, 1, outfile);
-    else
-    fwrite(buffer2 + (*framesWritten-buffer1frames)*frameSize, frameSize, 1, outfile);
-    if (++(*framesWritten) >= buffer1frames+buffer2frames) {
+    const int totalFrames = buffer1frames+buffer2frames;
+    const int framesToWrite = MIN(*framesWritten-totalFrames,TRIGGER_FRAMEGROUP);
+    int i;
+
+    for (i=0; i<framesToWrite; i++) {
+        if (*framesWritten < buffer1frames)
+            fwrite(buffer1 + (*framesWritten) * frameSize, frameSize, 1, outfile);
+        else
+            fwrite(buffer2 + (*framesWritten - buffer1frames) * frameSize, frameSize, 1, outfile);
+        (*framesWritten)++;
+    }
+    if (*framesWritten >= totalFrames) {
         fclose(outfile);
         return 0;
     }

@@ -271,7 +271,7 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
             "hour1={$tmin['hour']}&minute1={$tmin['min']}" .
             "year2={$tmax['year']}&month2={$tmax['mc']}&day2={$tmax['day']}&" .
             "hour2={$tmax['hour']}&minute2={$tmax['min']}&" .
-            "duration_min={$duration_min_str}&duration_max={$duration_min_str}";
+            "duration_min={$duration_min_str}&duration_max={$duration_max_str}";
         $pageTemplate->showPager($result_count, $pageNum, $pageSize, $self_url);
     }
 
