@@ -40,8 +40,11 @@ int dumpFrameFromInts(int width, int height, int channels, const int *buffer, in
 int dumpFrameFromISub(int width, int height, int channels, const int *buffer, int nfr, int gain,
                       const unsigned char *buffer2, char *fName);
 
-int dumpVideo(int width, int height, const unsigned char *buffer1, int buffer1frames, const unsigned char *buffer2,
-              int buffer2frames, char *fName);
+FILE *dumpVideoInit(int width, int height, const unsigned char *buffer1, int buffer1frames,
+                    const unsigned char *buffer2, int buffer2frames, char *fName);
+
+int dumpVideoFrame(int width, int height, const unsigned char *buffer1, int buffer1frames, const unsigned char *buffer2,
+                   int buffer2frames, FILE *outfile, int *framesWritten);
 
 #endif
 

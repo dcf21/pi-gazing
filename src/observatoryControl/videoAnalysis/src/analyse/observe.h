@@ -27,6 +27,19 @@ typedef struct event {
     detection detections[MAX_DETECTIONS];
 } event;
 
+typedef struct videoOutput {
+    int active;
+    int width;
+    int height;
+    unsigned char *buffer1;
+    int buffer1frames;
+    unsigned char *buffer2;
+    int buffer2frames;
+    char fName[FNAME_LENGTH];
+    FILE *fileHandle;
+    int framesWritten;
+} videoOutput;
+
 typedef struct observeStatus {
     // Trigger settings
     int Nchannels;
@@ -104,6 +117,7 @@ typedef struct observeStatus {
     int triggerThrottleCounter;
 
     event eventList[MAX_EVENTS];
+    videoOutput videoOutputs[MAX_EVENTS];
 } observeStatus;
 
 char *fNameGenerate(char *output, const char *obstoryId, double utc, char *tag, const char *dirname, const char *label);

@@ -300,24 +300,37 @@ int dumpFrameFromISub(int width, int height, int channels, const int *buffer, in
 }
 
 
-int dumpVideo(int width, int height, const unsigned char *buffer1, int buffer1frames, const unsigned char *buffer2,
-              int buffer2frames, char *fName) {
-    const int frameSize = width * height * 1.5;
-    const int blen = sizeof(int) + 2 * sizeof(int) + (buffer1frames + buffer2frames) * frameSize;
+FILE *dumpVideoInit(int width, int height, const unsigned char *buffer1, int buffer1frames,
+                    const unsigned char *buffer2, int buffer2frames, char *fName) {
+    const size_t frameSize = (size_t)(width * height * 3/2);
+    const int blen = (int)(sizeof(int) + 2 * sizeof(int) + (buffer1frames + buffer2frames) * frameSize);
 
     FILE *outfile;
     if ((outfile = fopen(fName, "wb")) == NULL) {
         sprintf(temp_err_string, "ERROR: Cannot open output RAW video file %s.\n", fName);
         gnom_error(ERR_GENERAL, temp_err_string);
-        return 1;
+        return NULL;
     }
 
     fwrite(&blen, 1, sizeof(int), outfile);
     fwrite(&width, 1, sizeof(int), outfile);
     fwrite(&height, 1, sizeof(int), outfile);
-    fwrite(buffer1, 1, frameSize * buffer1frames, outfile);
-    fwrite(buffer2, 1, frameSize * buffer2frames, outfile);
-    fclose(outfile);
-    return 0;
+    return outfile;
+}
+
+
+int dumpVideoFrame(int width, int height, const unsigned char *buffer1, int buffer1frames, const unsigned char *buffer2,
+              int buffer2frames, FILE *outfile, int *framesWritten) {
+    const size_t frameSize = (size_t)(width * height * 3/2);
+
+    if (*framesWritten<buffer1frames)
+    fwrite(buffer1 + (*framesWritten)*frameSize, frameSize, 1, outfile);
+    else
+    fwrite(buffer2 + (*framesWritten-buffer1frames)*frameSize, frameSize, 1, outfile);
+    if (++(*framesWritten) >= buffer1frames+buffer2frames) {
+        fclose(outfile);
+        return 0;
+    }
+    return 1;
 }
 

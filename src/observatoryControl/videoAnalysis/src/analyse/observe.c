@@ -259,6 +259,10 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
         }
     }
 
+    for (i = 0; i < MAX_EVENTS; i++) {
+        os->videoOutputs[i].active = 0;
+    }
+
     os->groupNum = 0; // Flag for whether we're feeding images into stackA or stackB
     os->medianCount = 0; // Count how many frames we've fed into the brightness histograms in medianWorkspace
     os->timelapseCount = -1; // Count how many frames have been stacked into the timelapse buffer (stackT)
@@ -609,14 +613,47 @@ void registerTriggerEnds(observeStatus *os) {
                     k += strlen(pathBezier + k);
                 }
 
-                sprintf(fname, "%s%s", os->eventList[i].filenameStub, ".vid");
-                dumpVideo(os->width, os->height, video1, video1frs, video2, video2frs, fname);
-                writeMetaData(fname, "sdsdiiis", "obstoryId", os->obstoryId, "inputNoiseLevel", os->noiseLevel, "path",
-                              pathJSON, "duration", duration,
-                              "detectionCount", os->eventList[i].Ndetections,
-                              "amplitudeTimeIntegrated", amplitudeTimeIntegrated, "amplitudePeak", amplitudePeak,
-                              "pathBezier", pathBezier
-                );
+                // Start process of exporting video of this event
+                {
+                    int k = 0;
+                    for (k = 0; k < MAX_EVENTS; k++) if (!os->videoOutputs[i].active) break;
+                    if (k >= MAX_EVENTS) {
+                        gnom_log("Ignoring video; already writing too many video files at once.");
+                    } // No free event storage space
+                    else {
+                        sprintf(fname, "%s%s", os->eventList[i].filenameStub, ".vid");
+                        os->videoOutputs[i].width = os->width;
+                        os->videoOutputs[i].height = os->height;
+                        os->videoOutputs[i].buffer1 = video1;
+                        os->videoOutputs[i].buffer1frames = video1frs;
+                        os->videoOutputs[i].buffer2 = video2;
+                        os->videoOutputs[i].buffer2frames = video2frs;
+                        strcpy(os->videoOutputs[i].fName, fname);
+                        os->videoOutputs[i].framesWritten = 0;
+                        os->videoOutputs[i].fileHandle = NULL;
+                        os->videoOutputs[i].active = 1;
+
+                        os->videoOutputs[i].fileHandle = dumpVideoInit(os->width, os->height, video1, video1frs,
+                                                                       video2, video2frs, fname);
+
+                        writeMetaData(fname, "sdsdiiis", "obstoryId", os->obstoryId, "inputNoiseLevel", os->noiseLevel,
+                                      "path", pathJSON, "duration", duration,
+                                      "detectionCount", os->eventList[i].Ndetections,
+                                      "amplitudeTimeIntegrated", amplitudeTimeIntegrated,
+                                      "amplitudePeak", amplitudePeak,
+                                      "pathBezier", pathBezier
+                        );
+                    }
+                }
             }
+        }
+
+    for (i = 0; i < MAX_EVENTS; i++)
+        if (os->videoOutputs[i].active) {
+            os->videoOutputs[i].active =
+                    dumpVideoFrame(os->videoOutputs[i].width, os->videoOutputs[i].height,
+                                   os->videoOutputs[i].buffer1, os->videoOutputs[i].buffer1frames,
+                                   os->videoOutputs[i].buffer2, os->videoOutputs[i].buffer2frames,
+                                   os->videoOutputs[i].fileHandle, &os->videoOutputs[i].framesWritten);
         }
 }
