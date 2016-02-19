@@ -123,7 +123,7 @@ if ((not isinstance(obstory_status, dict)) or
         ('sensor_upside_down' not in obstory_status) or
         ('sensor_camera_type' not in obstory_status)):
     log_txt("No sensor information found for '%s'. Using a default." % obstory_id)
-    hw.update_sensor(db=db, obstory_name=obstory_name, utc=time_now, name="watec_902h2_ultimate")
+    hw.update_sensor(db=db, obstory_name=obstory_name, utc=0, name=installation_info.local_conf['defaultSensor'])
 
 if ((not isinstance(obstory_status, dict)) or
         ('lens' not in obstory_status) or
@@ -132,7 +132,7 @@ if ((not isinstance(obstory_status, dict)) or
         ('lens_barrel_b' not in obstory_status) or
         ('lens_barrel_c' not in obstory_status)):
     log_txt("No lens information found for '%s'. Using a default." % obstory_id)
-    hw.update_lens(db=db, obstory_name=obstory_name, utc=time_now, name="VF-DCD-AI-3.5-18-C-2MP")
+    hw.update_lens(db=db, obstory_name=obstory_name, utc=0, name=installation_info.local_conf['defaultLens'])
 
 obstory_status = db.get_obstory_status(obstory_name=obstory_name)
 

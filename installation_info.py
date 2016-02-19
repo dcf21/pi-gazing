@@ -7,6 +7,10 @@ local_conf = {
     'observatoryId': "obs0",
     'observatoryName': "Observatory-Dummy",
 
+    # Default hardware
+    'defaultSensor': "watec_902h2_ultimate",
+    'defaultLens': "VF-DCD-AI-3.5-18-C-2MP",
+
     # Set which GPIO pins we are using
     'gpioPinRelay': 12,  # This pin is using to control the relay
     'gpioLedA': 18,  # This pin is used for indicator LED A

@@ -126,14 +126,14 @@ db.register_obstory_metadata(obstory_name=obstory,
 sensor = fetch_option(title="new sensor",
                       key="sensor",
                       indict=obstory_status,
-                      default="watec_902h2_ultimate",
+                      default=installation_info.local_conf['defaultSensor'],
                       argv_index=3)
 hw.update_sensor(db=db, obstory_name=obstory, utc=metadata_time, name=sensor)
 
 lens = fetch_option(title="new lens",
                     key="lens",
                     indict=obstory_status,
-                    default="VF-DCD-AI-3.5-18-C-2MP",
+                    default=installation_info.local_conf['defaultLens'],
                     argv_index=4)
 hw.update_lens(db=db, obstory_name=obstory, utc=metadata_time, name=lens)
 
