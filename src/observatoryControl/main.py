@@ -156,7 +156,7 @@ if "clippingRegion" not in obstory_status:
     db.register_obstory_metadata(obstory_name=obstory_name,
                                  key="clippingRegion",
                                  value="[[]]",
-                                 metadata_time=get_utc(),
+                                 metadata_time=0,
                                  time_created=get_utc(),
                                  user_created=mod_settings.settings['meteorpiUser'])
 obstory_status = db.get_obstory_status(obstory_name=obstory_name)
