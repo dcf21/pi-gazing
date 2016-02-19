@@ -34,19 +34,19 @@ $pageTemplate->header($pageInfo);
 $pageTemplate->pageGallery([
     ["link" => "/search_moving.php",
         "title" => "Moving objects",
-        "teaser" => "img/moving.png",
+        "teaser" => "img/moving_objects.png",
         "caption" => "Search for videos of moving objects detected by Meteor Pi."],
     ["link" => "/search_still.php",
         "title" => "Still images",
-        "teaser" => "img/still.png",
+        "teaser" => "img/still_images.png",
         "caption" => "Search for images of what the sky looked like at any time in the past."],
     ["link" => "/search_multi.php",
         "title" => "Multi-camera detections",
-        "teaser" => "img/multistation.png",
+        "teaser" => "img/simultaneous.png",
         "caption" => "Search for moving objects which may have been simultaneously seen by multiple cameras."],
     ["link" => "/search_highlights.php",
         "title" => "Featured observations",
-        "teaser" => "img/featured.png",
+        "teaser" => "img/highlights.png",
         "caption" => "Search for the best images, picked by our expert observers."]
 ]);
 

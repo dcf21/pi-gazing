@@ -323,7 +323,7 @@ int dumpVideoFrame(int width, int height, const unsigned char *buffer1, int buff
     const size_t frameSize = (size_t)(width * height * 3/2);
 
     const int totalFrames = buffer1frames+buffer2frames;
-    const int framesToWrite = MIN(*framesWritten-totalFrames,TRIGGER_FRAMEGROUP);
+    const int framesToWrite = MIN(totalFrames-*framesWritten,TRIGGER_FRAMEGROUP);
     int i;
 
     for (i=0; i<framesToWrite; i++) {

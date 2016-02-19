@@ -21,7 +21,7 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
-    <div class="pane-sequence">
+    <div class="pane-sequence" data-final-next='["/search.php","Search the skies"]'>
         <div class="row">
             <div class="col-md-9">
                 <div style="padding:3px;">
@@ -165,7 +165,7 @@ $pageTemplate->header($pageInfo);
                                 Why not take a look at <a href="/projects">our projects</a>, to see what else you can
                                 see?
                             </p>
-                            <div class="pane-controls"></div>
+                            <div class="pane-controls-final"></div>
                         </div>
                     </div>
                 </div>

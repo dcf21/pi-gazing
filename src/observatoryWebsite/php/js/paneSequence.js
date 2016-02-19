@@ -10,6 +10,7 @@ function SequentialPanes(parent) {
     var i;
     this.parent = parent;
     this.children = $(".pane-item", parent);
+    this.final_next = parent.data("final-next");
     this.number = this.children.length;
     this.current = 0;
 
@@ -29,11 +30,20 @@ function SequentialPanes(parent) {
         '</div><div style="display:inline-block;padding:10px;">' +
         '<button type="button" class="spnext btn btn-primary">Next &#187;</button>' +
         '</div>');
+    $(".pane-controls-final", parent).html(
+        '<div style="display:inline-block;padding:10px;">' +
+        '<button type="button" class="spprev btn">&#171; Back</button>' +
+        '</div><div style="display:inline-block;padding:10px;">' +
+        '<button type="button" class="spnext2 btn btn-primary">'+this.final_next[1]+' &#187;</button>' +
+        '</div>');
     $(".spprev", parent).click(function () {
         self.prev();
     });
     $(".spnext", parent).click(function () {
         self.next();
+    });
+    $(".spnext2", parent).click(function () {
+        window.location = self.final_next[0];
     });
     for (i = 0; i < this.number; i++) {
         $(".goto" + String(i), parent).click(self.gotoPane(self, i));
