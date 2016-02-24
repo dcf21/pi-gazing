@@ -51,7 +51,7 @@ $pageTemplate->header($pageInfo);
         some cases, the same object may have been seen by more than one camera, allowing its altitude and speed to be
         triangulated. In other cases, two different objects may coincidentally have been seen at the same time.
     </p>
-    <form class="form-horizontal search-form" method="get" action="/search_multi.php">
+    <form class="form-horizontal search-form" method="get" action="/search_multi.php#results">
 
         <div style="cursor:pointer;text-align:right;">
             <button type="button" class="btn btn-default btn-md help-toggle">
@@ -130,6 +130,8 @@ $pageTemplate->header($pageInfo);
         </div>
 
     </form>
+
+    <div id="results"></div>
 
 <?php
 

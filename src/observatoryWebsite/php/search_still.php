@@ -76,7 +76,7 @@ $pageTemplate->header($pageInfo);
         Our cameras take long 30-second exposures of the sky every 30 seconds, and you can use this form to browse
         through these still images and discover what the sky looked like at any time in the past.
     </p>
-    <form class="form-horizontal search-form" method="get" action="/search_still.php">
+    <form class="form-horizontal search-form" method="get" action="/search_still.php#results">
 
         <div style="cursor:pointer;text-align:right;">
             <button type="button" class="btn btn-default btn-md help-toggle">
@@ -210,6 +210,8 @@ $pageTemplate->header($pageInfo);
         </div>
 
     </form>
+
+    <div id="results"></div>
 
 <?php
 

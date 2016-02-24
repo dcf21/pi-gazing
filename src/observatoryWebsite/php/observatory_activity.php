@@ -37,7 +37,7 @@ function get_activity_history($metaKey, $suffix, $url)
     global $byday, $const, $tmin, $period, $obstory, $days_in_month, $year, $month;
     $count = 0;
     while ($count < $days_in_month) {
-        $a = $tmin['utc'] + $period * $count;
+        $a = floor($tmin['utc']/86400)*86400 + 43200 + $period * $count;
         $b = $a + $period;
         $count++;
         $stmt = $const->db->prepare("
@@ -53,8 +53,8 @@ WHERE l.publicId=:o AND s.name=:k AND o.obsTime>=:x AND o.obsTime<:y LIMIT 1");
         $items = $stmt->fetchAll()[0]['COUNT(*)'];
         if ($items > 0) {
             $tomorrow = $count+1;
-            $text = "<a href='{$url}?obstory={$obstory}&year1={$year}&month1={$month}&day1={$count}&hour1=0&minute1=0" .
-                "&year2={$year}&month2={$month}&day2={$tomorrow}&hour2=0&minute2=0'>" .
+            $text = "<a href='{$url}?obstory={$obstory}&year1={$year}&month1={$month}&day1={$count}&hour1=12&minute1=0" .
+                "&year2={$year}&month2={$month}&day2={$tomorrow}&hour2=12&minute2=0'>" .
                 "<span class='cal_number'>{$items}</span><span class='cal_type'>{$suffix}</span></a>";
         } else {
             $text = "";

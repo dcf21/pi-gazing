@@ -26,35 +26,39 @@ $pageTemplate->header($pageInfo);
     <b>Three Meteor Pi cameras being tested side-by-side.</b>
 </div>
 
-<p class="text">Meteor Pi was developed by Cambridge Science Centre as part of its 2015-16 Cosmic Exhibition. The hardware designs and software used by the
-    Meteor Pi cameras is all open source, and can be found on our <a href="https://github.com/camsci/meteor-pi">GitHub pages</a>.
+<p class="text">
+    Meteor Pi was developed by astronomer <a href="https://in-the-sky.org/about.php">Dominic Ford</a> for
+    Cambridge Science Centre.
+    </p>
+<p class="text">
+    All of the software and hardware designs are open source, and can be downloaded from
+    our <a href="https://github.com/camsci/meteor-pi">GitHub pages</a> under a
+    <a href="http://www.gnu.org/licenses/gpl-3.0.en.html">Gnu General Public License V3</a>.
+</p>
+<p class="text">
+    You are very welcome to try building your own Meteor Pi camera. You can either use our software as is, or you can
+    play around with it, figure out how it works, and try to make it work better!
+</p>
+<p class="text">
+    If you do build your own camera, please do get in touch with us via Facebook or Twitter. We'd love to keep track
+    of where Meteor Pi cameras are being installed.
 </p>
 
-<h3>The Meteor Pi Team</h3>
-
-<table class="developers">
-    <tr>
-        <td>Lead Developer</td>
-        <td>Dominic Ford</td>
-    </tr>
-    <tr>
-        <td>Data Transport</td>
-        <td>Tom Oinn</td>
-    </tr>
-    <tr>
-        <td>Hardware Design</td>
-        <td>Dave Ansell</td>
-    </tr>
-</table>
+<h3>Acknowledgments</h3>
 
 <p class="text">
-    If you'd like to get involved, why not try building your own Meteor Pi camera?
-    For more information, visit our <a href="https://github.com/camsci/meteor-pi">GitHub pages</a>.
+We are very grateful for advice from many amateur astronomers who helped us with the design of Meteor Pi. These include
+the <a href="http://www.nemetode.org/">NEMETODE</a> and <a href="https://www.ukmeteornetwork.co.uk/">UKMON</a>
+networks of amateur meteor observers.
+</p>
+<p class="text">
+    The hardware used in our MeteorPi cameras was designed by Dave Ansell at Cambridge Science Centre. Our database
+    and communications systems were design by Tom Oinn.
 </p>
 
 <h3>Supporters</h3>
 
-<p>The development of Meteor Pi was made possible thanks to generous support from:</p>
+<p>The development of Meteor Pi was made possible thanks to generous funding from:</p>
 
 <div class="row supporters">
     <div class="col-sm-6">

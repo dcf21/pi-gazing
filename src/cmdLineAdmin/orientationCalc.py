@@ -1,1 +1,0 @@
-../observatoryControl/orientationCalc.py

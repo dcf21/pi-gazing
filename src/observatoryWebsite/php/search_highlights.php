@@ -100,7 +100,7 @@ $pageTemplate->header($pageInfo);
     <p>
         Use this form to search for highlights from the Meteor Pi archive, as picked by our expert observers.
     </p>
-    <form class="form-horizontal search-form" method="get" action="/search_highlights.php">
+    <form class="form-horizontal search-form" method="get" action="/search_highlights.php#results">
 
         <div style="cursor:pointer;text-align:right;">
             <button type="button" class="btn btn-default btn-md help-toggle">
@@ -179,6 +179,8 @@ $pageTemplate->header($pageInfo);
         </div>
 
     </form>
+
+<div id="results"></div>
 
 <?php
 // Display result counter

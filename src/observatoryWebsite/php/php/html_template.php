@@ -196,6 +196,7 @@ __HTML__;
                                 <li><a href="<?php echo $server; ?>search_moving.php">Moving objects</a></li>
                                 <li><a href="<?php echo $server; ?>search_still.php">Still photography</a></li>
                                 <li><a href="<?php echo $server; ?>search_multi.php">Multi-camera detections</a></li>
+                                <li><a href="<?php echo $server; ?>search_highlights.php">Featured images</a></li>
                             </ul>
                         </li>
                         <li class="<?php if ($pageInfo["activeTab"] == "projects") echo "active "; ?>">
@@ -353,7 +354,7 @@ __HTML__;
         <?php
         foreach ($itemList as $item) {
             ?>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <h3>
                     <a href="<?php echo $item['link']; ?>"><?php echo $item['title']; ?></a>
                 </h3>

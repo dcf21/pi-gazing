@@ -20,7 +20,7 @@ function SequentialPanes(parent) {
 
     this.contents = "<ul>";
     for (i = 0; i < this.number; i++)
-        this.contents += "<li><a class='goto" + String(i) + "'>" + this.titles[i] + "</a></li>";
+        this.contents += "<li><a class='goto goto" + String(i) + "'>" + this.titles[i] + "</a></li>";
     this.contents += "</ul>";
     $(".pane-list", parent).html(this.contents);
 
@@ -78,6 +78,10 @@ SequentialPanes.prototype.selectPane = function (i) {
         $(k).fadeIn(400);
     });
     this.current=i;
+
+    // Highlight the appropriate item in the contents list
+    $(".goto", self.parent).css("font-weight", "normal");
+    $(".goto"+this.current, self.parent).css("font-weight", "bold");
 
     // Disable or enable previous / next buttons as required
     if (i==0) $(".spprev", self.parent).prop("disabled",true);

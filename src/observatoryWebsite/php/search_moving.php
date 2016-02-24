@@ -68,7 +68,7 @@ $pageTemplate->header($pageInfo);
         Use this form to search for bright moving objects spotted by our cameras. Most of the objects you'll see here
         are aircraft, satellites, shooting stars, and other airborne lights.
     </p>
-    <form class="form-horizontal search-form" method="get" action="/search_moving.php">
+    <form class="form-horizontal search-form" method="get" action="/search_moving.php#results">
 
         <div style="cursor:pointer;text-align:right;">
             <button type="button" class="btn btn-default btn-md help-toggle">
@@ -176,6 +176,8 @@ $pageTemplate->header($pageInfo);
         </div>
 
     </form>
+
+    <div id="results"></div>
 
 <?php
 

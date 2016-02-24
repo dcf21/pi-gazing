@@ -53,11 +53,11 @@ $pageTemplate->header($pageInfo);
     <div class="row">
         <div class="col-md-4" style="padding:16px;">
             <p class="text" style="font-size:18px;">
-                Meteor Pi lets you browse the night sky without stepping outside or having to wait until nightfall.
+                Meteor Pi lets you browse the night sky without having to step outside or wait until nightfall.
             </p>
 
             <p class="text">
-                We've set up a network of cameras which take pictures from dusk till dawn every night.
+                We've set up a network of cameras which take pictures of the night sky from dusk till dawn every day.
             </p>
 
             <p class="text">
@@ -65,18 +65,22 @@ $pageTemplate->header($pageInfo);
             </p>
 
             <p class="text">
-                They're also motion sensitive. Whenever anything flies past, they record a video. Most weeks the cameras spot planes, satellites, and shooting stars. We also see rarer phenomena: lightning strikes, fireworks, and glints of light from solar panels on spacecraft.
+                They're also motion sensitive. Whenever anything flies past, they record a video. They capture footage
+                of planes, satellites, and shooting stars. We also see rarer phenomena: lightning strikes,
+                fireworks, and glints of light from solar panels on spacecraft.
             </p>
 
             <p class="text">
-                Nothing beats the experience of looking at the night sky for yourself with a pair of binoculars, but Meteor Pi will help you learn what to look out for. And because our motion-sensitive cameras are keeping constant watch, you may see some rare events that you have to be very patient to see for yourself.
+                Nothing beats the experience of looking at the night sky for yourself with a pair of binoculars, but
+                Meteor Pi will help you learn what to look out for. And because our motion-sensitive cameras are keeping
+                constant watch, you may see rare events that you would have to wait a long time to see for yourself.
             </p>
 
             <div style="padding:10px 20px;text-align:right;">
-        <button type="button" class="btn btn-primary" onclick="window.location='/whattodo.php';">
-            What to do &#187;
-        </button>
-        </div>
+                <button type="button" class="btn btn-primary" onclick="window.location='/whattodo.php';">
+                    What to do &#187;
+                </button>
+            </div>
 
         </div>
         <div class="col-md-8" style="padding:8px;">

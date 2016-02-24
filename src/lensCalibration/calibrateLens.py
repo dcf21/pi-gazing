@@ -8,7 +8,11 @@
 # It should be passed the filename of a JSON file containing an image filename, and a list of stars with known
 # positions in the image. This file needs to be produced manually.
 
-# It then uses the Python Scientific Library's numerical optimiser (with seven free paramaters) to work out the
+# The JSON files in this directory provide an example of the format each input
+# file should take. The stars should be listed as [xpos, ypos, hipparcos
+# number].
+
+# It then uses the Python Scientific Library's numerical optimiser (with seven free parameters) to work out the
 # position of the centre of the image in the sky, the image's rotation, scale on the sky, and the barrel distortion
 # factors.
 
@@ -26,10 +30,10 @@ import subprocess
 from math import sqrt, hypot, sin, cos, tan, asin, atan2, pi
 import scipy.optimize
 
-import meteorpi_db
-import mod_settings
+degrees = pi / 180
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+# Read Hipparcos catalogue of stars brighter than mag 5.5
+hipp_positions = json.loads(open("hipparcos_catalogue.json").read())
 
 
 def rotate_xy(a, theta):
@@ -113,8 +117,13 @@ def mismatch(params):
         pos = gnomonic_project(star['ra'], star['dec'], ra0, dec0,
                                img_size_x, img_size_y, scale_x, scale_y, pos_ang,
                                bca, bcb, bcc)
-        offset = hypot(star['xpos'] - pos[0], star['ypos'] - pos[1])
+        if pos[0] < 0:
+            pos[0] = -999
+        if pos[1] < 0:
+            pos[1] = -999
+        offset = pow(hypot(star['xpos'] - pos[0], star['ypos'] - pos[1]), 2)
         accumulator += offset
+    # print "%10e -- %s" % (accumulator, list(params))
     return accumulator
 
 
@@ -126,19 +135,32 @@ def image_dimensions(f):
 
 
 # Read input list of stars whose positions we know
-input_config = sys.argv[1]
-stars = json.loads(open(input_config).read())
+input_config_filename = sys.argv[1]
+input_config = json.loads(open(input_config_filename).read())
 
+# Look up positions of each star, based on listed Hipparcos catalogue numbers
+star_list = []
+for star in input_config['star_list']:
+    hipp = str(star[2])
+    if hipp not in hipp_positions:
+        print "Could not find star %d" % hipp
+        continue
+    [ra, dec] = hipp_positions[hipp]
+    star_list.append({'xpos': int(star[0]), 'ypos': int(star[1]), 'ra': ra * degrees, 'dec': dec * degrees})
+
+# Get dimensions of the image we are dealing with
 image_file = input_config['image_file']
-star_list = input_config['star_list']
 [img_size_x, img_size_y] = image_dimensions(image_file)
 
 # Solve system of equations to give best fit barrel correction
 # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/> for more information about how this works
+ra0 = star_list[0]['ra']
+dec0 = star_list[0]['dec']
 params_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 0.05, 0.05, 0.05]
-params_defaults = [0, 0, pi / 4, pi / 4, 0, 0, 0, 0]
+params_defaults = [ra0, dec0, pi / 4, pi / 4, 0, 0, 0, 0]
 params_initial = [params_defaults[i] / params_scales[i] for i in range(len(params_defaults))]
-params_optimised = scipy.optimize.fmin_cg(mismatch, params_initial)
+params_optimised = scipy.optimize.minimize(mismatch, params_initial, method='nelder-mead',
+                                           options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}).x
 params_final = [params_optimised[i] * params_scales[i] for i in range(len(params_defaults))]
 
 # Display best fit numbers
@@ -149,4 +171,25 @@ headings = [["Central RA / hr", 12 / pi], ["Central Decl / deg", 180 / pi],
             ]
 
 for i in range(len(params_defaults)):
-    print "%30s : %s" % (headings[i], params_final[i])
+    print "%30s : %s" % (headings[i][0], params_final[i] * headings[i][1])
+
+# Print information about how well each star was fitted
+[ra0, dec0, scale_x, scale_y, pos_ang, bca, bcb, bcc] = params_final
+if True:
+    print "\nStars:"
+    for star in star_list:
+        pos = gnomonic_project(star['ra'], star['dec'], ra0, dec0,
+                               img_size_x, img_size_y, scale_x, scale_y, pos_ang,
+                               bca, bcb, bcc)
+        distance = hypot(star['xpos'] - pos[0], star['ypos'] - pos[1])
+        print "Real position (%4d,%4d). Model position (%4d,%4d). Mismatch %5d pixels." % (star['xpos'], star['ypos'],
+                                                                                           pos[0], pos[1], distance)
+
+# Print data file listing the predicting positions of each star, against the reported position
+if False:
+    for star in star_list:
+        pos = gnomonic_project(star['ra'], star['dec'], ra0, dec0,
+                               img_size_x, img_size_y, scale_x, scale_y, pos_ang,
+                               bca, bcb, bcc)
+        print "%4d %4d %4d %4d" % (star['xpos'] - img_size_x / 2, star['ypos'] - img_size_y / 2,
+                                   pos[0] - img_size_x / 2, pos[1] - img_size_y / 2)
