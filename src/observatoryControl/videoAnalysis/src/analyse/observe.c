@@ -418,7 +418,7 @@ void registerTrigger(observeStatus *os, const int blockId, const int xpos, const
         {
             detection *d = &os->eventList[i].detections[N]; // If so, take position of object as average position of multiple amplitude peaks
             d->x = (d->x * d->amplitude + xpos * amplitude) / (d->amplitude + amplitude);
-            d->y = (d->y * d->amplitude + xpos * amplitude) / (d->amplitude + amplitude);
+            d->y = (d->y * d->amplitude + ypos * amplitude) / (d->amplitude + amplitude);
             d->amplitude += amplitude;
             d->npixels += npixels;
         }
