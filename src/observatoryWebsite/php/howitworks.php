@@ -21,57 +21,124 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
-    <p class="text">
-        The night sky is an awe-inspiring sight. The ability to see objects that are billions of kilometres away. The
-        patterns of stars, which have remained unchanged for thousands of years and would have been perfectly recognisable
-        to our distant ancestors. The wonderous question of whether there might be other planets out there, with somebody
-        looking back at us.
-    </p>
+    <div class="pane-sequence" data-final-next='["/search.php","Search the skies"]'>
+        <div class="row">
+            <div class="col-md-9">
+                <div style="padding:3px;">
+                    <div class="grey_box" style="padding:16px;">
+                        <div class="pane-item" data-title="What our cameras look like">
+                            <div class="rightimg">
+                                <img src="img/IMG_20150316_160453.jpg"/><br/>
+                                <b>Meteor Pi cameras are similar to CCTV cameras, but they point upwards at the sky!</b>
+                            </div>
 
-    <p class="text">
-        Meteor Pi makes the night sky a lot more accessible. To see it for real, you need to go out to a dark place, late at
-        night. We've installed cameras which take pictures all through the night, which you can browse at whatever time is
-        convenient.
-    </p>
+                            <p class="text">
+                                Each of our Meteor Pi observatories looks very much like a CCTV camera you might see
+                                in the street. The most obvious difference, though, is that ours point upwards at the
+                                sky.
+                            </p>
+                            <p class="text">
+                                Inside the box, some of the electronics is also similar to what you might see in a
+                                CCTV camera. At the front of the box, we have a Watec 902H2 Ultimate &ndash; a Japanese
+                                model of CCTV camera, which is designed to work in incredibly dark places.
+                            </p>
+                            <p class="text">
+                                These cameras are normally used to look at dark alleyways, but they're useful to us
+                                because they only need only look at the sky for a few seconds to detect stars hundreds
+                                of times fainter than the human eye can see.
+                            </p>
+                            <div class="pane-controls"></div>
+                        </div>
 
-    <p class="text">
-        As well as taking still pictures through the night, our cameras are also motion sensitive, snapping pictures of any
-        planes, satellites, meteors or other unidentified objects that fly over!
-    </p>
+                        <div class="pane-item" data-title="Inside the box">
+                            <h3 style="padding-top:0;">Inside the box</h3>
 
-    <h3>What do the cameras look like?</h3>
 
-    <div class="rightimg">
-        <img src="/img/IMG_20150316_160453.jpg" /><br />
-        <b>Meteor Pi cameras are similar to CCTV cameras, but they point upwards at the sky!</b>
+                            <div class="rightimg">
+                                <img src="img/IMG_20150805_142114.jpg"/><br/>
+                                <b>The electronics in a Meteor Pi observatory. A Raspberry Pi Mk 2 analyses the pictures
+                                    to look for moving objects.</b>
+                            </div>
+                            <p class="text">
+                                What makes are observatories very different from CCTV cameras is the electronics that
+                                analyses the video signal.
+                            </p>
+                            <p class="text">
+                                We have a Raspberry Pi 2 Model B computer, which receives the pictures from the video
+                                camera and analyses them. It takes still photographs every 30 seconds through the night,
+                                and also monitors the video pictures to look for
+                                moving objects.
+                            </p>
+                            <p class="text">
+                                The system is designed to be entirely autonomous. Once a camera has been set up, we can
+                                leave it for long periods without doing any maintenance. Each set up uses a
+                                GPS receiver record its exact location, and also to know exactly what the time is. It
+                                can calculate the time of local sunrise and sunset to know when it should begin
+                                observing each night.
+                            </p>
+                            <div class="pane-controls"></div>
+                        </div>
+
+                        <div class="pane-item" data-title="A network of cameras">
+                            <h3 style="padding-top:0;">The Meteor Pi network</h3>
+
+                            <div class="rightimg">
+                                <img src="img/simultaneous.png"/><br/>
+                                <b>By observing from many different locations, we hope eventually to be able to
+                                    triangulate the 3D positions of objects.</b>
+                            </div>
+                            <p class="text">
+                                Our cameras are spread across a number of locations in the east of England, and we
+                                hope to spread them over a wider area soon.
+                            </p>
+                            <p class="text">
+                                Having many cameras in different locations helps us for several reasons. On average,
+                                the weather in any particular location in the UK is only clear on one night in three.
+                                However, by having cameras in different places we have a higher chance of finding
+                                somewhere where it is clear.
+                            </p>
+                            <p class="text">
+                                Different locations are affected by light pollution to differing degrees. The view of
+                                the night sky from a city can be very different from the view in the countryside,
+                                where many fainter stars will be visible.
+                            </p>
+                            <p class="text">
+                                Eventually, we hope to use simultaneous detections of moving objects from different
+                                locations to triangulate their altitudes and speeds.
+                            </p>
+                            <div class="pane-controls"></div>
+                        </div>
+
+                        <div class="pane-item" data-title="The Meteor Pi website">
+                            <h3 style="padding-top:0;">The Meteor Pi website</h3>
+
+                            <p class="text">
+                                All of our cameras are programmed to automatically transmit all of their observations
+                                to a central archive each day.
+                            </p>
+                            <p class="text">
+                                This usually happens around lunchtime, and the observations become accessible via this
+                                website shortly afterwards.
+                            </p>
+                            <p class="text">
+                                If you search our website very early in the morning, you may find that the previous
+                                night's images haven't appeared yet, but they should arrive soon!
+                            </p>
+                            <div class="pane-controls-final"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div style="padding:3px;">
+                    <div class="grey_box" style="padding:16px;">
+                        <h4 style="padding-top:0;">Contents</h4>
+                        <div class="pane-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-
-    <p class="text">
-        Each Meteor Pi camera looks very much like a CCTV camera you might see in the street. The most obvious difference is
-        that ours point upwards at the sky.
-        There’s also a lot of electronics packed inside each Meteor Pi observatory.
-    </p><p class="text">
-    The camera we use is a Watec 902H2 Ultimate &ndash; a Japanese CCTV camera which is designed to work in incredibly
-    dark
-    places. These cameras need only look at
-    the sky for a few seconds to detect stars hundreds of times fainter than the human eye can see.
-</p><p class="text">
-    Also in the box is a Raspberry Pi computer, which analyses the pictures to look for moving objects. A
-    GPS receiver records the observatory’s exact location, and tells the Raspberry Pi exactly what the time is.
-</p>
-
-    <div class="rightimg">
-        <img src="/img/IMG_20150805_142114.jpg" /><br />
-        <b>The electronics in a Meteor Pi observatory. A Raspberry Pi Mk 2 analyses the pictures to look for moving objects.</b>
-    </div>
-
-    <p class="text">
-        At around lunchtime each day, each observatory transmits all the video clips of the moving objects it has seen to
-        this website.
-        It also transmits a series of still images, taken at one-minute intervals through the night, allowing you to call up
-        a picture
-        of how the night sky appeared at any given time.
-    </p>
 
 <?php
 $pageTemplate->footer($pageInfo);

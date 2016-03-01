@@ -318,7 +318,7 @@ __HTML__;
         ?>
         <div class="slidingPane">
             <div class="overlay_host">
-                <div class="holder">
+                <div class="holder" style="min-height: 200px;">
                     <div class="mp-back" style="left: 18px;">
                         <div class="mp-img mp-img-leftB slidingPane_prev"></div>
                     </div>
