@@ -204,13 +204,13 @@ while True:
     obstory_status = db.get_obstory_status(obstory_name=obstory_name)
     if ('latitude' not in obstory_status) or ('longitude' not in obstory_status):
         db.register_obstory_metadata(obstory_name=obstory_name, key="latitude", value=latitude,
-                                     metadata_time=get_utc(), time_created=get_utc(),
+                                     metadata_time=0, time_created=get_utc(),
                                      user_created=mod_settings.settings['meteorpiUser'])
         db.register_obstory_metadata(obstory_name=obstory_name, key="longitude", value=longitude,
-                                     metadata_time=get_utc(), time_created=get_utc(),
+                                     metadata_time=0, time_created=get_utc(),
                                      user_created=mod_settings.settings['meteorpiUser'])
         db.register_obstory_metadata(obstory_name=obstory_name, key="location_source", value="manual",
-                                     metadata_time=get_utc(), time_created=get_utc(),
+                                     metadata_time=0, time_created=get_utc(),
                                      user_created=mod_settings.settings['meteorpiUser'])
     db.commit()
     obstory_status = db.get_obstory_status(obstory_name=obstory_name)

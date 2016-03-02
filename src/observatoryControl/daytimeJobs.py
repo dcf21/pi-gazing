@@ -181,6 +181,11 @@ try:
                         obstory_name = obstory_info['name']
                         obstory_status = db.get_obstory_status(obstory_name=obstory_name, time=utc)
 
+                        if 'latitude' not in obstory_status:
+                            obstory_status['latitude'] = installation_info.local_conf['latitude']
+                        if 'longitude' not in obstory_status:
+                            obstory_status['longitude'] = installation_info.local_conf['longitude']
+
                         if 'fps' not in params:
                             params['fps'] = obstory_status["sensor_fps"]
 
