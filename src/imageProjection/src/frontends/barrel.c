@@ -50,17 +50,6 @@ Usage: barrel.bin <filename> <barrel_a> <barrel_b> <barrel_c> <output filename>\
     HaveFilename = 0;
     for (i = 1; i < argc; i++) {
         if (strlen(argv[i]) == 0) continue;
-        if (argv[i][0] != '-') {
-            if (HaveFilename > 4) {
-                sprintf(temp_err_string,
-                        "barrel.bin should be provided with three barrel-distortion coefficients, and two filenames on the command line. Too many filenames appear to have been supplied. Type 'barrel.bin -help' for a list of available commandline options.");
-                gnom_error(ERR_GENERAL, temp_err_string);
-                return 1;
-            }
-            filename[HaveFilename] = argv[i];
-            HaveFilename++;
-            continue;
-        }
         if ((strcmp(argv[i], "-v") == 0) || (strcmp(argv[i], "-version") == 0) || (strcmp(argv[i], "--version") == 0)) {
             gnom_report(version_string);
             return 0;
@@ -69,13 +58,15 @@ Usage: barrel.bin <filename> <barrel_a> <barrel_b> <barrel_c> <output filename>\
             gnom_report(help_string);
             return 0;
         }
-        else {
+        if (HaveFilename > 4) {
             sprintf(temp_err_string,
-                    "Received switch '%s' which was not recognised.\nType 'stack.bin -help' for a list of available commandline options.",
-                    argv[i]);
+                    "barrel.bin should be provided with three barrel-distortion coefficients, and two filenames on the command line. Too many filenames appear to have been supplied. Type 'barrel.bin -help' for a list of available commandline options.");
             gnom_error(ERR_GENERAL, temp_err_string);
             return 1;
         }
+        filename[HaveFilename] = argv[i];
+        HaveFilename++;
+        continue;
     }
 
     // Check that we have been provided with exactly one filename on the command line

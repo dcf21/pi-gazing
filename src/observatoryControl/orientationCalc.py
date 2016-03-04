@@ -38,7 +38,7 @@ def sgn(x):
     return 0
 
 
-def orientation_calc(obstory_name, utc_to_study, utc_now, utc_must_stop=0):
+def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     log_txt("Starting calculation of camera alignment")
 
     # Mathematical constants
@@ -46,11 +46,11 @@ def orientation_calc(obstory_name, utc_to_study, utc_now, utc_must_stop=0):
     rad = 180 / math.pi
 
     # When passing images to astrometry.net, only work on the central portion, as this will have least bad distortion
-    fraction_x = 0.6
-    fraction_y = 0.6
+    fraction_x = 0.7
+    fraction_y = 0.7
 
     # Path the binary barrel-correction tool
-    barrel_correct = os.path.join(mod_settings.settings['stackerPath'], "bin", "barrel")
+    barrel_correct = os.path.join(mod_settings.settings['stackerPath'], "barrel")
 
     # Calculate time span to use images from
     utc_min = utc_to_study
@@ -58,13 +58,17 @@ def orientation_calc(obstory_name, utc_to_study, utc_now, utc_must_stop=0):
     db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
     # Fetch observatory status
-    obstory_status = db.get_obstory_status(obstory_name=obstory_name, time=utc_now)
+    obstory_info = db.get_obstory_from_id(obstory_id)
+    obstory_status = None
+    if obstory_info and ('name' in obstory_info):
+        obstory_status = db.get_obstory_status(obstory_name=obstory_info['name'], time=utc_now)
     if not obstory_status:
-        log_txt("Aborting -- no camera status set for camera <%s>" % obstory_name)
+        log_txt("Aborting -- no camera status set for camera <%s>" % obstory_id)
+        db.close_db()
         return
 
     # Search for background-subtracted time lapse photography within this range
-    search = mp.FileRecordSearch(obstory_ids=[obstory_name], semantic_type="meteorpi:timelapse/frame/bgrdSub",
+    search = mp.FileRecordSearch(obstory_ids=[obstory_id], semantic_type="meteorpi:timelapse/frame/bgrdSub",
                                  time_min=utc_min, time_max=utc_max, limit=1000000)
     files = db.search_files(search)
     files = files['files']
@@ -73,9 +77,9 @@ def orientation_calc(obstory_name, utc_to_study, utc_now, utc_must_stop=0):
     # Filter out files where the sky clarity is good and the Sun is well below horizon
     acceptable_files = []
     for f in files:
-        if db.get_file_metadata(f.id, 'skyClarity') < 15:
+        if db.get_file_metadata(f.id, 'meteorpi:skyClarity') < 25:
             continue
-        if db.get_file_metadata(f.id, 'sunAlt') > -4:
+        if db.get_file_metadata(f.id, 'meteorpi:sunAlt') > -4:
             continue
         acceptable_files.append(f)
 
@@ -84,10 +88,11 @@ def orientation_calc(obstory_name, utc_to_study, utc_now, utc_must_stop=0):
     # If we don't have enough images, we can't proceed to get a secure orientation fit
     if len(acceptable_files) < 10:
         log_txt("Giving up: not enough suitable images")
+        db.close_db()
         return
 
     # We can't afford to run astrometry.net on too many images, so pick the 20 best ones
-    acceptable_files.sort(key=lambda f: db.get_file_metadata(f.id, 'skyClarity'))
+    acceptable_files.sort(key=lambda f: db.get_file_metadata(f.id, 'meteorpi:skyClarity'))
     acceptable_files.reverse()
     acceptable_files = acceptable_files[0:24]
 
@@ -110,8 +115,8 @@ def orientation_calc(obstory_name, utc_to_study, utc_now, utc_must_stop=0):
         fit_obj = {'f': f, 'i': count, 'fit': False}
         fits.append(fit_obj)
         log_txt("Determining orientation of image with timestamp <%s> (unix time %d) -- skyClarity=%.1f" % (
-            mod_astro.time_print(f.file_time), f.file_time, db.get_file_metadata(f.id, 'skyClarity')))
-        filename = f.get_path()
+            mod_astro.time_print(f.file_time), f.file_time, db.get_file_metadata(f.id, 'meteorpi:skyClarity')))
+        filename = db.file_path_for_id(f.id)
 
         # 1. Copy image into working directory
         os.system("cp %s %s_tmp.png" % (filename, img_name))
@@ -124,7 +129,7 @@ def orientation_calc(obstory_name, utc_to_study, utc_now, utc_must_stop=0):
                                                                 img_name))
 
         # 3. Pass only central portion of image to astrometry.net. It's not very reliable with wide-field images
-        d = image_dimensions("%s_tmp2.png" % (img_name))
+        d = image_dimensions("%s_tmp2.png" % img_name)
         os.system(
                 "convert %s_tmp2.png -colorspace sRGB -define png:format=png24 -crop %dx%d+%d+%d +repage %s_tmp3.png"
                 % (img_name,
@@ -146,11 +151,16 @@ def orientation_calc(obstory_name, utc_to_study, utc_now, utc_must_stop=0):
     for fit in fits:
         f = fit['f']
 
+        # Check that we've not run out of time
+        if utc_must_stop and (mod_log.get_utc() > utc_must_stop):
+            log_txt("We have run out of time! Aborting.")
+            continue
+
         # Run astrometry.net. Insert --no-plots on the command line to speed things up.
-        astrometry_start_time = time.time()
-        os.system("timeout 10m /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --overwrite %s > txt"
+        astrometry_start_time = mod_log.get_utc()
+        os.system("timeout 2m /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --overwrite %s > txt"
                   % (fit['fname_processed']))
-        astrometry_time_taken = time.time() - astrometry_start_time
+        astrometry_time_taken = mod_log.get_utc() - astrometry_start_time
         log_txt("Astrometry.net took %d seconds to analyse image at time <%s>" % (astrometry_time_taken, f.file_time))
 
         # Parse the output from astrometry.net
@@ -230,46 +240,82 @@ def orientation_calc(obstory_name, utc_to_study, utc_now, utc_must_stop=0):
     # Update observatory status
     user = mod_settings.settings['meteorpiUser']
     utc = utc_to_study
-    db.register_obstory_metadata(obstory_name, "orientation_altitude", alt_az_best[0] * rad, utc, user)
-    db.register_obstory_metadata(obstory_name, "orientation_azimuth", alt_az_best[1] * rad, utc, user)
-    db.register_obstory_metadata(obstory_name, "orientation_error", alt_az_error * rad, utc, user)
-    db.register_obstory_metadata(obstory_name, "orientation_pa", pa_best * rad * rad, utc, user)
-    db.register_obstory_metadata(obstory_name, "orientation_width_field", scale_x_best * rad, utc, user)
+    db.register_obstory_metadata(obstory_id, "orientation_altitude", alt_az_best[0] * rad, utc, user)
+    db.register_obstory_metadata(obstory_id, "orientation_azimuth", alt_az_best[1] * rad, utc, user)
+    db.register_obstory_metadata(obstory_id, "orientation_error", alt_az_error * rad, utc, user)
+    db.register_obstory_metadata(obstory_id, "orientation_pa", pa_best * rad * rad, utc, user)
+    db.register_obstory_metadata(obstory_id, "orientation_width_field", scale_x_best * rad, utc, user)
+    db.commit()
+    db.close_db()
 
     # Output catalogue of image fits -- this is to be fed into the lens-fitting code
-    f = open("imageFits.gnom", "w")
-    f.write("SET output /tmp/output.png\n")
-    f.write("SET barrel_a %.6f\n" % obstory_status['lens_barrel_a'])
-    f.write("SET barrel_b %.6f\n" % obstory_status['lens_barrel_b'])
-    f.write("SET barrel_c %.6f\n" % obstory_status['lens_barrel_c'])
-    f.write("SET latitude %s\n" % obstory_status['latitude'])
-    f.write("SET longitude %s\n" % obstory_status['longitude'])
+    # f = open("imageFits.gnom", "w")
+    # f.write("SET output /tmp/output.png\n")
+    # f.write("SET barrel_a %.6f\n" % obstory_status['lens_barrel_a'])
+    # f.write("SET barrel_b %.6f\n" % obstory_status['lens_barrel_b'])
+    # f.write("SET barrel_c %.6f\n" % obstory_status['lens_barrel_c'])
+    # f.write("SET latitude %s\n" % obstory_status['latitude'])
+    # f.write("SET longitude %s\n" % obstory_status['longitude'])
 
     # Exposure compensation, x_size, y_size, Central RA, Central Dec, position angle, scale_x, scale_y
-    fit = fit_list[int(math.floor(len(fit_list) / 2))]
-    f.write("%-102s %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f\n"
-            % ("GNOMONIC", 1, fit['dims'][0], fit['dims'][1],
-               fit['ra'], fit['dec'], fit['pa'],
-               fit['sx'], fit['sy'])
-            )
-    for fit in fits:
-        if fit['fit']:
-            d = fit['dims']
-            f.write("ADD %-93s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f\n" % (
-                fit['fname_original'], 1, 1, d[0], d[1], fit['ra'], fit['dec'], fit['pa'], fit['sx'], fit['sy']))
-        else:
-            f.write("# Cannot read central RA and Dec from %s\n" % (fit['fname_original']))
-    f.close()
+    # fit = fit_list[int(math.floor(len(fit_list) / 2))]
+    # f.write("%-102s %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f\n"
+    #        % ("GNOMONIC", 1, fit['dims'][0], fit['dims'][1],
+    #           fit['ra'], fit['dec'], fit['pa'],
+    #           fit['sx'], fit['sy'])
+    #        )
+    # for fit in fits:
+    #    if fit['fit']:
+    #        d = fit['dims']
+    #        f.write("ADD %-93s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f\n" % (
+    #            fit['fname_original'], 1, 1, d[0], d[1], fit['ra'], fit['dec'], fit['pa'], fit['sx'], fit['sy']))
+    #    else:
+    #        f.write("# Cannot read central RA and Dec from %s\n" % (fit['fname_original']))
+    # f.close()
 
     # Run <gnomonicStack/align_regularise.py> which uses the fact that we know camera's pointing is fixed to fix
     # in central RA and Dec for image astrometry.net failed on
-    os.system("%s/align_regularise.py %s > %s" % (mod_settings.settings['stackerPath'],
-                                                  "imageFits.gnom",
-                                                  "imageFits_2.gnom"))
+    # os.system("%s/align_regularise.py %s > %s" % (mod_settings.settings['stackerPath'],
+    #                                              "imageFits.gnom",
+    #                                              "imageFits_2.gnom"))
 
     # Clean up and exit
     os.chdir(cwd)
-    return os.path.join(tmp, "imageFits_2.gnom")
+    os.system("rm -Rf %s" % tmp)
+    # return os.path.join(tmp, "imageFits_2.gnom")
+    return
+
+
+def reprocess_all_data():
+    db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+    obstories = db.get_obstory_ids()
+    for o in obstories:
+        db.con.execute("SELECT m.time FROM archive_metadata m "
+                       "INNER JOIN archive_observatories l ON m.observatory = l.uid "
+                       "AND l.publicId = %s AND m.time>0 "
+                       "ORDER BY m.time ASC LIMIT 1",
+                       (o,))
+        first_seen = 0
+        results = db.con.fetchall()
+        if results:
+            first_seen = results[0]['time']
+        db.con.execute("SELECT m.time FROM archive_metadata m "
+                       "INNER JOIN archive_observatories l ON m.observatory = l.uid "
+                       "AND l.publicId = %s AND m.time>0 "
+                       "ORDER BY m.time DESC LIMIT 1",
+                       (o,))
+        last_seen = 0
+        results = db.con.fetchall()
+        if results:
+            last_seen = results[0]['time']
+        day = 86400
+        utc = math.floor(first_seen / day) * day + day / 2
+        while utc < last_seen:
+            orientation_calc(obstory_id=o,
+                             utc_to_study=utc,
+                             utc_now=mod_log.get_utc(),
+                             utc_must_stop=0)
+            utc += day
 
 
 # If we're called as a script, run the method orientationCalc()
@@ -282,7 +328,7 @@ if __name__ == "__main__":
         _utc_now = float(sys.argv[2])
     _utc_to_study = _utc_now - 3600 * 24  # By default, study images taken over past 24 hours
     mod_log.set_utc_offset(_utc_now - time.time())
-    orientation_calc(obstory_name=_obstory_name,
+    orientation_calc(obstory_id=_obstory_name,
                      utc_to_study=_utc_to_study,
                      utc_now=_utc_now,
                      utc_must_stop=0)

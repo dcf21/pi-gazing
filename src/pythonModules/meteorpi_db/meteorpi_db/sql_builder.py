@@ -40,6 +40,7 @@ INNER JOIN archive_observatories l ON o.observatory=l.uid""", where_clauses=[])
         b.sql_args.append(SQLBuilder.map_value(search.exclude_export_to))
     return b
 
+
 def search_obsgroups_sql_builder(search):
     """
     Create and populate an instance of :class:`meteorpi_db.SQLBuilder` for a given
@@ -68,6 +69,7 @@ WHERE y1.groupId=g.uid AND y2.publicId=%s)""")
     b.add_sql(search.time_max, 'g.time < %s')
     b.add_metadata_query_properties(meta_constraints=search.meta_constraints, id_column="groupId", id_table="g")
     return b
+
 
 def search_files_sql_builder(search):
     """
@@ -285,8 +287,10 @@ WHERE m.{2} {3} %s AND k.metaKey = %s
             A SQL SELECT query, which will make use of self.sql_args when executed.
         """
         sql = 'SELECT '
-        sql += '{0} FROM {1} WHERE '.format(columns, self.tables)
-        sql += ' AND '.join(self.where_clauses)
+        sql += '{0} FROM {1} '.format(columns, self.tables)
+        if len(self.where_clauses) > 0:
+            sql += ' WHERE '
+            sql += ' AND '.join(self.where_clauses)
         if order is not None:
             sql += ' ORDER BY {0}'.format(order)
         if limit > 0:
@@ -302,4 +306,8 @@ WHERE m.{2} {3} %s AND k.metaKey = %s
         :return:
             A SQL SELECT query which returns the count of items for an unlimited query based on this SQLBuilder
         """
-        return 'SELECT COUNT(*) FROM ' + self.tables + ' WHERE ' + (' AND '.join(self.where_clauses))
+        sql = 'SELECT COUNT(*) FROM ' + self.tables
+        if len(self.where_clauses) > 0:
+            sql += ' WHERE '
+            sql += ' AND '.join(self.where_clauses)
+        return sql

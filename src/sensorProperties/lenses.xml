@@ -19,9 +19,9 @@
   <name>VF-DCD-AI-3.5-18-C-2MP</name>
   <comment>Lens in use on the Watec 902H2 Ultimate at Peverel Road</comment>
   <fov>73</fov>
-  <barrel_a>0</barrel_a>
-  <barrel_b>0</barrel_b>
-  <barrel_c>0</barrel_c>
+  <barrel_a>-0.0132245797757</barrel_a>
+  <barrel_b>-0.0434443108138</barrel_b>
+  <barrel_c>0.0242867248139</barrel_c>
  </lens>
  <lens>
   <name>VF-DCD-AI-4-10-C-2MP</name>

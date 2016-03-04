@@ -322,8 +322,7 @@ try:
     for obstory_id in all_obstories_seen:
         if (not quit_time) or (quit_time - get_utc() > 3600 * 5):
             log_txt("Trying to determine orientation of camera <%s>" % obstory_id)
-            obstory_name = obstory_infos[obstory_id]['name']
-            orientationCalc.orientation_calc(obstory_name=obstory_name,
+            orientationCalc.orientation_calc(obstory_id=obstory_id,
                                              utc_to_study=get_utc(),
                                              utc_now=get_utc(),
                                              utc_must_stop=quit_time)

@@ -319,6 +319,7 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
         if ($flag_bgsub) $self_url .= "&flag_bgsub=1";
         if ($flag_lenscorr) $self_url .= "&flag_lenscorr=1";
         if ($flag_highlights) $self_url .= "&flag_highlight=1";
+        if ($sky_clarity_min_str) $self_url .= "&clarity={$sky_clarity_min_str}";
         $pageTemplate->showPager($result_count, $pageNum, $pageSize, $self_url);
     }
 
