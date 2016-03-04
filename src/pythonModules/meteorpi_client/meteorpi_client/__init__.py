@@ -1,3 +1,9 @@
+# meteorpi_client
+# Meteor Pi, Cambridge Science Centre
+# Dominic Ford, Tom Oinn
+
+# Classes which interact with a remote Meteor Pi server
+
 import json
 
 import urllib
@@ -28,9 +34,9 @@ def _to_encoded_string(o):
 class MeteorClient(object):
     """Client for the Meteor Pi HTTP API. Use this to access a camera or central server."""
 
-    def __init__(self, base_url):
+    def __init__(self, base_url="https://meteorpi.cambridgesciencecentre.org/api"):
         """
-        Create a new Meteor Pi client, use this to access the data in your Meteor Pi server.
+        Create a new Meteor Pi client. Use this to access the data in your Meteor Pi server.
 
         :param base_url:
             the URL for the API. For a camera this will be the address of the camera with '/api/' added, so for example
@@ -41,65 +47,69 @@ class MeteorClient(object):
         """
         self.base_url = base_url
 
-    def list_cameras(self):
+    def list_observatories(self):
         """
-        Get the IDs of all cameras on this server with currently active status.
+        Get the IDs of all observatories with have stored observations on this server.
 
-        :return: a sequence of strings containing camera IDs
+        :return: a sequence of strings containing observatories IDs
         """
-        response = requests.get(self.base_url + '/cameras').text
-        return safe_load(response)['cameras']
+        response = requests.get(self.base_url + '/obstories').text
+        return safe_load(response)
 
-    def get_camera_status(self, camera_id, status_time=None):
+    def get_observatory_status(self, observatory_id, status_time=None):
         """
         Get details of the specified camera's status
 
-        :param string camera_id:
-            a cameraID, as returned by list_cameras()
-        :param datetime.datetime status_time:
+        :param string observatory_id:
+            a observatory ID, as returned by list_observatories()
+        :param float status_time:
             optional, if specified attempts to get the status for the given camera at a particular point in time
             specified as a datetime instance. This is useful if you want to retrieve the status of the camera at the
             time a given event or file was produced. If this is None or not specified the time is 'now'.
         :return:
-            a :class:`meteorpi_model.CameraStatus` object, or None if there was either no camera found or the camera
-            didn't have an active status at the specified time.
+            a dictionary, or None if there was either no observatory found.
         """
         if status_time is None:
             response = requests.get(
-                self.base_url + '/cameras/{0}/status'.format(camera_id))
+                self.base_url + '/obstory/{0}/statusdict'.format(observatory_id))
         else:
             response = requests.get(
-                self.base_url + '/cameras/{0}/status/{1}'.format(camera_id,
-                                                                 str(model.utc_datetime_to_milliseconds(status_time))))
+                self.base_url + '/obstory/{0}/statusdict/{1}'.format(observatory_id, str(status_time)))
         if response.status_code == 200:
             d = safe_load(response.text)
             if 'status' in d:
-                return model.CameraStatus.from_dict(d['status'])
+                return d['status']
         return None
 
-    def search_events(self, search=None):
+    def search_observations(self, search=None):
         """
-        Search for files, returning a Event for each result. FileRecords within result Events have two additional
-        methods patched into them, get_url() and download_to(file_name), which will retrieve the URL for the file
-        content and download that content to a named file on disk, respectively.
+        Search for observations, returning an Observation object for each result. FileRecords within result Observations
+        have two additional methods patched into them, get_url() and download_to(file_name), which will retrieve the
+        URL for the file content and download that content to a named file on disk, respectively.
 
         :param search:
-            an instance of EventSearch - see the model docs for details on how to construct this
+            an instance of ObservationSearch - see the model docs for details on how to construct this
         :return:
-            an object containing 'count' and 'events'. 'events' is a sequence of Event objects containing the results of
-            the search, and 'count' is the total number of results which would be returned if no result limit was in
-            place (i.e. if the number of Events in the 'events' part is less than 'count' you have more records which
-            weren't returned because of a query limit. Note that the default query limit is 100).
+            a dictionary containing 'count' and 'events'. 'events' is a sequence of Event objects containing the
+            results of the search, and 'count' is the total number of results which would be returned if no result
+            limit was in place (i.e. if the number of Events in the 'events' part is less than 'count' you have more
+            records which weren't returned because of a query limit. Note that the default query limit is 100).
         """
         if search is None:
-            search = model.EventSearch()
+            search = model.ObservationSearch()
         search_string = _to_encoded_string(search)
-        response = requests.get(self.base_url + '/events/{0}'.format(search_string))
+        url = self.base_url + '/obs/{0}'.format(search_string)
+        print url
+        response = requests.get(url)
         response_object = safe_load(response.text)
-        event_dicts = response_object['events']
-        event_count = response_object['count']
-        return {'count': event_count,
-                'events': list((self._augment_event_files(e) for e in (model.Event.from_dict(d) for d in event_dicts)))}
+        obs_dicts = response_object['obs']
+        obs_count = response_object['count']
+        return {'count': obs_count,
+                'events': [self._augment_observation_files(e)
+                           for e in (model.Observation.from_dict(d)
+                                     for d in obs_dicts)
+                           ]
+                }
 
     def search_files(self, search=None):
         """
@@ -119,7 +129,9 @@ class MeteorClient(object):
         if search is None:
             search = model.FileRecordSearch()
         search_string = _to_encoded_string(search)
-        response = requests.get(self.base_url + '/files/{0}'.format(search_string))
+        url = self.base_url + '/files/{0}'.format(search_string)
+        print url
+        response = requests.get(url)
         response_object = safe_load(response.text)
         file_dicts = response_object['files']
         file_count = response_object['count']
@@ -156,10 +168,10 @@ class MeteorClient(object):
         f.download_to = types.MethodType(download_to, f)
         return f
 
-    def _augment_event_files(self, e):
+    def _augment_observation_files(self, e):
         """
         Augment all the file records in an event
         :internal:
         """
-        e.file_records = list(self._augment_file(f) for f in e.file_records)
+        e.file_records = [self._augment_file(f) for f in e.file_records]
         return e
