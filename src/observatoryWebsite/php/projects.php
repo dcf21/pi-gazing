@@ -22,12 +22,14 @@ $pageTemplate->header($pageInfo);
 ?>
 
     <p class="text">
-        Once you've found a few <a href="/what-to-do">planes, satellites and meteors</a> spotted by Meteor Pi cameras, you'll
-        want to know what else you can see. The activity sheets below guide you through some more advanced activities.
+        Once you've tried searching for <a href="whattodo.php">planes, satellites and meteors</a> in the Meteor Pi
+        <a href="search.php">data archive</a>, you'll want to know what else you can see.
+        </p>
+    <p class="text">
+        Soon, we'll be releasing activity sheets on this page with graded difficulty levels. These will include:
     </p>
 
     <ul>
-        <li>Can you spot a meteor?</li>
         <li>How many constellations can you spot?</li>
         <li>Can you find the planets?</li>
         <li>Can you spot the International Space Station?</li>

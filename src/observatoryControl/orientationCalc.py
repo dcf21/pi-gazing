@@ -39,7 +39,9 @@ def sgn(x):
 
 
 def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
-    log_txt("Starting calculation of camera alignment")
+    log_prefix = "[%12s %s]" % (obstory_id, mod_astro.time_print(utc_to_study))
+
+    log_txt("%s Starting calculation of camera alignment" % log_prefix)
 
     # Mathematical constants
     deg = math.pi / 180
@@ -63,45 +65,47 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     if obstory_info and ('name' in obstory_info):
         obstory_status = db.get_obstory_status(obstory_name=obstory_info['name'], time=utc_now)
     if not obstory_status:
-        log_txt("Aborting -- no camera status set for camera <%s>" % obstory_id)
+        log_txt("%s Aborting -- no observatory status available." % log_prefix)
         db.close_db()
         return
+    obstory_name = obstory_info['name']
 
     # Search for background-subtracted time lapse photography within this range
     search = mp.FileRecordSearch(obstory_ids=[obstory_id], semantic_type="meteorpi:timelapse/frame/bgrdSub",
                                  time_min=utc_min, time_max=utc_max, limit=1000000)
     files = db.search_files(search)
     files = files['files']
-    log_txt("%d candidate time-lapse images in past 24 hours" % len(files))
 
     # Filter out files where the sky clarity is good and the Sun is well below horizon
     acceptable_files = []
     for f in files:
-        if db.get_file_metadata(f.id, 'meteorpi:skyClarity') < 25:
+        if db.get_file_metadata(f.id, 'meteorpi:skyClarity') < 30:
             continue
         if db.get_file_metadata(f.id, 'meteorpi:sunAlt') > -4:
             continue
         acceptable_files.append(f)
 
-    log_txt("%d acceptable images found for alignment (others do not have good sky quality)" % len(acceptable_files))
+    log_msg = ("%s %d still images in search period. %d meet sky quality requirements." %
+               (log_prefix, len(files), len(acceptable_files)))
 
     # If we don't have enough images, we can't proceed to get a secure orientation fit
-    if len(acceptable_files) < 10:
-        log_txt("Giving up: not enough suitable images")
+    if len(acceptable_files) < 8:
+        log_txt("%s Not enough suitable images." % log_msg)
         db.close_db()
         return
+    log_txt(log_msg)
 
     # We can't afford to run astrometry.net on too many images, so pick the 20 best ones
     acceptable_files.sort(key=lambda f: db.get_file_metadata(f.id, 'meteorpi:skyClarity'))
     acceptable_files.reverse()
-    acceptable_files = acceptable_files[0:24]
+    acceptable_files = acceptable_files[0:20]
 
     # Make a temporary directory to store files in.
     # This is necessary as astrometry.net spams the cwd with lots of temporary junk
     cwd = os.getcwd()
     pid = os.getpid()
     tmp = "/tmp/dcf21_orientationCalc_%d" % pid
-    log_txt("Created temporary directory <%s>" % tmp)
+    # log_txt("Created temporary directory <%s>" % tmp)
     os.system("mkdir %s" % tmp)
     os.chdir(tmp)
 
@@ -114,9 +118,11 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         img_name = f.file_name
         fit_obj = {'f': f, 'i': count, 'fit': False}
         fits.append(fit_obj)
-        log_txt("Determining orientation of image with timestamp <%s> (unix time %d) -- skyClarity=%.1f" % (
-            mod_astro.time_print(f.file_time), f.file_time, db.get_file_metadata(f.id, 'meteorpi:skyClarity')))
         filename = db.file_path_for_id(f.id)
+
+        if not os.path.exists(filename):
+            log_txt("%s Error! File <%s> is missing!" % (log_prefix, filename))
+            continue
 
         # 1. Copy image into working directory
         os.system("cp %s %s_tmp.png" % (filename, img_name))
@@ -138,7 +144,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
                    img_name))
 
         # 4. Slightly blur image to remove grain
-        os.system("convert %s_tmp3.png -colorspace sRGB -define png:format=png24 -gaussian-blur 8x2.5 %s_tmp4.png"
+        os.system("convert %s_tmp3.png -colorspace sRGB -define png:format=png24 -gaussian-blur 5x1.5 %s_tmp4.png"
                   % (img_name, img_name))
 
         fit_obj['fname_processed'] = '%s_tmp3.png' % img_name
@@ -153,22 +159,26 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
         # Check that we've not run out of time
         if utc_must_stop and (mod_log.get_utc() > utc_must_stop):
-            log_txt("We have run out of time! Aborting.")
+            log_txt("%s We have run out of time! Aborting." % log_prefix)
             continue
+
+        log_msg = ("Processed image <%s> from time <%s> -- skyClarity=%.1f. " %
+                   (f.id, mod_astro.time_print(f.file_time),
+                    db.get_file_metadata(f.id, 'meteorpi:skyClarity')))
 
         # Run astrometry.net. Insert --no-plots on the command line to speed things up.
         astrometry_start_time = mod_log.get_utc()
         os.system("timeout 2m /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --overwrite %s > txt"
                   % (fit['fname_processed']))
         astrometry_time_taken = mod_log.get_utc() - astrometry_start_time
-        log_txt("Astrometry.net took %d seconds to analyse image at time <%s>" % (astrometry_time_taken, f.file_time))
+        log_msg += ("Astrometry.net took %d sec. " % astrometry_time_taken)
 
         # Parse the output from astrometry.net
         fit_text = open("txt").read()
         test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",
                          fit_text)
         if not test:
-            log_txt("Failed. Cannot read central RA and Dec from image at <%s>" % f.file_time)
+            log_txt("%s FAIL(POS): %s" % (log_prefix, log_msg))
             continue
 
         ra_sign = sgn(float(test.group(1)))
@@ -181,7 +191,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
             dec *= -1
         test = re.search(r"up is [+]?([-\d\.]*) degrees (.) of N", fit_text)
         if not test:
-            log_txt("Failed. Cannot read position angle from image at <%s>" % f.file_time)
+            log_txt("%s FAIL(PA ): %s" % (log_prefix, log_msg))
             continue
 
         # This 180 degree rotation appears to be a bug in astrometry.net (pos angles relative to south, not north)
@@ -192,29 +202,31 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
             posang *= -1
         test = re.search(r"Field size: ([\d\.]*) x ([\d\.]*) deg", fit_text)
         if not test:
-            log_txt("Failed. Cannot read field size from image at <%s>" % f.file_time)
+            log_txt("%s FAIL(SIZ): %s" % (log_prefix, log_msg))
             continue
 
         # Expand size of image to whole image, not just the central tile we sent to astrometry.net
         scale_x = 2 * math.atan(math.tan(float(test.group(1)) / 2 * deg) * (1 / fraction_x)) * rad
         scale_y = 2 * math.atan(math.tan(float(test.group(2)) / 2 * deg) * (1 / fraction_y)) * rad
         fit.update({'fit': True, 'ra': ra, 'dec': dec, 'pa': posang, 'sx': scale_x, 'sy': scale_y})
-        log_txt("Success. RA: %7.2fh. Dec %7.2f deg. PA %6.1f deg. ScaleX %6.1f. ScaleY %6.1f." % (
-            ra, dec, posang, scale_x, scale_y))
         fit_list.append(fit)
 
         # Work out alt-az of each fitted position from known location of camera. Fits returned in degrees.
         alt_az = mod_astro.alt_az(fit['ra'], fit['dec'], fit['f'].file_time,
                                   obstory_status['latitude'], obstory_status['longitude'])
-        log_txt("Alt: %7.2f deg. Az: %7.2f deg." % (alt_az[0], alt_az[1]))
+        log_txt("%s PASS     : %s" % (log_prefix, log_msg))
+        log_txt("%s FIT      : RA: %7.2fh. Dec %7.2f deg. PA %6.1f deg. ScaleX %6.1f. ScaleY %6.1f. "
+                "Alt: %7.2f deg. Az: %7.2f deg." %
+                (log_prefix, ra, dec, posang, scale_x, scale_y, alt_az[0], alt_az[1]))
         alt_az_list.append(alt_az)
 
     # Average the resulting fits
     if len(fit_list) < 3:
-        log_txt("Giving up: astrometry.net only managed to fit %d images." % len(fit_list))
-        return None
-    else:
-        log_txt("astrometry.net managed to fit %d images out of %d." % (len(fit_list), len(fits)))
+        log_txt("%s ABORT    : astrometry.net only managed to fit %d images." % (log_prefix, len(fit_list)))
+        db.close_db()
+        os.chdir(cwd)
+        os.system("rm -Rf %s" % tmp)
+        return
 
     pa_list = [i['pa'] * deg for i in fits if i['fit']]
     pa_best = mod_astro.mean_angle(pa_list)[0]
@@ -228,9 +240,10 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     [alt_az_best, alt_az_error] = mod_astro.mean_angle_2d(alt_az_list_r)
 
     # Print fit information
-    log_txt("Orientation fit. "
+    log_txt("%s SUCCESSFUL ORIENTATION FIT (from %d images). "
             "Alt: %.2f deg. Az: %.2f deg. PA: %.2f deg. ScaleX: %.2f deg. ScaleY: %.2f deg. "
-            "Uncertainty: %.2f deg." % (alt_az_best[0] * rad,
+            "Uncertainty: %.2f deg." % (log_prefix, len(fit_list),
+                                        alt_az_best[0] * rad,
                                         alt_az_best[1] * rad,
                                         pa_best * rad,
                                         scale_x_best * rad,
@@ -238,13 +251,14 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
                                         alt_az_error * rad))
 
     # Update observatory status
-    user = mod_settings.settings['meteorpiUser']
-    utc = utc_to_study
-    db.register_obstory_metadata(obstory_id, "orientation_altitude", alt_az_best[0] * rad, utc, user)
-    db.register_obstory_metadata(obstory_id, "orientation_azimuth", alt_az_best[1] * rad, utc, user)
-    db.register_obstory_metadata(obstory_id, "orientation_error", alt_az_error * rad, utc, user)
-    db.register_obstory_metadata(obstory_id, "orientation_pa", pa_best * rad * rad, utc, user)
-    db.register_obstory_metadata(obstory_id, "orientation_width_field", scale_x_best * rad, utc, user)
+    if alt_az_error * rad < 0.6:
+        user = mod_settings.settings['meteorpiUser']
+        utc = utc_to_study
+        db.register_obstory_metadata(obstory_name, "orientation_altitude", alt_az_best[0] * rad, utc, user)
+        db.register_obstory_metadata(obstory_name, "orientation_azimuth", alt_az_best[1] * rad, utc, user)
+        db.register_obstory_metadata(obstory_name, "orientation_error", alt_az_error * rad, utc, user)
+        db.register_obstory_metadata(obstory_name, "orientation_pa", pa_best * rad, utc, user)
+        db.register_obstory_metadata(obstory_name, "orientation_width_field", scale_x_best * rad, utc, user)
     db.commit()
     db.close_db()
 
@@ -286,36 +300,34 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     return
 
 
-def reprocess_all_data():
+def reprocess_all_data(obstory_id):
     db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
-    obstories = db.get_obstory_ids()
-    for o in obstories:
-        db.con.execute("SELECT m.time FROM archive_metadata m "
-                       "INNER JOIN archive_observatories l ON m.observatory = l.uid "
-                       "AND l.publicId = %s AND m.time>0 "
-                       "ORDER BY m.time ASC LIMIT 1",
-                       (o,))
-        first_seen = 0
-        results = db.con.fetchall()
-        if results:
-            first_seen = results[0]['time']
-        db.con.execute("SELECT m.time FROM archive_metadata m "
-                       "INNER JOIN archive_observatories l ON m.observatory = l.uid "
-                       "AND l.publicId = %s AND m.time>0 "
-                       "ORDER BY m.time DESC LIMIT 1",
-                       (o,))
-        last_seen = 0
-        results = db.con.fetchall()
-        if results:
-            last_seen = results[0]['time']
-        day = 86400
-        utc = math.floor(first_seen / day) * day + day / 2
-        while utc < last_seen:
-            orientation_calc(obstory_id=o,
-                             utc_to_study=utc,
-                             utc_now=mod_log.get_utc(),
-                             utc_must_stop=0)
-            utc += day
+    db.con.execute("SELECT m.time FROM archive_metadata m "
+                   "INNER JOIN archive_observatories l ON m.observatory = l.uid "
+                   "AND l.publicId = %s AND m.time>0 "
+                   "ORDER BY m.time ASC LIMIT 1",
+                   (obstory_id,))
+    first_seen = 0
+    results = db.con.fetchall()
+    if results:
+        first_seen = results[0]['time']
+    db.con.execute("SELECT m.time FROM archive_metadata m "
+                   "INNER JOIN archive_observatories l ON m.observatory = l.uid "
+                   "AND l.publicId = %s AND m.time>0 "
+                   "ORDER BY m.time DESC LIMIT 1",
+                   (obstory_id,))
+    last_seen = 0
+    results = db.con.fetchall()
+    if results:
+        last_seen = results[0]['time']
+    day = 86400
+    utc = math.floor(first_seen / day) * day + day / 2
+    while utc < last_seen:
+        orientation_calc(obstory_id=obstory_id,
+                         utc_to_study=utc,
+                         utc_now=mod_log.get_utc(),
+                         utc_must_stop=0)
+        utc += day
 
 
 # If we're called as a script, run the method orientationCalc()
