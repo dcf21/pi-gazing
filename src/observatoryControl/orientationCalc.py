@@ -168,7 +168,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
         # Run astrometry.net. Insert --no-plots on the command line to speed things up.
         astrometry_start_time = mod_log.get_utc()
-        os.system("timeout 2m /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --overwrite %s > txt"
+        os.system("timeout 8m /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --overwrite %s > txt"
                   % (fit['fname_processed']))
         astrometry_time_taken = mod_log.get_utc() - astrometry_start_time
         log_msg += ("Astrometry.net took %d sec. " % astrometry_time_taken)
