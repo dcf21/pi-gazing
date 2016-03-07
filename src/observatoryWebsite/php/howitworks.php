@@ -28,8 +28,10 @@ $pageTemplate->header($pageInfo);
                     <div class="grey_box" style="padding:16px;">
                         <div class="pane-item" data-title="What our cameras look like">
                             <div class="rightimg">
-                                <img src="img/IMG_20150316_160453.jpg"/><br/>
-                                <b>Meteor Pi cameras are similar to CCTV cameras, but they point upwards at the sky!</b>
+                                <img src="img/IMG_20150316_160453.jpg"/>
+                                <p class="caption">
+                                    Meteor Pi cameras are similar to CCTV cameras, but they point upwards at the sky!
+                                </p>
                             </div>
 
                             <p class="text">
@@ -55,19 +57,20 @@ $pageTemplate->header($pageInfo);
 
 
                             <div class="rightimg">
-                                <img src="img/IMG_20150805_142114.jpg"/><br/>
-                                <b>The electronics in a Meteor Pi observatory. A Raspberry Pi Mk 2 analyses the pictures
-                                    to look for moving objects.</b>
+                                <img src="img/IMG_20150805_142114.jpg"/>
+                                <p class="caption">
+                                    The electronics in a Meteor Pi observatory. A Raspberry Pi Mk 2 analyses the pictures
+                                    to look for moving objects.
+                                </p>
                             </div>
                             <p class="text">
-                                What makes are observatories very different from CCTV cameras is the electronics that
+                                What makes our observatories very different from CCTV cameras is the electronics that
                                 analyses the video signal.
                             </p>
                             <p class="text">
                                 We have a Raspberry Pi 2 Model B computer, which receives the pictures from the video
-                                camera and analyses them. It takes still photographs every 30 seconds through the night,
-                                and also monitors the video pictures to look for
-                                moving objects.
+                                camera and analyses them. It takes long-exposure still photographs every 30 seconds
+                                through the night, and also monitors the video feed to look for moving objects.
                             </p>
                             <p class="text">
                                 The system is designed to be entirely autonomous. Once a camera has been set up, we can
@@ -83,9 +86,11 @@ $pageTemplate->header($pageInfo);
                             <h3 style="padding-top:0;">The Meteor Pi network</h3>
 
                             <div class="rightimg">
-                                <img src="img/simultaneous.png"/><br/>
-                                <b>By observing from many different locations, we hope eventually to be able to
-                                    triangulate the 3D positions of objects.</b>
+                                <img src="img/simultaneous.png"/>
+                                <p class="caption">
+                                    By observing from many different locations, we hope eventually to be able to
+                                    triangulate the 3D positions of objects.
+                                </p>
                             </div>
                             <p class="text">
                                 Our cameras are spread across a number of locations in the east of England, and we
@@ -113,7 +118,7 @@ $pageTemplate->header($pageInfo);
                             <h3 style="padding-top:0;">The Meteor Pi website</h3>
 
                             <p class="text">
-                                All of our cameras are programmed to automatically transmit all of their observations
+                                All of our cameras are programmed to automatically transmit all their observations
                                 to a central archive each day.
                             </p>
                             <p class="text">

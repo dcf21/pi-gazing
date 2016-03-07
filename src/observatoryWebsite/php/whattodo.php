@@ -86,13 +86,19 @@ $pageTemplate->header($pageInfo);
                             <img style="width:60px;margin:5px 200px 16px 0;" src="img/mini_plane.png"/>
 
                             <div class="rightimg">
-                                <img style="width:400px;" src="img/example_plane.png"/>
-                                <p class="caption">
-                                    An example image of a plane, as it might appear when you search Meteor Pi images.
-                                    <a href="moving_obj.php?id=20160203_204726_ae6e95f84da1e69e">
-                                        Click here to see a full video of the event.
-                                    </a>
-                                </p>
+                                <div class="gallery_with_markers">
+                                    <div data-path="[[378,360,1454532446.745],[460,351,1454532458.140],[531,343,1454532469.341]]">
+                                        <img class="gallery_path_marker" alt="" title="" src="img/crosshair.gif"/>
+                                        <img class="gallery_img" style="width:400px;" src="img/example_plane.png"/>
+                                        <p class="caption">
+                                            An example image of a plane, as it might appear when you search Meteor Pi
+                                            images.
+                                            <a href="moving_obj.php?id=20160203_204726_ae6e95f84da1e69e">
+                                                Click here to see a full video of the event.
+                                            </a>
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
 
                             <p class="text">
@@ -115,10 +121,10 @@ $pageTemplate->header($pageInfo);
                             <h3 style="padding-top:0;">Is it a meteor?</h3>
 
                             <div class="rightimg">
-                                <img style="width:400px;"
-                                     src="img/example_meteor.png"/>
+                                <img style="width:400px;" src="img/example_meteor.png"/>
                                 <p class="caption">
-                                    An example image of a meteor, as it might appear when you search Meteor Pi images.
+                                    An example image of a meteor, as it might appear when you search Meteor Pi
+                                    images.
                                     <a href="moving_obj.php?id=20160212_034057_4c5aead12cf736d2">
                                         Click here to see a full video of the event.
                                     </a>
@@ -137,7 +143,7 @@ $pageTemplate->header($pageInfo);
                             </p>
                             <div style="text-align:center;padding:20px;">
                                 <div class="gallery_image">
-                                <img src="img/duration_satellite.png" style="width:200px;"/>
+                                    <img src="img/duration_satellite.png" style="width:200px;"/>
                                 </div>
                             </div>
                             <p class="text">
@@ -145,8 +151,8 @@ $pageTemplate->header($pageInfo);
                                 you're very likely to find a few shooting stars.
                             </p>
                             <p class="text">
-                                Shooting stars burn up high in the atmosphere, far above the clouds, and so they're
-                                only visible in clear weather. On clear starry nights, we often see two or three each
+                                Shooting stars are only visible in clear weather, as they burn up high in the
+                                atmosphere, far above the clouds. On clear starry nights, we often see two or three each
                                 night.
                             </p>
                             <div class="pane-controls"></div>
@@ -156,7 +162,7 @@ $pageTemplate->header($pageInfo);
                             <h3 style="padding-top:0;">Is it satellite?</h3>
                             <img style="width:60px;margin:5px 200px 16px 0;" src="img/mini_satellite.png"/>
 
-                            <div class="rightimg">
+                            <div class="rightimg position_relative">
                                 <img style="width:400px;" src="img/example_satellite.png"/>
                                 <p class="caption">
                                     An example image of a satellite, as it might appear when you search Meteor Pi

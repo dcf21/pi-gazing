@@ -30,12 +30,12 @@ $pageTemplate->header($pageInfo);
             <div class="faq_answer panel-collapse collapse" id="collapse1">
 
                 <div class="rightimg">
-                    <img src="img/Meteor_trail_over_Chelyabinsk.jpg" style="max-width:450px;"/><br/>
-                    <b>
+                    <img src="img/Meteor_trail_over_Chelyabinsk.jpg" style="max-width:450px;"/>
+                    <p class="caption">
                         The meteor which burnt up over Chelyabinsk, Russia, on 15 February 2013 was so large that it
                         left a long-lasting trail of smoke in its wake. Most meteors completely vanish within a
                         fraction of a second.
-                    </b>
+                    </p>
                 </div>
 
                 <p class="text">
@@ -73,11 +73,11 @@ $pageTemplate->header($pageInfo);
             <div class="faq_answer panel-collapse collapse" id="collapse2">
 
                 <div class="rightimg">
-                    <img src="img/cloudyskies.png"/><br/>
-                    <b>
+                    <img src="img/cloudyskies.png"/>
+                    <p class="caption">
                         Meteor Pi cameras observe on cloudy skies as well as starry ones. Sometimes the Moon or
                         twilight can dazzle them!
-                    </b>
+                    </p>
                 </div>
 
                 <p class="text">
@@ -104,10 +104,10 @@ $pageTemplate->header($pageInfo);
             <div class="faq_answer panel-collapse collapse" id="collapse3">
 
                 <div class="rightimg">
-                    <img src="img/system_diagram.png" style="max-width:450px;"/><br/>
-                    <b>
+                    <img src="img/system_diagram.png" style="max-width:450px;"/>
+                    <p class="caption">
                         The collection of hardware found inside a Meteor Pi camera.
-                    </b>
+                    </p>
                 </div>
 
                 <p class="text">
@@ -146,10 +146,11 @@ $pageTemplate->header($pageInfo);
             <div class="faq_answer panel-collapse collapse" id="collapse4">
 
                 <div class="rightimg">
-                    <img src="img/IMG_20150624_172144.jpg"/><br/>
-                    <b>We use the most sensitive security cameras we could find, with large lenses on the front to catch
+                    <img src="img/IMG_20150624_172144.jpg"/>
+                    <p class="caption">
+                        We use the most sensitive security cameras we could find, with large lenses on the front to catch
                         as much light as possible.
-                    </b>
+                    </p>
                 </div>
 
                 <p class="text">
