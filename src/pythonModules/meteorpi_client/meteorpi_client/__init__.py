@@ -99,7 +99,7 @@ class MeteorClient(object):
             search = model.ObservationSearch()
         search_string = _to_encoded_string(search)
         url = self.base_url + '/obs/{0}'.format(search_string)
-        print url
+        # print url
         response = requests.get(url)
         response_object = safe_load(response.text)
         obs_dicts = response_object['obs']
@@ -130,7 +130,7 @@ class MeteorClient(object):
             search = model.FileRecordSearch()
         search_string = _to_encoded_string(search)
         url = self.base_url + '/files/{0}'.format(search_string)
-        print url
+        # print url
         response = requests.get(url)
         response_object = safe_load(response.text)
         file_dicts = response_object['files']
