@@ -10,7 +10,6 @@ deg = pi / 180
 
 # Return the [RA, Dec] of the Sun at a given Unix time. See Jean Meeus, Astronomical Algorithms, pp 163-4
 def sun_pos(utc):
-
     jd = utc / 86400.0 + 2440587.5
 
     t = (jd - 2451545.0) / 36525.
@@ -136,6 +135,32 @@ def alt_az(ra, dec, utc, latitude, longitude):
     return [alt * 180 / pi, az * 180 / pi]  # [altitude, azimuth] of object in degrees
 
 
+# Converts an altitude and azimuth into an RA and Dec
+# RA is returned in hours. All other angles should be in degrees.
+def ra_dec(alt, az, utc, latitude, longitude):
+    alt *= pi / 180
+    az *= pi / 180
+    st = sidereal_time(utc) * pi / 12 + longitude * pi / 180
+    xyz3 = [sin(az) * cos(alt), cos(az) * cos(alt), sin(-alt)]
+
+    # Rotate by latitude around x-axis
+    xyz2 = [0, 0, 0]
+    t = pi / 2 - latitude * pi / 180
+    xyz2[0] = xyz3[0]
+    xyz2[1] = xyz3[1] * cos(t) + xyz3[2] * sin(t)
+    xyz2[2] = -xyz3[1] * sin(t) + xyz3[2] * cos(t)
+
+    # Rotate by hour angle around y-axis
+    xyz = [0, 0, 0]
+    xyz[0] = xyz2[0] * cos(st) + xyz2[2] * sin(st)
+    xyz[1] = xyz2[1]
+    xyz[2] = -xyz2[0] * sin(st) + xyz2[2] * cos(st)
+
+    dec = -asin(xyz[1])
+    ra = atan2(xyz[0], xyz[2])
+    return [ra * 12 / pi, dec * 180 / pi]
+
+
 # Returns the Julian Day number of a calendar date (British calendar)
 def julian_day(year, month, day, hour, minute, sec):
     last_julian_day = 17520902.0
@@ -222,3 +247,285 @@ def mean_angle_2d(pos_list):
             pos_list))
     asd = atan(sd)  # Find angular spread of points as seen from centre
     return [pmean, asd]  # [Mean,SD] in radians
+
+
+# Functions for dealing with planes and lines
+
+class Point:
+    def __init__(self, x, y, z):
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def __str__(self):
+        return "Point(%s,%s,%s)" % (self.x, self.y, self.z)
+
+    def to_vector(self):
+        return Vector(self.x, self.y, self.z)
+
+    def add_vector(self, other):
+        """
+        Add a Vector to this point
+        :param Vector other:
+        :return Point:
+        """
+        return Point(self.x + other.x, self.y + other.y, self.z + other.z)
+
+    def displacement_vector_from(self, other):
+        """
+        Returns the Vector displacement of self from other.
+        :param Point other:
+        :return Vector:
+        """
+        return Vector(self.x - other.x, self.y - other.y, self.z - other.z)
+
+    def displacement_from_origin(self):
+        """
+        Returns the vector displacement of this Point from the origin.
+        :return Vector:
+        """
+        return Vector(self.x, self.y, self.z)
+
+    def __abs__(self):
+        """
+        Returns the distance of this point from the origin
+        :return float:
+        """
+        return sqrt(self.x * self.x + self.y * self.y + self.z * self.z)
+
+    @staticmethod
+    def from_lat_lng(lat, lng, utc):
+        lat *= pi / 180
+        lng *= pi / 180
+        st = sidereal_time(utc) * pi / 12
+        r_earth = 6371e3
+        x = r_earth * sin(lng + st) * cos(lat)
+        y = r_earth * cos(lng + st) * cos(lat)
+        z = r_earth * sin(lat)
+        return Vector(x, y, z)
+
+    def to_lat_lng(self, utc):
+        mag = abs(self)
+        deg = 180 * pi
+        st = sidereal_time(utc) * pi / 12
+        r_earth = 6371e3
+        lat = asin(self.z / mag) * deg
+        lng = (atan2(self.x, self.y) - st) * deg
+        lng = fmod(lng, 360)
+        while lng < 0:
+            lng += 360
+        return {'lat': lat, 'lng': lng, 'alt': mag - r_earth}
+
+
+class Vector:
+    def __init__(self, x, y, z):
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def __str__(self):
+        return "Vector(%s,%s,%s)" % (self.x, self.y, self.z)
+
+    def __add__(self, other):
+        """
+        Add two Vectors together.
+        :param Vector other:
+        :return Vector:
+        """
+        return Vector(self.x + other.x, self.y + other.y, self.z + other.z)
+
+    def __radd__(self, other):
+        """
+        Add two Vectors together.
+        :param Vector other:
+        :return Vector:
+        """
+        return Vector(self.x + other.x, self.y + other.y, self.z + other.z)
+
+    def __sub__(self, other):
+        """
+        Subtract another Vector from this one.
+        :param Vector other:
+        :return Vector:
+        """
+        return Vector(self.x - other.x, self.y - other.y, self.z - other.z)
+
+    def __mul__(self, other):
+        """
+        Multiply this Vector by a scalar
+        :param float other:
+        :return Vector:
+        """
+        return Vector(self.x * other, self.y * other, self.z * other)
+
+    def __imul__(self, other):
+        """
+        Multiply this Vector by a scalar
+        :param float other:
+        :return Vector:
+        """
+        return Vector(self.x * other, self.y * other, self.z * other)
+
+    def __div__(self, other):
+        """
+        Divide this Vector by a scalar
+        :param float other:
+        :return Vector:
+        """
+        return Vector(self.x / other, self.y / other, self.z / other)
+
+    def __abs__(self):
+        """
+        Returns the magnitude (i.e. length) of this Vector.
+        :return float:
+        """
+        return sqrt(self.x * self.x + self.y * self.y + self.z * self.z)
+
+    @staticmethod
+    def from_ra_dec(ra, dec):
+        """
+        Converts an (RA, Dec) pair into a unit vector.
+        :param float ra: Right ascension / hours
+        :param float dec: Declination / degrees
+        :return:
+        """
+        ra *= pi / 12
+        dec *= pi / 180
+        x = sin(ra) * cos(dec)
+        y = cos(ra) * cos(dec)
+        z = sin(dec)
+        return Vector(x, y, z)
+
+    def to_ra_dec(self):
+        """
+        Converts a vector into an (RA, Dec) direction.
+        :return Dict:
+        """
+        mag = abs(self)
+        dec = asin(self.z / mag)
+        ra = atan2(self.x, self.y)
+        ra *= 12 / pi
+        dec *= 180 / pi
+        return {'ra': ra, 'dec': dec}
+
+    def cross_product(self, other):
+        """
+        Returns the cross product of two vectors.
+        :param Vector other:
+        :return Vector:
+        """
+        x_out = self.y * other.z - self.z * other.y
+        y_out = self.z * other.x - self.x * other.z
+        z_out = self.x * other.y - self.y * other.x
+        return Vector(x_out, y_out, z_out)
+
+    def dot_product(self, other):
+        """
+        Rteurns the dot product of two Vectors.
+        :param Vector other:
+        :return float:
+        """
+        return self.x * other.x + self.y * other.y + self.z * other.z
+
+
+class Line:
+    def __init__(self, x0, direction):
+        """
+        Equation of a line, in the form x = x0 + i*direction
+        :param Point x0:
+        :param Vector direction:
+        :return:
+        """
+        self.x0 = x0
+        self.direction = direction
+
+    def __str__(self):
+        return "Line( x0=Point(%s,%s,%s), direction=Vector(%s,%s,%s))" % (self.x0.x, self.x0.y, self.x0.z,
+                                                                          self.direction.x, self.direction.y,
+                                                                          self.direction.z)
+
+    def point(self, i):
+        """
+        Returns a point on the line.
+        :param float i:
+        :return Point:
+        """
+        return self.x0.add_vector(self.direction * i)
+
+    def to_plane(self, other):
+        """
+        Returns the plane containing this line and another direction vector.
+        :param Vector other:
+        :return Plane:
+        """
+        normal = self.direction.cross_product(other)
+        p = -normal.dot_product(self.x0.displacement_from_origin())
+        return Plane(normal=normal, p=p)
+
+    def find_intersection(self, other):
+        """
+        Find the point of intersection between two lines. This is over-constrained, so we find intersection in (x,y)
+        plane
+        :param Line other:
+        :return Point:
+        """
+        d = self.direction
+        d2 = other.direction
+        p = self.x0
+        p2 = other.x0
+        j = (d.y * p.x - d.x * p.y - d.y * p2.x + d.x * p2.y) / (d2.x * d.y - d2.y * d.x)
+        return other.point(j)
+
+    @staticmethod
+    def average_from_list(lines):
+        """
+        Return the average of a set of lines
+        :param list[Line] lines:
+        :return:
+        """
+        if len(lines) < 1:
+            return None
+        origin = Point(0, 0, 0)
+        x0_sum = Vector(0, 0, 0)
+        direction_sum = Vector(0, 0, 0)
+        for line in lines:
+            x0_sum += line.x0.to_vector()
+            direction_sum += line.direction
+        return Line(x0=origin.add_vector(x0_sum / len(lines)),
+                    direction=direction_sum / len(lines))
+
+
+class Plane:
+    def __init__(self, normal, p):
+        """
+        Equation of a plane, in the form n.x+p = 0
+        :param Vector normal:
+        :param float p:
+        :return:
+        """
+        self.normal = normal
+        self.p = p
+
+    def __str__(self):
+        return "Plane( normal=Vector(%s,%s,%s), p=%s)" % (self.normal.x, self.normal.y, self.normal.z, self.p)
+
+    def line_of_intersection(self, other):
+        """
+        Find the line of intersection between two planes
+        :param Plane other:
+        :return Line:
+        """
+        direction = self.normal.cross_product(other.normal)
+
+        n = self.normal
+        n2 = other.normal
+        p = self.p
+        p2 = other.p
+
+        # Now find a sample point which is in both planes
+        z = 0
+        y = (n.x * p2 - n2.x * p) / (n2.x * n.y - n.x * n2.y)
+        x = (n.y * p2 - n2.y * p) / (n2.y * n.x - n.y * n2.x)
+
+        x0 = Point(x, y, z)
+        return Line(direction=direction, x0=x0)

@@ -27,7 +27,7 @@ foreach ($result_list as $item) {
     else $link = "/moving_obj.php?id=" . $item['obsId'];
     $paneList[] = ["link" => $link,
         "caption" => "<div class='smallcaps'>" .
-            "<a href='/observatory.php?id={$item['locId']}'>{$item['obsName']}</a>" .
+            "<a href='observatory.php?id={$item['locId']}'>{$item['obsName']}</a>" .
             "<br />" .
             date("d M Y - H:i", $item['obsTime']) . "</div>{$item['caption']}",
         "teaser" => "api/files/content/" . $item['repositoryFname'] . "/" . $item['fileName']
