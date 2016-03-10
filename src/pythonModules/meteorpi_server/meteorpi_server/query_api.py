@@ -88,7 +88,7 @@ def add_routes(meteor_app, url_path=''):
                 obstory_name = obstory_info['name']
                 status = db.get_obstory_status(obstory_name=obstory_name, time=float(unix_time))
         except ValueError:
-            return jsonify({'error': 'No such observatory "%s".'%obstory_id})
+            return jsonify({'error': 'No such observatory "%s".' % obstory_id})
         db.close_db()
         return jsonify({'status': status})
 
@@ -96,7 +96,10 @@ def add_routes(meteor_app, url_path=''):
     @app.route('{0}/obs/<search_string>'.format(url_path), methods=['GET'], strict_slashes=True)
     def search_events(search_string):
         db = meteor_app.get_db()
-        search = mp.ObservationSearch.from_dict(safe_load(unquote(search_string)))
+        try:
+            search = mp.ObservationSearch.from_dict(safe_load(unquote(search_string)))
+        except ValueError:
+            return jsonify({'error': str(sys.exc_info()[1])})
         observations = db.search_observations(search)
         db.close_db()
         return jsonify({'obs': list(x.as_dict() for x in observations['obs']), 'count': observations['count']})
@@ -108,7 +111,7 @@ def add_routes(meteor_app, url_path=''):
         try:
             search = mp.FileRecordSearch.from_dict(safe_load(unquote(search_string)))
         except ValueError:
-            return jsonify({'error':sys.exc_info()[0]})
+            return jsonify({'error': str(sys.exc_info()[1])})
         files = db.search_files(search)
         db.close_db()
         return jsonify({'files': list(x.as_dict() for x in files['files']), 'count': files['count']})
