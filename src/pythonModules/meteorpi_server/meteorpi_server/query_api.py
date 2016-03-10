@@ -3,6 +3,7 @@
 # Dominic Ford, Tom Oinn
 
 import os
+import sys
 import re
 import time
 from urllib import unquote
@@ -81,10 +82,13 @@ def add_routes(meteor_app, url_path=''):
         if unix_time is None:
             unix_time = time.time()
         status = {}
-        obstory_info = db.get_obstory_from_id(obstory_id)
-        if obstory_info:
-            obstory_name = obstory_info['name']
-            status = db.get_obstory_status(obstory_name=obstory_name, time=float(unix_time))
+        try:
+            obstory_info = db.get_obstory_from_id(obstory_id)
+            if obstory_info:
+                obstory_name = obstory_info['name']
+                status = db.get_obstory_status(obstory_name=obstory_name, time=float(unix_time))
+        except ValueError:
+            return jsonify({'error': 'No such observatory "%s".'%obstory_id})
         db.close_db()
         return jsonify({'status': status})
 
@@ -101,7 +105,10 @@ def add_routes(meteor_app, url_path=''):
     @app.route('{0}/files/<search_string>'.format(url_path), methods=['GET'])
     def search_files(search_string):
         db = meteor_app.get_db()
-        search = mp.FileRecordSearch.from_dict(safe_load(unquote(search_string)))
+        try:
+            search = mp.FileRecordSearch.from_dict(safe_load(unquote(search_string)))
+        except ValueError:
+            return jsonify({'error':sys.exc_info()[0]})
         files = db.search_files(search)
         db.close_db()
         return jsonify({'files': list(x.as_dict() for x in files['files']), 'count': files['count']})

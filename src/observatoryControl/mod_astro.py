@@ -4,6 +4,7 @@
 
 from math import *
 from exceptions import KeyError
+import scipy.optimize
 
 deg = pi / 180
 
@@ -302,7 +303,7 @@ class Point:
         x = r_earth * sin(lng + st) * cos(lat)
         y = r_earth * cos(lng + st) * cos(lat)
         z = r_earth * sin(lat)
-        return Vector(x, y, z)
+        return Point(x, y, z)
 
     def to_lat_lng(self, utc):
         mag = abs(self)
@@ -406,6 +407,10 @@ class Vector:
         ra = atan2(self.x, self.y)
         ra *= 12 / pi
         dec *= 180 / pi
+        while ra < 0:
+            ra += 24
+        while ra >= 24:
+            ra -= 24
         return {'ra': ra, 'dec': dec}
 
     def cross_product(self, other):
@@ -469,30 +474,43 @@ class Line:
         :param Line other:
         :return Point:
         """
-        d = self.direction
-        d2 = other.direction
-        p = self.x0
-        p2 = other.x0
-        j = (d.y * p.x - d.x * p.y - d.y * p2.x + d.x * p2.y) / (d2.x * d.y - d2.y * d.x)
-        return other.point(j)
+        # d = self.direction
+        # d2 = other.direction
+        # p = self.x0
+        # p2 = other.x0
+        # j = (d.y * p.x - d.x * p.y - d.y * p2.x + d.x * p2.y) / (d2.x * d.y - d2.y * d.x)
+        # return other.point(j)
+
+        def mismatch_slave(parameters):
+            [i,j] = parameters
+            return abs(self.point(i).displacement_vector_from(other.point(j)))
+
+        params_initial = [0,0]
+        params_optimised = scipy.optimize.minimize(mismatch_slave, params_initial, method='nelder-mead',
+                                                   options={'xtol': 1e-7, 'disp': False, 'maxiter': 1e5, 'maxfev': 1e5}
+                                                   ).x
+        return self.point(params_optimised[0])
 
     @staticmethod
     def average_from_list(lines):
         """
-        Return the average of a set of lines
-        :param list[Line] lines:
+        Return the weighted average of a set of lines
+        :param list[list] lines: List of [Line, weighting]
         :return:
         """
         if len(lines) < 1:
             return None
         origin = Point(0, 0, 0)
         x0_sum = Vector(0, 0, 0)
+        sum = 0
         direction_sum = Vector(0, 0, 0)
-        for line in lines:
-            x0_sum += line.x0.to_vector()
-            direction_sum += line.direction
-        return Line(x0=origin.add_vector(x0_sum / len(lines)),
-                    direction=direction_sum / len(lines))
+        for item in lines:
+            [line, weight] = item
+            x0_sum += line.x0.to_vector() * weight
+            direction_sum += line.direction * weight
+            sum += weight
+        return Line(x0=origin.add_vector(x0_sum / sum),
+                    direction=direction_sum / sum)
 
 
 class Plane:
@@ -523,9 +541,12 @@ class Plane:
         p2 = other.p
 
         # Now find a sample point which is in both planes
-        z = 0
-        y = (n.x * p2 - n2.x * p) / (n2.x * n.y - n.x * n2.y)
-        x = (n.y * p2 - n2.y * p) / (n2.y * n.x - n.y * n2.x)
+        try:
+            z = 0
+            y = (n.x * p2 - n2.x * p) / (n2.x * n.y - n.x * n2.y)
+            x = (n.y * p2 - n2.y * p) / (n2.y * n.x - n.y * n2.x)
+        except ZeroDivisionError:
+            return None
 
         x0 = Point(x, y, z)
         return Line(direction=direction, x0=x0)

@@ -204,8 +204,8 @@ class FileRecordSearch(ModelEqualityMixin):
         :param Boolean exclude_imported:
             Optional, if True excludes any FileRecords which were imported from another node.
         """
-        if obstory_ids is not None and len(obstory_ids) == 0:
-            raise ValueError('If obstory_ids is specified it must contain at least one ID')
+        if (type(obstory_ids) is not list) and len(obstory_ids) == 0:
+            raise ValueError('If obstory_ids is specified it must be a list and must contain at least one ID')
         if lat_min is not None and lat_max is not None and lat_max < lat_min:
             raise ValueError('Latitude max cannot be less than latitude minimum')
         if long_min is not None and long_max is not None and long_max < long_min:
@@ -359,8 +359,8 @@ class ObservationSearch(ModelEqualityMixin):
         :param Boolean exclude_imported:
             Optional, if True excludes any Observations which were imported from another node.
         """
-        if obstory_ids is not None and len(obstory_ids) == 0:
-            raise ValueError('If obstory_ids is specified it must contain at least one ID')
+        if (type(obstory_ids) is not list) and len(obstory_ids) == 0:
+            raise ValueError('If obstory_ids is specified it must be a list and must contain at least one ID')
         if lat_min is not None and lat_max is not None and lat_max < lat_min:
             raise ValueError('Latitude max cannot be less than latitude minimum')
         if long_min is not None and long_max is not None and long_max < long_min:

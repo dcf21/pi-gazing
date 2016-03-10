@@ -1,10 +1,10 @@
 #!../../virtual-env/bin/python
-# searchCoincidentDetections.py
+# searchSimultaneousDetections.py
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
 # Search the database for moving objects seen at similar times by multiple observatories. Create observation group
-# objects to describe the coincidences.
+# objects to describe the simultaneous detections.
 
 import sys
 import time
@@ -43,8 +43,8 @@ if utc_min is None:
     utc_min = 0
 
 # Allow user to override search parameters
-utc_min = fetch_option("start time", utc_min)
-utc_max = fetch_option("stop time", utc_max)
+utc_min = float(fetch_option("start time", utc_min))
+utc_max = float(fetch_option("stop time", utc_max))
 
 # Search for existing observation groups
 search = mp.ObservationGroupSearch(semantic_type=semantic_type,
@@ -104,6 +104,15 @@ if confirm not in 'Yy':
 # Delete existing observation groups
 for item in existing_groups:
     db.delete_obsgroup(item.id)
+
+# Delete existing triangulation metadata
+db.con.execute("""
+DELETE m FROM archive_metadata m
+INNER JOIN archive_observations o ON m.observationId = o.uid
+WHERE
+fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'triangulation%%') AND
+o.obsTime>=%s AND o.obsTime<=%s;
+""", (utc_min, utc_max))
 
 # Loop over list of simultaneous event detections
 for item in groups:
@@ -175,7 +184,7 @@ for item in groups:
         object_plane = detected_direction_list[0]['line'].to_plane(detected_direction_list[-1]['direction'])
 
         # Store calculated information about observation
-        trigger['observatory_position'] = observatory_position
+        trigger['obs_position'] = observatory_position
         trigger['detected_direction_list'] = detected_direction_list
         trigger['object_plane'] = object_plane
         trigger['can_triangulate'] = True
@@ -189,7 +198,15 @@ for item in groups:
         planeA = pair[0]['object_plane']
         planeB = pair[1]['object_plane']
         object_trajectory = planeA.line_of_intersection(planeB)
-        triangulations.append(object_trajectory)
+        if object_trajectory is None:
+            continue
+        vector_between_observatories = pair[0]['obs_position'].displacement_vector_from(pair[1]['obs_position'])
+        weighting = abs(vector_between_observatories)
+        triangulations.append([object_trajectory, weighting])
+
+    # If we don't have any valid triangulations, give up
+    if len(triangulations) < 1:
+        continue
 
     # Average triangulations to find best fit line
     best_triangulation = mod_astro.Line.average_from_list(triangulations)
@@ -200,16 +217,16 @@ for item in groups:
         if 'can_triangulate' in trigger:
             detected_position_list = []
             detected_position_info = []
-            for item in trigger['detected_direction_list']:
-                sight_line = item['line']
-                observatory_position = sight_line.x0
+            for detection in trigger['detected_direction_list']:
+                sight_line = detection['line']
+                observatory_position = trigger['obs_position']
                 object_position = best_triangulation.find_intersection(sight_line)
-                object_lat_lng = object_position.to_lat_lng(item['utc'])
-                object_distance = abs(object_position.displacement_vector_from(object_position))
+                object_lat_lng = object_position.to_lat_lng(detection['utc'])
+                object_distance = abs(object_position.displacement_vector_from(observatory_position))
                 detected_position_list.append(object_position)
-                detected_position_info.append({'ra': item['ra'],
-                                               'dec': item['dec'],
-                                               'utc': item['utc'],
+                detected_position_info.append({'ra': detection['ra'],
+                                               'dec': detection['dec'],
+                                               'utc': detection['utc'],
                                                'lat': object_lat_lng['lat'],
                                                'lng': object_lat_lng['lng'],
                                                'alt': object_lat_lng['alt'],
@@ -225,7 +242,7 @@ for item in groups:
                              'position_list': detected_position_info}
 
             # Store triangulated information in database
-            meta_item = mp.Meta("triangulation",json.dumps(triangulation))
+            meta_item = mp.Meta("triangulation", json.dumps(triangulation))
             db.set_observation_metadata(observation_id=trigger['obs'].id,
                                         meta=meta_item,
                                         user_id=mod_settings.settings['meteorpiUser'])
