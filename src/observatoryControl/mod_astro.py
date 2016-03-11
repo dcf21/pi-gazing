@@ -159,6 +159,9 @@ def ra_dec(alt, az, utc, latitude, longitude):
 
     dec = -asin(xyz[1])
     ra = atan2(xyz[0], xyz[2])
+
+    while ra < 0:
+        ra += 2 * pi
     return [ra * 12 / pi, dec * 180 / pi]
 
 
@@ -307,7 +310,7 @@ class Point:
 
     def to_lat_lng(self, utc):
         mag = abs(self)
-        deg = 180 * pi
+        deg = 180 / pi
         st = sidereal_time(utc) * pi / 12
         r_earth = 6371e3
         lat = asin(self.z / mag) * deg
@@ -474,6 +477,7 @@ class Line:
         :param Line other:
         :return Point:
         """
+
         # d = self.direction
         # d2 = other.direction
         # p = self.x0
@@ -482,13 +486,15 @@ class Line:
         # return other.point(j)
 
         def mismatch_slave(parameters):
-            [i,j] = parameters
+            [i, j] = parameters
             return abs(self.point(i).displacement_vector_from(other.point(j)))
 
-        params_initial = [0,0]
+        params_initial = [0, 0]
         params_optimised = scipy.optimize.minimize(mismatch_slave, params_initial, method='nelder-mead',
                                                    options={'xtol': 1e-7, 'disp': False, 'maxiter': 1e5, 'maxfev': 1e5}
                                                    ).x
+        from mod_log import log_txt
+        log_txt("Finding intersection: residual was %s" % mismatch_slave(params_optimised))
         return self.point(params_optimised[0])
 
     @staticmethod
@@ -502,15 +508,15 @@ class Line:
             return None
         origin = Point(0, 0, 0)
         x0_sum = Vector(0, 0, 0)
-        sum = 0
+        weight_sum = 0
         direction_sum = Vector(0, 0, 0)
         for item in lines:
             [line, weight] = item
             x0_sum += line.x0.to_vector() * weight
             direction_sum += line.direction * weight
-            sum += weight
-        return Line(x0=origin.add_vector(x0_sum / sum),
-                    direction=direction_sum / sum)
+            weight_sum += weight
+        return Line(x0=origin.add_vector(x0_sum / weight_sum),
+                    direction=direction_sum / weight_sum)
 
 
 class Plane:
@@ -527,6 +533,14 @@ class Plane:
     def __str__(self):
         return "Plane( normal=Vector(%s,%s,%s), p=%s)" % (self.normal.x, self.normal.y, self.normal.z, self.p)
 
+    def perpendicular_distance_to_point(self, other):
+        """
+        Calculate the perpendicular distance of a point from a place
+        :param Point other:
+        :return:
+        """
+        return self.normal.dot_product(other.displacement_from_origin()) + self.p
+
     def line_of_intersection(self, other):
         """
         Find the line of intersection between two planes
@@ -534,6 +548,11 @@ class Plane:
         :return Line:
         """
         direction = self.normal.cross_product(other.normal)
+        mag = abs(direction)
+
+        # Normalise direction vector
+        if mag > 0:
+            direction = direction / mag
 
         n = self.normal
         n2 = other.normal
