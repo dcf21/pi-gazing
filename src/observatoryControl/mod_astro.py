@@ -4,7 +4,6 @@
 
 from math import *
 from exceptions import KeyError
-import scipy.optimize
 
 deg = pi / 180
 
@@ -253,6 +252,30 @@ def mean_angle_2d(pos_list):
     return [pmean, asd]  # [Mean,SD] in radians
 
 
+# Return the position angle of the great circle path from (RA1, Dec1) to (RA2, Dec2), as seen at the former point
+def position_angle(ra1, dec1, ra2, dec2):
+    dec1 *= pi / 180
+    dec2 *= pi / 180
+    ra1 *= pi / 12
+    ra2 *= pi / 12
+    y = sin(ra2 - ra1) * cos(dec2)
+    x = cos(dec1) * sin(dec2) - sin(dec1) * cos(dec2) * cos(ra2 - ra1)
+    bearing = atan2(y, x)
+    return bearing * 180 / pi
+
+
+# Return the right ascension and declination of the zenith
+def get_zenith_position(lat, lng, utc):
+    st = sidereal_time(utc)
+    lat *= pi / 180
+    lng *= pi / 180
+    x = sin(lng + st) * cos(lat)
+    y = cos(lng + st) * cos(lat)
+    z = sin(lat)
+    v = Vector(x, y, z)
+    return v.to_ra_dec()
+
+
 # Functions for dealing with planes and lines
 
 class Point:
@@ -435,6 +458,25 @@ class Vector:
         """
         return self.x * other.x + self.y * other.y + self.z * other.z
 
+    def angle_with(self, other):
+        """
+        Returns the angle between two Vectors (radians)
+        :param Vector other:
+        :return float:
+        """
+        dot = self.dot_product(other)
+        mag1 = abs(self)
+        mag2 = abs(other)
+        return dot / mag1 / mag2
+
+    def normalise(self):
+        """
+        Return the unit vector in the same direction as this vector
+        :return Vector:
+        """
+        mag = abs(self)
+        return Vector(self.x / mag, self.y / mag, self.z / mag)
+
 
 class Line:
     def __init__(self, x0, direction):
@@ -470,32 +512,35 @@ class Line:
         p = -normal.dot_product(self.x0.displacement_from_origin())
         return Plane(normal=normal, p=p)
 
-    def find_intersection(self, other):
+    def find_closest_approach(self, other):
         """
-        Find the point of intersection between two lines. This is over-constrained, so we find intersection in (x,y)
-        plane
+        Find the point of closest approach between two lines.
         :param Line other:
-        :return Point:
+        :return Dict:
         """
 
-        # d = self.direction
-        # d2 = other.direction
-        # p = self.x0
-        # p2 = other.x0
-        # j = (d.y * p.x - d.x * p.y - d.y * p2.x + d.x * p2.y) / (d2.x * d.y - d2.y * d.x)
-        # return other.point(j)
+        # https://books.google.co.uk/books?id=NKONAgAAQBAJ&pg=PA20#v=onepage&q&f=false
 
-        def mismatch_slave(parameters):
-            [i, j] = parameters
-            return abs(self.point(i).displacement_vector_from(other.point(j)))
+        p1 = self.x0
+        p2 = other.x0
+        r = self.direction
+        d = other.direction
 
-        params_initial = [0, 0]
-        params_optimised = scipy.optimize.minimize(mismatch_slave, params_initial, method='nelder-mead',
-                                                   options={'xtol': 1e-7, 'disp': False, 'maxiter': 1e5, 'maxfev': 1e5}
-                                                   ).x
-        from mod_log import log_txt
-        log_txt("Finding intersection: residual was %s" % mismatch_slave(params_optimised))
-        return self.point(params_optimised[0])
+        p1_minus_p2 = p2.displacement_vector_from(p1)
+
+        d_dot_r = d.dot_product(r)
+
+        mu = (p1_minus_p2.dot_product(d) - p1_minus_p2.dot_product(r) * d_dot_r) / (1 - pow(d_dot_r, 2))
+
+        lambda_ = mu * d_dot_r - p1_minus_p2.dot_product(r)
+
+        self_point = self.point(lambda_)
+        other_point = other.point(mu)
+        distance = abs(self_point.displacement_vector_from(other_point))
+        angular_distance = self_point.displacement_from_origin().angle_with(other_point.displacement_from_origin())
+
+        return {'self_point': self_point, 'other_point': other_point,
+                'distance': distance, 'angular_distance': angular_distance}
 
     @staticmethod
     def average_from_list(lines):

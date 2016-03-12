@@ -10,6 +10,7 @@ import sys
 import time
 import json
 from math import tan, atan, pi
+import scipy.optimize
 
 import meteorpi_db
 import meteorpi_model as mp
@@ -99,11 +100,34 @@ for i in range(len(triggers)):
 
     # We have found a coincident detection if multiple observatories saw an event at the same time
     if len(obstory_list) > 1:
-        groups.append({'time': (utc_min + utc_max) / 2,
-                       'obstory_list': obstory_list,
-                       'time_spread': utc_max - utc_min,
-                       'triggers': [{'obs': triggers[x]} for x in group_members],
-                       'ids': [triggers[x].id for x in group_members]})
+        maximum_obstory_spacing = 0
+
+        # Work out locations of all observatories which saw this event
+        obstory_locs = []
+        for obstory_id in obstory_list:
+            obstory_info = db.get_obstory_from_id(obstory_id)
+            obstory_loc = mod_astro.Point.from_lat_lng(lat=obstory_info['latitude'],
+                                                       lng=obstory_info['longitude'],
+                                                       utc=(utc_min + utc_max) / 2
+                                                       )
+            obstory_locs.append(obstory_loc)
+
+        # Check the distances between all pairs of observatories
+        pairs = [[obstory_locs[i],obstory_locs[j]]
+                 for i in range(len(obstory_list))
+                 for j in range(i + 1, len(obstory_list))
+                 ]
+        for pair in pairs:
+            maximum_obstory_spacing = max(maximum_obstory_spacing,
+                                          pair[0].displacement_vector_from(pair[1]))
+
+        # Reject event if it was not seen by any observatories more than 400 metres apart
+        if maximum_obstory_spacing > 400:
+            groups.append({'time': (utc_min + utc_max) / 2,
+                           'obstory_list': obstory_list,
+                           'time_spread': utc_max - utc_min,
+                           'triggers': [{'obs': triggers[x]} for x in group_members],
+                           'ids': [triggers[x].id for x in group_members]})
 
 print "%6d existing observation groups within this time period (will be deleted)." % (len(existing_groups))
 print "%6d moving objects seen within this time period" % (len(triggers_raw['obs']))
@@ -147,13 +171,12 @@ for item in groups:
                                                                                      item['time_spread']))
     log_txt("Observation IDs: %s" % item['ids'])
 
-    # We do all positional astronomy assuming the position of the observatory and stars at the middle of the event.
-    # This means that all speeds are measured in the frame of the observer.
-    # There is no displacement to object
+    # We do all positional astronomy in the frame of the Earth geocentre.
+    # This means that all speeds are measured in the non-rotating frame of the centre of the Earth.
     group_time = item['time']
 
     # Attempt to triangulate object
-    triangulations = []
+    all_sight_lines = []
 
     # Work out position of each observatory, and centre of field of view of each observatory
     for trigger in item['triggers']:
@@ -172,130 +195,179 @@ for item in groups:
         bcc = obstory_status['lens_barrel_c']
         path = json.loads(path_json)
 
-        # Look up the physical position of the observatory
-        observatory_position = mod_astro.Point.from_lat_lng(lat=obstory_status['latitude'],
-                                                            lng=obstory_status['longitude'],
-                                                            utc=group_time)
-
-        # Calculate the celestial coordinates of the centre of the frame
-        [ra0, dec0] = mod_astro.ra_dec(alt=obstory_status['orientation_altitude'],
-                                       az=obstory_status['orientation_azimuth'],
-                                       utc=group_time,
-                                       latitude=obstory_status['latitude'],
-                                       longitude=obstory_status['longitude'])
-        ra0_rad = ra0 * pi / 12  # Convert hours into radians
-        dec0_rad = dec0 * pi / 180  # Convert degrees into radians
-
-        # Convert these to celestial coordinates
+        # Look up size of image frame
         size_x = obstory_status['sensor_width']
         size_y = obstory_status['sensor_height']
         scale_x = obstory_status['orientation_width_field'] * pi / 180
         scale_y = 2 * atan(tan(scale_x / 2) * size_y / size_x)
 
         # For each positional fix on object, convert pixel coordinates into celestial coordinates
-        detected_direction_list = []
+        sight_line_list = []
         for point in path:
+            utc = point[2]
+
+            # Look up the physical position of the observatory
+            observatory_position = mod_astro.Point.from_lat_lng(lat=obstory_status['latitude'],
+                                                                lng=obstory_status['longitude'],
+                                                                utc=utc)
+
+            # Calculate the celestial coordinates of the centre of the frame
+            [ra0, dec0] = mod_astro.ra_dec(alt=obstory_status['orientation_altitude'],
+                                           az=obstory_status['orientation_azimuth'],
+                                           utc=utc,
+                                           latitude=obstory_status['latitude'],
+                                           longitude=obstory_status['longitude'])
+            ra0_rad = ra0 * pi / 12  # Convert hours into radians
+            dec0_rad = dec0 * pi / 180  # Convert degrees into radians
+
+            # Convert orientation_pa into position angle of the centre of the field of view
+            # This is the position angle of the zenith, clockwise from vertical, at the centre of the frame
+            # If the camera is roughly upright, this ought to be close to zero!
+            camera_tilt = obstory_status['orientation_pa']
+
+            # Get celestial coordinates of the local zenith
+            ra_dec_zenith = mod_astro.get_zenith_position(lat=obstory_status['latitude'],
+                                                          lng=obstory_status['longitude'],
+                                                          utc=utc)
+            ra_zenith = ra_dec_zenith['ra']
+            dec_zenith = ra_dec_zenith['dec']
+
+            # Work out the position angle of the zenith, clockwise from north, as measured at centre of frame
+            zenith_pa = mod_astro.position_angle(ra0, dec0, ra_zenith, dec_zenith)
+
+            # Work out the position angle of "up" relative to celestial north
+            celestial_pa = zenith_pa - camera_tilt
+
+            # Work out the RA and Dec of the point where the object was spotted
             [ra, dec] = mod_gnomonic.inv_gnom_project(ra0=ra0_rad, dec0=dec0_rad,
                                                       x=point[0], y=point[1],
                                                       size_x=size_x, size_y=size_y,
                                                       scale_x=scale_x, scale_y=scale_y,
-                                                      pos_ang=obstory_status['orientation_pa'],
+                                                      pos_ang=celestial_pa * pi / 180,
                                                       bca=bca, bcb=bcb, bcc=bcc)
             ra *= 12 / pi  # Convert RA into hours
             dec *= 180 / pi  # Convert Dec into degrees
             direction = mod_astro.Vector.from_ra_dec(ra, dec)
             sight_line = mod_astro.Line(observatory_position, direction)
-            detected_direction_list.append({
+            sight_line_descriptor = {
                 'ra': ra,
                 'dec': dec,
                 'utc': point[2],
-                'direction': direction,
+                'obs_position': observatory_position,
                 'line': sight_line
-            })
+            }
+            sight_line_list.append(sight_line_descriptor)
+            all_sight_lines.append(sight_line_descriptor)
 
-            log_txt("Observatory <%s> is pointing at (alt %.2f; az %.2f; PA %.2f) and (RA %.3f h; Dec %.2f deg). "
+            log_txt("Observatory <%s> is pointing at (alt %.2f; az %.2f; tilt %.2f; PA %.2f) "
+                    "and (RA %.3f h; Dec %.2f deg). "
                     "ScaleX = %.1f deg. ScaleY = %.1f deg." %
                     (obstory_id,
                      obstory_status['orientation_altitude'], obstory_status['orientation_azimuth'],
-                     obstory_status['orientation_pa'],
+                     celestial_pa, obstory_status['orientation_pa'],
                      ra0, dec0,
                      scale_x * 180 / pi, scale_y * 180 / pi))
             log_txt("Observatory <%s> saw object at RA %.3f h; Dec %.3f deg, with sight line %s." %
                     (obstory_id, ra, dec, sight_line))
 
-        # Get plane containing direction of start and end of path
-        object_plane = detected_direction_list[0]['line'].to_plane(detected_direction_list[-1]['direction'])
-        log_txt("Observatory <%s> sight lines fit into plane in space: %s." % (obstory_id, object_plane))
-
         # Store calculated information about observation
-        trigger['obs_position'] = observatory_position
-        trigger['detected_direction_list'] = detected_direction_list
-        trigger['object_plane'] = object_plane
-        trigger['can_triangulate'] = True
+        trigger['sight_line_list'] = sight_line_list
 
-    # Make a list of all pairs of observations
-    triggers = [i for i in item['triggers'] if 'can_triangulate' in i]
-    pairs = [[triggers[i], triggers[j], i, j] for i in range(len(triggers)) for j in range(i + 1, len(triggers))]
-
-    # Make a triangulation based on each pair
-    for pair in pairs:
-        log_txt("Attempting triangulation on the basis of observations %d and %d." % (pair[2], pair[3]))
-        planeA = pair[0]['object_plane']
-        planeB = pair[1]['object_plane']
-        object_trajectory = planeA.line_of_intersection(planeB)
-        if object_trajectory is None:
-            continue
-        vector_between_observatories = pair[0]['obs_position'].displacement_vector_from(pair[1]['obs_position'])
-        distance_between_observatories = abs(vector_between_observatories)
-        log_txt("Distance between observatories is %s metres." % distance_between_observatories)
-        if distance_between_observatories < 400:
-            log_txt("Rejecting, because observatories are less than 400 metres apart.")
-            continue
-        log_txt("Triangulated path of object through space is %s." % object_trajectory)
-        weighting = distance_between_observatories
-        triangulations.append([object_trajectory, weighting])
-
-    # If we don't have any valid triangulations, give up
-    if len(triangulations) < 1:
+    # If we don't have fewer than six sight lines, don't bother trying to triangulate
+    if len(all_sight_lines) < 6:
+        log_txt("Giving up triangulation as we only have %d sight lines to object." % (len(all_sight_lines)))
         continue
 
-    # Average triangulations to find best fit line
-    best_triangulation = mod_astro.Line.average_from_list(triangulations)
+
+    # Work out the sum of square angular mismatches of sightlines to a test trajectory
+    def line_from_parameters(p):
+        x0 = mod_astro.Point(p[0] * 1000, p[1] * 1000, 0)
+        d = mod_astro.Vector.from_ra_dec(p[2], p[3])
+        trajectory = mod_astro.Line(x0=x0, direction=d)
+        return trajectory
+
+
+    def angular_mismatch_slave(p):
+        trajectory = line_from_parameters(p)
+        mismatch = 0
+        for sight in all_sight_lines:
+            closest_point = trajectory.find_closest_approach(sight)
+            mismatch += closest_point['angular_distance']
+        return mismatch
+
+
+    params_initial = [0, 0, 0, 0]
+    params_optimised = scipy.optimize.minimize(angular_mismatch_slave, params_initial, method='nelder-mead',
+                                               options={'xtol': 1e-7, 'disp': False, 'maxiter': 1e6, 'maxfev': 1e6}
+                                               ).x
+    best_triangulation = line_from_parameters(params_optimised)
     log_txt("Best fit path of object through space is %s." % best_triangulation)
-    object_direction_ra_dec = best_triangulation.direction.to_ra_dec()
+
+    log_txt("Mismatch of observed sight lines from trajectory are %s deg." %
+            (["%.1f" % best_triangulation.find_closest_approach(s)['angular_distance'] for s in all_sight_lines]))
+
+    maximum_mismatch = max([best_triangulation.find_closest_approach(s)['angular_distance'] for s in all_sight_lines])
+
+    # Reject trajectory if it deviates by more than 3 degrees from any observation
+    if maximum_mismatch > 3:
+        log_txt("Mismatch is too great. Trajectory fit is rejected.")
+        continue
 
     # Add triangulation information to each observation
     for trigger in item['triggers']:
-        if 'can_triangulate' in trigger:
-            detected_position_list = []
+        if 'sight_line_list' in trigger:
             detected_position_info = []
             for detection in trigger['detected_direction_list']:
                 sight_line = detection['line']
-                observatory_position = trigger['obs_position']
-                object_position = best_triangulation.find_intersection(sight_line)
-                object_lat_lng = object_position.to_lat_lng(detection['utc'])
-                object_distance = abs(object_position.displacement_vector_from(observatory_position))
-                detected_position_list.append(object_position)
+                observatory_position = detection['obs_position']
+                object_position = best_triangulation.find_closest_approach(sight_line)
+                object_lat_lng = object_position['self_point'].to_lat_lng(detection['utc'])
+                object_distance = abs(object_position['self_point'].displacement_vector_from(observatory_position))
+                detection['object_position'] = observatory_position
                 detected_position_info.append({'ra': detection['ra'],
                                                'dec': detection['dec'],
                                                'utc': detection['utc'],
                                                'lat': object_lat_lng['lat'],
                                                'lng': object_lat_lng['lng'],
                                                'alt': object_lat_lng['alt'],
-                                               'dist': object_distance})
+                                               'dist': object_distance,
+                                               'ang_mismatch': observatory_position['angular_distance']
+                                               })
 
             # Make descriptor of triangulated information
-            distance_covered = detected_position_list[-1].displacement_vector_from(detected_position_list[0])
-            time_span = detected_position_info[-1]['utc'] - detected_position_info[0]['utc']
-            speed = abs(distance_covered / time_span)
-            triangulation = {'heading_ra': object_direction_ra_dec['ra'],
-                             'heading_dec': object_direction_ra_dec['dec'],
-                             'speed': speed,
-                             'position_list': detected_position_info}
-            log_txt("Triangulated details of observation <%s> is %s." % (trigger['obs'].id, triangulation))
+            trigger_0 = trigger['detected_direction_list'][0]
+            trigger_1 = trigger['detected_direction_list'][-1]
+            obs_position_0 = trigger_0['obs_position']  # Position of observatory at first sighting
+            obj_position_0 = trigger_0['object_position']  # Position of object at first sighting
+            utc_0 = trigger_0['utc']
+            obs_position_1 = trigger_1['obs_position']  # Position of observatory at last sighting
+            obj_position_1 = trigger_1['object_position']  # Position of object at last sighting
+            utc_1 = trigger_1['utc']
+
+            # Work out speed of object relative to centre of the Earth
+            displacement_geocentre_frame = obj_position_1.displacement_vector_from(obj_position_0)
+            time_span = utc_1 - utc_0
+            speed_geocentre_frame = abs(displacement_geocentre_frame / time_span)
+            object_direction_geocentre_frame = best_triangulation.direction.to_ra_dec()
+
+            # Work out speed of object relative to observer
+            point_0_obs_frame = obj_position_0.displacement_vector_from(obs_position_0)
+            point_1_obs_frame = obj_position_1.displacement_vector_from(obs_position_1)
+            displacement_obs_frame = point_1_obs_frame - point_0_obs_frame
+            speed_obs_frame = abs(displacement_obs_frame / time_span)
+            object_direction_obs_frame = displacement_obs_frame.direction.to_ra_dec()
+
+            triangulation_info = {'observer_frame_heading_ra': object_direction_obs_frame['ra'],
+                                  'observer_frame_heading_dec': object_direction_obs_frame['dec'],
+                                  'observer_frame_speed': speed_obs_frame,
+                                  'geocentre_heading_ra': object_direction_geocentre_frame['ra'],
+                                  'geocentre_heading_dec': object_direction_geocentre_frame['dec'],
+                                  'geocentre_speed': speed_geocentre_frame,
+                                  'position_list': detected_position_info}
+            log_txt("Triangulated details of observation <%s> is %s." % (trigger['obs'].id, triangulation_info))
 
             # Store triangulated information in database
-            meta_item = mp.Meta("triangulation", json.dumps(triangulation))
+            meta_item = mp.Meta("triangulation", json.dumps(triangulation_info))
             db.set_observation_metadata(observation_id=trigger['obs'].id,
                                         meta=meta_item,
                                         user_id=mod_settings.settings['meteorpiUser'])

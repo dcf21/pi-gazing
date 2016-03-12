@@ -16,9 +16,8 @@ $obstory_name = $getargs->obstory_objs[$obstory]['name'];
 // Fetch observatory metadata
 $stmt = $const->db->prepare("
 SELECT m.time, mf.metaKey, m.floatValue, m.stringValue FROM archive_metadata m
-INNER JOIN archive_observatories o ON m.observatory = o.uid
 INNER JOIN archive_metadataFields mf ON m.fieldId = mf.uid
-WHERE o.publicId=:o
+WHERE m.observatory=(SELECT uid FROM archive_observatories WHERE publicId=:o)
 ORDER BY m.time DESC;");
 $stmt->bindParam(':o', $o, PDO::PARAM_STR, strlen($obstory));
 $stmt->execute(['o' => $obstory]);

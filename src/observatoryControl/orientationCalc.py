@@ -47,9 +47,13 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     deg = math.pi / 180
     rad = 180 / math.pi
 
+    # This is an estimate of the *maximum* angular width we expect images to have.
+    # It should be within a factor of two of correct!
+    estimated_image_scale = 85
+
     # When passing images to astrometry.net, only work on the central portion, as this will have least bad distortion
-    fraction_x = 0.7
-    fraction_y = 0.7
+    fraction_x = 0.6
+    fraction_y = 0.6
 
     # Path the binary barrel-correction tool
     barrel_correct = os.path.join(mod_settings.settings['stackerPath'], "barrel")
@@ -143,10 +147,6 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
                    (1 - fraction_x) * d[0] / 2, (1 - fraction_y) * d[1] / 2,
                    img_name))
 
-        # 4. Slightly blur image to remove grain
-        os.system("convert %s_tmp3.png -colorspace sRGB -define png:format=png24 -gaussian-blur 5x1.5 %s_tmp4.png"
-                  % (img_name, img_name))
-
         fit_obj['fname_processed'] = '%s_tmp3.png' % img_name
         fit_obj['fname_original'] = '%s_tmp.png' % img_name
         fit_obj['dims'] = d  # Dimensions of *original* image
@@ -168,13 +168,17 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
         # Run astrometry.net. Insert --no-plots on the command line to speed things up.
         astrometry_start_time = mod_log.get_utc()
-        os.system("timeout 8m /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --overwrite %s > txt"
-                  % (fit['fname_processed']))
+        os.system("timeout 90s /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --scale-low %.1f "
+                  "--scale-high %.1f --overwrite %s > txt"
+                  % (estimated_image_scale * fraction_x * 0.5,
+                     estimated_image_scale * fraction_x * 1.0,
+                     fit['fname_processed']))
         astrometry_time_taken = mod_log.get_utc() - astrometry_start_time
         log_msg += ("Astrometry.net took %d sec. " % astrometry_time_taken)
 
         # Parse the output from astrometry.net
         fit_text = open("txt").read()
+        log_txt(fit_text)
         test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",
                          fit_text)
         if not test:
@@ -194,30 +198,56 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
             log_txt("%s FAIL(PA ): %s" % (log_prefix, log_msg))
             continue
 
-        # This 180 degree rotation appears to be a bug in astrometry.net (pos angles relative to south, not north)
-        posang = float(test.group(1)) + 180
-        while posang > 180:
-            posang -= 360
+        # celestial_pa is the position angle of the upward vector in the centre of the image, clockwise from celestial
+        # north.
+        # * It is zero if the pole star is vertical above the centre of the image.
+        # * If the pole star is in the top-right of an image, expect it to be around -45 degrees.
+        # * This 180 degree rotation appears to be a bug in astrometry.net (pos angles relative to south, not north)
+        celestial_pa = float(test.group(1)) + 180
+        while celestial_pa > 180:
+            celestial_pa -= 360
         if test.group(2) == "W":
-            posang *= -1
+            celestial_pa *= -1
         test = re.search(r"Field size: ([\d\.]*) x ([\d\.]*) deg", fit_text)
         if not test:
             log_txt("%s FAIL(SIZ): %s" % (log_prefix, log_msg))
             continue
 
-        # Expand size of image to whole image, not just the central tile we sent to astrometry.net
+        # Expand reported size of image to whole image, not just the central tile we sent to astrometry.net
         scale_x = 2 * math.atan(math.tan(float(test.group(1)) / 2 * deg) * (1 / fraction_x)) * rad
         scale_y = 2 * math.atan(math.tan(float(test.group(2)) / 2 * deg) * (1 / fraction_y)) * rad
-        fit.update({'fit': True, 'ra': ra, 'dec': dec, 'pa': posang, 'sx': scale_x, 'sy': scale_y})
-        fit_list.append(fit)
 
-        # Work out alt-az of each fitted position from known location of camera. Fits returned in degrees.
+        # Work out alt-az of reported (RA,Dec) using known location of camera. Fits returned in degrees.
         alt_az = mod_astro.alt_az(fit['ra'], fit['dec'], fit['f'].file_time,
                                   obstory_status['latitude'], obstory_status['longitude'])
+
+        # Get celestial coordinates of the local zenith
+        ra_dec_zenith = mod_astro.get_zenith_position(obstory_status['latitude'],
+                                                      obstory_status['longitude'],
+                                                      fit['f'].file_time)
+        ra_zenith = ra_dec_zenith['ra']
+        dec_zenith = ra_dec_zenith['dec']
+
+        # Work out the position angle of the zenith, clockwise from north, as measured at centre of frame
+        zenith_pa = mod_astro.position_angle(fit['ra'], fit['dec'], ra_zenith, dec_zenith)
+
+        # Calculate the position angle of the zenith, clockwise from vertical, at the centre of the frame
+        # If the camera is roughly upright, this ought to be close to zero!
+        camera_tilt = zenith_pa - celestial_pa
+        while camera_tilt < -180:
+            camera_tilt += 360
+        while camera_tilt > 180:
+            camera_tilt -= 360
+
         log_txt("%s PASS     : %s" % (log_prefix, log_msg))
         log_txt("%s FIT      : RA: %7.2fh. Dec %7.2f deg. PA %6.1f deg. ScaleX %6.1f. ScaleY %6.1f. "
-                "Alt: %7.2f deg. Az: %7.2f deg." %
-                (log_prefix, ra, dec, posang, scale_x, scale_y, alt_az[0], alt_az[1]))
+                "Alt: %7.2f deg. Az: %7.2f deg. PA: %7.2f deg." %
+                (log_prefix, ra, dec, celestial_pa, scale_x, scale_y, alt_az[0], alt_az[1], camera_tilt))
+
+        # Store information about fit
+        fit.update({'fit': True, 'ra': ra, 'dec': dec, 'pa': celestial_pa, 'sx': scale_x, 'sy': scale_y,
+                    'camera_tilt': camera_tilt})
+        fit_list.append(fit)
         alt_az_list.append(alt_az)
 
     # Average the resulting fits
@@ -228,7 +258,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         os.system("rm -Rf %s" % tmp)
         return
 
-    pa_list = [i['pa'] * deg for i in fits if i['fit']]
+    pa_list = [i['camera_tilt'] * deg for i in fits if i['fit']]
     pa_best = mod_astro.mean_angle(pa_list)[0]
     scale_x_list = [i['sx'] * deg for i in fits if i['fit']]
     scale_x_best = mod_astro.mean_angle(scale_x_list)[0]
