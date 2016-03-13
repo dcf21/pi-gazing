@@ -89,7 +89,7 @@ void GnomonicProject(double RA, double Dec, double RA0, double Dec0, int SizeX, 
     }
     make_zenithal(RA, Dec, RA0, Dec0, &za, &az);
     radius = tan(za);
-    az -= posang;
+    az += posang;
 
     // Correction for barrel distortion
     double r = radius / tan(ScaleY / 2);
@@ -114,7 +114,7 @@ void InvGnomProject(double *RA, double *Dec, double RA0, double Dec0, int SizeX,
     double y2 = (y - SizeY / 2.) / (SizeY / 2. / tan(ScaleY / 2.));
 
     double za = atan(hypot(x2, y2));
-    double az = atan2(-x2, y2) + posang;
+    double az = atan2(-x2, y2) - posang;
 
     // Correction for barrel distortion
     double r = za / tan(ScaleY / 2.);

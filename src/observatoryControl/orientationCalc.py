@@ -16,6 +16,7 @@ import meteorpi_db
 import meteorpi_model as mp
 
 import mod_astro
+import mod_gnomonic
 import mod_log
 from mod_log import log_txt
 import mod_settings
@@ -49,11 +50,11 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
     # This is an estimate of the *maximum* angular width we expect images to have.
     # It should be within a factor of two of correct!
-    estimated_image_scale = 85
+    estimated_image_scale = installation_info.local_conf['estimated_image_scale']
 
     # When passing images to astrometry.net, only work on the central portion, as this will have least bad distortion
-    fraction_x = 0.6
-    fraction_y = 0.6
+    fraction_x = 0.5
+    fraction_y = 0.5
 
     # Path the binary barrel-correction tool
     barrel_correct = os.path.join(mod_settings.settings['stackerPath'], "barrel")
@@ -168,10 +169,11 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
         # Run astrometry.net. Insert --no-plots on the command line to speed things up.
         astrometry_start_time = mod_log.get_utc()
-        os.system("timeout 90s /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --scale-low %.1f "
-                  "--scale-high %.1f --overwrite %s > txt"
-                  % (estimated_image_scale * fraction_x * 0.5,
-                     estimated_image_scale * fraction_x * 1.0,
+        estimated_width = 2 * math.atan(math.tan(estimated_image_scale / 2 * deg) * fraction_x) * rad
+        os.system("timeout 100s /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --scale-low %.1f "
+                  "--scale-high %.1f --odds-to-tune-up 1e4 --odds-to-solve 1e7 --overwrite %s > txt"
+                  % (estimated_width * 0.6,
+                     estimated_width * 1.2,
                      fit['fname_processed']))
         astrometry_time_taken = mod_log.get_utc() - astrometry_start_time
         log_msg += ("Astrometry.net took %d sec. " % astrometry_time_taken)
@@ -198,16 +200,19 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
             log_txt("%s FAIL(PA ): %s" % (log_prefix, log_msg))
             continue
 
-        # celestial_pa is the position angle of the upward vector in the centre of the image, clockwise from celestial
-        # north.
+        # celestial_pa is the position angle of the upward vector in the centre of the image, counterclockwise
+        #  from celestial north.
         # * It is zero if the pole star is vertical above the centre of the image.
         # * If the pole star is in the top-right of an image, expect it to be around -45 degrees.
-        # * This 180 degree rotation appears to be a bug in astrometry.net (pos angles relative to south, not north)
-        celestial_pa = float(test.group(1)) + 180
-        while celestial_pa > 180:
-            celestial_pa -= 360
+        celestial_pa = float(test.group(1))
+        # * This 180 degree rotation appears because when astrometry.net says "up" it means the bottom of the image!
+        celestial_pa += 180
         if test.group(2) == "W":
             celestial_pa *= -1
+        while celestial_pa > 180:
+            celestial_pa -= 360
+        while celestial_pa < -180:
+            celestial_pa += 360
         test = re.search(r"Field size: ([\d\.]*) x ([\d\.]*) deg", fit_text)
         if not test:
             log_txt("%s FAIL(SIZ): %s" % (log_prefix, log_msg))
@@ -218,7 +223,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         scale_y = 2 * math.atan(math.tan(float(test.group(2)) / 2 * deg) * (1 / fraction_y)) * rad
 
         # Work out alt-az of reported (RA,Dec) using known location of camera. Fits returned in degrees.
-        alt_az = mod_astro.alt_az(fit['ra'], fit['dec'], fit['f'].file_time,
+        alt_az = mod_astro.alt_az(ra, dec, fit['f'].file_time,
                                   obstory_status['latitude'], obstory_status['longitude'])
 
         # Get celestial coordinates of the local zenith
@@ -228,8 +233,8 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         ra_zenith = ra_dec_zenith['ra']
         dec_zenith = ra_dec_zenith['dec']
 
-        # Work out the position angle of the zenith, clockwise from north, as measured at centre of frame
-        zenith_pa = mod_astro.position_angle(fit['ra'], fit['dec'], ra_zenith, dec_zenith)
+        # Work out the position angle of the zenith, counterclockwise from north, as measured at centre of frame
+        zenith_pa = mod_gnomonic.position_angle(ra, dec, ra_zenith, dec_zenith)
 
         # Calculate the position angle of the zenith, clockwise from vertical, at the centre of the frame
         # If the camera is roughly upright, this ought to be close to zero!
@@ -241,8 +246,10 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
         log_txt("%s PASS     : %s" % (log_prefix, log_msg))
         log_txt("%s FIT      : RA: %7.2fh. Dec %7.2f deg. PA %6.1f deg. ScaleX %6.1f. ScaleY %6.1f. "
-                "Alt: %7.2f deg. Az: %7.2f deg. PA: %7.2f deg." %
-                (log_prefix, ra, dec, celestial_pa, scale_x, scale_y, alt_az[0], alt_az[1], camera_tilt))
+                "Zenith at (%.2f h,%.2f deg). PA Zenith %.2f deg. "
+                "Alt: %7.2f deg. Az: %7.2f deg. Tilt: %7.2f deg." %
+                (log_prefix, ra, dec, celestial_pa, scale_x, scale_y, ra_zenith, dec_zenith, zenith_pa,
+                 alt_az[0], alt_az[1], camera_tilt))
 
         # Store information about fit
         fit.update({'fit': True, 'ra': ra, 'dec': dec, 'pa': celestial_pa, 'sx': scale_x, 'sy': scale_y,
@@ -288,45 +295,14 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         db.register_obstory_metadata(obstory_name, "orientation_azimuth", alt_az_best[1] * rad, utc, user)
         db.register_obstory_metadata(obstory_name, "orientation_error", alt_az_error * rad, utc, user)
         db.register_obstory_metadata(obstory_name, "orientation_pa", pa_best * rad, utc, user)
-        db.register_obstory_metadata(obstory_name, "orientation_width_field", scale_x_best * rad, utc, user)
+        db.register_obstory_metadata(obstory_name, "orientation_width_x_field", scale_x_best * rad, utc, user)
+        db.register_obstory_metadata(obstory_name, "orientation_width_y_field", scale_y_best * rad, utc, user)
     db.commit()
     db.close_db()
-
-    # Output catalogue of image fits -- this is to be fed into the lens-fitting code
-    # f = open("imageFits.gnom", "w")
-    # f.write("SET output /tmp/output.png\n")
-    # f.write("SET barrel_a %.6f\n" % obstory_status['lens_barrel_a'])
-    # f.write("SET barrel_b %.6f\n" % obstory_status['lens_barrel_b'])
-    # f.write("SET barrel_c %.6f\n" % obstory_status['lens_barrel_c'])
-    # f.write("SET latitude %s\n" % obstory_status['latitude'])
-    # f.write("SET longitude %s\n" % obstory_status['longitude'])
-
-    # Exposure compensation, x_size, y_size, Central RA, Central Dec, position angle, scale_x, scale_y
-    # fit = fit_list[int(math.floor(len(fit_list) / 2))]
-    # f.write("%-102s %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f\n"
-    #        % ("GNOMONIC", 1, fit['dims'][0], fit['dims'][1],
-    #           fit['ra'], fit['dec'], fit['pa'],
-    #           fit['sx'], fit['sy'])
-    #        )
-    # for fit in fits:
-    #    if fit['fit']:
-    #        d = fit['dims']
-    #        f.write("ADD %-93s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f\n" % (
-    #            fit['fname_original'], 1, 1, d[0], d[1], fit['ra'], fit['dec'], fit['pa'], fit['sx'], fit['sy']))
-    #    else:
-    #        f.write("# Cannot read central RA and Dec from %s\n" % (fit['fname_original']))
-    # f.close()
-
-    # Run <gnomonicStack/align_regularise.py> which uses the fact that we know camera's pointing is fixed to fix
-    # in central RA and Dec for image astrometry.net failed on
-    # os.system("%s/align_regularise.py %s > %s" % (mod_settings.settings['stackerPath'],
-    #                                              "imageFits.gnom",
-    #                                              "imageFits_2.gnom"))
 
     # Clean up and exit
     os.chdir(cwd)
     os.system("rm -Rf %s" % tmp)
-    # return os.path.join(tmp, "imageFits_2.gnom")
     return
 
 

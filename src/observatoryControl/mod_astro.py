@@ -114,8 +114,9 @@ def alt_az(ra, dec, utc, latitude, longitude):
     ra *= pi / 12
     dec *= pi / 180
     st = sidereal_time(utc) * pi / 12 + longitude * pi / 180
-    xyz = [sin(ra) * cos(dec), -sin(dec),
-           cos(ra) * cos(dec)]  # y-axis = north/south pole; z-axis (into screen) = vernal equinox
+    xyz = [sin(ra) * cos(dec),
+           -sin(dec),  # y-axis = towards south pole
+           cos(ra) * cos(dec)]  # z-axis = vernal equinox; RA=0
 
     # Rotate by hour angle around y-axis
     xyz2 = [0, 0, 0]
@@ -141,7 +142,7 @@ def ra_dec(alt, az, utc, latitude, longitude):
     alt *= pi / 180
     az *= pi / 180
     st = sidereal_time(utc) * pi / 12 + longitude * pi / 180
-    xyz3 = [sin(az) * cos(alt), cos(az) * cos(alt), sin(-alt)]
+    xyz3 = [sin(az) * cos(alt), sin(-alt), -cos(az) * cos(alt)]
 
     # Rotate by latitude around x-axis
     xyz2 = [0, 0, 0]
@@ -252,25 +253,13 @@ def mean_angle_2d(pos_list):
     return [pmean, asd]  # [Mean,SD] in radians
 
 
-# Return the position angle of the great circle path from (RA1, Dec1) to (RA2, Dec2), as seen at the former point
-def position_angle(ra1, dec1, ra2, dec2):
-    dec1 *= pi / 180
-    dec2 *= pi / 180
-    ra1 *= pi / 12
-    ra2 *= pi / 12
-    y = sin(ra2 - ra1) * cos(dec2)
-    x = cos(dec1) * sin(dec2) - sin(dec1) * cos(dec2) * cos(ra2 - ra1)
-    bearing = atan2(y, x)
-    return bearing * 180 / pi
-
-
 # Return the right ascension and declination of the zenith
 def get_zenith_position(lat, lng, utc):
-    st = sidereal_time(utc)
+    st = sidereal_time(utc) * pi / 12
     lat *= pi / 180
     lng *= pi / 180
-    x = sin(lng + st) * cos(lat)
-    y = cos(lng + st) * cos(lat)
+    x = cos(lng + st) * cos(lat)
+    y = sin(lng + st) * cos(lat)
     z = sin(lat)
     v = Vector(x, y, z)
     return v.to_ra_dec()
@@ -321,14 +310,15 @@ class Point:
         return sqrt(self.x * self.x + self.y * self.y + self.z * self.z)
 
     @staticmethod
-    def from_lat_lng(lat, lng, utc):
+    def from_lat_lng(lat, lng, alt, utc):
         lat *= pi / 180
         lng *= pi / 180
         st = sidereal_time(utc) * pi / 12
         r_earth = 6371e3
-        x = r_earth * sin(lng + st) * cos(lat)
-        y = r_earth * cos(lng + st) * cos(lat)
-        z = r_earth * sin(lat)
+        r = r_earth + alt
+        x = r * cos(lng + st) * cos(lat)
+        y = r * sin(lng + st) * cos(lat)
+        z = r * sin(lat)
         return Point(x, y, z)
 
     def to_lat_lng(self, utc):
@@ -337,7 +327,7 @@ class Point:
         st = sidereal_time(utc) * pi / 12
         r_earth = 6371e3
         lat = asin(self.z / mag) * deg
-        lng = (atan2(self.x, self.y) - st) * deg
+        lng = (atan2(self.y, self.x) - st) * deg
         lng = fmod(lng, 360)
         while lng < 0:
             lng += 360
@@ -418,8 +408,8 @@ class Vector:
         """
         ra *= pi / 12
         dec *= pi / 180
-        x = sin(ra) * cos(dec)
-        y = cos(ra) * cos(dec)
+        x = cos(ra) * cos(dec)
+        y = sin(ra) * cos(dec)
         z = sin(dec)
         return Vector(x, y, z)
 
@@ -430,7 +420,7 @@ class Vector:
         """
         mag = abs(self)
         dec = asin(self.z / mag)
-        ra = atan2(self.x, self.y)
+        ra = atan2(self.y, self.x)
         ra *= 12 / pi
         dec *= 180 / pi
         while ra < 0:

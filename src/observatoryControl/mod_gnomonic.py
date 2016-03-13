@@ -20,13 +20,29 @@ def rotate_xz(a, theta):
     return [a0, a1, a2]
 
 
+# Return the position angle of the great circle path from (RA1, Dec1) to (RA2, Dec2), as seen at the former point
+def position_angle(ra1, dec1, ra2, dec2):
+    dec1 *= pi / 180
+    dec2 *= pi / 180
+    ra1 *= pi / 12
+    ra2 *= pi / 12
+    x = cos(ra2) * cos(dec2)
+    y = sin(ra2) * cos(dec2)
+    z = sin(dec2)
+    a = [x, y, z]
+    a = rotate_xy(a, -ra1)
+    a = rotate_xz(a, pi / 2 - dec1)
+    azimuth = atan2(a[1], -a[0])
+    return azimuth * 180 / pi
+
+
 def make_zenithal(ra, dec, ra0, dec0):
     x = cos(ra) * cos(dec)
     y = sin(ra) * cos(dec)
     z = sin(dec)
     a = [x, y, z]
-    rotate_xy(a, -ra0)
-    rotate_xz(a, pi / 2 - dec0)
+    a = rotate_xy(a, -ra0)
+    a = rotate_xz(a, pi / 2 - dec0)
     if a[2] > 0.999999999:
         a[2] = 1.0
     if a[2] < -0.999999999:
@@ -82,7 +98,7 @@ def gnomonic_project(ra, dec, ra0, dec0, size_x, size_y, scale_x, scale_y, pos_a
 
     [za, az] = make_zenithal(ra, dec, ra0, dec0)
     radius = tan(za)
-    az -= pos_ang
+    az += pos_ang
 
     # Correction for barrel distortion
     r = radius / tan(scale_y / 2)
@@ -102,7 +118,7 @@ def inv_gnom_project(ra0, dec0, size_x, size_y, scale_x, scale_y, x, y, pos_ang,
     y2 = (y - size_y / 2.) / (size_y / 2. / tan(scale_y / 2.))
 
     za = atan(hypot(x2, y2))
-    az = atan2(-x2, y2) + pos_ang
+    az = atan2(-x2, y2) - pos_ang
 
     r = za / tan(scale_y / 2.)
     za = r * tan(scale_y / 2.)
@@ -110,8 +126,8 @@ def inv_gnom_project(ra0, dec0, size_x, size_y, scale_x, scale_y, x, y, pos_ang,
     altitude = pi / 2 - za
     a = [cos(altitude) * cos(az), cos(altitude) * sin(az), sin(altitude)]
 
-    rotate_xz(a, -pi / 2 + dec0)
-    rotate_xy(a, ra0)
+    a = rotate_xz(a, -pi / 2 + dec0)
+    a = rotate_xy(a, ra0)
 
     ra = atan2(a[1], a[0])
     dec = asin(a[2])

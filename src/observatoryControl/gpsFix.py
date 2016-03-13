@@ -31,6 +31,7 @@ class GpsPoller(threading.Thread):
         self.clock_offset = None
         self.latitude = None
         self.longitude = None
+        self.altitude = None
 
     def get_current_value(self):
         return self.current_value
@@ -45,6 +46,7 @@ class GpsPoller(threading.Thread):
                     self.clock_offset = time.time() - utc
                     self.latitude = self.current_value['lat']
                     self.longitude = self.current_value['lon']
+                    self.altitude = self.current_value['alt']
                 time.sleep(0.2)  # tune this, you might not get values that quickly
         except StopIteration:
             pass
@@ -62,7 +64,11 @@ def fetchGPSfix():
     while 1:
         x = gpsp.get_current_value()
         if x and ('mode' in x) and (x.mode == 3):
-            return {'offset': -gpsp.clock_offset, 'latitude': gpsp.latitude, 'longitude': gpsp.longitude}
+            return {'offset': -gpsp.clock_offset,
+                    'latitude': gpsp.latitude,
+                    'longitude': gpsp.longitude,
+                    'altitude': gpsp.altitude
+                    }
         if (time.time() > tstart + 30):
             return False  # Give up after 30 seconds
         time.sleep(2)

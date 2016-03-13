@@ -51,10 +51,10 @@ def get_gps_fix():
         t_offset = gps_result['offset']
         gps_latitude = gps_result['latitude']
         gps_longitude = gps_result['longitude']
+        gps_altitude = gps_result['altitude']
         log_txt("GPS link achieved")
-        log_txt("Longitude = %.6f ; Latitude = %.6f ; Clock offset: %.2f sec behind." % (gps_longitude,
-                                                                                         gps_latitude,
-                                                                                         t_offset))
+        log_txt("Longitude = %.6f ; Latitude = %.6f ; Altitude = %.6f ; Clock offset: %.2f sec behind." %
+                (gps_longitude, gps_latitude, gps_altitude, t_offset))
         set_utc_offset(t_offset)
 
         # Use the time shell command to update the system clock (required root access)
@@ -67,7 +67,7 @@ def get_gps_fix():
         set_utc_offset(t_offset)
         log_txt("Revised clock offset after trying to set the system clock: %.2f sec behind." % t_offset)
 
-        return {'latitude': gps_latitude, 'longitude': gps_longitude}
+        return {'latitude': gps_latitude, 'longitude': gps_longitude, 'altitude': gps_altitude}
 
     # If false, we didn't manage to establish a GPS link
     else:
@@ -80,6 +80,7 @@ time_now = get_utc()
 log_txt("Fetching observatory status")
 latitude = installation_info.local_conf['latitude']
 longitude = installation_info.local_conf['longitude']
+altitude = 0
 latest_position_update = 0
 flag_gps = 0
 obstory_status = None
@@ -101,6 +102,12 @@ if not db.has_obstory_id(obstory_id):
     db.register_obstory_metadata(obstory_name=obstory_name,
                                  key="longitude",
                                  value=longitude,
+                                 metadata_time=get_utc(),
+                                 time_created=get_utc(),
+                                 user_created=mod_settings.settings['meteorpiUser'])
+    db.register_obstory_metadata(obstory_name=obstory_name,
+                                 key="altitude",
+                                 value=altitude,
                                  metadata_time=get_utc(),
                                  time_created=get_utc(),
                                  user_created=mod_settings.settings['meteorpiUser'])
@@ -141,6 +148,8 @@ if 'latitude' in obstory_status:
     latitude = obstory_status['latitude']
 if 'longitude' in obstory_status:
     longitude = obstory_status['longitude']
+if 'altitude' in obstory_status:
+    longitude = obstory_status['altitude']
 
 # Record the software version being used
 db.register_obstory_metadata(obstory_name=obstory_name,
@@ -184,6 +193,7 @@ while True:
     if gps_fix:
         latitude = gps_fix['latitude']
         longitude = gps_fix['longitude']
+        altitude = gps_fix['altitude']
         flag_gps = 1
 
         # If we've not stored a GPS fix in the database within the past hour, do so now
@@ -193,6 +203,9 @@ while True:
                                          metadata_time=get_utc(), time_created=get_utc(),
                                          user_created=mod_settings.settings['meteorpiUser'])
             db.register_obstory_metadata(obstory_name=obstory_name, key="longitude", value=longitude,
+                                         metadata_time=get_utc(), time_created=get_utc(),
+                                         user_created=mod_settings.settings['meteorpiUser'])
+            db.register_obstory_metadata(obstory_name=obstory_name, key="altitude", value=altitude,
                                          metadata_time=get_utc(), time_created=get_utc(),
                                          user_created=mod_settings.settings['meteorpiUser'])
             db.register_obstory_metadata(obstory_name=obstory_name, key="location_source", value="gps",
@@ -207,6 +220,9 @@ while True:
                                      metadata_time=0, time_created=get_utc(),
                                      user_created=mod_settings.settings['meteorpiUser'])
         db.register_obstory_metadata(obstory_name=obstory_name, key="longitude", value=longitude,
+                                     metadata_time=0, time_created=get_utc(),
+                                     user_created=mod_settings.settings['meteorpiUser'])
+        db.register_obstory_metadata(obstory_name=obstory_name, key="altitude", value=altitude,
                                      metadata_time=0, time_created=get_utc(),
                                      user_created=mod_settings.settings['meteorpiUser'])
         db.register_obstory_metadata(obstory_name=obstory_name, key="location_source", value="manual",

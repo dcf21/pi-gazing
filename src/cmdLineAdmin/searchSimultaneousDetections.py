@@ -108,6 +108,7 @@ for i in range(len(triggers)):
             obstory_info = db.get_obstory_from_id(obstory_id)
             obstory_loc = mod_astro.Point.from_lat_lng(lat=obstory_info['latitude'],
                                                        lng=obstory_info['longitude'],
+                                                       alt=0,
                                                        utc=(utc_min + utc_max) / 2
                                                        )
             obstory_locs.append(obstory_loc)
@@ -207,8 +208,13 @@ for item in groups:
             utc = point[2]
 
             # Look up the physical position of the observatory
+            if 'altitude' in obstory_status:
+                altitude = obstory_status['altitude']
+            else:
+                altitude = 0
             observatory_position = mod_astro.Point.from_lat_lng(lat=obstory_status['latitude'],
                                                                 lng=obstory_status['longitude'],
+                                                                alt=altitude,
                                                                 utc=utc)
 
             # Calculate the celestial coordinates of the centre of the frame
@@ -232,10 +238,11 @@ for item in groups:
             ra_zenith = ra_dec_zenith['ra']
             dec_zenith = ra_dec_zenith['dec']
 
-            # Work out the position angle of the zenith, clockwise from north, as measured at centre of frame
-            zenith_pa = mod_astro.position_angle(ra0, dec0, ra_zenith, dec_zenith)
+            # Work out the position angle of the zenith, counterclockwise from north, as measured at centre of frame
+            zenith_pa = mod_gnomonic.position_angle(ra0, dec0, ra_zenith, dec_zenith)
 
-            # Work out the position angle of "up" relative to celestial north
+            # Work out the position angle of the upward vector in the centre of the image, counterclockwise
+            # from celestial north.
             celestial_pa = zenith_pa - camera_tilt
 
             # Work out the RA and Dec of the point where the object was spotted
