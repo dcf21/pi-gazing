@@ -199,8 +199,9 @@ for item in groups:
         # Look up size of image frame
         size_x = obstory_status['sensor_width']
         size_y = obstory_status['sensor_height']
-        scale_x = obstory_status['orientation_width_field'] * pi / 180
-        scale_y = 2 * atan(tan(scale_x / 2) * size_y / size_x)
+        scale_x = obstory_status['orientation_width_x_field'] * pi / 180
+        scale_y = obstory_status['orientation_width_y_field'] * pi / 180
+        # scale_y = 2 * atan(tan(scale_x / 2) * size_y / size_x)
 
         # For each positional fix on object, convert pixel coordinates into celestial coordinates
         sight_line_list = []

@@ -167,12 +167,19 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
                    (f.id, mod_astro.time_print(f.file_time),
                     db.get_file_metadata(f.id, 'meteorpi:skyClarity')))
 
+        # How long should we allow astrometry.net to run for?
+        if mod_settings.settings['i_am_a_rpi']:
+            timeout = "6m"
+        else:
+            timeout = "100s"
+
         # Run astrometry.net. Insert --no-plots on the command line to speed things up.
         astrometry_start_time = mod_log.get_utc()
         estimated_width = 2 * math.atan(math.tan(estimated_image_scale / 2 * deg) * fraction_x) * rad
-        os.system("timeout 100s /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --scale-low %.1f "
+        os.system("timeout %s /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --scale-low %.1f "
                   "--scale-high %.1f --odds-to-tune-up 1e4 --odds-to-solve 1e7 --overwrite %s > txt"
-                  % (estimated_width * 0.6,
+                  % (timeout,
+                     estimated_width * 0.6,
                      estimated_width * 1.2,
                      fit['fname_processed']))
         astrometry_time_taken = mod_log.get_utc() - astrometry_start_time
