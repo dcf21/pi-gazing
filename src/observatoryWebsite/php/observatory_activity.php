@@ -54,7 +54,8 @@ WHERE l.publicId=:o AND s.name=:k AND o.obsTime>=:x AND o.obsTime<:y LIMIT 1");
         if ($items > 0) {
             $tomorrow = $count+1;
             $text = "<a href='{$url}?obstory={$obstory}&year1={$year}&month1={$month}&day1={$count}&hour1=12&minute1=0" .
-                "&year2={$year}&month2={$month}&day2={$tomorrow}&hour2=12&minute2=0'>" .
+                "&year2={$year}&month2={$month}&day2={$tomorrow}&hour2=12&minute2=0" .
+                "&flag_lenscorr=1'>" .
                 "<span class='cal_number'>{$items}</span><span class='cal_type'>{$suffix}</span></a>";
         } else {
             $text = "";
@@ -152,7 +153,7 @@ $pageTemplate->header($pageInfo);
 
         <div class="col-md-2">
             <h4>Select month</h4>
-            <form method="get" action="/observatory_activity.php">
+            <form method="get" action="observatory_activity.php">
                 <input type="hidden" name="id" value="<?php echo $obstory; ?>">
                 <?php
                 html_getargs::makeFormSelect("month", $tmin['mc'], $getargs->months, 0);
@@ -165,7 +166,7 @@ $pageTemplate->header($pageInfo);
             <div style="padding-top:25px;">
                 <?php
                 $pageTemplate->listObstories($obstories,
-                    "/observatory_activity.php?year={$tmin['year']}&month={$tmin['mc']}&id=");
+                    "observatory_activity.php?year={$tmin['year']}&month={$tmin['mc']}&id=");
                 ?>
             </div>
 
