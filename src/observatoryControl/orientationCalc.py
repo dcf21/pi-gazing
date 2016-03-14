@@ -187,7 +187,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
         # Parse the output from astrometry.net
         fit_text = open("txt").read()
-        log_txt(fit_text)
+        # log_txt(fit_text)
         test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",
                          fit_text)
         if not test:
@@ -284,9 +284,14 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     [alt_az_best, alt_az_error] = mod_astro.mean_angle_2d(alt_az_list_r)
 
     # Print fit information
-    log_txt("%s SUCCESSFUL ORIENTATION FIT (from %d images). "
+    success = (alt_az_error * rad < 0.6)
+    if success:
+        adjective = "SUCCESSFUL"
+    else:
+        adjective = "REJECTED"
+    log_txt("%s %s ORIENTATION FIT (from %d images). "
             "Alt: %.2f deg. Az: %.2f deg. PA: %.2f deg. ScaleX: %.2f deg. ScaleY: %.2f deg. "
-            "Uncertainty: %.2f deg." % (log_prefix, len(fit_list),
+            "Uncertainty: %.2f deg." % (log_prefix, adjective, len(fit_list),
                                         alt_az_best[0] * rad,
                                         alt_az_best[1] * rad,
                                         pa_best * rad,
@@ -295,7 +300,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
                                         alt_az_error * rad))
 
     # Update observatory status
-    if alt_az_error * rad < 0.6:
+    if success:
         user = mod_settings.settings['meteorpiUser']
         utc = utc_to_study
         db.register_obstory_metadata(obstory_name, "orientation_altitude", alt_az_best[0] * rad, utc, user)
