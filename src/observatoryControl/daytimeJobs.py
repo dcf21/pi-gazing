@@ -323,7 +323,7 @@ try:
         if (not quit_time) or (quit_time - get_utc() > 3600 * 5):
             log_txt("Trying to determine orientation of camera <%s>" % obstory_id)
             orientationCalc.orientation_calc(obstory_id=obstory_id,
-                                             utc_to_study=get_utc(),
+                                             utc_to_study=get_utc() - 3600 * 24,
                                              utc_now=get_utc(),
                                              utc_must_stop=quit_time)
 except:
