@@ -63,7 +63,7 @@ def get_gps_fix():
         os.system("date -s @%d" % utc_now)
 
         # Because the above may fail if we don't have root access, as a fallback we recalculate the clock offset
-        t_offset = time.time() - utc_now
+        t_offset = utc_now - time.time()
         set_utc_offset(t_offset)
         log_txt("Revised clock offset after trying to set the system clock: %.2f sec behind." % t_offset)
 
