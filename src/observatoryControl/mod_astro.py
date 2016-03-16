@@ -2,7 +2,7 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
-from math import *
+from math import pi, sin, cos, acos, asin, atan, atan2, floor, fmod, fabs, hypot, sqrt, isnan
 from exceptions import KeyError
 
 deg = pi / 180
@@ -419,6 +419,11 @@ class Vector:
         :return Dict:
         """
         mag = abs(self)
+
+        # Direction is undefined
+        if mag == 0:
+            return {'ra': 0, 'dec': 0}
+
         dec = asin(self.z / mag)
         ra = atan2(self.y, self.x)
         ra *= 12 / pi
@@ -452,12 +457,20 @@ class Vector:
         """
         Returns the angle between two Vectors (radians)
         :param Vector other:
-        :return float:
+        :return float Angle between two direction vectors (degrees):
         """
         dot = self.dot_product(other)
         mag1 = abs(self)
         mag2 = abs(other)
-        return dot / mag1 / mag2
+        angle_cosine = dot / mag1 / mag2
+
+        # Avoid domain errors in inverse cosine
+        if angle_cosine > 1:
+            angle_cosine = 1
+        if angle_cosine < -1:
+            angle_cosine = -1
+
+        return acos(angle_cosine) * 180 / pi
 
     def normalise(self):
         """
@@ -527,7 +540,7 @@ class Line:
         self_point = self.point(lambda_)
         other_point = other.point(mu)
         distance = abs(self_point.displacement_vector_from(other_point))
-        angular_distance = self_point.displacement_from_origin().angle_with(other_point.displacement_from_origin())
+        angular_distance = abs(self_point.displacement_from_origin().angle_with(other_point.displacement_from_origin()))
 
         return {'self_point': self_point, 'other_point': other_point,
                 'distance': distance, 'angular_distance': angular_distance}

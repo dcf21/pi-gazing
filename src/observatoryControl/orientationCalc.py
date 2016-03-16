@@ -53,8 +53,8 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     estimated_image_scale = installation_info.local_conf['estimated_image_scale']
 
     # When passing images to astrometry.net, only work on the central portion, as this will have least bad distortion
-    fraction_x = 0.5
-    fraction_y = 0.5
+    fraction_x = 0.4
+    fraction_y = 0.4
 
     # Path the binary barrel-correction tool
     barrel_correct = os.path.join(mod_settings.settings['stackerPath'], "barrel")
@@ -84,7 +84,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     # Filter out files where the sky clarity is good and the Sun is well below horizon
     acceptable_files = []
     for f in files:
-        if db.get_file_metadata(f.id, 'meteorpi:skyClarity') < 30:
+        if db.get_file_metadata(f.id, 'meteorpi:skyClarity') < 27:
             continue
         if db.get_file_metadata(f.id, 'meteorpi:sunAlt') > -4:
             continue
@@ -94,7 +94,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
                (log_prefix, len(files), len(acceptable_files)))
 
     # If we don't have enough images, we can't proceed to get a secure orientation fit
-    if len(acceptable_files) < 8:
+    if len(acceptable_files) < 6:
         log_txt("%s Not enough suitable images." % log_msg)
         db.close_db()
         return
@@ -171,7 +171,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         if mod_settings.settings['i_am_a_rpi']:
             timeout = "6m"
         else:
-            timeout = "100s"
+            timeout = "50s"
 
         # Run astrometry.net. Insert --no-plots on the command line to speed things up.
         astrometry_start_time = mod_log.get_utc()
@@ -265,8 +265,8 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         alt_az_list.append(alt_az)
 
     # Average the resulting fits
-    if len(fit_list) < 3:
-        log_txt("%s ABORT    : astrometry.net only managed to fit %d images." % (log_prefix, len(fit_list)))
+    if len(fit_list) < 4:
+        log_txt("%s ABORT    : astrometry.net only managed to fit %2d images." % (log_prefix, len(fit_list)))
         db.close_db()
         os.chdir(cwd)
         os.system("rm -Rf %s" % tmp)
@@ -289,7 +289,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         adjective = "SUCCESSFUL"
     else:
         adjective = "REJECTED"
-    log_txt("%s %s ORIENTATION FIT (from %d images). "
+    log_txt("%s %s ORIENTATION FIT (from %2d images). "
             "Alt: %.2f deg. Az: %.2f deg. PA: %.2f deg. ScaleX: %.2f deg. ScaleY: %.2f deg. "
             "Uncertainty: %.2f deg." % (log_prefix, adjective, len(fit_list),
                                         alt_az_best[0] * rad,

@@ -86,8 +86,8 @@ for i in range(len(triggers)):
         prev_group_size = len(group_members)
         for scan_direction in [-1, 1]:
             scan = i
-            while ((scan >= 0) and (scan < len(triggers)) and (triggers[scan].obs_time_end > utc_min - 60)
-                   and (triggers[scan].obs_time < utc_max + 60)):
+            while ((scan >= 0) and (scan < len(triggers)) and (triggers[scan].obs_time_end > utc_min - 60) and
+                       (triggers[scan].obs_time < utc_max + 60)):
                 if not (triggers_used[scan] or (triggers[scan].obs_time > utc_max + 1)
                         or (triggers[scan].obs_time_end < utc_min - 1)):
                     group_members.append(scan)
@@ -114,13 +114,14 @@ for i in range(len(triggers)):
             obstory_locs.append(obstory_loc)
 
         # Check the distances between all pairs of observatories
-        pairs = [[obstory_locs[i],obstory_locs[j]]
+        pairs = [[obstory_locs[i], obstory_locs[j]]
                  for i in range(len(obstory_list))
                  for j in range(i + 1, len(obstory_list))
                  ]
+
         for pair in pairs:
             maximum_obstory_spacing = max(maximum_obstory_spacing,
-                                          pair[0].displacement_vector_from(pair[1]))
+                                          abs(pair[0].displacement_vector_from(pair[1])))
 
         # Reject event if it was not seen by any observatories more than 400 metres apart
         if maximum_obstory_spacing > 400:
@@ -190,6 +191,8 @@ for item in groups:
         path_json = db.get_observation_metadata(obs.id, "meteorpi:pathBezier")
         if ((path_json is None) or ('lens_barrel_a' not in obstory_status) or ('latitude' not in obstory_status) or
                 ('orientation_altitude' not in obstory_status)):
+            log_txt("Cannot use observation <%s> from <%s> because orientation unknown." % (obs.id,
+                                                                                            obstory_id))
             continue
         bca = obstory_status['lens_barrel_a']
         bcb = obstory_status['lens_barrel_b']
@@ -255,11 +258,17 @@ for item in groups:
                                                       bca=bca, bcb=bcb, bcc=bcc)
             ra *= 12 / pi  # Convert RA into hours
             dec *= 180 / pi  # Convert Dec into degrees
+
+            # Work out alt-az of reported (RA,Dec) using known location of camera. Fits returned in degrees.
+            alt_az = mod_astro.alt_az(ra, dec, point[2], obstory_status['latitude'], obstory_status['longitude'])
+
             direction = mod_astro.Vector.from_ra_dec(ra, dec)
             sight_line = mod_astro.Line(observatory_position, direction)
             sight_line_descriptor = {
                 'ra': ra,
                 'dec': dec,
+                'alt': alt_az[0],
+                'az': alt_az[1],
                 'utc': point[2],
                 'obs_position': observatory_position,
                 'line': sight_line
@@ -299,7 +308,7 @@ for item in groups:
         trajectory = line_from_parameters(p)
         mismatch = 0
         for sight in all_sight_lines:
-            closest_point = trajectory.find_closest_approach(sight)
+            closest_point = trajectory.find_closest_approach(sight['line'])
             mismatch += closest_point['angular_distance']
         return mismatch
 
@@ -312,12 +321,14 @@ for item in groups:
     log_txt("Best fit path of object through space is %s." % best_triangulation)
 
     log_txt("Mismatch of observed sight lines from trajectory are %s deg." %
-            (["%.1f" % best_triangulation.find_closest_approach(s)['angular_distance'] for s in all_sight_lines]))
+            (["%.1f" % best_triangulation.find_closest_approach(s['line'])['angular_distance']
+              for s in all_sight_lines]))
 
-    maximum_mismatch = max([best_triangulation.find_closest_approach(s)['angular_distance'] for s in all_sight_lines])
+    maximum_mismatch = max([best_triangulation.find_closest_approach(s['line'])['angular_distance']
+                            for s in all_sight_lines])
 
     # Reject trajectory if it deviates by more than 3 degrees from any observation
-    if maximum_mismatch > 3:
+    if maximum_mismatch > 7:
         log_txt("Mismatch is too great. Trajectory fit is rejected.")
         continue
 
@@ -325,7 +336,7 @@ for item in groups:
     for trigger in item['triggers']:
         if 'sight_line_list' in trigger:
             detected_position_info = []
-            for detection in trigger['detected_direction_list']:
+            for detection in trigger['sight_line_list']:
                 sight_line = detection['line']
                 observatory_position = detection['obs_position']
                 object_position = best_triangulation.find_closest_approach(sight_line)
@@ -334,17 +345,19 @@ for item in groups:
                 detection['object_position'] = observatory_position
                 detected_position_info.append({'ra': detection['ra'],
                                                'dec': detection['dec'],
+                                               'alt': detection['alt'],
+                                               'az': detection['az'],
                                                'utc': detection['utc'],
                                                'lat': object_lat_lng['lat'],
                                                'lng': object_lat_lng['lng'],
-                                               'alt': object_lat_lng['alt'],
+                                               'height': object_lat_lng['alt'],
                                                'dist': object_distance,
-                                               'ang_mismatch': observatory_position['angular_distance']
+                                               'ang_mismatch': object_position['angular_distance']
                                                })
 
             # Make descriptor of triangulated information
-            trigger_0 = trigger['detected_direction_list'][0]
-            trigger_1 = trigger['detected_direction_list'][-1]
+            trigger_0 = trigger['sight_line_list'][0]
+            trigger_1 = trigger['sight_line_list'][-1]
             obs_position_0 = trigger_0['obs_position']  # Position of observatory at first sighting
             obj_position_0 = trigger_0['object_position']  # Position of object at first sighting
             utc_0 = trigger_0['utc']
@@ -363,7 +376,7 @@ for item in groups:
             point_1_obs_frame = obj_position_1.displacement_vector_from(obs_position_1)
             displacement_obs_frame = point_1_obs_frame - point_0_obs_frame
             speed_obs_frame = abs(displacement_obs_frame / time_span)
-            object_direction_obs_frame = displacement_obs_frame.direction.to_ra_dec()
+            object_direction_obs_frame = displacement_obs_frame.to_ra_dec()
 
             triangulation_info = {'observer_frame_heading_ra': object_direction_obs_frame['ra'],
                                   'observer_frame_heading_dec': object_direction_obs_frame['dec'],
