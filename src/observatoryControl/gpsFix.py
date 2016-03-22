@@ -69,8 +69,8 @@ def fetchGPSfix():
                     'longitude': gpsp.longitude,
                     'altitude': gpsp.altitude
                     }
-        if (time.time() > tstart + 30):
-            return False  # Give up after 30 seconds
+        if (time.time() > tstart + 90):
+            return False  # Give up after 90 seconds
         time.sleep(2)
 
 
