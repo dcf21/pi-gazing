@@ -6,6 +6,7 @@
 
 require_once "constants.php";
 require_once "user.php";
+require_once "local_mods.php";
 
 class HTMLtemplate
 {
@@ -159,6 +160,7 @@ __HTML__;
             <?php endif; ?>
 
             <?php echo $pageInfo["cssextra"]; ?>
+            <?php local_mods::extra_headers(); ?>
         </head>
 
         <?php echo "<body><div class=\"contentwrapper\">"; ?>

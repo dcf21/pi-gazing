@@ -47,7 +47,6 @@ class GpsPoller(threading.Thread):
                     self.latitude = self.current_value['lat']
                     self.longitude = self.current_value['lon']
                     self.altitude = self.current_value['alt']
-                time.sleep(0.2)  # tune this, you might not get values that quickly
         except StopIteration:
             pass
 
@@ -57,22 +56,24 @@ gpsp.daemon = True
 gpsp.start()
 
 
-# gpsp now polls every .2 seconds for new data, storing it in self.current_value
+# gpsp now polls for new data, storing it in self.current_value
 
-def fetchGPSfix():
-    tstart = time.time()
-    while 1:
+def fetch_gps_fix():
+    utc_start = time.time()
+    while True:
         x = gpsp.get_current_value()
         if x and ('mode' in x) and (x.mode == 3):
-            return {'offset': -gpsp.clock_offset,
-                    'latitude': gpsp.latitude,
-                    'longitude': gpsp.longitude,
-                    'altitude': gpsp.altitude
-                    }
-        if (time.time() > tstart + 30):
-            return False  # Give up after 30 seconds
+            time.sleep(2)
+            if x and ('mode' in x) and (x.mode == 3):
+                return {'offset': -gpsp.clock_offset,
+                        'latitude': gpsp.latitude,
+                        'longitude': gpsp.longitude,
+                        'altitude': gpsp.altitude
+                        }
+        if time.time() > utc_start + 90:
+            return False  # Give up after 90 seconds
         time.sleep(2)
 
 
 if __name__ == '__main__':
-    print json.dumps(fetchGPSfix())
+    print json.dumps(fetch_gps_fix())
