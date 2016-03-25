@@ -335,7 +335,7 @@ os.system("rm -Rf /tmp/tmp.* /tmp/dcf21_orientationCalc_*")
 
 # This deletes all data not imported into the database.
 # Should be uncommented on production systems where unattended operation needed.
-os.system("rm -Rf %s/t*" % (mod_settings.settings['dataPath']))
+os.system("rm -Rf %s/t*_*" % (mod_settings.settings['dataPath']))
 
 # Twiddle our thumbs
 if quit_time:
