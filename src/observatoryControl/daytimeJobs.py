@@ -61,7 +61,14 @@ def run_job_group(job_group):
         return
 
     # Run shell commands associated with this group of jobs
-    shell_cmds = [" ".join((job['cmd'] % job['params']).split()) for job in job_group]
+    shell_cmds = []
+    for job in job_group:
+        try:
+            shell_cmd = " ".join((job['cmd'] % job['params']).split())
+        except KeyError:
+            log_txt("Key Error prevented job from running: %s" % job)
+            shell_cmd = "true"
+        shell_cmds.append(shell_cmd)
     for cmd in shell_cmds:
         print "Running command: %s" % cmd
     if len(shell_cmds) == 1:
@@ -169,7 +176,7 @@ try:
                         # Overwrite the default parameters above with those output from the videoAnalysis C code
                         # Store a copy of the input file's metadata as params['params']
                         params['metadata'] = mod_daytimejobs.file_to_dict(
-                                in_filename="%s.txt" % os.path.join(dir_name, params['filename']))
+                            in_filename="%s.txt" % os.path.join(dir_name, params['filename']))
                         params.update(params['metadata'])
 
                         # Fetch the status of the observatory which made this observation
@@ -200,10 +207,10 @@ try:
 
                         # Create clipping region mask file
                         open(mask_file, "w").write(
-                                "\n\n".join(
-                                        ["\n".join([("%d %d" % p) for p in pointList])
-                                         for pointList in json.loads(obstory_status['clippingRegion'])]
-                                )
+                            "\n\n".join(
+                                ["\n".join([("%d %d" % p) for p in pointList])
+                                 for pointList in json.loads(obstory_status['clippingRegion'])]
+                            )
                         )
 
                         # Calculate metadata about the position of Sun at the time of observation

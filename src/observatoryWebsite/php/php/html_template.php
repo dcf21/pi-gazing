@@ -92,7 +92,7 @@ foreach ($postbreadcrumb as $c) {
         if (!isset($pageInfo["breadcrumb"])) $pageInfo["breadcrumb"] = [];
         if (!isset($pageInfo["postbreadcrumb"])) $pageInfo["postbreadcrumb"] = null;
         $server = $const->server;
-        $server_json = $const->server_json;
+        $settings = local_mods::get_settings();
         print<<<__HTML__
 <!DOCTYPE html>
 <html lang="en">
@@ -119,10 +119,12 @@ __HTML__;
             <script src="<?php echo $server; ?>vendor/html5shiv/dist/html5shiv.min.js" type="text/javascript"></script>
             <script src="<?php echo $server; ?>vendor/ExplorerCanvas/excanvas.js" type="text/javascript"></script>
             <![endif]-->
-            <!-- build:js -->
+
+            <?php if ($settings['includeGoogleMaps']): ?>
             <script type="text/javascript"
-                    src="//maps.googleapis.com/maps/api/js?key=AIzaSyCuMsPQjaWPZK8c9Sskll0y5Utd0Oq5cxA&amp;sensor=false"></script>
-            <!-- endbuild -->
+                    src="//maps.googleapis.com/maps/api/js?key=<?php echo $settings['googleAPIKey']; ?>&amp;sensor=false">
+            </script>
+            <?php endif; ?>
 
 
             <script src="<?php echo $server; ?>vendor/jquery/dist/jquery.min.js" type="text/javascript"></script>
