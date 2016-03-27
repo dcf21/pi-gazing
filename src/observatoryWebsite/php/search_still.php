@@ -28,8 +28,8 @@ if (array_key_exists("page", $_GET) && is_numeric($_GET["page"])) $pageNum = $_G
 // Read which time range to cover
 $t2 = time();
 $t1 = $t2 - 3600 * 24 * 5;
-$tmin = $getargs->readTime('year1', 'month1', 'day1', 'hour1', 'minute1', null, $const->yearMin, $const->yearMax, $t1);
-$tmax = $getargs->readTime('year2', 'month2', 'day2', 'hour2', 'minute2', null, $const->yearMin, $const->yearMax, $t2);
+$tmin = $getargs->readTime('year1', 'month1', 'day1', 'hour1', 'min1', null, $const->yearMin, $const->yearMax, $t1);
+$tmax = $getargs->readTime('year2', 'month2', 'day2', 'hour2', 'min2', null, $const->yearMin, $const->yearMax, $t2);
 
 // Which observatory are we searching for images from?
 $obstory = $getargs->readObservatory("obstory");
@@ -313,9 +313,9 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
     // Display pager
     if (count($result_list) < $result_count) {
         $self_url = "search_still.php?obstory={$obstory}&year1={$tmin['year']}&month1={$tmin['mc']}&day1={$tmin['day']}&" .
-            "hour1={$tmin['hour']}&minute1={$tmin['min']}&" .
+            "hour1={$tmin['hour']}&min1={$tmin['min']}&" .
             "year2={$tmax['year']}&month2={$tmax['mc']}&day2={$tmax['day']}&" .
-            "hour2={$tmax['hour']}&minute2={$tmax['min']}";
+            "hour2={$tmax['hour']}&min2={$tmax['min']}";
         if ($flag_bgsub) $self_url .= "&flag_bgsub=1";
         if ($flag_lenscorr) $self_url .= "&flag_lenscorr=1";
         if ($flag_highlights) $self_url .= "&flag_highlights=1";
