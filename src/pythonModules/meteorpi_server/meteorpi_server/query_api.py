@@ -220,7 +220,7 @@ def add_routes(meteor_app, url_path=''):
 
             length = size - byte1
             if byte2 is not None:
-                length = byte2 - byte1
+                length = byte2 - byte1 + 1
 
             with open(filename_or_fp, 'rb') as f:
                 f.seek(byte1)
