@@ -149,7 +149,7 @@ if 'latitude' in obstory_status:
 if 'longitude' in obstory_status:
     longitude = obstory_status['longitude']
 if 'altitude' in obstory_status:
-    longitude = obstory_status['altitude']
+    altitude = obstory_status['altitude']
 
 # Record the software version being used
 db.register_obstory_metadata(obstory_name=obstory_name,
