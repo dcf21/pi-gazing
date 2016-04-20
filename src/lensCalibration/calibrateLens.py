@@ -3,6 +3,25 @@
 # Meteor Pi, Cambridge Science Centre
 # Dominic Ford
 
+# -------------------------------------------------
+# Copyright 2016 Cambridge Science Centre.
+
+# This file is part of Meteor Pi.
+
+# Meteor Pi is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Meteor Pi is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Meteor Pi.  If not, see <http://www.gnu.org/licenses/>.
+# -------------------------------------------------
+
 # This script is used to estimate the degree of lens-distortion present in an image.
 
 # It should be passed the filename of a JSON file containing an image filename, and a list of stars with known
@@ -170,26 +189,19 @@ headings = [["Central RA / hr", 12 / pi], ["Central Decl / deg", 180 / pi],
             ["barrel_a", 1], ["barrel_b", 1], ["barrel_c", 1]
             ]
 
+print "\n\nBest fit parameters were:"
 for i in range(len(params_defaults)):
     print "%30s : %s" % (headings[i][0], params_final[i] * headings[i][1])
 
 # Print information about how well each star was fitted
 [ra0, dec0, scale_x, scale_y, pos_ang, bca, bcb, bcc] = params_final
 if True:
-    print "\nStars:"
+    print "\n\nStars used in fitting process:"
     for star in star_list:
         pos = gnomonic_project(star['ra'], star['dec'], ra0, dec0,
                                img_size_x, img_size_y, scale_x, scale_y, pos_ang,
                                bca, bcb, bcc)
         distance = hypot(star['xpos'] - pos[0], star['ypos'] - pos[1])
-        print "Real position (%4d,%4d). Model position (%4d,%4d). Mismatch %5d pixels." % (star['xpos'], star['ypos'],
+        print "User-supplied position (%4d,%4d). Model position (%4d,%4d). Mismatch %5d pixels." % (star['xpos'], star['ypos'],
                                                                                            pos[0], pos[1], distance)
 
-# Print data file listing the predicting positions of each star, against the reported position
-if False:
-    for star in star_list:
-        pos = gnomonic_project(star['ra'], star['dec'], ra0, dec0,
-                               img_size_x, img_size_y, scale_x, scale_y, pos_ang,
-                               bca, bcb, bcc)
-        print "%4d %4d %4d %4d" % (star['xpos'] - img_size_x / 2, star['ypos'] - img_size_y / 2,
-                                   pos[0] - img_size_x / 2, pos[1] - img_size_y / 2)
