@@ -27,13 +27,13 @@
 #include <math.h>
 #include <time.h>
 #include <unistd.h>
-#include "utils/asciidouble.h"
+#include "utils/asciiDouble.h"
 #include "vidtools/v4l2uvc.h"
 #include "utils/tools.h"
 #include "vidtools/color.h"
 #include "utils/error.h"
 #include "utils/filledPoly.h"
-#include "utils/JulianDate.h"
+#include "utils/julianDate.h"
 #include "analyse/observe.h"
 
 #include "settings.h"
@@ -69,21 +69,21 @@ int main(int argc, char *argv[]) {
 
     videoMetadata vmd;
 
-    const double utcoffset = GetFloat(argv[1], NULL);
+    const double utcoffset = getFloat(argv[1], NULL);
     UTC_OFFSET = utcoffset;
-    vmd.tstart = GetFloat(argv[2], NULL);
-    vmd.tstop = GetFloat(argv[3], NULL);
+    vmd.tstart = getFloat(argv[2], NULL);
+    vmd.tstop = getFloat(argv[3], NULL);
     vmd.nframe = 0;
     vmd.obstoryId = argv[4];
     vmd.videoDevice = argv[5];
-    vmd.width = (int) GetFloat(argv[6], NULL);
-    vmd.height = (int) GetFloat(argv[7], NULL);
-    vmd.fps = GetFloat(argv[8], NULL);
+    vmd.width = (int) getFloat(argv[6], NULL);
+    vmd.height = (int) getFloat(argv[7], NULL);
+    vmd.fps = getFloat(argv[8], NULL);
     vmd.maskFile = argv[9];
-    vmd.lat = GetFloat(argv[10], NULL);
-    vmd.lng = GetFloat(argv[11], NULL);
-    vmd.flagGPS = GetFloat(argv[12], NULL) ? 1 : 0;
-    vmd.flagUpsideDown = GetFloat(argv[13], NULL) ? 1 : 0;
+    vmd.lat = getFloat(argv[10], NULL);
+    vmd.lng = getFloat(argv[11], NULL);
+    vmd.flagGPS = getFloat(argv[12], NULL) ? 1 : 0;
+    vmd.flagUpsideDown = getFloat(argv[13], NULL) ? 1 : 0;
     vmd.filename = argv[14];
 
     const int medianMapUseEveryNthStack = 1, medianMapUseNImages = 3600, medianMapReductionCycles = 32;

@@ -46,6 +46,6 @@ typedef struct settingsIn {
     int backSub;
 } settingsIn;
 
-void DefaultSettings(settings *s, settingsIn *si);
+void defaultSettings(settings *s, settingsIn *si);
 
 #endif

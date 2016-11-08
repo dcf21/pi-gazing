@@ -26,7 +26,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "asciidouble.h"
+#include "asciiDouble.h"
 #include "str_constants.h"
 
 #include "error.h"
@@ -152,7 +152,7 @@ void gnom_log(char *msg) {
     }
 
     if (msg != temp_stringD) strcpy(temp_stringD, msg);
-    fprintf(logfile, "[%s] %s\n", StrStrip(FriendlyTimestring(), linebuffer), temp_stringD);
+    fprintf(logfile, "[%s] %s\n", strStrip(friendlyTimestring(), linebuffer), temp_stringD);
     latch = 0;
     return;
 }

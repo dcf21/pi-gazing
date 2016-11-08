@@ -26,7 +26,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include "utils/asciidouble.h"
+#include "utils/asciiDouble.h"
 #include "vidtools/v4l2uvc.h"
 #include "utils/tools.h"
 #include "vidtools/color.h"
@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
     }
 
     char line[FNAME_BUFFER];
-    int nfr = (int) GetFloat(argv[2], NULL);
+    int nfr = (int) getFloat(argv[2], NULL);
     if (nfr < 1) nfr = 1;
 
     int haveMedianSub = (argc == 4);
@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
 
     int tstart = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Commencing snapshot at %s. Will stack %d frames.", FriendlyTimestring(tstart), nfr);
+        sprintf(line, "Commencing snapshot at %s. Will stack %d frames.", friendlyTimestring(tstart), nfr);
         gnom_log(line);
     }
 
@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
 
     tstop = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Finishing snapshot at %s.", FriendlyTimestring(tstop));
+        sprintf(line, "Finishing snapshot at %s.", friendlyTimestring(tstop));
         gnom_log(line);
     }
     if (DEBUG) {

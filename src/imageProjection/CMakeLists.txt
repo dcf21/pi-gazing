@@ -7,8 +7,8 @@ include_directories(src/frontends)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 set(SOURCE_FILES
-    src/asciidouble.c
-    src/asciidouble.h
+        src/asciiDouble.c
+        src/asciiDouble.h
     src/backgroundSub.c
     src/backgroundSub.h
     src/error.c

@@ -30,7 +30,7 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
 
-#include "asciidouble.h"
+#include "asciiDouble.h"
 #include "error.h"
 #include "gnomonic.h"
 #include "imageProcess.h"
@@ -43,14 +43,14 @@
 int main(int argc, char **argv) {
     char help_string[LSTR_LENGTH], version_string[FNAME_LENGTH], version_string_underline[FNAME_LENGTH];
     char *filename[6];
-    int i, HaveFilename = 0;
+    int i, haveFilename = 0;
     settings s_model, *feed_s = &s_model;
     settingsIn s_in_default;
-    image_ptr OutputImage;
+    image_ptr outputImage;
 
     // Initialise sub-modules
     if (DEBUG) gnom_log("Initialising barrel-distortion correction tool.");
-    DefaultSettings(feed_s, &s_in_default);
+    defaultSettings(feed_s, &s_in_default);
 
     // Turn off GSL's automatic error handler
     gsl_set_error_handler_off();
@@ -63,33 +63,33 @@ int main(int argc, char **argv) {
 \n\
 Usage: barrel.bin <filename> <barrel_a> <barrel_b> <barrel_c> <output filename>\n\
   -h, --help:       Display this help.\n\
-  -v, --version:    Display version number.", VERSION, StrUnderline(version_string, version_string_underline));
+  -v, --version:    Display version number.", VERSION, strUnderline(version_string, version_string_underline));
 
     // Scan commandline options for any switches
-    HaveFilename = 0;
+    haveFilename = 0;
     for (i = 1; i < argc; i++) {
         if (strlen(argv[i]) == 0) continue;
         if ((strcmp(argv[i], "-v") == 0) || (strcmp(argv[i], "-version") == 0) || (strcmp(argv[i], "--version") == 0)) {
             gnom_report(version_string);
             return 0;
-        }
-        else if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "-help") == 0) || (strcmp(argv[i], "--help") == 0)) {
+        } else if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "-help") == 0) ||
+                   (strcmp(argv[i], "--help") == 0)) {
             gnom_report(help_string);
             return 0;
         }
-        if (HaveFilename > 4) {
+        if (haveFilename > 4) {
             sprintf(temp_err_string,
                     "barrel.bin should be provided with three barrel-distortion coefficients, and two filenames on the command line. Too many filenames appear to have been supplied. Type 'barrel.bin -help' for a list of available commandline options.");
             gnom_error(ERR_GENERAL, temp_err_string);
             return 1;
         }
-        filename[HaveFilename] = argv[i];
-        HaveFilename++;
+        filename[haveFilename] = argv[i];
+        haveFilename++;
         continue;
     }
 
     // Check that we have been provided with exactly one filename on the command line
-    if (HaveFilename < 5) {
+    if (haveFilename < 5) {
         sprintf(temp_err_string,
                 "barrel.bin should be provided with three barrel-distortion coefficients, and two filenames on the command line. Type 'barrel.bin -help' for a list of available commandline options.");
         gnom_error(ERR_GENERAL, temp_err_string);
@@ -100,16 +100,16 @@ Usage: barrel.bin <filename> <barrel_a> <barrel_b> <barrel_c> <output filename>\
     {
         char *cp;
         cp = filename[1];
-        if (!ValidFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read barrel_a");
-        s_in_default.barrel_a = GetFloat(cp, NULL);
+        if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read barrel_a");
+        s_in_default.barrel_a = getFloat(cp, NULL);
         //sprintf(temp_err_string, "barrel_a = %f", s_in_default.barrel_a); gnom_report(temp_err_string);
         cp = filename[2];
-        if (!ValidFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read barrel_b");
-        s_in_default.barrel_b = GetFloat(cp, NULL);
+        if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read barrel_b");
+        s_in_default.barrel_b = getFloat(cp, NULL);
         //sprintf(temp_err_string, "barrel_b = %f", s_in_default.barrel_b); gnom_report(temp_err_string);
         cp = filename[3];
-        if (!ValidFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read barrel_c");
-        s_in_default.barrel_c = GetFloat(cp, NULL);
+        if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read barrel_c");
+        s_in_default.barrel_c = getFloat(cp, NULL);
         //sprintf(temp_err_string, "barrel_c = %f", s_in_default.barrel_c); gnom_report(temp_err_string);
     }
 
@@ -133,19 +133,19 @@ Usage: barrel.bin <filename> <barrel_a> <barrel_b> <barrel_c> <output filename>\
         s_in_default.InYScale *= ((double) InputImage.ysize) / InputImage.xsize;
 
         // Malloc output image
-        image_alloc(&OutputImage, feed_s->XSize, feed_s->YSize);
+        image_alloc(&outputImage, feed_s->XSize, feed_s->YSize);
 
         // Process image
-        StackImage(InputImage, OutputImage, NULL, NULL, feed_s, &s_in_default);
+        StackImage(InputImage, outputImage, NULL, NULL, feed_s, &s_in_default);
 
         // Free image
         image_dealloc(&InputImage);
     }
 
     // Write image
-    image_deweight(&OutputImage);
-    image_put(feed_s->OutFName, OutputImage);
-    image_dealloc(&OutputImage);
+    image_deweight(&outputImage);
+    image_put(feed_s->OutFName, outputImage);
+    image_dealloc(&outputImage);
 
     if (DEBUG) gnom_log("Terminating normally.");
     return 0;

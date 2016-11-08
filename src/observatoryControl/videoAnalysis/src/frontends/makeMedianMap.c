@@ -26,7 +26,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include "utils/asciidouble.h"
+#include "utils/asciiDouble.h"
 #include "vidtools/v4l2uvc.h"
 #include "utils/tools.h"
 #include "vidtools/color.h"
@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
 
     int tstart = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Commencing makeMedianMap at %s.", FriendlyTimestring(tstart));
+        sprintf(line, "Commencing makeMedianMap at %s.", friendlyTimestring(tstart));
         gnom_log(line);
     }
 
@@ -155,7 +155,7 @@ int main(int argc, char *argv[]) {
 
     int tstop = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Finishing making median map at %s.", FriendlyTimestring(tstop));
+        sprintf(line, "Finishing making median map at %s.", friendlyTimestring(tstop));
         gnom_log(line);
     }
 

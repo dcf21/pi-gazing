@@ -48,8 +48,7 @@ static int float_to_fraction_recursive(double f, double p, int *num, int *den) {
         int a = float_to_fraction_recursive(1 / f, p + p / f, &n, &d);
         *num = d;
         *den = d * a + n;
-    }
-    else {
+    } else {
         *num = 0;
         *den = 1;
     }
@@ -234,7 +233,7 @@ int enum_controls(int vd) //struct vdIn *vd)
 
     //driver specific controls
     printf("V4L2_CID_PRIVATE_BASE (driver specific controls):\n");
-    for (queryctrl.id = V4L2_CID_PRIVATE_BASE; ;
+    for (queryctrl.id = V4L2_CID_PRIVATE_BASE;;
          queryctrl.id++) {
         if (0 == ioctl(vd, VIDIOC_QUERYCTRL, &queryctrl)) {
             if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED)
@@ -268,8 +267,7 @@ int save_controls(int vd) {
     configfile = fopen("luvcview.cfg", "w");
     if (configfile == NULL) {
         perror("saving configfile luvcview.cfg failed");
-    }
-    else {
+    } else {
         fprintf(configfile, "id         value      # luvcview control settings configuration file\n");
         for (queryctrl.id = V4L2_CID_BASE;
              queryctrl.id < V4L2_CID_LASTP1;
@@ -289,7 +287,7 @@ int save_controls(int vd) {
                 sleep_ms(10);
             }
         }
-        for (queryctrl.id = V4L2_CID_PRIVATE_BASE; ;
+        for (queryctrl.id = V4L2_CID_PRIVATE_BASE;;
              queryctrl.id++) {
             if (0 == ioctl(vd, VIDIOC_QUERYCTRL, &queryctrl)) {
                 if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED)
@@ -373,15 +371,13 @@ static int init_v4l2(struct vdIn *vd) {
     if (requested_format_found) {
         // The requested format is supported
         printf("  Frame format: "FOURCC_FORMAT"\n", FOURCC_ARGS(vd->formatIn));
-    }
-    else if (fallback_format >= 0) {
+    } else if (fallback_format >= 0) {
         // The requested format is not supported but there's a fallback format
         printf("  Frame format: "FOURCC_FORMAT" ("FOURCC_FORMAT
                        " is not supported by device)\n",
                FOURCC_ARGS(device_formats[0]), FOURCC_ARGS(vd->formatIn));
         vd->formatIn = device_formats[0];
-    }
-    else {
+    } else {
         // The requested format is not supported and no fallback format is available
         printf("ERROR: Requested frame format "FOURCC_FORMAT" is not available "
                        "and no fallback format was found.\n", FOURCC_ARGS(vd->formatIn));
@@ -408,8 +404,7 @@ static int init_v4l2(struct vdIn *vd) {
         vd->height = vd->fmt.fmt.pix.height;
         /* look the format is not part of the deal ??? */
         //vd->formatIn = vd->fmt.fmt.pix.pixelformat;
-    }
-    else {
+    } else {
         printf("  Frame size:   %dx%d\n", vd->width, vd->height);
     }
 
@@ -440,12 +435,10 @@ static int init_v4l2(struct vdIn *vd) {
                    confirmed_fps,
                    vd->fps);
             vd->fps = confirmed_fps;
-        }
-        else {
+        } else {
             printf("  Frame rate:   %g fps\n", vd->fps);
         }
-    }
-    else {
+    } else {
         perror("Unable to read out current frame rate");
         goto fatal;
     }
@@ -534,8 +527,9 @@ int uvcGrab(struct vdIn *vd) {
 #define HEADERFRAME1 0xaf
     int ret;
 
-    if (!vd->isstreaming) if (video_enable(vd))
-        goto err;
+    if (!vd->isstreaming)
+        if (video_enable(vd))
+            goto err;
     memset(&vd->buf, 0, sizeof(struct v4l2_buffer));
     vd->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     vd->buf.memory = V4L2_MEMORY_MMAP;
@@ -690,8 +684,7 @@ int v4l2DownControl(struct vdIn *vd, int control) {
             return -1;
         }
         printf("Control name:%s set to value:%d\n", queryctrl.name, control_s.value);
-    }
-    else {
+    } else {
         printf("Control name:%s already has min value:%d\n", queryctrl.name, min);
     }
     return control_s.value;
@@ -866,8 +859,7 @@ int enum_frame_formats(int dev, unsigned int *supported_formats, unsigned int ma
             ret = enum_frame_sizes(dev, fmt.pixelformat);
             if (ret != 0)
                 printf("  Unable to enumerate frame sizes.\n");
-        }
-        else if (fmt.index < max_formats) {
+        } else if (fmt.index < max_formats) {
             supported_formats[fmt.index] = fmt.pixelformat;
         }
 

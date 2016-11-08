@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "utils/asciidouble.h"
+#include "utils/asciiDouble.h"
 #include "utils/filledPoly.h"
 #include "str_constants.h"
 
@@ -44,14 +44,14 @@ void fillPolygonsFromFile(FILE *infile, unsigned char *mask, int width, int heig
             goto blankLine;
         }
         file_readline(infile, line, LSTR_LENGTH);
-        StrStrip(line, line);
+        strStrip(line, line);
         if (strlen(line) == 0) goto blankLine;
         if (line[0] == '#') continue;
 
         char *cp = line;
-        polyX[polyCorners] = GetFloat(cp, NULL);
-        cp = NextWord(cp);
-        polyY[polyCorners] = GetFloat(cp, NULL);
+        polyX[polyCorners] = getFloat(cp, NULL);
+        cp = nextWord(cp);
+        polyY[polyCorners] = getFloat(cp, NULL);
         polyCorners++;
         continue;
 
@@ -94,8 +94,7 @@ int fillPolygon(int polyCorners, int *polyX, int *polyY, unsigned char *mask, in
                 nodeX[i] = nodeX[i + 1];
                 nodeX[i + 1] = swap;
                 if (i) i--;
-            }
-            else { i++; }
+            } else { i++; }
         }
 
         // Fill the pixels between node pairs.

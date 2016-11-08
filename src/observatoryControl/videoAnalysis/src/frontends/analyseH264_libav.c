@@ -37,7 +37,7 @@
 #include <libavutil/mathematics.h>
 
 #include "analyse/observe.h"
-#include "utils/asciidouble.h"
+#include "utils/asciiDouble.h"
 #include "utils/tools.h"
 #include "utils/error.h"
 #include "utils/filledPoly.h"
@@ -151,10 +151,10 @@ int main(int argc, char **argv) {
     }
 
     ctx.filename = argv[1];
-    ctx.tstart = GetFloat(argv[2], NULL);
+    ctx.tstart = getFloat(argv[2], NULL);
     ctx.tstop = time(NULL) + 3600 * 24;
     ctx.utcoffset = 0;
-    ctx.FPS = GetFloat(argv[3], NULL);
+    ctx.FPS = getFloat(argv[3], NULL);
     ctx.maskFile = argv[4];
     initLut();
 

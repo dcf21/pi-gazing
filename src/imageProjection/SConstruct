@@ -15,7 +15,7 @@ linkFlags = ['-fopenmp']
 ccDefines = ['DATE=\\"17/02/2016\\"' , 'VERSION=\\"0.0.2\\"' , 'SRCDIR=\\"%s\\"'%srcdir]
 
 # C source files which are common to all binaries we are going to build
-commonFiles = ['asciidouble.c','backgroundSub.c','error.c','gnomonic.c','image_in.c','image_out.c','imageProcess.c','readConfig.c','settings.c']
+commonFiles = ['asciiDouble.c','backgroundSub.c','error.c','gnomonic.c','image_in.c','image_out.c','imageProcess.c','readConfig.c','settings.c']
 
 # List of all the binaries we are going to build
 # [ list of source files  , binary name ]

@@ -1,4 +1,4 @@
-// asciidouble.c
+// asciiDouble.c
 // Meteor Pi, Cambridge Science Centre 
 // Dominic Ford
 
@@ -28,9 +28,9 @@
 #include <string.h>
 #include <ctype.h>
 
-/* GetFloat(): This gets a float from a string */
+/* getFloat(): This gets a float from a string */
 
-double GetFloat(const char *str, int *Nchars) {
+double getFloat(const char *str, int *Nchars) {
     double accumulator = 0;
     int decimals = 0;
     unsigned char past_decimal_point = 0;
@@ -63,7 +63,7 @@ double GetFloat(const char *str, int *Nchars) {
     if (negative == 1) accumulator *= -1;                         /* Deals with negatives */
 
     if ((str[pos] == 'e') || (str[pos] == 'E'))
-        accumulator *= pow(10.0, GetFloat(str + pos + 1, &pos2)); /* Deals with exponents */
+        accumulator *= pow(10.0, getFloat(str + pos + 1, &pos2)); /* Deals with exponents */
 
     if (pos2 > 0) pos += (1 + pos2); // Add on characters taken up by exponent, including one for the 'e' character.
     if (pos == 0) pos = -1; // Alert the user that this was a blank string!
@@ -71,9 +71,9 @@ double GetFloat(const char *str, int *Nchars) {
     return (accumulator);
 }
 
-/* ValidFloat(): Sees whether candidate string is a valid float */
+/* validFloat(): Sees whether candidate string is a valid float */
 
-int ValidFloat(const char *str, int *end) {
+int validFloat(const char *str, int *end) {
     unsigned char past_decimal_point = 0, had_number = 0, expvalid = 1;
     int pos = 0;
     int pos2 = 0;
@@ -85,8 +85,7 @@ int ValidFloat(const char *str, int *end) {
         if (str[pos] == '.') {
             if (past_decimal_point) goto VALID_FLOAT_ENDED;
             else past_decimal_point = 1;
-        }
-        else { had_number = 1; }
+        } else { had_number = 1; }
         pos++;
     }
 
@@ -94,7 +93,7 @@ int ValidFloat(const char *str, int *end) {
 
     if ((str[pos] == 'e') || (str[pos] == 'E')) /* Deals with exponents */
     {
-        expvalid = ValidFloat(str + pos + 1, &pos2);
+        expvalid = validFloat(str + pos + 1, &pos2);
         pos += pos2 + 1;
     }
 
@@ -108,9 +107,9 @@ int ValidFloat(const char *str, int *end) {
     return 1;
 }
 
-/* NumericDisplay(): Displays a double in either %f or %e formats */
+/* numericDisplay(): Displays a double in either %f or %e formats */
 
-char *NumericDisplay(double in, int N, int SigFig, int latex) {
+char *numericDisplay(double in, int N, int SigFig, int latex) {
     static char format[16], outputA[128], outputB[128], outputC[128], outputD[128];
     double x, AccLevel;
     char *output;
@@ -127,8 +126,7 @@ char *NumericDisplay(double in, int N, int SigFig, int latex) {
             if ((x - ((floor(x * pow(10, DecimalLevel)) / pow(10, DecimalLevel)) - x)) < AccLevel)break;
         sprintf(format, "%%.%df", DecimalLevel);
         sprintf(output, format, in);
-    }
-    else {
+    } else {
         if (in == 0) { sprintf(output, "0"); }
         else {
             x = fabs(in);
@@ -177,7 +175,7 @@ char *NumericDisplay(double in, int N, int SigFig, int latex) {
     return output;
 }
 
-unsigned char DblEqual(double a, double b) {
+unsigned char dblEqual(double a, double b) {
     if ((fabs(a) < 1e-100) && (fabs(b) < 1e-100)) return 1;
     if ((fabs(a - b) < fabs(1e-7 * a)) && (fabs(a - b) < fabs(1e-7 * b))) return 1;
     return 0;
@@ -198,9 +196,9 @@ void file_readline(FILE *file, char *output, int MaxLength) {
     *(outputscan++) = '\0';
 }
 
-/* GetWord(): This returns the first word (terminated by any whitespace). Maximum <max> characters. */
+/* getWord(): This returns the first word (terminated by any whitespace). Maximum <max> characters. */
 
-void GetWord(char *out, const char *in, int max) {
+void getWord(char *out, const char *in, int max) {
     int count = 0;
     while ((*in <= ' ') && (*in > '\0')) in++; /* Fastforward over preceeding whitespace */
     while (((*in > ' ') || (*in < '\0')) && (count < (max - 1))) {
@@ -210,26 +208,26 @@ void GetWord(char *out, const char *in, int max) {
     *out = '\0'; /* Terminate output */
 }
 
-/* NextWord(): Fast forward over word, and return pointer to next word */
+/* nextWord(): Fast forward over word, and return pointer to next word */
 
-char *NextWord(char *in) {
+char *nextWord(char *in) {
     while ((*in <= ' ') && (*in > '\0')) in++; /* Fastforward over preceeding whitespace */
     while ((*in > ' ') || (*in < '\0')) in++; /* Fastforward over one word */
     while ((*in <= ' ') && (*in > '\0')) in++; /* Fastforward over whitespace before next word */
     return (in); /* Return pointer to next word */
 }
 
-/* FriendlyTimestring(): Returns pointer to time string */
+/* friendlyTimestring(): Returns pointer to time string */
 
-char *FriendlyTimestring() {
+char *friendlyTimestring() {
     time_t timenow;
     timenow = time(NULL);
     return (ctime(&timenow));
 }
 
-/* StrStrip(): Strip whitespace from both ends of a string */
+/* strStrip(): Strip whitespace from both ends of a string */
 
-char *StrStrip(const char *in, char *out) {
+char *strStrip(const char *in, char *out) {
     char *scan = out;
     while ((*in <= ' ') && (*in > '\0')) in++;
     while (*in != '\0') *(scan++) = *(in++);
@@ -239,9 +237,9 @@ char *StrStrip(const char *in, char *out) {
     return out;
 }
 
-/* StrUpper(): Capitalise a string */
+/* strUpper(): Capitalise a string */
 
-char *StrUpper(const char *in, char *out) {
+char *strUpper(const char *in, char *out) {
     char *scan = out;
     while (*in != '\0')
         if ((*in >= 'a') && (*in <= 'z')) *scan++ = *in++ + 'A' - 'a';
@@ -250,9 +248,9 @@ char *StrUpper(const char *in, char *out) {
     return out;
 }
 
-/* StrLower(): Lowercase a string */
+/* strLower(): Lowercase a string */
 
-char *StrLower(const char *in, char *out) {
+char *strLower(const char *in, char *out) {
     char *scan = out;
     while (*in != '\0')
         if ((*in >= 'A') && (*in <= 'Z')) *scan++ = *in++ + 'a' - 'A';
@@ -261,9 +259,9 @@ char *StrLower(const char *in, char *out) {
     return out;
 }
 
-/* StrUnderline(): Underline a string */
+/* strUnderline(): Underline a string */
 
-char *StrUnderline(const char *in, char *out) {
+char *strUnderline(const char *in, char *out) {
     char *scan = out;
     while (*in != '\0') {
         if ((*in >= ' ') || (*in < '\0')) *scan++ = '-';
@@ -273,9 +271,9 @@ char *StrUnderline(const char *in, char *out) {
     return out;
 }
 
-/* StrRemoveCompleteLine(): Removes a single complete line from a text buffer, if there is one */
+/* strRemoveCompleteLine(): Removes a single complete line from a text buffer, if there is one */
 
-char *StrRemoveCompleteLine(char *in, char *out) {
+char *strRemoveCompleteLine(char *in, char *out) {
     char *scan, *scan2, *scanout;
     scan = scan2 = in;
     scanout = out;
@@ -284,7 +282,7 @@ char *StrRemoveCompleteLine(char *in, char *out) {
         while (scan2 < scan)
             *scanout++ = *scan2++; // If one is found, copy up to this point into temporary string processing buffer
     *scanout = '\0';
-    StrStrip(out, out); // Strip it, and then this is what we will return
+    strStrip(out, out); // Strip it, and then this is what we will return
 
     if (*scan != '\0') // If we've taken a line out of the buffer, delete it from buffer
     {
@@ -296,9 +294,9 @@ char *StrRemoveCompleteLine(char *in, char *out) {
     return out;
 }
 
-/* StrSlice(): Take a slice out of a string */
+/* strSlice(): Take a slice out of a string */
 
-char *StrSlice(const char *in, char *out, int start, int end) {
+char *strSlice(const char *in, char *out, int start, int end) {
     char *scan = out;
     int pos = 0;
     while ((pos < start) && (in[pos] != '\0')) pos++;
@@ -307,18 +305,18 @@ char *StrSlice(const char *in, char *out, int start, int end) {
     return out;
 }
 
-/* StrCommaSeparatedListScan(): Split up a comma-separated list into individual values */
+/* strCommaSeparatedListScan(): Split up a comma-separated list into individual values */
 
-char *StrCommaSeparatedListScan(char **inscan, char *out) {
+char *strCommaSeparatedListScan(char **inscan, char *out) {
     char *outscan = out;
     while ((**inscan != '\0') && (**inscan != ',')) *(outscan++) = *((*inscan)++);
     if (**inscan == ',') (*inscan)++; // Fastforward over comma character
     *outscan = '\0';
-    StrStrip(out, out);
+    strStrip(out, out);
     return out;
 }
 
-/* StrAutocomplete(): Test whether a candidate string matches the beginning of test string, and is a least N characters long */
+/* strAutocomplete(): Test whether a candidate string matches the beginning of test string, and is a least N characters long */
 
 int StrAutocomplete(const char *candidate, const char *test, int Nmin) {
     int i, j;
@@ -337,37 +335,33 @@ int StrAutocomplete(const char *candidate, const char *test, int Nmin) {
                 if (candidate[j] <= ' ') // Word teminated with space...
                 {
                     return j;
-                }
-                else if ((isalnum(candidate[j]) == 0) && (candidate[j] != '_')) // Word teminated with punctuation...
+                } else if ((isalnum(candidate[j]) == 0) && (candidate[j] != '_')) // Word teminated with punctuation...
                 {
                     // Alphanumeric test strings can be terminated by punctuation; others must have spaces after them
                     for (i = 0; test[i] != '\0'; i++)
                         if ((test[i] > ' ') && (isalnum(test[i]) == 0) && (test[i] != '_'))return -1;
                     return j;
-                }
-                else // Word terminated with more letters
+                } else // Word terminated with more letters
                 { return -1; }
             }
         } else { // We've hit the end of the test string
             if (candidate[j] <= ' ') // Word teminated with space...
             {
                 return j;
-            }
-            else if ((isalnum(candidate[j]) == 0) && (candidate[j] != '_')) // Word teminated with punctuation...
+            } else if ((isalnum(candidate[j]) == 0) && (candidate[j] != '_')) // Word teminated with punctuation...
             {
                 // Alphanumeric test strings can be terminated by punctuation; others must have spaces after them
                 for (i = 0; test[i] != '\0'; i++)
                     if ((test[i] > ' ') && (isalnum(test[i]) == 0) && (test[i] != '_'))return -1;
                 return j;
-            }
-            else // Word terminated with more letters
+            } else // Word terminated with more letters
             { return -1; }
         }
 }
 
-/* StrWordWrap(): Word wrap a piece of text to a certain width */
+/* strWordWrap(): Word wrap a piece of text to a certain width */
 
-void StrWordWrap(const char *in, char *out, int width) {
+void strWordWrap(const char *in, char *out, int width) {
     int WhiteSpace = 1;
     int LastSpace = -1;
     int LineStart = 0;
@@ -442,10 +436,10 @@ void StrWordWrap(const char *in, char *out, int width) {
     return;
 }
 
-/* StrBacketMatch(): Find a closing bracket to match an opening bracket, and optionally return a list of all comma positions */
-/*                   'in' should point to the opening bracket character for which we are looking for the closing partner */
+/* strBarcketMatch(): Find a closing bracket to match an opening bracket, and optionally return a list of all comma positions */
+/*                    'in' should point to the opening bracket character for which we are looking for the closing partner */
 
-void StrBracketMatch(const char *in, int *CommaPositions, int *Nargs, int *ClosingBracketPos, int MaxCommaPoses) {
+void strBracketMatch(const char *in, int *CommaPositions, int *Nargs, int *ClosingBracketPos, int MaxCommaPoses) {
     int BracketLevel = 0;
     int inpos = 0;
     int commapos = 0;
@@ -456,20 +450,18 @@ void StrBracketMatch(const char *in, int *CommaPositions, int *Nargs, int *Closi
         {
             if ((in[inpos] == QuoteType) && (in[inpos - 1] != '\\')) QuoteType = '\0';
             continue;
-        }
-        else if ((in[inpos] == '\'') || (in[inpos] == '\"')) QuoteType = in[inpos]; // Entering a quoted string
+        } else if ((in[inpos] == '\'') || (in[inpos] == '\"')) QuoteType = in[inpos]; // Entering a quoted string
         else if (in[inpos] == '(')  // Entering a nested level of brackets
         {
             BracketLevel += 1;
-            if (BracketLevel == 1) if ((CommaPositions != NULL) && ((MaxCommaPoses < 0) || (commapos < MaxCommaPoses)))
-                *(CommaPositions + (commapos++)) = inpos; // Put ( on comma list
-        }
-        else if (in[inpos] == ')')  // Leaving a nested level of brackets
+            if (BracketLevel == 1)
+                if ((CommaPositions != NULL) && ((MaxCommaPoses < 0) || (commapos < MaxCommaPoses)))
+                    *(CommaPositions + (commapos++)) = inpos; // Put ( on comma list
+        } else if (in[inpos] == ')')  // Leaving a nested level of brackets
         {
             BracketLevel -= 1;
             if (BracketLevel == 0) break;
-        }
-        else if ((in[inpos] == ',') && (BracketLevel == 1)) // Found a new comma-separated item
+        } else if ((in[inpos] == ',') && (BracketLevel == 1)) // Found a new comma-separated item
         {
             if ((CommaPositions != NULL) && ((MaxCommaPoses < 0) || (commapos < MaxCommaPoses)))
                 *(CommaPositions + (commapos++)) = inpos; // Put , on comma list
@@ -513,9 +505,9 @@ int StrCmpNoCase(const char *a, const char *b) {
     }
 }
 
-/* StrEscapify(): Inserts escape characters into strings before quote characters */
+/* strEscapify(): Inserts escape characters into strings before quote characters */
 
-char *StrEscapify(const char *in, char *out) {
+char *strEscapify(const char *in, char *out) {
     const char *scanin = in;
     char *scanout = out;
     *scanout++ = '\"';
@@ -528,9 +520,9 @@ char *StrEscapify(const char *in, char *out) {
     return out;
 }
 
-/* StrWildcardTest(): Test whether test string matches wildcard string */
+/* strWildcardTest(): Test whether test string matches wildcard string */
 
-int StrWildcardTest(const char *test, const char *wildcard) {
+int strWildcardTest(const char *test, const char *wildcard) {
     int i = 0, j, k, mineat = 0, maxeat = 0;
 
     while ((wildcard[i] != '\0') && (wildcard[i] != '?') && (wildcard[i] != '*'))
@@ -542,34 +534,33 @@ int StrWildcardTest(const char *test, const char *wildcard) {
         if (wildcard[j] == '?') {
             mineat++;
             maxeat++;
-        }
-        else { maxeat = 10000; }
+        } else { maxeat = 10000; }
         j++;
     }
 
     for (k = 0; k < mineat; k++) if (test[i++] == '\0') return 0;
 
     for (k = 0; k < maxeat - mineat; k++) {
-        if (StrWildcardTest(test + i, wildcard + j)) return 1;
+        if (strWildcardTest(test + i, wildcard + j)) return 1;
         if (test[i++] == '\0') return 0;
     }
     return 0;
 }
 
-void ReadConfig_FetchKey(char *line, char *out) {
+void readConfig_FetchKey(char *line, char *out) {
     char *scan = out;
     while ((*line != '\0') && ((*(scan) = *(line++)) != '=')) scan++;
     *scan = '\0';
-    StrStrip(out, out);
+    strStrip(out, out);
     return;
 }
 
-void ReadConfig_FetchValue(char *line, char *out) {
+void readConfig_FetchValue(char *line, char *out) {
     char *scan = out;
     while ((*line != '\0') && (*(line++) != '='));
     while (*line != '\0') *(scan++) = *(line++);
     *scan = '\0';
-    StrStrip(out, out);
+    strStrip(out, out);
     return;
 }
 

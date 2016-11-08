@@ -27,7 +27,7 @@
 #include "png/image.h"
 #include "utils/error.h"
 #include "vidtools/v4l2uvc.h"
-#include "utils/asciidouble.h"
+#include "utils/asciiDouble.h"
 #include "utils/tools.h"
 #include "vidtools/color.h"
 
@@ -630,20 +630,20 @@ int main(int argc, char **argv) {
 
     videoMetadata vmd;
 
-    const double utcoffset = GetFloat(argv[1], NULL);
+    const double utcoffset = getFloat(argv[1], NULL);
     UTC_OFFSET = utcoffset;
-    vmd.tstart = GetFloat(argv[2], NULL);
-    vmd.tstop = GetFloat(argv[3], NULL);
+    vmd.tstart = getFloat(argv[2], NULL);
+    vmd.tstop = getFloat(argv[3], NULL);
     vmd.nframe = 0;
     vmd.obstoryId = argv[4];
     vmd.videoDevice = argv[5];
-    vmd.width = (int) GetFloat(argv[6], NULL);
-    vmd.height = (int) GetFloat(argv[7], NULL);
-    vmd.fps = GetFloat(argv[8], NULL);
-    vmd.lat = GetFloat(argv[9], NULL);
-    vmd.lng = GetFloat(argv[10], NULL);
-    vmd.flagGPS = GetFloat(argv[11], NULL) ? 1 : 0;
-    vmd.flagUpsideDown = GetFloat(argv[12], NULL) ? 1 : 0;
+    vmd.width = (int) getFloat(argv[6], NULL);
+    vmd.height = (int) getFloat(argv[7], NULL);
+    vmd.fps = getFloat(argv[8], NULL);
+    vmd.lat = getFloat(argv[9], NULL);
+    vmd.lng = getFloat(argv[10], NULL);
+    vmd.flagGPS = getFloat(argv[11], NULL) ? 1 : 0;
+    vmd.flagUpsideDown = getFloat(argv[12], NULL) ? 1 : 0;
     vmd.filename = argv[13];
 
     // Append .h264 suffix to output filename
@@ -651,11 +651,11 @@ int main(int argc, char **argv) {
     sprintf(frOut, "%s.h264", vmd.filename);
 
     if (DEBUG) {
-        sprintf(line, "Starting video recording run at %s.", StrStrip(FriendlyTimestring(vmd.tstart), temp_err_string));
+        sprintf(line, "Starting video recording run at %s.", strStrip(friendlyTimestring(vmd.tstart), temp_err_string));
         gnom_log(line);
     }
     if (DEBUG) {
-        sprintf(line, "Video will end at %s.", StrStrip(FriendlyTimestring(vmd.tstop), temp_err_string));
+        sprintf(line, "Video will end at %s.", strStrip(friendlyTimestring(vmd.tstop), temp_err_string));
         gnom_log(line);
     }
 

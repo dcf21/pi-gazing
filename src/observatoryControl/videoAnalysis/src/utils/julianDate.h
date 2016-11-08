@@ -1,4 +1,4 @@
-// JulianDate.h
+// julianDate.h
 // Meteor Pi, Cambridge Science Centre
 // Dominic Ford
 
@@ -24,17 +24,17 @@
 #ifndef JULIANDATE_H
 #define JULIANDATE_H 1
 
-void SwitchOverCalDate(double *LastJulian, double *FirstGregorian);
+void switchOverCalDate(double *lastJulian, double *firstGregorian);
 
-double SwitchOverJD();
+double switchOverJD();
 
-char *GetMonthName(int i);
+char *getMonthName(int i);
 
-char *GetWeekDayName(int i);
+char *getWeekDayName(int i);
 
-double JulianDay(int year, int month, int day, int hour, int min, int sec, int *status, char *errtext);
+double julianDay(int year, int month, int day, int hour, int min, int sec, int *status, char *errtext);
 
-void InvJulianDay(double JD, int *year, int *month, int *day, int *hour, int *min, double *sec, int *status,
+void invJulianDay(double JD, int *year, int *month, int *day, int *hour, int *min, double *sec, int *status,
                   char *errtext);
 
 #endif

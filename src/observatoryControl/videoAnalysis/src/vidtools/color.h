@@ -50,22 +50,22 @@ typedef struct MyYUV444 {
 #define CLIPCHAR(color) (unsigned char)(((color)>0xFF)?0xff:(((color)<0)?0:(color)))
 
 unsigned char
-        RGB24_TO_Y(unsigned char r, unsigned char g, unsigned char b);
+RGB24_TO_Y(unsigned char r, unsigned char g, unsigned char b);
 
 unsigned char
-        YR_TO_V(unsigned char r, unsigned char y);
+YR_TO_V(unsigned char r, unsigned char y);
 
 unsigned char
-        YB_TO_U(unsigned char b, unsigned char y);
+YB_TO_U(unsigned char b, unsigned char y);
 
 unsigned char
-        R_FROMYV(unsigned char y, unsigned char v);
+R_FROMYV(unsigned char y, unsigned char v);
 
 unsigned char
-        G_FROMYUV(unsigned char y, unsigned char u, unsigned char v);
+G_FROMYUV(unsigned char y, unsigned char u, unsigned char v);
 
 unsigned char
-        B_FROMYU(unsigned char y, unsigned char u);
+B_FROMYU(unsigned char y, unsigned char u);
 
 #define YfromRGB(r, g, b) CLIPCHAR((77*(r)+150*(g)+29*(b))>>8)
 #define UfromRGB(r, g, b) CLIPCHAR(((128*(b)-85*(g)-43*(r))>>8 )+128)
