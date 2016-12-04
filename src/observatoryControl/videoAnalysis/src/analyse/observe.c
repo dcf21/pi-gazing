@@ -34,10 +34,10 @@
 #include "str_constants.h"
 #include "analyse/observe.h"
 #include "analyse/trigger.h"
-#include "utils/asciidouble.h"
+#include "utils/asciiDouble.h"
 #include "utils/tools.h"
 #include "utils/error.h"
-#include "utils/JulianDate.h"
+#include "utils/julianDate.h"
 #include "vidtools/color.h"
 
 #include "settings.h"
@@ -51,7 +51,7 @@ char *fNameGenerate(char *output, const char *obstoryId, double utc, char *tag, 
     const double JD = utc / 86400.0 + 2440587.5;
     int year, month, day, hour, min, status;
     double sec;
-    InvJulianDay(JD - 0.5, &year, &month, &day, &hour, &min, &sec, &status,
+    invJulianDay(JD - 0.5, &year, &month, &day, &hour, &min, &sec, &status,
                  output); // Subtract 0.5 from Julian Day as we want days to start at noon, not midnight
 
     sprintf(path, "%s/%s_%s", OUTPUT_PATH, dirname, label);
@@ -71,7 +71,7 @@ char *fNameGenerate(char *output, const char *obstoryId, double utc, char *tag, 
         gnom_log(temp_err_string);
     }
 
-    InvJulianDay(JD, &year, &month, &day, &hour, &min, &sec, &status, output);
+    invJulianDay(JD, &year, &month, &day, &hour, &min, &sec, &status, output);
     sprintf(output, "%s/%04d%02d%02d%02d%02d%02d_%s_%s", path, year, month, day, hour, min, (int) sec, obstoryId, tag);
     return output;
 }
@@ -174,7 +174,7 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
 
     if (DEBUG) {
         sprintf(line, "Starting observing run at %s; observing run will end at %s.",
-                StrStrip(FriendlyTimestring(tstart), line2), StrStrip(FriendlyTimestring(tstop), line3));
+                strStrip(friendlyTimestring(tstart), line2), strStrip(friendlyTimestring(tstop), line3));
         gnom_log(line);
     }
 
@@ -440,8 +440,7 @@ void registerTrigger(observeStatus *os, const int blockId, const int xpos, const
             d->y = (d->y * d->amplitude + ypos * amplitude) / (d->amplitude + amplitude);
             d->amplitude += amplitude;
             d->npixels += npixels;
-        }
-        else // Otherwise add new detection to list
+        } else // Otherwise add new detection to list
         {
             os->eventList[i].Ndetections++;
             detection *d = &os->eventList[i].detections[N + 1];
@@ -460,7 +459,7 @@ void registerTrigger(observeStatus *os, const int blockId, const int xpos, const
         int year, month, day, hour, min, status;
         double sec;
         double JD = (os->utc / 86400.0) + 2440587.5;
-        InvJulianDay(JD, &year, &month, &day, &hour, &min, &sec, &status, temp_err_string);
+        invJulianDay(JD, &year, &month, &day, &hour, &min, &sec, &status, temp_err_string);
         sprintf(temp_err_string, "Camera has triggered at (%04d/%02d/%02d %02d:%02d:%02d -- x=%d,y=%d).", year, month,
                 day, hour, min, (int) sec, xpos, ypos);
         gnom_log(temp_err_string);
@@ -547,7 +546,7 @@ void registerTriggerEnds(observeStatus *os) {
                  (os->frameCounter - (os->buffNGroups - os->triggerPrefixNGroups))) ||
                 // Event is exceeding TRIGGER_MAXRECORDLEN?
                 (os->eventList[i].detections[N2].frameCount <= (os->frameCounter -
-                                                               os->triggerSuffixNGroups))) // ... or event hasn't been seen for TRIGGER_SUFFIXTIME?
+                                                                os->triggerSuffixNGroups))) // ... or event hasn't been seen for TRIGGER_SUFFIXTIME?
             {
                 os->eventList[i].active = 0;
 

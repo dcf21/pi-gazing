@@ -153,31 +153,31 @@ double calculateSkyClarity(image_ptr *img, double noiseLevel) {
             const int xmax = img->xsize * (j + 1) / (gridsize + 1);
             const int ymax = img->ysize * (i + 1) / (gridsize + 1);
             int x, y, n_bright_pixels = 0, n_stars = 0;
-            const int n_pixels = (xmax-xmin)*(ymax-ymin);
+            const int n_pixels = (xmax - xmin) * (ymax - ymin);
             for (y = ymin; y < ymax; y++)
                 for (x = xmin; x < xmax; x++) {
                     double pixel_value = img->data_red[y * stride + x];
                     if (pixel_value > 128) n_bright_pixels++;
-                    int k, reject=0;
-                    for (k=-search_distance; (k<=search_distance)&&(!reject) ; k+=2)
-                        if (pixel_value - threshold <= img->data_red[(y + search_distance) * stride + (x + k)] )
-                            reject=1;
-                    for (k=-search_distance; (k<=search_distance)&&(!reject) ; k+=2)
-                        if (pixel_value - threshold <= img->data_red[(y - search_distance) * stride + (x + k)] )
-                            reject=1;
-                    for (k=-search_distance; (k<=search_distance)&&(!reject) ; k+=2)
-                        if (pixel_value - threshold <= img->data_red[(y + k) * stride + (x + search_distance)] )
-                            reject=1;
-                    for (k=-search_distance; (k<=search_distance)&&(!reject) ; k+=2)
-                        if (pixel_value - threshold <= img->data_red[(y + k) * stride + (x - search_distance)] )
-                            reject=1;
+                    int k, reject = 0;
+                    for (k = -search_distance; (k <= search_distance) && (!reject); k += 2)
+                        if (pixel_value - threshold <= img->data_red[(y + search_distance) * stride + (x + k)])
+                            reject = 1;
+                    for (k = -search_distance; (k <= search_distance) && (!reject); k += 2)
+                        if (pixel_value - threshold <= img->data_red[(y - search_distance) * stride + (x + k)])
+                            reject = 1;
+                    for (k = -search_distance; (k <= search_distance) && (!reject); k += 2)
+                        if (pixel_value - threshold <= img->data_red[(y + k) * stride + (x + search_distance)])
+                            reject = 1;
+                    for (k = -search_distance; (k <= search_distance) && (!reject); k += 2)
+                        if (pixel_value - threshold <= img->data_red[(y + k) * stride + (x - search_distance)])
+                            reject = 1;
 
                     if (!reject) n_stars++;
                 }
-            if ((n_stars >= 4)&&(n_bright_pixels<n_pixels*0.05)) {
+            if ((n_stars >= 4) && (n_bright_pixels < n_pixels * 0.05)) {
 #pragma omp critical (count_stars)
-              { score++; }
-             }
+                { score++; }
+            }
         }
     return (100. * score) / pow(gridsize - 1, 2);
 }
@@ -320,8 +320,8 @@ int dumpFrameFromISub(int width, int height, int channels, const int *buffer, in
 
 FILE *dumpVideoInit(int width, int height, const unsigned char *buffer1, int buffer1frames,
                     const unsigned char *buffer2, int buffer2frames, char *fName) {
-    const size_t frameSize = (size_t)(width * height * 3/2);
-    const int blen = (int)(sizeof(int) + 2 * sizeof(int) + (buffer1frames + buffer2frames) * frameSize);
+    const size_t frameSize = (size_t) (width * height * 3 / 2);
+    const int blen = (int) (sizeof(int) + 2 * sizeof(int) + (buffer1frames + buffer2frames) * frameSize);
 
     FILE *outfile;
     if ((outfile = fopen(fName, "wb")) == NULL) {
@@ -338,14 +338,14 @@ FILE *dumpVideoInit(int width, int height, const unsigned char *buffer1, int buf
 
 
 int dumpVideoFrame(int width, int height, const unsigned char *buffer1, int buffer1frames, const unsigned char *buffer2,
-              int buffer2frames, FILE *outfile, int *framesWritten) {
-    const size_t frameSize = (size_t)(width * height * 3/2);
+                   int buffer2frames, FILE *outfile, int *framesWritten) {
+    const size_t frameSize = (size_t) (width * height * 3 / 2);
 
-    const int totalFrames = buffer1frames+buffer2frames;
-    const int framesToWrite = MIN(totalFrames-*framesWritten,TRIGGER_FRAMEGROUP);
+    const int totalFrames = buffer1frames + buffer2frames;
+    const int framesToWrite = MIN(totalFrames - *framesWritten, TRIGGER_FRAMEGROUP);
     int i;
 
-    for (i=0; i<framesToWrite; i++) {
+    for (i = 0; i < framesToWrite; i++) {
         if (*framesWritten < buffer1frames)
             fwrite(buffer1 + (*framesWritten) * frameSize, frameSize, 1, outfile);
         else

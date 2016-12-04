@@ -27,7 +27,7 @@
 #include <ctype.h>
 #include <math.h>
 
-#include "asciidouble.h"
+#include "asciiDouble.h"
 #include "error.h"
 #include "gnomonic.h"
 #include "image.h"
@@ -56,15 +56,15 @@ void backgroundSubtract(image_ptr img, settingsIn *si) {
         for (k = 0; k < img.xsize; k++, l++) {
             int kbin = k * GRIDSIZE / img.xsize;
             int level;
-            level = (int)img.data_red[l];
+            level = (int) img.data_red[l];
             if (level < 0) level = 0;
             if (level > 255) level = 255;
             histogram[jbin][kbin][0][level]++;
-            level = (int)img.data_grn[l];
+            level = (int) img.data_grn[l];
             if (level < 0) level = 0;
             if (level > 255) level = 255;
             histogram[jbin][kbin][1][level]++;
-            level = (int)img.data_blu[l];
+            level = (int) img.data_blu[l];
             if (level < 0) level = 0;
             if (level > 255) level = 255;
             histogram[jbin][kbin][2][level]++;
@@ -89,7 +89,7 @@ void backgroundSubtract(image_ptr img, settingsIn *si) {
         int k;
         int l = img.xsize * j;
         double jbin = j * ((double) GRIDSIZE) / img.ysize - 0.5;
-        int jbin0 = (int)floor(jbin);
+        int jbin0 = (int) floor(jbin);
         double jbin0w = 1 - (jbin - jbin0);
         if (jbin0 < 0) {
             jbin0 = 0;
@@ -100,7 +100,7 @@ void backgroundSubtract(image_ptr img, settingsIn *si) {
         double jbin1w = 1 - jbin0w;
         for (k = 0; k < img.xsize; k++, l++) {
             double kbin = k * ((double) GRIDSIZE) / img.xsize - 0.5;
-            int kbin0 = (int)floor(kbin);
+            int kbin0 = (int) floor(kbin);
             double kbin0w = 1 - (kbin - kbin0);
             if (kbin0 < 0) {
                 kbin0 = 0;
@@ -124,8 +124,7 @@ void backgroundSubtract(image_ptr img, settingsIn *si) {
                 if (img.data_red[l] > backr) img.data_red[l] -= backr; else img.data_red[l] = 0;
                 if (img.data_grn[l] > backg) img.data_grn[l] -= backg; else img.data_grn[l] = 0;
                 if (img.data_blu[l] > backb) img.data_blu[l] -= backb; else img.data_blu[l] = 0;
-            }
-            else if (si->backSub == 2) {
+            } else if (si->backSub == 2) {
                 img.data_red[l] = backr;
                 img.data_grn[l] = backg;
                 img.data_blu[l] = backb;

@@ -94,9 +94,9 @@ int image_put(char *frOut, image_ptr image) {
     int p = 0;
     for (y = 0; y < height; y++) {
         for (x = 0; x < width; x++) {
-            row[x * 3 + 0] = (int)image.data_red[p];
-            row[x * 3 + 1] = (int)image.data_grn[p];
-            row[x * 3 + 2] = (int)image.data_blu[p];
+            row[x * 3 + 0] = (int) image.data_red[p];
+            row[x * 3 + 1] = (int) image.data_grn[p];
+            row[x * 3 + 2] = (int) image.data_blu[p];
             p++;
         }
         png_write_row(png_ptr, row);

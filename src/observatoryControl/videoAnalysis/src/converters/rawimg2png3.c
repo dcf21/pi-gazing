@@ -26,7 +26,7 @@
 #include <unistd.h>
 #include "utils/tools.h"
 #include "png/image.h"
-#include "utils/asciidouble.h"
+#include "utils/asciiDouble.h"
 #include "utils/error.h"
 #include "utils/lensCorrect.h"
 #include "png.h"
@@ -43,11 +43,11 @@ int main(int argc, char *argv[]) {
 
     char *rawFname = argv[1];
     char *fname = argv[2];
-    int lcmin = GetFloat(argv[3], NULL) ? 0 : 1;
-    double noise = GetFloat(argv[4], NULL);
-    double barrelA = GetFloat(argv[5], NULL);
-    double barrelB = GetFloat(argv[6], NULL);
-    double barrelC = GetFloat(argv[7], NULL);
+    int lcmin = getFloat(argv[3], NULL) ? 0 : 1;
+    double noise = getFloat(argv[4], NULL);
+    double barrelA = getFloat(argv[5], NULL);
+    double barrelB = getFloat(argv[6], NULL);
+    double barrelC = getFloat(argv[7], NULL);
 
     FILE *infile;
     if ((infile = fopen(rawFname, "rb")) == NULL) {
@@ -103,8 +103,7 @@ int main(int argc, char *argv[]) {
                 image_ptr CorrectedImage = lensCorrect(&out, barrelA, barrelB, barrelC);
                 code = image_put(frOut, CorrectedImage, 1);
                 image_dealloc(&CorrectedImage);
-            }
-            else {
+            } else {
                 code = image_put(frOut, out, 1);
             }
 

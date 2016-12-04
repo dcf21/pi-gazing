@@ -1,4 +1,4 @@
-// JulianDate.c
+// julianDate.c
 // Meteor Pi, Cambridge Science Centre
 // Dominic Ford
 
@@ -27,23 +27,23 @@
 
 #include <gsl/gsl_math.h>
 
-#include "utils/JulianDate.h"
+#include "utils/julianDate.h"
 
 // Routines for looking up the dates when the transition between the Julian calendar and the Gregorian calendar occurred
 
-void SwitchOverCalDate(double *LastJulian, double *FirstGregorian) {
-    *LastJulian = 17520902.0;
-    *FirstGregorian = 17520914.0; // British
+void switchOverCalDate(double *lastJulian, double *firstGregorian) {
+    *lastJulian = 17520902.0;
+    *firstGregorian = 17520914.0; // British
     return;
 }
 
-double SwitchOverJD() {
+double switchOverJD() {
     return 2361222.0; // British
 }
 
 // Functions for looking up the names of the Nth calendar month and the Nth day of the week
 
-char *GetMonthName(int i) {
+char *getMonthName(int i) {
     switch (i) {
         case 1:
             return "January";
@@ -75,7 +75,7 @@ char *GetMonthName(int i) {
     return "???";
 }
 
-char *GetWeekDayName(int i) {
+char *getWeekDayName(int i) {
     switch (i) {
         case 0:
             return "Monday";
@@ -91,13 +91,15 @@ char *GetWeekDayName(int i) {
             return "Saturday";
         case 6:
             return "Sunday";
+        default:
+            return "???";
     }
     return "???";
 }
 
 // Routines for converting between Julian Day numbers and Calendar Dates in Gregorian and Julian calendars
 
-double JulianDay(int year, int month, int day, int hour, int min, int sec, int *status, char *errtext) {
+double julianDay(int year, int month, int day, int hour, int min, int sec, int *status, char *errtext) {
     double JD, DayFraction, LastJulian, FirstGregorian, ReqDate;
     int b;
 
@@ -132,7 +134,7 @@ double JulianDay(int year, int month, int day, int hour, int min, int sec, int *
         return 0.0;
     }
 
-    SwitchOverCalDate(&LastJulian, &FirstGregorian);
+    switchOverCalDate(&LastJulian, &FirstGregorian);
     ReqDate = 10000.0 * year + 100 * month + day;
 
     if (month <= 2) {
@@ -156,7 +158,7 @@ double JulianDay(int year, int month, int day, int hour, int min, int sec, int *
     return JD + DayFraction;
 }
 
-void InvJulianDay(double JD, int *year, int *month, int *day, int *hour, int *min, double *sec, int *status,
+void invJulianDay(double JD, int *year, int *month, int *day, int *hour, int *min, double *sec, int *status,
                   char *errtext) {
     long a, b, c, d, e, f;
     double DayFraction;
@@ -178,7 +180,7 @@ void InvJulianDay(double JD, int *year, int *month, int *day, int *hour, int *mi
     // Now work out calendar date
     a = JD +
         0.5; // Number of whole Julian days. b = Number of centuries since the Council of Nicaea. c = Julian Day number as if century leap years happened.
-    if (a < SwitchOverJD()) {
+    if (a < switchOverJD()) {
         b = 0;
         c = a + 1524;
     } // Julian calendar

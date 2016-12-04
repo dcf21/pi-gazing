@@ -165,8 +165,7 @@ image_ptr image_get(char *filename) {
         if (png_get_bKGD(png_ptr, info_ptr, &backgndp)) {
             if (DEBUG) gnom_log("PNG defines a background colour");
             png_set_background(png_ptr, backgndp, PNG_BACKGROUND_GAMMA_FILE, 1, 1.0);
-        }
-        else {
+        } else {
             if (DEBUG) gnom_log("PNG does not define a background colour");
             background.red = background.green = background.blue = background.gray = 0xff; // Define background colour to be white
             png_set_background(png_ptr, &background, PNG_BACKGROUND_GAMMA_FILE, 0, 1.0);
@@ -248,14 +247,12 @@ image_ptr image_get(char *filename) {
             if (j != 1) {
                 gnom_warning(ERR_FILE,
                              "PNG has transparency, but not in the form of a single fully colour in its palette. Such transparency is not supported.");
-            }
-            else {
+            } else {
                 for (i = 0; (i < ntrans) && (trans_colours[i] == 255); i++);
                 trans = index;
                 *trans = i;
             }
-        }
-        else {
+        } else {
             trans = index;
             *trans = trans_val->gray;
             if (colour == BMP_COLOUR_RGB) {
@@ -278,8 +275,7 @@ image_ptr image_get(char *filename) {
             output.data_grn[i] = data[3 * i + 1];
             output.data_blu[i] = data[3 * i + 2];
         }
-    }
-    else if (colour == BMP_COLOUR_PALETTE) {
+    } else if (colour == BMP_COLOUR_PALETTE) {
         for (i = 0; i < frameSize; i++) {
             int j = data[i];
             if (j > pal_len - 1) j = pal_len - 1;
@@ -287,8 +283,7 @@ image_ptr image_get(char *filename) {
             output.data_grn[i] = palette[3 * j + 1];
             output.data_blu[i] = palette[3 * j + 2];
         }
-    }
-    else {
+    } else {
         for (i = 0; i < frameSize; i++) {
             output.data_red[i] = data[i];
             output.data_grn[i] = data[i];

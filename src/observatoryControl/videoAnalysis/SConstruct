@@ -20,7 +20,7 @@ linkFlags = ['-fopenmp']
 ccDefines = ['DATE=\\"17/02/2016\\"' , 'VERSION=\\"0.0.2\\"' , 'SRCDIR=\\"%s\\"'%srcdir , 'ALLDATAMONO=%s'%compileMono]
 
 # C source files which are common to all binaries we are going to build
-commonFiles = ['analyse/observe.c','analyse/trigger.c','jpeg/jpeg_in.c','png/image_in.c','png/image_out.c','utils/JulianDate.c','utils/asciidouble.c','utils/error.c','utils/filledPoly.c','utils/lensCorrect.c','utils/tools.c','vidtools/color.c','vidtools/v4l2uvc.c']
+commonFiles = ['analyse/observe.c','analyse/trigger.c','jpeg/jpeg_in.c','png/image_in.c','png/image_out.c','utils/julianDate.c','utils/asciiDouble.c','utils/error.c','utils/filledPoly.c','utils/lensCorrect.c','utils/tools.c','vidtools/color.c','vidtools/v4l2uvc.c']
 
 # List of all the binaries we are going to build
 # [ Flag: Requires OpenMAX , Requires libav , list of source files  , binary name ]

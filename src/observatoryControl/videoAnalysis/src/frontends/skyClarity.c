@@ -28,7 +28,7 @@
 #include <unistd.h>
 #include "png/image.h"
 #include "utils/tools.h"
-#include "utils/asciidouble.h"
+#include "utils/asciiDouble.h"
 #include "utils/error.h"
 
 int main(int argc, char *argv[]) {
@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
         gnom_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
-    double noiseLevel = GetFloat(argv[2], NULL);
+    double noiseLevel = getFloat(argv[2], NULL);
 
     // Read image
     image_ptr InputImage;

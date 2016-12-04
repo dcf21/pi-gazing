@@ -30,7 +30,7 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
 
-#include "asciidouble.h"
+#include "asciiDouble.h"
 #include "error.h"
 #include "gnomonic.h"
 #include "image.h"

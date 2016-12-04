@@ -22,14 +22,14 @@ set(SOURCE_FILES
         src/png/image.h
         src/png/image_in.c
         src/png/image_out.c
-        src/utils/asciidouble.c
-        src/utils/asciidouble.h
+        src/utils/asciiDouble.c
+        src/utils/asciiDouble.h
         src/utils/error.c
         src/utils/error.h
         src/utils/filledPoly.c
         src/utils/filledPoly.h
-        src/utils/JulianDate.c
-        src/utils/JulianDate.h
+        src/utils/julianDate.c
+        src/utils/julianDate.h
         src/utils/lensCorrect.c
         src/utils/lensCorrect.h
         src/utils/tools.c

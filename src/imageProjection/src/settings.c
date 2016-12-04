@@ -27,12 +27,12 @@
 #include <ctype.h>
 #include <math.h>
 
-#include "asciidouble.h"
+#include "asciiDouble.h"
 #include "error.h"
 #include "settings.h"
 #include "str_constants.h"
 
-void DefaultSettings(settings *s, settingsIn *si) {
+void defaultSettings(settings *s, settingsIn *si) {
     s->mode = MODE_FLAT;
     s->ExpComp = si->InWeight = si->InExpComp = 1;
     s->RA0 = s->Dec0 = s->PA = s->LinearRot = si->InRA0 = si->InDec0 = si->InRotation = si->InLinearRotation = 0;

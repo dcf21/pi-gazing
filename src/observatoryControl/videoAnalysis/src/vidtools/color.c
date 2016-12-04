@@ -190,8 +190,7 @@ void Pyuv422toMono(unsigned char *input_ptr, unsigned char *output_ptr, const un
         if (!upsideDown) {
             *output_pt++ = Y;
             *output_pt = Y1;
-        }
-        else {
+        } else {
             *output_pt++ = Y1;
             *output_pt = Y;
         }

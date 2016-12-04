@@ -31,10 +31,10 @@
 #include "str_constants.h"
 #include "analyse/observe.h"
 #include "analyse/trigger.h"
-#include "utils/asciidouble.h"
+#include "utils/asciiDouble.h"
 #include "utils/tools.h"
 #include "utils/error.h"
-#include "utils/JulianDate.h"
+#include "utils/julianDate.h"
 #include "vidtools/color.h"
 
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
