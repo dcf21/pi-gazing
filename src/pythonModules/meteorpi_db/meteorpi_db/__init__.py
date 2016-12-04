@@ -501,6 +501,9 @@ VALUES
             file_item.file_time, file_item.file_size,
             file_item.repository_fname, file_item.file_md5))
 
+        # Commit record, to prevent deadlocks
+        self.commit();
+
         # Store the file metadata
         for meta in file_item.meta:
             self.set_file_metadata(user_id, file_item.repository_fname, meta, file_item.file_time)
@@ -681,6 +684,9 @@ INSERT INTO archive_observations (publicId, observatory, userId, obsTime, obsTyp
 VALUES
 (%s, (SELECT uid FROM archive_observatories WHERE publicId=%s), %s, %s, %s);
 """, (observation.obs_id, observation.obstory_id, user_id, observation.obs_time, obs_type_id))
+
+        # Commit record, to prevent deadlocks
+        self.commit();
 
         # Store the observation metadata
         for meta in observation.meta:
