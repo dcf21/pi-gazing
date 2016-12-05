@@ -260,7 +260,7 @@ int dumpFrame(int width, int height, int channels, const unsigned char *buffer, 
     return 0;
 }
 
-int dumpFrameFromInts(int width, int height, int channels, const int *buffer, int nfr, int gain, char *fName) {
+int dumpFrameFromInts(int width, int height, int channels, const int *buffer, int nfr, int targetBrightness, int *gainOut, char *fName) {
     FILE *outfile;
     int frameSize = width * height;
     unsigned char *tmpc = malloc(frameSize * channels);
@@ -276,9 +276,29 @@ int dumpFrameFromInts(int width, int height, int channels, const int *buffer, in
     }
 
     int i, d;
+
+    // Work out what gain to apply to the image
+    int gain = 1;
+    if (targetBrightness > 0) {
+        double brightness_sum=32;
+        int brightness_points=1;
+        for (i = 0; i < frameSize; i+=199) {
+            brightness_sum += buffer[i];
+            brightness_points++;
+        }
+        gain = (int)(targetBrightness / (brightness_sum / nfr / brightness_points));
+        if (gain<1) gain=1;
+        if (gain>50) gain=50;
+    }
+
+    // Report the gain we are using as an output
+    if (gainOut != NULL) *gainOut = gain;
+
+    // Renormalise image data, dividing by the number of frames which have been stacked, and multiplying by gain factor
 #pragma omp parallel for private(i,d)
     for (i = 0; i < frameSize * channels; i++) tmpc[i] = CLIP256(buffer[i] * gain / nfr);
 
+    // Write image data to raw file
     fwrite(&width, 1, sizeof(int), outfile);
     fwrite(&height, 1, sizeof(int), outfile);
     fwrite(&channels, 1, sizeof(int), outfile);
@@ -288,7 +308,7 @@ int dumpFrameFromInts(int width, int height, int channels, const int *buffer, in
     return 0;
 }
 
-int dumpFrameFromISub(int width, int height, int channels, const int *buffer, int nfr, int gain,
+int dumpFrameFromISub(int width, int height, int channels, const int *buffer, int nfr, int targetBrightness, int *gainOut,
                       const unsigned char *buffer2, char *fName) {
     FILE *outfile;
     int frameSize = width * height;
@@ -305,9 +325,31 @@ int dumpFrameFromISub(int width, int height, int channels, const int *buffer, in
     }
 
     int i, d;
+
+    // Work out what gain to apply to the image
+    int gain = 1;
+    if (targetBrightness > 0) {
+        double brightness_sum=32;
+        int brightness_points=1;
+        for (i = 0; i < frameSize; i+=199) {
+            int level = buffer[i] - nfr * buffer2[i];
+            if (level<0) level=0;
+            brightness_sum += level;
+            brightness_points++;
+        }
+        gain = (int)(targetBrightness / (brightness_sum / nfr / brightness_points));
+        if (gain<1) gain=1;
+        if (gain>50) gain=50;
+    }
+
+    // Report the gain we are using as an output
+    if (gainOut != NULL) *gainOut = gain;
+
+    // Renormalise image data, dividing by the number of frames which have been stacked, and multiplying by gain factor
 #pragma omp parallel for private(i,d)
     for (i = 0; i < frameSize * channels; i++) tmpc[i] = CLIP256((buffer[i] - nfr * buffer2[i]) * gain / nfr);
 
+    // Write image data to raw file
     fwrite(&width, 1, sizeof(int), outfile);
     fwrite(&height, 1, sizeof(int), outfile);
     fwrite(&channels, 1, sizeof(int), outfile);

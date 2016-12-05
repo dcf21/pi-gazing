@@ -197,4 +197,3 @@ void invJulianDay(double JD, int *year, int *month, int *day, int *hour, int *mi
 
     return;
 }
-

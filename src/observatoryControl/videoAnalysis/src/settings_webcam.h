@@ -37,10 +37,9 @@
 
 #define Nchannels ( ALLDATAMONO ? 1 : 3 ) /* Number of colour channels to process. *Much* faster to process only one */
 
-// This is the gain that we apply to background-subtracted images taken as a time-lapse sequence through the night
+// This is the mean pixel brightness that we aim for in output images, applying whatever automatic gain is needed to get there
 
-#define STACK_GAIN_NOBGSUB  2
-#define STACK_GAIN_BGSUB    8
+#define STACK_TARGET_BRIGHTNESS  32
 
 // Throttle the number of triggers which are allowed
 #define TRIGGER_THROTTLE_PERIOD 30 /* number of minutes */

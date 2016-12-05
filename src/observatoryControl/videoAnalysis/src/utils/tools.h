@@ -54,9 +54,9 @@ void medianCalculate(const int width, const int height, const int channels, cons
 
 int dumpFrame(int width, int height, int channels, const unsigned char *buffer, char *fName);
 
-int dumpFrameFromInts(int width, int height, int channels, const int *buffer, int nfr, int gain, char *fName);
+int dumpFrameFromInts(int width, int height, int channels, const int *buffer, int nfr, int targetBrightness, int *gainOut, char *fName);
 
-int dumpFrameFromISub(int width, int height, int channels, const int *buffer, int nfr, int gain,
+int dumpFrameFromISub(int width, int height, int channels, const int *buffer, int nfr, int targetBrightness, int *gainOut,
                       const unsigned char *buffer2, char *fName);
 
 FILE *dumpVideoInit(int width, int height, const unsigned char *buffer1, int buffer1frames,

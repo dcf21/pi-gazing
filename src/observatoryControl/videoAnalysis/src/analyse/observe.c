@@ -166,7 +166,7 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
             const int Nchannels, const int STACK_COMPARISON_INTERVAL, const int TRIGGER_PREFIX_TIME,
             const int TRIGGER_SUFFIX_TIME, const int TRIGGER_FRAMEGROUP, const int TRIGGER_MAXRECORDLEN,
             const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT, const int TIMELAPSE_EXPOSURE,
-            const int TIMELAPSE_INTERVAL, const int STACK_GAIN_BGSUB, const int STACK_GAIN_NOBGSUB,
+            const int TIMELAPSE_INTERVAL, const int STACK_TARGET_BRIGHTNESS,
             const int medianMapUseEveryNthStack, const int medianMapUseNImages, const int medianMapReductionCycles,
             int (*fetchFrame)(void *, unsigned char *, double *), int (*rewindVideo)(void *, double *)) {
     int i;
@@ -204,8 +204,7 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
     os->TRIGGER_THROTTLE_MAXEVT = TRIGGER_THROTTLE_MAXEVT;
     os->TIMELAPSE_EXPOSURE = TIMELAPSE_EXPOSURE;
     os->TIMELAPSE_INTERVAL = TIMELAPSE_INTERVAL;
-    os->STACK_GAIN_BGSUB = STACK_GAIN_BGSUB;
-    os->STACK_GAIN_NOBGSUB = STACK_GAIN_NOBGSUB;
+    os->STACK_TARGET_BRIGHTNESS = STACK_TARGET_BRIGHTNESS;
 
     os->medianMapUseEveryNthStack = medianMapUseEveryNthStack;
     os->medianMapUseNImages = medianMapUseNImages;
@@ -346,18 +345,25 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
             (os->utc > os->timelapseUTCStart + os->TIMELAPSE_INTERVAL - 1)) {
             const int Nframes = os->timelapseCount * os->TRIGGER_FRAMEGROUP;
             char fstub[FNAME_LENGTH], fname[FNAME_LENGTH];
+            int gainFactor;
             fNameGenerate(fstub, os->obstoryId, os->timelapseUTCStart, "frame_", "timelapse_raw", os->label);
             sprintf(fname, "%s%s", fstub, "BS0.rgb");
-            dumpFrameFromInts(os->width, os->height, os->Nchannels, os->stackT, Nframes, os->STACK_GAIN_NOBGSUB, fname);
-            writeMetaData(fname, "sddi", "obstoryId", os->obstoryId, "inputNoiseLevel", os->noiseLevel,
-                          "stackNoiseLevel", os->noiseLevel / sqrt(Nframes) * os->STACK_GAIN_NOBGSUB, "stackedFrames",
-                          Nframes);
+            dumpFrameFromInts(os->width, os->height, os->Nchannels, os->stackT, Nframes, os->STACK_TARGET_BRIGHTNESS, &gainFactor, fname);
+            writeMetaData(fname, "sddii",
+                          "obstoryId", os->obstoryId,
+                          "inputNoiseLevel", os->noiseLevel,
+                          "stackNoiseLevel", os->noiseLevel / sqrt(Nframes) * gainFactor,
+                          "gainFactor", gainFactor,
+                          "stackedFrames", Nframes);
             sprintf(fname, "%s%s", fstub, "BS1.rgb");
-            dumpFrameFromISub(os->width, os->height, os->Nchannels, os->stackT, Nframes, os->STACK_GAIN_BGSUB,
+            dumpFrameFromISub(os->width, os->height, os->Nchannels, os->stackT, Nframes, os->STACK_TARGET_BRIGHTNESS, &gainFactor,
                               os->medianMap, fname);
-            writeMetaData(fname, "sddi", "obstoryId", os->obstoryId, "inputNoiseLevel", os->noiseLevel,
-                          "stackNoiseLevel", os->noiseLevel / sqrt(Nframes) * os->STACK_GAIN_BGSUB, "stackedFrames",
-                          Nframes);
+            writeMetaData(fname, "sddii",
+                          "obstoryId", os->obstoryId,
+                          "inputNoiseLevel", os->noiseLevel,
+                          "stackNoiseLevel", os->noiseLevel / sqrt(Nframes) * gainFactor,
+                          "gainFactor", gainFactor,
+                          "stackedFrames", Nframes);
             if (floor(fmod(os->timelapseUTCStart, 900)) ==
                 0) // Every 15 minutes, dump an image of the sky background map for diagnostic purposes
             {
@@ -511,11 +517,11 @@ void registerTrigger(observeStatus *os, const int blockId, const int xpos, const
                   os->noiseLevel, "stackedFrames", 1);
 
     sprintf(fname, "%s%s", os->eventList[i].filenameStub, "_triggerFrame.rgb");
-    dumpFrameFromInts(os->width, os->height, os->Nchannels, image1, coAddedFrames, 1, fname);
+    dumpFrameFromInts(os->width, os->height, os->Nchannels, image1, coAddedFrames, 0, NULL, fname);
     writeMetaData(fname, "sddi", "obstoryId", os->obstoryId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel",
                   os->noiseLevel / sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
     sprintf(fname, "%s%s", os->eventList[i].filenameStub, "_previousFrame.rgb");
-    dumpFrameFromInts(os->width, os->height, os->Nchannels, image2, coAddedFrames, 1, fname);
+    dumpFrameFromInts(os->width, os->height, os->Nchannels, image2, coAddedFrames, 0, NULL, fname);
     writeMetaData(fname, "sddi", "obstoryId", os->obstoryId, "inputNoiseLevel", os->noiseLevel, "stackNoiseLevel",
                   os->noiseLevel / sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
     memcpy(os->eventList[i].stackedImage, image1, os->frameSize * os->Nchannels * sizeof(int));
@@ -568,13 +574,13 @@ void registerTriggerEnds(observeStatus *os) {
                         (os->frameCounter - os->eventList[i].detections[0].frameCount) * os->TRIGGER_FRAMEGROUP;
                 char fname[FNAME_LENGTH], pathJSON[LSTR_LENGTH], pathBezier[FNAME_LENGTH];
                 sprintf(fname, "%s%s", os->eventList[i].filenameStub, "_timeAverage.rgb");
-                dumpFrameFromInts(os->width, os->height, os->Nchannels, os->eventList[i].stackedImage, coAddedFrames, 1,
+                dumpFrameFromInts(os->width, os->height, os->Nchannels, os->eventList[i].stackedImage, coAddedFrames, 0, NULL,
                                   fname);
                 writeMetaData(fname, "sddi", "obstoryId", os->obstoryId, "inputNoiseLevel", os->noiseLevel,
                               "stackNoiseLevel", os->noiseLevel / sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
                 sprintf(fname, "%s%s", os->eventList[i].filenameStub, "_maxBrightness.rgb");
                 dumpFrameFromInts(os->width, os->height, os->Nchannels, os->eventList[i].maxStack,
-                                  os->TRIGGER_FRAMEGROUP, 1, fname);
+                                  os->TRIGGER_FRAMEGROUP, 0, NULL, fname);
                 writeMetaData(fname, "sddi", "obstoryId", os->obstoryId, "inputNoiseLevel", os->noiseLevel,
                               "stackNoiseLevel", os->noiseLevel / sqrt(coAddedFrames), "stackedFrames", coAddedFrames);
 
