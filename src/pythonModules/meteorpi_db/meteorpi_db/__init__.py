@@ -516,6 +516,7 @@ VALUES
         self.con.execute("DELETE FROM archive_metadata WHERE "
                          "fieldId=%s AND fileId=(SELECT uid FROM archive_files WHERE repositoryFname=%s);",
                          (meta_id, file_id))
+        self.commit();
         self.con.execute("""
 INSERT INTO archive_metadata (publicId, fieldId, setAtTime, setByUser, stringValue, floatValue, fileId)
 VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryFname=%s))
@@ -527,6 +528,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
             meta.string_value(),
             meta.float_value(),
             file_id))
+        self.commit();
 
     def unset_file_metadata(self, file_id, key):
         meta_id = self.get_metadata_key_id(key)
@@ -700,6 +702,7 @@ VALUES
         self.con.execute("DELETE FROM archive_metadata WHERE "
                          "fieldId=%s AND observationId=(SELECT uid FROM archive_observations WHERE publicId=%s);",
                          (meta_id, observation_id))
+        self.commit();
         self.con.execute("""
 INSERT INTO archive_metadata (publicId, fieldId, setAtTime, setByUser, stringValue, floatValue, observationId)
 VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publicId=%s))
@@ -711,6 +714,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
             meta.string_value(),
             meta.float_value(),
             observation_id))
+        self.commit();
 
     def unset_observation_metadata(self, observation_id, key):
         meta_id = self.get_metadata_key_id(key)
