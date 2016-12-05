@@ -7,7 +7,7 @@ BEGIN;
 /* Table of users */
 CREATE TABLE archive_users (
   uid    INTEGER PRIMARY KEY AUTO_INCREMENT,
-  userId VARCHAR(16) NOT NULL,
+  userId VARCHAR(16) UNIQUE NOT NULL,
   pwHash VARCHAR(87) NOT NULL
 );
 
@@ -26,7 +26,7 @@ CREATE TABLE archive_user_sessions (
 
 CREATE TABLE archive_roles (
   uid  INTEGER PRIMARY KEY AUTO_INCREMENT,
-  name TEXT
+  name VARCHAR(32) UNIQUE NOT NULL
 );
 
 CREATE TABLE archive_user_roles (
@@ -42,7 +42,7 @@ CREATE TABLE archive_user_roles (
 /* Table of observatories */
 CREATE TABLE archive_observatories (
   uid       INTEGER PRIMARY KEY AUTO_INCREMENT,
-  publicId  CHAR(32) NOT NULL,
+  publicId  CHAR(32) UNIQUE NOT NULL,
   name      TEXT,
   latitude  REAL,
   longitude REAL,
@@ -52,7 +52,7 @@ CREATE TABLE archive_observatories (
 /* Table of high water marks */
 CREATE TABLE archive_highWaterMarkTypes (
   uid     INTEGER PRIMARY KEY AUTO_INCREMENT,
-  metaKey TEXT
+  metaKey VARCHAR(255) UNIQUE NOT NULL
 );
 
 CREATE TABLE archive_highWaterMarks (
@@ -68,13 +68,13 @@ CREATE TABLE archive_highWaterMarks (
 /* Table of types of observation */
 CREATE TABLE archive_semanticTypes (
   uid  INTEGER PRIMARY KEY AUTO_INCREMENT,
-  name VARCHAR(255) NOT NULL UNIQUE
+  name VARCHAR(255) UNIQUE NOT NULL
 );
 
 /* Table of observations */
 CREATE TABLE archive_observations (
   uid         INTEGER PRIMARY KEY AUTO_INCREMENT,
-  publicId    CHAR(32) NOT NULL,
+  publicId    CHAR(32) UNIQUE NOT NULL,
   observatory INTEGER  NOT NULL,
   userId      VARCHAR(16),
   obsTime     REAL     NOT NULL,
@@ -101,7 +101,7 @@ CREATE TABLE archive_obs_likes (
 /* Groups of observations */
 CREATE TABLE archive_obs_groups (
   uid       INTEGER PRIMARY KEY AUTO_INCREMENT,
-  publicId  CHAR(32) NOT NULL,
+  publicId  CHAR(32) UNIQUE NOT NULL,
   title     TEXT,
   semanticType INTEGER,
   time      REAL,
@@ -127,11 +127,11 @@ CREATE TABLE archive_files (
   uid             INTEGER PRIMARY KEY AUTO_INCREMENT,
   observationId   INTEGER      NOT NULL,
   mimeType        VARCHAR(100) NOT NULL,
-  fileName        VARCHAR(255) NOT NULL,
+  fileName        VARCHAR(255) UNIQUE NOT NULL,
   semanticType    INTEGER      NOT NULL,
   fileTime        REAL         NOT NULL,
   fileSize        INTEGER      NOT NULL,
-  repositoryFname CHAR(32)     NOT NULL,
+  repositoryFname CHAR(32)     UNIQUE NOT NULL,
   fileMD5         CHAR(32)     NOT NULL, /* MD5 hash of file contents */
   FOREIGN KEY (semanticType) REFERENCES archive_semanticTypes (uid)
     ON DELETE CASCADE,
@@ -144,7 +144,7 @@ CREATE TABLE archive_files (
 /* Metadata pertaining to observations, observatories, or groups of observations */
 CREATE TABLE archive_metadataFields (
   uid     INTEGER PRIMARY KEY AUTO_INCREMENT,
-  metaKey VARCHAR(255) NOT NULL UNIQUE,
+  metaKey VARCHAR(255) UNIQUE NOT NULL,
   INDEX (metaKey)
 );
 
@@ -178,7 +178,7 @@ CREATE TABLE archive_metadata (
 /* Configuration used to export observations to an external server */
 CREATE TABLE archive_exportConfig (
   uid            INTEGER PRIMARY KEY AUTO_INCREMENT,
-  exportConfigId CHAR(32)      NOT NULL,
+  exportConfigId CHAR(32)      UNIQUE NOT NULL,
   exportType     VARCHAR(16)   NOT NULL,
   searchString   VARCHAR(2048) NOT NULL,
   targetURL      VARCHAR(255)  NOT NULL,
