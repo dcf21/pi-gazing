@@ -288,7 +288,7 @@ int dumpFrameFromInts(int width, int height, int channels, const int *buffer, in
         }
         gain = (int)(targetBrightness / (brightness_sum / nfr / brightness_points));
         if (gain<1) gain=1;
-        if (gain>50) gain=50;
+        if (gain>30) gain=30;
     }
 
     // Report the gain we are using as an output
@@ -339,7 +339,7 @@ int dumpFrameFromISub(int width, int height, int channels, const int *buffer, in
         }
         gain = (int)(targetBrightness / (brightness_sum / nfr / brightness_points));
         if (gain<1) gain=1;
-        if (gain>50) gain=50;
+        if (gain>30) gain=30;
     }
 
     // Report the gain we are using as an output

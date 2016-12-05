@@ -8,7 +8,7 @@ BEGIN;
 CREATE TABLE archive_users (
   uid    INTEGER PRIMARY KEY AUTO_INCREMENT,
   userId VARCHAR(16) UNIQUE NOT NULL,
-  pwHash VARCHAR(87) NOT NULL
+  pwHash VARCHAR(87)        NOT NULL
 );
 
 CREATE TABLE archive_user_sessions (
@@ -75,10 +75,10 @@ CREATE TABLE archive_semanticTypes (
 CREATE TABLE archive_observations (
   uid         INTEGER PRIMARY KEY AUTO_INCREMENT,
   publicId    CHAR(32) UNIQUE NOT NULL,
-  observatory INTEGER  NOT NULL,
+  observatory INTEGER         NOT NULL,
   userId      VARCHAR(16),
-  obsTime     REAL     NOT NULL,
-  obsType     INTEGER  NOT NULL,
+  obsTime     REAL            NOT NULL,
+  obsType     INTEGER         NOT NULL,
   FOREIGN KEY (observatory) REFERENCES archive_observatories (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (obsType) REFERENCES archive_semanticTypes (uid)
@@ -100,13 +100,13 @@ CREATE TABLE archive_obs_likes (
 
 /* Groups of observations */
 CREATE TABLE archive_obs_groups (
-  uid       INTEGER PRIMARY KEY AUTO_INCREMENT,
-  publicId  CHAR(32) UNIQUE NOT NULL,
-  title     TEXT,
+  uid          INTEGER PRIMARY KEY AUTO_INCREMENT,
+  publicId     CHAR(32) UNIQUE NOT NULL,
+  title        TEXT,
   semanticType INTEGER,
-  time      REAL,
-  setAtTime REAL, /* time that metadata was computed */
-  setByUser VARCHAR(16),
+  time         REAL,
+  setAtTime    REAL, /* time that metadata was computed */
+  setByUser    VARCHAR(16),
   FOREIGN KEY (semanticType) REFERENCES archive_semanticTypes (uid),
   INDEX (time),
   INDEX (setAtTime)
@@ -125,14 +125,14 @@ CREATE TABLE archive_obs_group_members (
 /* Links to files in whatever external store we use */
 CREATE TABLE archive_files (
   uid             INTEGER PRIMARY KEY AUTO_INCREMENT,
-  observationId   INTEGER      NOT NULL,
-  mimeType        VARCHAR(100) NOT NULL,
+  observationId   INTEGER             NOT NULL,
+  mimeType        VARCHAR(100)        NOT NULL,
   fileName        VARCHAR(255) UNIQUE NOT NULL,
-  semanticType    INTEGER      NOT NULL,
-  fileTime        REAL         NOT NULL,
-  fileSize        INTEGER      NOT NULL,
-  repositoryFname CHAR(32)     UNIQUE NOT NULL,
-  fileMD5         CHAR(32)     NOT NULL, /* MD5 hash of file contents */
+  semanticType    INTEGER             NOT NULL,
+  fileTime        REAL                NOT NULL,
+  fileSize        INTEGER             NOT NULL,
+  repositoryFname CHAR(32) UNIQUE     NOT NULL,
+  fileMD5         CHAR(32)            NOT NULL, /* MD5 hash of file contents */
   FOREIGN KEY (semanticType) REFERENCES archive_semanticTypes (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
@@ -150,7 +150,7 @@ CREATE TABLE archive_metadataFields (
 
 CREATE TABLE archive_metadata (
   uid           INTEGER PRIMARY KEY AUTO_INCREMENT,
-  publicId      CHAR(32) NOT NULL,
+  publicId      CHAR(32) UNIQUE NOT NULL,
   fieldId       INTEGER,
   time          REAL, /* time that metadata is relevant for */
   setAtTime     REAL, /* time that metadata was computed */
@@ -171,22 +171,30 @@ CREATE TABLE archive_metadata (
     ON DELETE CASCADE,
   FOREIGN KEY (fieldId) REFERENCES archive_metadataFields (uid)
     ON DELETE CASCADE,
-  INDEX (setAtTime),
-  INDEX (publicId)
+  INDEX (setAtTime)
 );
+
+CREATE UNIQUE INDEX archive_metadata_file_field
+  ON archive_metadata (fileId, fieldId);
+CREATE UNIQUE INDEX archive_metadata_observation_field
+  ON archive_metadata (observationId, fieldId);
+CREATE UNIQUE INDEX archive_metadata_observatory_field
+  ON archive_metadata (observatory, fieldId);
+CREATE UNIQUE INDEX archive_metadata_group_field
+  ON archive_metadata (groupId, fieldId);
 
 /* Configuration used to export observations to an external server */
 CREATE TABLE archive_exportConfig (
   uid            INTEGER PRIMARY KEY AUTO_INCREMENT,
-  exportConfigId CHAR(32)      UNIQUE NOT NULL,
-  exportType     VARCHAR(16)   NOT NULL,
-  searchString   VARCHAR(2048) NOT NULL,
-  targetURL      VARCHAR(255)  NOT NULL,
-  targetUser     VARCHAR(255)  NOT NULL,
-  targetPassword VARCHAR(255)  NOT NULL,
-  exportName     VARCHAR(255)  NOT NULL,
-  description    VARCHAR(2048) NOT NULL,
-  active         BOOLEAN       NOT NULL,
+  exportConfigId CHAR(32) UNIQUE NOT NULL,
+  exportType     VARCHAR(16)     NOT NULL,
+  searchString   VARCHAR(2048)   NOT NULL,
+  targetURL      VARCHAR(255)    NOT NULL,
+  targetUser     VARCHAR(255)    NOT NULL,
+  targetPassword VARCHAR(255)    NOT NULL,
+  exportName     VARCHAR(255)    NOT NULL,
+  description    VARCHAR(2048)   NOT NULL,
+  active         BOOLEAN         NOT NULL,
   INDEX (exportConfigId)
 );
 
@@ -254,10 +262,5 @@ CREATE TABLE archive_metadataImport (
   FOREIGN KEY (metadataId) REFERENCES archive_metadata (uid)
     ON DELETE CASCADE
 );
-
-# Create extra indices
-CREATE INDEX idx_meta_fo ON archive_metadata (fieldId,observationId);
-CREATE INDEX idx_meta_ff ON archive_metadata (fieldId,fileId);
-CREATE INDEX idx_meta_fl ON archive_metadata (fieldId,observatory);
 
 COMMIT;

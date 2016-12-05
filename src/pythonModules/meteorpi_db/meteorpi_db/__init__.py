@@ -501,9 +501,6 @@ VALUES
             file_item.file_time, file_item.file_size,
             file_item.repository_fname, file_item.file_md5))
 
-        # Commit record, to prevent deadlocks
-        self.commit();
-
         # Store the file metadata
         for meta in file_item.meta:
             self.set_file_metadata(user_id, file_item.repository_fname, meta, file_item.file_time)
@@ -513,12 +510,8 @@ VALUES
         if utc is None:
             utc = mp.now()
         public_id = mp.get_hash(utc, meta.key, user_id)
-        self.con.execute("DELETE FROM archive_metadata WHERE "
-                         "fieldId=%s AND fileId=(SELECT uid FROM archive_files WHERE repositoryFname=%s);",
-                         (meta_id, file_id))
-        self.commit();
         self.con.execute("""
-INSERT INTO archive_metadata (publicId, fieldId, setAtTime, setByUser, stringValue, floatValue, fileId)
+REPLACE INTO archive_metadata (publicId, fieldId, setAtTime, setByUser, stringValue, floatValue, fileId)
 VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryFname=%s))
 """, (
             public_id,
@@ -528,7 +521,6 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
             meta.string_value(),
             meta.float_value(),
             file_id))
-        self.commit();
 
     def unset_file_metadata(self, file_id, key):
         meta_id = self.get_metadata_key_id(key)
@@ -687,9 +679,6 @@ VALUES
 (%s, (SELECT uid FROM archive_observatories WHERE publicId=%s), %s, %s, %s);
 """, (observation.obs_id, observation.obstory_id, user_id, observation.obs_time, obs_type_id))
 
-        # Commit record, to prevent deadlocks
-        self.commit();
-
         # Store the observation metadata
         for meta in observation.meta:
             self.set_observation_metadata(user_id, observation.obs_id, meta)
@@ -699,12 +688,8 @@ VALUES
         if utc is None:
             utc = mp.now()
         public_id = mp.get_hash(utc, meta.key, user_id)
-        self.con.execute("DELETE FROM archive_metadata WHERE "
-                         "fieldId=%s AND observationId=(SELECT uid FROM archive_observations WHERE publicId=%s);",
-                         (meta_id, observation_id))
-        self.commit();
         self.con.execute("""
-INSERT INTO archive_metadata (publicId, fieldId, setAtTime, setByUser, stringValue, floatValue, observationId)
+REPLACE INTO archive_metadata (publicId, fieldId, setAtTime, setByUser, stringValue, floatValue, observationId)
 VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publicId=%s))
 """, (
             public_id,
@@ -714,7 +699,6 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
             meta.string_value(),
             meta.float_value(),
             observation_id))
-        self.commit();
 
     def unset_observation_metadata(self, observation_id, key):
         meta_id = self.get_metadata_key_id(key)
@@ -890,11 +874,8 @@ VALUES
         if utc is None:
             utc = mp.now()
         public_id = mp.get_hash(utc, meta.key, user_id)
-        self.con.execute("DELETE FROM archive_metadata WHERE "
-                         "fieldId=%s AND groupId=(SELECT uid FROM archive_obs_groups WHERE publicId=%s);",
-                         (meta_id, group_id))
         self.con.execute("""
-INSERT INTO archive_metadata (publicId, fieldId, setAtTime, setByUser, stringValue, floatValue, groupId)
+REPLACE INTO archive_metadata (publicId, fieldId, setAtTime, setByUser, stringValue, floatValue, groupId)
 VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE publicId=%s))
 """, (
             public_id,
