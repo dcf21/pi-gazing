@@ -178,7 +178,7 @@ CREATE UNIQUE INDEX archive_metadata_file_field
   ON archive_metadata (fileId, fieldId);
 CREATE UNIQUE INDEX archive_metadata_observation_field
   ON archive_metadata (observationId, fieldId);
-CREATE UNIQUE INDEX archive_metadata_observatory_field
+CREATE INDEX archive_metadata_observatory_field
   ON archive_metadata (observatory, fieldId);
 CREATE UNIQUE INDEX archive_metadata_group_field
   ON archive_metadata (groupId, fieldId);
