@@ -127,7 +127,7 @@ CREATE TABLE archive_files (
   uid             INTEGER PRIMARY KEY AUTO_INCREMENT,
   observationId   INTEGER             NOT NULL,
   mimeType        VARCHAR(100)        NOT NULL,
-  fileName        VARCHAR(255) UNIQUE NOT NULL,
+  fileName        VARCHAR(255)        NOT NULL,
   semanticType    INTEGER             NOT NULL,
   fileTime        REAL                NOT NULL,
   fileSize        INTEGER             NOT NULL,
@@ -201,12 +201,14 @@ CREATE TABLE archive_exportConfig (
 CREATE TABLE archive_observationExport (
   uid           INTEGER PRIMARY KEY AUTO_INCREMENT,
   observationId INTEGER NOT NULL,
+  obsTime       REAL NOT NULL,
   exportConfig  INTEGER NOT NULL,
   exportState   INTEGER NOT NULL, /* 0 for complete, non-zero for active */
   FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (exportConfig) REFERENCES archive_exportConfig (uid)
-    ON DELETE CASCADE
+    ON DELETE CASCADE,
+  INDEX (exportState, obsTime)
 );
 
 CREATE TABLE archive_observationImport (
@@ -223,12 +225,14 @@ CREATE TABLE archive_observationImport (
 CREATE TABLE archive_fileExport (
   uid          INTEGER PRIMARY KEY AUTO_INCREMENT,
   fileId       INTEGER NOT NULL,
+  fileTime     REAL NOT NULL,
   exportConfig INTEGER NOT NULL,
   exportState  INTEGER NOT NULL, /* 0 for complete, non-zero for active */
   FOREIGN KEY (fileId) REFERENCES archive_files (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (exportConfig) REFERENCES archive_exportConfig (uid)
-    ON DELETE CASCADE
+    ON DELETE CASCADE,
+  INDEX (exportState, fileTime)
 );
 
 
@@ -246,12 +250,14 @@ CREATE TABLE archive_fileImport (
 CREATE TABLE archive_metadataExport (
   uid          INTEGER PRIMARY KEY AUTO_INCREMENT,
   metadataId   INTEGER NOT NULL,
+  setAtTime REAL NOT NULL,
   exportConfig INTEGER NOT NULL, /* URL of the target import API */
   exportState  INTEGER NOT NULL, /* 0 for complete, non-zero for active */
   FOREIGN KEY (metadataId) REFERENCES archive_metadata (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (exportConfig) REFERENCES archive_exportConfig (uid)
-    ON DELETE CASCADE
+    ON DELETE CASCADE,
+  INDEX (exportState, setAtTime)
 );
 
 CREATE TABLE archive_metadataImport (

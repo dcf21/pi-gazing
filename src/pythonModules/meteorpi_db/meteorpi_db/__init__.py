@@ -1124,10 +1124,11 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
             search.exclude_export_to = export_config.config_id
             b = search_observations_sql_builder(search)
 
-            self.con.execute(b.get_select_sql(columns='o.uid'), b.sql_args)
+            self.con.execute(b.get_select_sql(columns='o.uid, o.obsTime'), b.sql_args)
             for result in self.con.fetchall():
-                self.con.execute('INSERT INTO archive_observationExport (observationId, exportConfig, exportState) '
-                                 'VALUES (%s,%s,%s)', (result['uid'], export_config_id, 1))
+                self.con.execute('INSERT INTO archive_observationExport '
+                                 '(observationId, obsTime, exportConfig, exportState) '
+                                 'VALUES (%s,%s,%s,%s)', (result['uid'], result['obsTime'], export_config_id, 1))
                 rows_created += 1
 
         # Handle FileSearch
@@ -1137,10 +1138,11 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
             search.exclude_export_to = export_config.config_id
             b = search_files_sql_builder(search)
 
-            self.con.execute(b.get_select_sql(columns='f.uid'), b.sql_args)
+            self.con.execute(b.get_select_sql(columns='f.uid, f.fileTime'), b.sql_args)
             for result in self.con.fetchall():
-                self.con.execute('INSERT INTO archive_fileExport (fileId, exportConfig, exportState) '
-                                 'VALUES (%s,%s,%s)', (result['uid'], export_config_id, 1))
+                self.con.execute('INSERT INTO archive_fileExport '
+                                 '(fileId, fileTime, exportConfig, exportState) '
+                                 'VALUES (%s,%s,%s,%s)', (result['uid'], result['fileTime'], export_config_id, 1))
                 rows_created += 1
 
         # Handle ObservatoryMetadataSearch
@@ -1150,10 +1152,11 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
             search.exclude_export_to = export_config.config_id
             b = search_metadata_sql_builder(search)
 
-            self.con.execute(b.get_select_sql(columns='m.uid'), b.sql_args)
+            self.con.execute(b.get_select_sql(columns='m.uid, m.setAtTime'), b.sql_args)
             for result in self.con.fetchall():
-                self.con.execute('INSERT INTO archive_metadataExport (metadataId, exportConfig, exportState) '
-                                 'VALUES (%s,%s,%s)', (result['uid'], export_config_id, 1))
+                self.con.execute('INSERT INTO archive_metadataExport '
+                                 '(metadataId, setAtTime, exportConfig, exportState) '
+                                 'VALUES (%s,%s,%s,%s)', (result['uid'], result['setAtTime'], export_config_id, 1))
                 rows_created += 1
 
         # Complain if it's anything other than these two (nothing should be at the moment but we might introduce
@@ -1180,9 +1183,8 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
                          'FROM archive_metadataExport x '
                          'INNER JOIN archive_exportConfig c ON x.exportConfig=c.uid '
                          'INNER JOIN archive_metadata o ON x.metadataId=o.uid '
-                         'AND c.active = 1 '
-                         'AND x.exportState > 0 '
-                         'ORDER BY o.setAtTime ASC, o.uid ASC LIMIT 1')
+                         'WHERE c.active = 1 AND x.exportState > 0 '
+                         'ORDER BY x.setAtTime ASC, o.uid ASC LIMIT 1')
         row = self.con.fetchone()
         if row is not None:
             config_id = row['exportConfigId']
@@ -1201,9 +1203,8 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
                          'FROM archive_observationExport x '
                          'INNER JOIN archive_exportConfig c ON x.exportConfig=c.uid '
                          'INNER JOIN archive_observations o ON x.observationId=o.uid '
-                         'WHERE c.active = 1 '
-                         'AND x.exportState > 0 '
-                         'ORDER BY o.obsTime ASC, o.uid ASC LIMIT 1')
+                         'WHERE c.active = 1  AND x.exportState > 0 '
+                         'ORDER BY x.obsTime ASC, o.uid ASC LIMIT 1')
         row = self.con.fetchone()
         if row is not None:
             config_id = row['exportConfigId']
@@ -1222,9 +1223,8 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
                          'FROM archive_fileExport x '
                          'INNER JOIN archive_exportConfig c ON x.exportConfig=c.uid '
                          'INNER JOIN archive_files o ON x.fileId=o.uid '
-                         'WHERE c.active = 1 '
-                         'AND x.exportState > 0 '
-                         'ORDER BY o.fileTime ASC, o.uid ASC LIMIT 1')
+                         'WHERE c.active = 1 AND x.exportState > 0 '
+                         'ORDER BY x.fileTime ASC, o.uid ASC LIMIT 1')
         row = self.con.fetchone()
         if row is not None:
             config_id = row['exportConfigId']

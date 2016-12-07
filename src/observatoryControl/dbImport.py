@@ -68,8 +68,8 @@ def metadata_to_object_list(db_handle, obs_time, obs_id, meta_dict):
     for meta_field in meta_dict:
         value = meta_dict[meta_field]
 
-        # Short string fields get stored as string metadata
-        if type(value) != str or len(value) < 250:
+        # Short string fields get stored as string metadata (up to 64kB, or just under)
+        if type(value) != str or len(value) < 65500:
             metadata_objs.append(mp.Meta("meteorpi:" + meta_field, meta_dict[meta_field]))
 
         # Long strings are turned into separate files
