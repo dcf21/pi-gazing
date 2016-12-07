@@ -208,7 +208,7 @@ CREATE TABLE archive_observationExport (
     ON DELETE CASCADE,
   FOREIGN KEY (exportConfig) REFERENCES archive_exportConfig (uid)
     ON DELETE CASCADE,
-  INDEX (exportState, obsTime)
+  INDEX (exportConfig, exportState, obsTime)
 );
 
 CREATE TABLE archive_observationImport (
@@ -232,7 +232,7 @@ CREATE TABLE archive_fileExport (
     ON DELETE CASCADE,
   FOREIGN KEY (exportConfig) REFERENCES archive_exportConfig (uid)
     ON DELETE CASCADE,
-  INDEX (exportState, fileTime)
+  INDEX (exportConfig, exportState, fileTime)
 );
 
 
@@ -257,7 +257,7 @@ CREATE TABLE archive_metadataExport (
     ON DELETE CASCADE,
   FOREIGN KEY (exportConfig) REFERENCES archive_exportConfig (uid)
     ON DELETE CASCADE,
-  INDEX (exportState, setAtTime)
+  INDEX (exportConfig, exportState, setAtTime)
 );
 
 CREATE TABLE archive_metadataImport (
