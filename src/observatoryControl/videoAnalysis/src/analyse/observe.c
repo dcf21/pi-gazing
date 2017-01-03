@@ -62,7 +62,7 @@ char *fNameGenerate(char *output, const char *obstoryId, double utc, char *tag, 
         gnom_log(temp_err_string);
     }
 
-    const int i = strlen(path);
+    const int i = (int)strlen(path);
     sprintf(path + i, "/%04d%02d%02d", year, month, day);
     status = mkdir(path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     if (status && (errno != EEXIST)) {
@@ -79,7 +79,7 @@ char *fNameGenerate(char *output, const char *obstoryId, double utc, char *tag, 
 // Record metadata to accompany a file. fname must be writable.
 void writeMetaData(char *fname, char *itemTypes, ...) {
     // Change file extension to .txt
-    int flen = strlen(fname);
+    int flen = (int)strlen(fname);
     int i = flen - 1;
     while ((i > 0) && (fname[i] != '.')) i--;
     sprintf(fname + i, ".txt");
@@ -124,7 +124,7 @@ int readFrameGroup(observeStatus *os, unsigned char *buffer, int *stack1, int *s
            os->frameSize * os->Nchannels * sizeof(int)); // Stack1 is wiped prior to each call to this function
 
     unsigned char *tmprgb;
-    if (!ALLDATAMONO) tmprgb = malloc(os->Nchannels * os->frameSize);
+    if (!ALLDATAMONO) tmprgb = malloc((size_t)(os->Nchannels * os->frameSize));
 
     for (j = 0; j < os->TRIGGER_FRAMEGROUP; j++) {
         unsigned char *tmpc = buffer + j * os->frameSize * YUV420;
@@ -179,9 +179,10 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
     }
 
     observeStatus *os = calloc(1, sizeof(observeStatus));
-    if (!os) {
+    if (os == NULL) {
         sprintf(temp_err_string, "ERROR: malloc fail in observe.");
         gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        exit(1);
     }
 
     os->videoHandle = videoHandle;
@@ -191,7 +192,7 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
     os->obstoryId = obstoryId;
     os->mask = mask;
     os->fetchFrame = fetchFrame;
-    os->fps = fps;       // Requested frame rate
+    os->fps = (float)fps;       // Requested frame rate
     os->frameSize = width * height;
     os->Nchannels = Nchannels;
 
@@ -211,11 +212,11 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
     os->medianMapReductionCycles = medianMapReductionCycles;
 
     // Trigger buffers. These are used to store 1 second of video for comparison with the next
-    os->buffNGroups = os->fps * os->TRIGGER_MAXRECORDLEN / os->TRIGGER_FRAMEGROUP;
+    os->buffNGroups = (int)(os->fps * os->TRIGGER_MAXRECORDLEN / os->TRIGGER_FRAMEGROUP);
     os->buffGroupBytes = os->TRIGGER_FRAMEGROUP * os->frameSize * YUV420;
     os->buffNFrames = os->buffNGroups * os->TRIGGER_FRAMEGROUP;
     os->bufflen = os->buffNGroups * os->buffGroupBytes;
-    os->buffer = malloc(os->bufflen);
+    os->buffer = malloc((size_t)os->bufflen);
     for (i = 0; i <= os->STACK_COMPARISON_INTERVAL; i++) {
         os->stack[i] = malloc(os->frameSize * sizeof(int) *
                               os->Nchannels); // A stacked version of the current and preceding frame group; used to form a difference image
@@ -225,20 +226,21 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
         }
     }
 
-    os->triggerPrefixNGroups = os->TRIGGER_PREFIX_TIME * os->fps / os->TRIGGER_FRAMEGROUP;
-    os->triggerSuffixNGroups = os->TRIGGER_SUFFIX_TIME * os->fps / os->TRIGGER_FRAMEGROUP;
+    os->triggerPrefixNGroups = (int)(os->TRIGGER_PREFIX_TIME * os->fps / os->TRIGGER_FRAMEGROUP);
+    os->triggerSuffixNGroups = (int)(os->TRIGGER_SUFFIX_TIME * os->fps / os->TRIGGER_FRAMEGROUP);
 
     // Timelapse buffers
     os->utc = 0;
     os->timelapseUTCStart = 1e40; // Store timelapse exposures at set intervals. This is UTC of next frame, but we don't start until we've done a run-in period
-    os->framesTimelapse = os->fps * os->TIMELAPSE_EXPOSURE;
+    os->framesTimelapse = (int)(os->fps * os->TIMELAPSE_EXPOSURE);
     os->stackT = malloc(os->frameSize * sizeof(int) * os->Nchannels);
 
     // Median maps are used for background subtraction. Maps A and B are used alternately and contain the median value of each pixel.
-    os->medianMap = calloc(1, os->frameSize *
-                              os->Nchannels); // The median value of each pixel, sampled over 255 stacked images
-    os->medianWorkspace = calloc(1, os->frameSize * os->Nchannels * 256 *
-                                    sizeof(int)); // Workspace which counts the number of times any given pixel has a particular value
+    // Holds the median value of each pixel, sampled over 255 stacked images
+    os->medianMap = calloc(1, (size_t)(os->frameSize * os->Nchannels));
+
+    // Workspace which counts the number of times any given pixel has a particular value
+    os->medianWorkspace = calloc(1, (size_t)(os->frameSize * os->Nchannels * 256 * sizeof(int)));
 
     // Map of past triggers, used to weight against pixels that trigger too often (they're probably trees...)
     os->pastTriggerMap = calloc(1, os->frameSize * sizeof(int));
@@ -246,7 +248,7 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
     // Buffers used while checking for triggers, to give a visual report on why triggers occur when they do
     os->triggerMap = calloc(1, os->frameSize *
                                sizeof(int)); // 2D array of ints used to mark out pixels which have brightened suspiciously.
-    os->triggerRGB = calloc(1, os->frameSize * 3);
+    os->triggerRGB = calloc(1, (size_t)(os->frameSize * 3));
 
     os->triggerBlock_N = calloc(1, MAX_TRIGGER_BLOCKS *
                                    sizeof(int)); // Count of how many pixels are in each numbered connected block
@@ -290,14 +292,15 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
     os->noiseLevel = 128;
 
     // Trigger throttling
-    os->triggerThrottlePeriod = (os->TRIGGER_THROTTLE_PERIOD * 60. * os->fps /
-                                 os->TRIGGER_FRAMEGROUP); // Reset trigger throttle counter after this many frame groups have been processed
     os->triggerThrottleTimer = 0;
     os->triggerThrottleCounter = 0;
 
+    // Reset trigger throttle counter after this many frame groups have been processed
+    os->triggerThrottlePeriod = (int)(os->TRIGGER_THROTTLE_PERIOD * 60. * os->fps / os->TRIGGER_FRAMEGROUP);
+
     // Processing loop
     while (1) {
-        int t = time(NULL) + utcoffset;
+        int t = (int)(time(NULL) + utcoffset);
         if (t >= tstop) break; // Check how we're doing for time; if we've reached the time to stop, stop now!
 
         // Once we've done initial run-in period, rewind the tape to the beginning if we can
@@ -378,7 +381,7 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
 
         // Update counters for trigger throttling
         os->triggerThrottleTimer++;
-        const int triggerThrottleCycles = os->TRIGGER_THROTTLE_PERIOD * 60 * os->fps / os->TRIGGER_FRAMEGROUP;
+        const int triggerThrottleCycles = (int)(os->TRIGGER_THROTTLE_PERIOD * 60 * os->fps / os->TRIGGER_FRAMEGROUP);
         if (os->triggerThrottleTimer >= triggerThrottleCycles) {
             os->triggerThrottleTimer = 0;
             os->triggerThrottleCounter = 0;
@@ -427,7 +430,8 @@ void registerTrigger(observeStatus *os, const int blockId, const int xpos, const
     for (i = 0; i < MAX_EVENTS; i++)
         if (os->eventList[i].active) {
             const int N = os->eventList[i].Ndetections - 1;
-            const int dist = hypot(xpos - os->eventList[i].detections[N].x, ypos - os->eventList[i].detections[N].y);
+            const int dist = (int)hypot(xpos - os->eventList[i].detections[N].x,
+                                        ypos - os->eventList[i].detections[N].y);
             if (dist < closestTriggerDist) {
                 closestTriggerDist = dist;
                 closestTrigger = i;
@@ -441,13 +445,15 @@ void registerTrigger(observeStatus *os, const int blockId, const int xpos, const
         if (os->eventList[i].detections[N].frameCount ==
             os->frameCounter) // Has this object already been seen in this frame?
         {
-            detection *d = &os->eventList[i].detections[N]; // If so, take position of object as average position of multiple amplitude peaks
+            // If so, take position of object as average position of multiple amplitude peaks
+            detection *d = &os->eventList[i].detections[N];
             d->x = (d->x * d->amplitude + xpos * amplitude) / (d->amplitude + amplitude);
             d->y = (d->y * d->amplitude + ypos * amplitude) / (d->amplitude + amplitude);
             d->amplitude += amplitude;
             d->npixels += npixels;
-        } else // Otherwise add new detection to list
+        } else
         {
+            // Otherwise add new detection to list
             os->eventList[i].Ndetections++;
             detection *d = &os->eventList[i].detections[N + 1];
             d->frameCount = os->frameCounter;
@@ -530,7 +536,8 @@ void registerTrigger(observeStatus *os, const int blockId, const int xpos, const
     for (j = 0; j < os->frameSize * os->Nchannels; j++) os->eventList[i].maxStack[j] = image1[j];
 }
 
-// Check through list of events we are currently tracking. Weed out any which haven't been seen for a long time, or are exceeding maximum allowed recording time.
+// Check through list of events we are currently tracking.
+// Weed out any which haven't been seen for a long time, or are exceeding maximum allowed recording time.
 void registerTriggerEnds(observeStatus *os) {
     int i;
     int *stackbuf = os->stack[os->frameCounter % (os->STACK_COMPARISON_INTERVAL + 1)];

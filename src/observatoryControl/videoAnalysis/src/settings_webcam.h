@@ -49,13 +49,13 @@
 #define TRIGGER_MAXRECORDLEN 25  /* maximum length of video to record after trigger */
 #define TRIGGER_PREFIX_TIME   2  /* include N seconds of video after trigger */
 #define TRIGGER_SUFFIX_TIME   3  /* include N seconds of video after trigger has gone away */
-#define TRIGGER_FRAMEGROUP    4  /* triggering is calculated on the basis of stacked groups of frames of this length */
+#define TRIGGER_FRAMEGROUP    2  /* triggering is calculated on the basis of stacked groups of frames of this length */
 
 #define STACK_COMPARISON_INTERVAL 3 /* Compare stacked groups of frames that are two stacks apart; makes us more sensitive to slow-moving things */
 
 // Timelapse
-#define TIMELAPSE_EXPOSURE 28 /* Exposure length for timelapse photography */
-#define TIMELAPSE_INTERVAL 30 /* Interval between timelapse frames */
+#define TIMELAPSE_EXPOSURE 58 /* Exposure length for timelapse photography */
+#define TIMELAPSE_INTERVAL 60 /* Interval between timelapse frames */
 
 #endif
 

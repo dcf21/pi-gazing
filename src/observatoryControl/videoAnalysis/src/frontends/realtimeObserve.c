@@ -118,7 +118,7 @@ int main(int argc, char *argv[]) {
     //writeRawVidMetaData(vmd);
     videoIn->upsideDown = vmd.flagUpsideDown;
 
-    unsigned char *mask = malloc(width * height);
+    unsigned char *mask = malloc((size_t)(width * height));
     FILE *maskfile = fopen(vmd.maskFile, "r");
     if (!maskfile) { gnom_fatal(__FILE__, __LINE__, "mask file could not be opened"); }
     fillPolygonsFromFile(maskfile, mask, width, height);

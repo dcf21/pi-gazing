@@ -87,7 +87,7 @@ int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc) {
     // Work out geometry for downsizing DSLR frame to the size we want
     double hscale = img.xsize / vmd->width;
     double vscale = img.ysize / vmd->height;
-    int scale = floor((hscale < vscale) ? hscale : vscale);
+    int scale = (int)floor((hscale < vscale) ? hscale : vscale);
     int marginx = (img.xsize - scale * vmd->width) / 2;
     int marginy = (img.ysize - scale * vmd->height) / 2;
 
@@ -96,13 +96,13 @@ int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc) {
 #pragma omp parallel for private(x,y)
     for (y = 0; y < vmd->height; y++)
         for (x = 0; x < vmd->width; x++) {
-            int i, j;
+            int i2, j2;
             int r = 0, g = 0, b = 0;
-            for (i = 0; i < scale; i++)
-                for (j = 0; j < scale; j++) {
-                    r += img.data_red[(i + marginx + x * scale) + (j + marginy + y * scale) * img.xsize];
-                    g += img.data_grn[(i + marginx + x * scale) + (j + marginy + y * scale) * img.xsize];
-                    b += img.data_blu[(i + marginx + x * scale) + (j + marginy + y * scale) * img.xsize];
+            for (i2 = 0; i2 < scale; i2++)
+                for (j2 = 0; j2 < scale; j2++) {
+                    r += img.data_red[(i2 + marginx + x * scale) + (j2 + marginy + y * scale) * img.xsize];
+                    g += img.data_grn[(i2 + marginx + x * scale) + (j2 + marginy + y * scale) * img.xsize];
+                    b += img.data_blu[(i2 + marginx + x * scale) + (j2 + marginy + y * scale) * img.xsize];
                 }
             r *= gain / scale / scale;
             g *= gain / scale / scale;
@@ -122,8 +122,8 @@ int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc) {
     goto EXIT;
 
     FAIL:
-    memset(tmpc, 0, frameSize);
-    memset(tmpc + frameSize, 128, frameSize / 2); // Black frame
+    memset(tmpc, 0, (size_t)frameSize);
+    memset(tmpc + frameSize, 128, (size_t)(frameSize / 2)); // Black frame
 
     EXIT:
     while (time(NULL) + utcoffset < utc_exit) sleep(1);
@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
     videoMetadata vmd;
 
     const double utcoffset = getFloat(argv[1], NULL);
-    UTC_OFFSET = utcoffset;
+    UTC_OFFSET = (int)utcoffset;
     vmd.tstart = getFloat(argv[2], NULL);
     vmd.tstop = getFloat(argv[3], NULL);
     vmd.nframe = 0;
@@ -167,7 +167,7 @@ int main(int argc, char *argv[]) {
     initLut();
 
     // Fetch the dimensions of the video stream as returned by V4L (which may differ from what we requested)
-    unsigned char *mask = malloc(vmd.width * vmd.height);
+    unsigned char *mask = malloc((size_t)(vmd.width * vmd.height));
     FILE *maskfile = fopen(vmd.maskFile, "r");
     if (!maskfile) { gnom_fatal(__FILE__, __LINE__, "mask file could not be opened"); }
     fillPolygonsFromFile(maskfile, mask, vmd.width, vmd.height);
