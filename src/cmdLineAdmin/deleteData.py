@@ -58,7 +58,14 @@ print "# ./deleteData.py %f %f \"%s\"\n" % (utc_min, utc_max, observatory)
 
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
-s = db.get_obstory_status(obstory_name=observatory)
+obstory_info = db.get_obstory_from_id(obstory_id=observatory)
+if not obstory_info:
+    print "Unknown observatory <%s>.\nRun ./listObservatories.py to see a list of available options." % observatory
+    sys.exit(0)
+
+obstory_name = obstory_info['name']
+
+s = db.get_obstory_status(obstory_name=obstory_name)
 if not s:
     print "Unknown observatory <%s>.\nRun ./listObservatories.py to see a list of available options." % observatory
     sys.exit(0)
@@ -89,7 +96,7 @@ confirmation = raw_input('Delete these files? (Y/N) ')
 if confirmation not in 'Yy':
     sys.exit(0)
 
-db.clear_database(tmin=utc_min, tmax=utc_max, obstory_names=observatory)
+db.clear_database(tmin=utc_min, tmax=utc_max, obstory_names=observatory_name)
 
 # Commit changes to database
 db.commit()
