@@ -224,7 +224,7 @@ def add_routes(meteor_app, url_path=''):
         def send_file_partial(filename_or_fp, mimetype):
             range_header = request.headers.get('Range', None)
             if not range_header:
-                return send_file(filename_or_fp)
+                return send_file(filename_or_fp, mimetype=record.mime_type)
 
             size = os.path.getsize(filename_or_fp)
             byte1, byte2 = 0, None
