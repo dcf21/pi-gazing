@@ -96,7 +96,7 @@ confirmation = raw_input('Delete these files? (Y/N) ')
 if confirmation not in 'Yy':
     sys.exit(0)
 
-db.clear_database(tmin=utc_min, tmax=utc_max, obstory_names=observatory_name)
+db.clear_database(tmin=utc_min, tmax=utc_max, obstory_names=obstory_name)
 
 # Commit changes to database
 db.commit()
