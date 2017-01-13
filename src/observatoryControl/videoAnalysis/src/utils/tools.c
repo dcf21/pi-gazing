@@ -238,7 +238,7 @@ void medianCalculate(const int width, const int height, const int channels, cons
             }
         }
         // This is a slight over-estimate of the background sky brightness, but images look less noisy that way.
-        medianMap[i] = CLIP256(mode + 0);
+        medianMap[i] = CLIP256(mode - 1);
     }
     return;
 }
