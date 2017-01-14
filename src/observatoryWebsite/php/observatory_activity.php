@@ -1,6 +1,6 @@
 <?php
 
-// observatory_metadata.php
+// observatory_activity.php
 // Meteor Pi, Cambridge Science Centre
 // Dominic Ford
 
@@ -41,20 +41,22 @@ $tmin = $getargs->readTime('year', 'month', null, null, null, null, $const->year
 
 // Clip requested month to span over which we have data
 $newest = $obstory_info['newest_obs_utc'];
-if ( (!is_null($newest)) && ( 
-        ($tmin['year']>intval(date('Y',$newest))) ||
-        (($tmin['year']==intval(date('Y',$newest))) && ($tmin['mc']>intval(date('m',$newest))))
-)) {
-    $utc = mktime(0, 0, 1, date('m',$obstory_info['newest_obs_utc']), 1, date('Y',$obstory_info['newest_obs_utc']));
+if ((!is_null($newest)) && (
+        ($tmin['year'] > intval(date('Y', $newest))) ||
+        (($tmin['year'] == intval(date('Y', $newest))) && ($tmin['mc'] > intval(date('m', $newest))))
+    )
+) {
+    $utc = mktime(0, 0, 1, date('m', $obstory_info['newest_obs_utc']), 1, date('Y', $obstory_info['newest_obs_utc']));
     $tmin = $getargs->readTimeFromUTC($utc);
 }
 
 $oldest = $obstory_info['oldest_obs_utc'];
-if ( (!is_null($oldest)) && (
-        ($tmin['year']<intval(date('Y',$oldest))) ||
-        (($tmin['year']==intval(date('Y',$oldest))) && ($tmin['mc']<intval(date('m',$oldest))))
-    )) {
-    $utc = mktime(0, 0, 1, date('m',$obstory_info['oldest_obs_utc']), 1, date('Y',$obstory_info['oldest_obs_utc']));
+if ((!is_null($oldest)) && (
+        ($tmin['year'] < intval(date('Y', $oldest))) ||
+        (($tmin['year'] == intval(date('Y', $oldest))) && ($tmin['mc'] < intval(date('m', $oldest))))
+    )
+) {
+    $utc = mktime(0, 0, 1, date('m', $obstory_info['oldest_obs_utc']), 1, date('Y', $obstory_info['oldest_obs_utc']));
     $tmin = $getargs->readTimeFromUTC($utc);
 }
 
@@ -81,7 +83,7 @@ function get_activity_history($metaKey, $suffix, $url)
     global $byday, $const, $tmin, $period, $obstory, $days_in_month, $year, $month;
     $count = 0;
     while ($count < $days_in_month) {
-        $a = floor($tmin['utc']/86400)*86400 + 43200 + $period * $count;
+        $a = floor($tmin['utc'] / 86400) * 86400 + 43200 + $period * $count;
         $b = $a + $period;
         $count++;
         $stmt = $const->db->prepare("
@@ -96,7 +98,7 @@ WHERE l.publicId=:o AND s.name=:k AND o.obsTime>=:x AND o.obsTime<:y LIMIT 1");
         $stmt->execute(['o' => $obstory, 'k' => $metaKey, 'x' => $a, 'y' => $b]);
         $items = $stmt->fetchAll()[0]['COUNT(*)'];
         if ($items > 0) {
-            $tomorrow = $count+1;
+            $tomorrow = $count + 1;
             $text = "<a href='{$url}?obstory={$obstory}&year1={$year}&month1={$month}&day1={$count}&hour1=12&minute1=0" .
                 "&year2={$year}&month2={$month}&day2={$tomorrow}&hour2=12&minute2=0" .
                 "&flag_lenscorr=1'>" .
@@ -131,19 +133,19 @@ $pageTemplate->header($pageInfo);
         <div class="col-md-10">
 
             <div style="text-align: center; font-size:26px; padding-top:20px;">
-                <a href="observatory_activity.php?month=<?php echo $prev_month;?>&year=<?php echo $prev_month_year;?>">
+                <a href="observatory_activity.php?month=<?php echo $prev_month; ?>&year=<?php echo $prev_month_year; ?>">
                     <span class="mp-img mp-img-leftB"></span>
                 </a>
                 <?php echo $month_name; ?>
-                <a href="observatory_activity.php?month=<?php echo $next_month;?>&year=<?php echo $next_month_year;?>">
+                <a href="observatory_activity.php?month=<?php echo $next_month; ?>&year=<?php echo $next_month_year; ?>">
                     <span class="mp-img mp-img-rightB"></span>
                 </a>
             </div>
 
-<div style="text-align:center;">
-    Camera active between <?php echo $obstory_info['oldest_obs_date_short']; ?> and
-    <?php echo $obstory_info['newest_obs_date_short']; ?>.
-</div>
+            <div style="text-align:center;">
+                Camera active between <?php echo $obstory_info['oldest_obs_date_short']; ?> and
+                <?php echo $obstory_info['newest_obs_date_short']; ?>.
+            </div>
 
             <div style="padding:4px;overflow-x:scroll;">
                 <table class="dcf_calendar">
