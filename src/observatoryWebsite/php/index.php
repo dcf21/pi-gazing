@@ -96,7 +96,7 @@ $pageTemplate->header($pageInfo);
             </p>
 
             <div style="padding:10px 20px;text-align:right;">
-                <button type="button" class="btn btn-primary" onclick="window.location='/whattodo.php';">
+                <button type="button" class="btn btn-primary btn-sm" onclick="window.location='/whattodo.php';">
                     What to do &#187;
                 </button>
             </div>

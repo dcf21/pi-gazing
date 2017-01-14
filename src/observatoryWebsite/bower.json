@@ -13,11 +13,12 @@
     "php/vendor"
   ],
   "dependencies": {
-    "bootstrap": "~3.3.5",
+    "bootstrap": "~4.0.0",
     "html5shiv": "~3.7.3",
     "jquery": "~1.11.3",
     "jquery-ui": "~1.11.4",
     "kendo-ui-core": "~2015.1.515",
+    "font-awesome": "fontawesome#^4.6.1",
     "requirejs": "~2.1.20"
   }
 }

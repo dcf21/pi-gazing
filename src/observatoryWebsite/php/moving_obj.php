@@ -145,7 +145,7 @@ if (array_key_exists("meteorpi:triggers/event", $files_by_type)):
     ?>
 
     <div class="row">
-        <div class="col-md-8">
+        <div class="col-xl-8">
             <div class="gallery_still">
                 <video class="gallery_still_img" controls>
                     <source src="<?php echo $file_url; ?>" type="video/mp4"/>
@@ -153,7 +153,7 @@ if (array_key_exists("meteorpi:triggers/event", $files_by_type)):
                 </video>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-xl-4">
             <h5>Observation type</h5>
             <p><?php echo $const->semanticTypes[$observation['semanticType']][1]; ?></p>
             <h5>Observatory</h5>
@@ -189,7 +189,7 @@ if (array_key_exists("meteorpi:triggers/event", $files_by_type)):
                 </div>
                 <div class="col-sm-4">
                     <div style="padding:40px 0 40px 0;">
-                        <button type="submit" class="btn btn-primary">Update</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Update</button>
                     </div>
                 </div>
             </div>
@@ -253,7 +253,7 @@ if (count($simultaneous_events)>0)
 
     <h3>Status information about this detection</h3>
 <?php if (count($metadata) > 0): ?>
-    <table class="metadata">
+    <table class="metadata" style="max-width:700px;">
         <thead>
         <tr>
             <td>Property</td>
@@ -267,7 +267,7 @@ if (count($simultaneous_events)>0)
             $value = $item['stringValue'] ? $item['stringValue'] : sprintf("%.2f", $item['floatValue']);
             ?>
             <tr class="active">
-                <td><?php echo $key; ?></td>
+                <td style="vertical-align:top;white-space:nowrap;"><?php echo $key; ?></td>
                 <td><?php echo $value; ?></td>
             </tr>
         <?php endforeach; ?>

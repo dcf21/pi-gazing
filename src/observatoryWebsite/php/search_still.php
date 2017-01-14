@@ -98,8 +98,8 @@ $pageTemplate->header($pageInfo);
     <form class="form-horizontal search-form" method="get" action="search_still.php#results">
 
         <div style="cursor:pointer;text-align:right;">
-            <button type="button" class="btn btn-default btn-md help-toggle">
-                <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+            <button type="button" class="btn btn-secondary btn-sm help-toggle">
+                <i class="fa fa-info-circle" aria-hidden="true"></i>
                 Show tips
             </button>
         </div>

@@ -162,7 +162,7 @@ $pageTemplate->header($pageInfo);
                 </tr>
                 <tr>
                     <td>
-                        <span class="btn"><input class="btn btn-primary" type="submit" value="Log in"/></span>
+                        <span class="btn"><input class="btn btn-primary btn-sm" type="submit" value="Log in"/></span>
                     </td>
                 </tr>
             </table>

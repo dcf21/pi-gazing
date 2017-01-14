@@ -170,6 +170,8 @@ __HTML__;
             <link rel="stylesheet" href="<?php echo $server; ?>vendor/bootstrap/dist/css/bootstrap.min.css">
             <script src="<?php echo $server; ?>vendor/bootstrap/dist/js/bootstrap.min.js"></script>
 
+            <link rel="stylesheet" href="<?php echo $server; ?>vendor/font-awesome/css/font-awesome.min.css">
+
             <link rel="stylesheet" type="text/css" href="<?php echo $server; ?>css/style.css" media="all"/>
 
             <script type="text/javascript" src="<?php echo $server; ?>js/meteorpi.min.js"></script>
@@ -196,68 +198,85 @@ __HTML__;
             </div>
             <div id="bannerfull"></div>
         </div>
-        <div class="bannerfade"></div>
 
-
-        <nav class="navbar navbar-inverse navbar-fixed-top">
+        <nav id="navbar-header" class="navbar navbar-dark bg-inverse navbar-fixed-top">
             <div class="container-fluid">
-                <div class="navbar-header">
-                    <a class="navbar-brand" href="<?php echo $server; ?>">Meteor Pi</a>
-                </div>
-                <div>
+                <button class="navbar-toggler hidden-md-up" type="button"
+                        data-toggle="collapse" data-target="#collapsing-navbar">
+                    <i class="fa fa-bars" aria-hidden="true"></i>
+                </button>
+                <div class="collapse in" id="collapsing-navbar">
+
+                    <a class="navbar-brand" style="padding-right:25px;" href="<?php echo $server; ?>">
+                        <i class="fa fa-home" aria-hidden="true"></i>
+                    </a>
+
                     <ul class="nav navbar-nav">
-                        <li class="<?php if ($pageInfo["activeTab"] == "home") echo "active "; ?>">
-                            <a href="/">Home</a>
+                        <li class="nav-item <?php if ($pageInfo["activeTab"] == "home") echo "active "; ?>">
+                            <a class="nav-link" href="/">Home</a>
                         </li>
-                        <li class="<?php if ($pageInfo["activeTab"] == "whattodo") echo "active "; ?>">
-                            <a href="/whattodo.php">What to do</a>
+                        <li class="nav-item <?php if ($pageInfo["activeTab"] == "whattodo") echo "active "; ?>">
+                            <a class="nav-link" href="/whattodo.php">What to do</a>
                         </li>
-                        <li class="<?php if ($pageInfo["activeTab"] == "search") echo "active "; ?>">
-                            <a class="dropdown-toggle" data-toggle="dropdown" href="#">Search the sky<span
+                        <li class="nav-item dropdown <?php if ($pageInfo["activeTab"] == "search") echo "active "; ?>">
+                            <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">Search the sky<span
                                     class="caret"></span></a>
-                            <ul class="dropdown-menu">
-                                <li><a href="<?php echo $server; ?>search_moving.php">Moving objects</a></li>
-                                <li><a href="<?php echo $server; ?>search_still.php">Still photography</a></li>
-                                <li><a href="<?php echo $server; ?>search_multi.php">Multi-camera detections</a></li>
-                                <li><a href="<?php echo $server; ?>search_highlights.php">Featured images</a></li>
-                            </ul>
+                            <div class="dropdown-menu">
+                                <a class="dropdown-item" href="<?php echo $server; ?>search_moving.php">Moving objects</a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>search_still.php">Still photography</a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>search_multi.php">Multi-camera detections</a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>search_highlights.php">Featured images</a>
+                            </div>
                         </li>
-                        <li class="<?php if ($pageInfo["activeTab"] == "projects") echo "active "; ?>">
-                            <a href="/projects.php">Projects</a>
+                        <li class="nav-item <?php if ($pageInfo["activeTab"] == "projects") echo "active "; ?>">
+                            <a class="nav-link" href="/projects.php">Projects</a>
                         </li>
-                        <li class="<?php if ($pageInfo["activeTab"] == "howitworks") echo "active "; ?>">
-                            <a href="/howitworks.php">How it works</a>
+                        <li class="nav-item <?php if ($pageInfo["activeTab"] == "howitworks") echo "active "; ?>">
+                            <a class="nav-link" href="/howitworks.php">How it works</a>
                         </li>
-                        <li class="dropdown <?php if ($pageInfo["activeTab"] == "cameras") echo "active "; ?>">
-                            <a class="dropdown-toggle" data-toggle="dropdown" href="#">Cameras<span
+                        <li class="nav-item dropdown <?php if ($pageInfo["activeTab"] == "cameras") echo "active "; ?>">
+                            <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">Cameras<span
                                     class="caret"></span></a>
-                            <ul class="dropdown-menu">
-                                <li><a href="<?php echo $server; ?>map.php">Locations</a></li>
-                                <li><a href="<?php echo $server; ?>observatory_activity.php">Activity tracker</a></li>
-                                <li><a href="<?php echo $server; ?>observatory_metadata.php">Status information</a></li>
-                            </ul>
+                            <div class="dropdown-menu">
+                                <a class="dropdown-item" href="<?php echo $server; ?>map.php">Locations</a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>observatory_activity.php">Activity tracker</a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>observatory_metadata.php">Status information</a>
+                            </div>
                         </li>
-                        <li class="<?php if ($pageInfo["activeTab"] == "faqs") echo "active "; ?>">
-                            <a href="/faqs.php">FAQs</a>
+                        <li class="nav-item <?php if ($pageInfo["activeTab"] == "faqs") echo "active "; ?>">
+                            <a class="nav-link" href="/faqs.php">FAQs</a>
                         </li>
-                        <li class="<?php if ($pageInfo["activeTab"] == "about") echo "active "; ?>">
-                            <a href="/about.php">About</a>
+                        <li class="nav-item <?php if ($pageInfo["activeTab"] == "about") echo "active "; ?>">
+                            <a class="nav-link" href="/about.php">About</a>
                         </li>
-                    </ul>
-                    <ul class="nav navbar-nav navbar-right">
-                        <li class="<?php if ($pageInfo["activeTab"] == "login") echo "active "; ?>">
-                            <a href="/user/login.php">
+                        <li class="nav-item <?php if ($pageInfo["activeTab"] == "login") echo "active "; ?>">
+                            <a class="nav-link" href="/user/login.php">
                                 <?php if (is_null($user->username)): ?>
-                                    <span class="glyphicon glyphicon-log-in"></span>&nbsp;Log in
+                                    <i class="fa fa-user-plus" aria-hidden="true"></i>&nbsp;Log in
                                 <?php else: ?>
-                                    <span class="glyphicon glyphicon-user"></span>&nbsp;Your account
+                                    <i class="fa fa-user" aria-hidden="true"></i>&nbsp;Your account
                                 <?php endif; ?>
                             </a>
                         </li>
                     </ul>
-                </div>
+                </div></div>
             </div>
         </nav>
+        <script type="application/javascript">
+            if ($(window).width() < 768) $("#collapsing-navbar").collapse("hide");
+
+            $(function () {
+                setInterval(function () {
+                    if ($(window).width() > 768) {
+                        if (!window.is_large) $("#collapsing-navbar").collapse("show");
+                        window.is_large = true;
+                    } else {
+                        window.is_large = false;
+
+                    }
+                }, 500);
+            });
+        </script>
 
         <div class="bannerfade"></div>
 
@@ -410,8 +429,8 @@ __HTML__;
 
             <?php if ($show_paths): ?>
                 <div style="cursor:pointer;text-align:right;margin:16px 0;">
-                    <button type="button" class="btn btn-default btn-md paths-toggle">
-                        <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+                    <button type="button" class="btn btn-secondary btn-sm paths-toggle">
+                        <i class="fa fa-info-circle" aria-hidden="true"></i>
                         Show position markers
                     </button>
                 </div>

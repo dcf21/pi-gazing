@@ -111,7 +111,7 @@ Usage: resize.bin <filename1> <new width> <output filename>\n\
         if (InputImage.data_red == NULL) gnom_fatal(__FILE__, __LINE__, "Could not read input image file 1");
 
         int new_width = (int) getFloat(filename[1], NULL);
-        int scaling = InputImage.xsize / new_width;
+        double scaling = InputImage.xsize / ((double)new_width);
         int new_height = InputImage.ysize / scaling;
 
         // Malloc output image

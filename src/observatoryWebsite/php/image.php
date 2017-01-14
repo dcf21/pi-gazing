@@ -214,7 +214,7 @@ $pageTemplate->header($pageInfo);
                 </div>
                 <div class="col-sm-4">
                     <div style="padding:40px 0 40px 0;">
-                        <button type="submit" class="btn btn-primary">Update</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Update</button>
                     </div>
                 </div>
             </div>

@@ -47,13 +47,13 @@ function SequentialPanes(parent) {
         '<div style="display:inline-block;padding:10px;">' +
         '<button type="button" class="spprev btn">&#171; Back</button>' +
         '</div><div style="display:inline-block;padding:10px;">' +
-        '<button type="button" class="spnext btn btn-primary">Next &#187;</button>' +
+        '<button type="button" class="spnext btn btn-primary btn-sm">Next &#187;</button>' +
         '</div>');
     $(".pane-controls-final", parent).html(
         '<div style="display:inline-block;padding:10px;">' +
         '<button type="button" class="spprev btn">&#171; Back</button>' +
         '</div><div style="display:inline-block;padding:10px;">' +
-        '<button type="button" class="spnext2 btn btn-primary">'+this.final_next[1]+' &#187;</button>' +
+        '<button type="button" class="spnext2 btn btn-primary btn-sm">'+this.final_next[1]+' &#187;</button>' +
         '</div>');
     $(".spprev", parent).click(function () {
         self.prev();
