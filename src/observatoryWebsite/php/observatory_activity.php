@@ -28,13 +28,41 @@ require_once "php/html_getargs.php";
 
 $getargs = new html_getargs(false);
 
+// Fetch list of observatories
+$obstories = $getargs->obstory_objlist;
+$obstory = $getargs->readObservatory("id");
+$obstory_name = $getargs->obstory_objs[$obstory]['name'];
+
+$obstory_info = observatory_info::observatory_info($obstory);
+
 // Read which month to cover
 $tmin = $getargs->readTime('year', 'month', null, null, null, null, $const->yearMin, $const->yearMax);
 
+// Clip requested month to span over which we have data
+$newest = $obstory_info['newest_obs_utc'];
+if ( (!is_null($newest)) && ( 
+        ($tmin['year']>intval(date('Y',$newest))) ||
+        (($tmin['year']==intval(date('Y',$newest))) && ($tmin['mc']>intval(date('m',$newest))))
+)) {
+    $utc = mktime(0, 0, 1, date('m',$obstory_info['newest_obs_utc']), 1, date('Y',$obstory_info['newest_obs_utc']));
+    $tmin = $getargs->readTimeFromUTC($utc);
+}
+
+$oldest = $obstory_info['oldest_obs_utc'];
+if ( (!is_null($oldest)) && (
+        ($tmin['year']>intval(date('Y',$oldest))) ||
+        (($tmin['year']==intval(date('Y',$oldest))) && ($tmin['mc']>intval(date('m',$oldest))))
+    )) {
+    $utc = mktime(0, 0, 1, date('m',$obstory_info['oldest_obs_utc']), 1, date('Y',$obstory_info['oldest_obs_utc']));
+    $tmin = $getargs->readTimeFromUTC($utc);
+}
+
+// Look up calendar date of start date
 $month_name = date('F Y', $tmin['utc'] + 1);
 $month = date('n', $tmin['utc'] + 1);
 $year = date('Y', $tmin['utc'] + 1);
 
+// Look up which months to put on the "prev" and "next" buttons
 $prev_month = date('n', $tmin['utc'] - 10 * 24 * 3600);
 $prev_month_year = date('Y', $tmin['utc'] - 10 * 24 * 3600);
 $next_month = date('n', $tmin['utc'] + 40 * 24 * 3600);
@@ -43,10 +71,6 @@ $next_month_year = date('Y', $tmin['utc'] + 40 * 24 * 3600);
 $days_in_month = date('t', $tmin['utc'] + 1);
 $day_offset = date('w', $tmin['utc'] + 1);
 $period = 24 * 3600;
-
-$obstories = $getargs->obstory_objlist;
-$obstory = $getargs->readObservatory("id");
-$obstory_name = $getargs->obstory_objs[$obstory]['name'];
 
 $byday = [];
 
@@ -102,6 +126,10 @@ $pageInfo = [
 $pageTemplate->header($pageInfo);
 
 ?>
+<div style="text-align:center;">
+    Camera active between <?php echo $obstory_info['oldest_obs_date']; ?> and
+    <?php echo $obstory_info['newest_obs_date']; ?>.
+</div>
     <div class="row">
         <div class="col-md-10">
 
