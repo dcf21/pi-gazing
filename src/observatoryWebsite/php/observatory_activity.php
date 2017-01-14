@@ -25,6 +25,7 @@
 
 require_once "php/imports.php";
 require_once "php/html_getargs.php";
+require_once "php/observatory_info.php";
 
 $getargs = new html_getargs(false);
 
@@ -33,7 +34,7 @@ $obstories = $getargs->obstory_objlist;
 $obstory = $getargs->readObservatory("id");
 $obstory_name = $getargs->obstory_objs[$obstory]['name'];
 
-$obstory_info = observatory_info::observatory_info($obstory);
+$obstory_info = observatory_info::obstory_info($obstory);
 
 // Read which month to cover
 $tmin = $getargs->readTime('year', 'month', null, null, null, null, $const->yearMin, $const->yearMax);
@@ -50,8 +51,8 @@ if ( (!is_null($newest)) && (
 
 $oldest = $obstory_info['oldest_obs_utc'];
 if ( (!is_null($oldest)) && (
-        ($tmin['year']>intval(date('Y',$oldest))) ||
-        (($tmin['year']==intval(date('Y',$oldest))) && ($tmin['mc']>intval(date('m',$oldest))))
+        ($tmin['year']<intval(date('Y',$oldest))) ||
+        (($tmin['year']==intval(date('Y',$oldest))) && ($tmin['mc']<intval(date('m',$oldest))))
     )) {
     $utc = mktime(0, 0, 1, date('m',$obstory_info['oldest_obs_utc']), 1, date('Y',$obstory_info['oldest_obs_utc']));
     $tmin = $getargs->readTimeFromUTC($utc);
@@ -126,10 +127,6 @@ $pageInfo = [
 $pageTemplate->header($pageInfo);
 
 ?>
-<div style="text-align:center;">
-    Camera active between <?php echo $obstory_info['oldest_obs_date']; ?> and
-    <?php echo $obstory_info['newest_obs_date']; ?>.
-</div>
     <div class="row">
         <div class="col-md-10">
 
@@ -142,6 +139,12 @@ $pageTemplate->header($pageInfo);
                     <span class="mp-img mp-img-rightB"></span>
                 </a>
             </div>
+
+<div style="text-align:center;">
+    Camera active between <?php echo $obstory_info['oldest_obs_date_short']; ?> and
+    <?php echo $obstory_info['newest_obs_date_short']; ?>.
+</div>
+
             <div style="padding:4px;overflow-x:scroll;">
                 <table class="dcf_calendar">
                     <thead>

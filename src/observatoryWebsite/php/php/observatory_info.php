@@ -28,7 +28,7 @@
 class observatory_info
 {
     // This function returns the oldest and newest observations from an observatoryId
-    public static function observatory_info($obstory)
+    public static function obstory_info($obstory)
     {
         global $const;
 
@@ -42,10 +42,11 @@ ORDER BY obsTime ASC LIMIT 1;");
         $stmt->execute(["o" => $obstory]);
         $oldest_obs = $stmt->fetch();
         $oldest_obs_utc = null;
-        $oldest_obs_date = "&ndash;";
+        $oldest_obs_date = $oldest_obs_date_short = "&ndash;";
         if ($oldest_obs) {
             $oldest_obs_utc = $oldest_obs['obsTime'];
             $oldest_obs_date = date("d M Y - H:i", $oldest_obs_utc);
+            $oldest_obs_date_short = date("d M Y", $oldest_obs_utc);
         }
 
         // Get newest observation
@@ -58,10 +59,11 @@ ORDER BY obsTime DESC LIMIT 1;");
         $stmt->execute(["o" => $obstory]);
         $newest_obs = $stmt->fetch();
         $newest_obs_utc = null;
-        $newest_obs_date = "&ndash;";
+        $newest_obs_date = $newest_obs_date_short = "&ndash;";
         if ($newest_obs) {
             $newest_obs_utc = $newest_obs['obsTime'];
             $newest_obs_date = date("d M Y - H:i", $newest_obs_utc);
+            $newest_obs_date_short = date("d M Y", $newest_obs_utc);
         }
 
         // Total image count
@@ -91,8 +93,10 @@ ORDER BY obsTime DESC LIMIT 1;");
             "image_count" => $image_count,
             "newest_obs_utc" => $newest_obs_utc,
             "newest_obs_date" => $newest_obs_date,
+            "newest_obs_date_short" => $newest_obs_date_short,
             "oldest_obs_utc" => $oldest_obs_utc,
-            "oldest_obs_date" => $oldest_obs_date
+            "oldest_obs_date" => $oldest_obs_date,
+            "oldest_obs_date_short" => $oldest_obs_date_short
         ];
     }
 

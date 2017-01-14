@@ -34,7 +34,7 @@ $obstories = $getargs->obstory_objlist;
 $obstory = $getargs->readObservatory("id");
 $obstory_name = $getargs->obstory_objs[$obstory]['name'];
 
-$obstory_info = observatory_info::observatory_info($obstory);
+$obstory_info = observatory_info::obstory_info($obstory);
 
 $pageInfo = [
     "pageTitle" => "The Meteor Pi network: {$obstory_name}",
