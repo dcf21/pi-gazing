@@ -328,3 +328,29 @@ div.faq_answer:after { content:""; clear: both; display: table; }
 
 // Sequential panes
 div.pane-item:after { content:""; clear: both; display: table; }
+
+// Rotated items
+.div-rotated {
+     display: inline-block;
+     overflow: hidden;
+
+     width: 1.5em;
+     line-height: 1.5;
+}
+
+.div-rotated .content {
+     display: inline-block;
+     white-space: nowrap;
+
+     -webkit-transform: translate(0,100%) rotate(90deg);
+     -ms-transform: translate(0,100%) rotate(90deg);
+     transform: translate(0,100%) rotate(-90deg);
+     transform-origin: 0 0;
+}
+
+.div-rotated .content:after {
+     content: "";
+     float: left;
+     margin-top: 100%;
+ }
+

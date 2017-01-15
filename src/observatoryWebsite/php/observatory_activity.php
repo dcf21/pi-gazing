@@ -122,7 +122,7 @@ $pageInfo = [
     "includes" => [],
     "linkRSS" => null,
     "options" => [],
-    "breadcrumb" => [["observatory.php?id=" . $obstory, $obstory_name]]
+    "breadcrumb" => [["observatory_activity_all.php", "Activity log"], ["observatory.php?id=" . $obstory, $obstory_name]]
 ];
 
 

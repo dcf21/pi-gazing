@@ -68,7 +68,7 @@ $pageTemplate->header($pageInfo);
         <h5>Total moving objects</h5>
         <p class="purple-text"><?php echo $obstory_info['moving_count']; ?></p>
         <h5>More information</h5>
-        <p><a href="/observatory_activity.php?id=<?php echo $obstory; ?>">Calendar of observations</a></p>
+        <p><a href="/observatory_activity_year.php?id=<?php echo $obstory; ?>">Calendar of observations</a></p>
         <p><a href="/observatory_metadata.php?id=<?php echo $obstory; ?>">Status messages</a></p>
     </div>
     </div>

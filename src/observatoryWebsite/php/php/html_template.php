@@ -267,7 +267,6 @@ __HTML__;
                     </ul>
                 </div>
             </div>
-            </div>
         </nav>
         <script type="application/javascript">
             if ($(window).width() < 768) $("#collapsing-navbar").collapse("hide");

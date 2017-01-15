@@ -81,7 +81,7 @@ WHERE l.publicId=:o AND s.name=:k AND o.obsTime>=:x AND o.obsTime<:y LIMIT 1");
         $stmt->execute(['o' => $obstory, 'k' => $metaKey, 'x' => $a, 'y' => $b]);
         $items = $stmt->fetchAll()[0]['COUNT(*)'];
         if ($items > 0) {
-            $text = "<a href='{$url}?obstory={$obstory}&year={$year}&month={$mc}'>{$items} {$suffix}</a>";
+            $text = "<a href='{$url}?id={$obstory}&year={$year}&month={$mc}'>{$items} {$suffix}</a>";
         } else {
             $text = "No data";
         }
@@ -101,7 +101,7 @@ $pageInfo = [
     "includes" => [],
     "linkRSS" => null,
     "options" => [],
-    "breadcrumb" => [["observatory.php?id=" . $obstory, $obstory_name]]
+    "breadcrumb" => [["observatory_activity_all.php", "Activity log"], ["observatory.php?id=" . $obstory, $obstory_name]]
 ];
 
 
@@ -164,7 +164,7 @@ $pageTemplate->header($pageInfo);
             </div>
 
             <h4>Select year</h4>
-            <form method="get" action="observatory_activity.php">
+            <form method="get" action="observatory_activity_year.php">
                 <input type="hidden" name="id" value="<?php echo $obstory; ?>">
                 <?php
                 html_getargs::makeFormSelect("year", $year, range($const->yearMin, $const->yearMax), 0);

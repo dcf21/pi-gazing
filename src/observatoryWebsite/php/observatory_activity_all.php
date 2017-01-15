@@ -64,17 +64,18 @@ WHERE l.publicId=:o AND s.name=:k AND o.obsTime>=:x AND o.obsTime<:y LIMIT 1");
         $stmt->bindParam(':x', $x, PDO::PARAM_INT);
         $stmt->bindParam(':y', $y, PDO::PARAM_INT);
         $stmt->execute(['o' => $obstory, 'k' => $metaKey, 'x' => $a, 'y' => $b]);
-        $items = $stmt->fetchAll()[0]['COUNT(*)'];
-        if ($items > 0) {
-            $text = "<a href='{$url}?obstory={$obstory}&year={$year}&month={$mc}'>x</a>";
+        $items = $stmt->fetchAll();
+        if (count($items) > 0) {
+            $text = "<a href='{$url}?id={$obstory}&year={$year}&month={$mc}'>Active</a>";
         } else {
-            $text = "";
+            $text = "Inactive";
         }
         $by_month[$mc][] = $text;
     }
 }
 
-foreach ($obstories as $obstory) {
+foreach ($obstories as $obstory_info) {
+    $obstory = $obstory_info['publicId'];
     get_activity_history("timelapse", "observatory_activity.php");
 }
 
@@ -112,8 +113,7 @@ $pageTemplate->header($pageInfo);
                     <tr>
                         <td>Month</td>
                         <?php foreach ($obstories as $obstory): ?>
-                            <?php $obstory_info = $getargs->obstory_objs[$obstory]; ?>
-                            <td><?php echo $obstory_info['name']; ?></td>
+                            <td><div class='div-rotated'><div class='content'><?php echo $obstory['name']; ?></div></div></td>
                         <?php endforeach; ?>
                     </tr>
                     </thead>
@@ -135,8 +135,7 @@ $pageTemplate->header($pageInfo);
 
         <div class="col-md-2">
             <h4>Select year</h4>
-            <form method="get" action="observatory_activity.php">
-                <input type="hidden" name="id" value="<?php echo $obstory; ?>">
+            <form method="get" action="observatory_activity_all.php">
                 <?php
                 html_getargs::makeFormSelect("year", $year, range($const->yearMin, $const->yearMax), 0);
                 ?>
