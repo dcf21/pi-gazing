@@ -204,6 +204,19 @@ $pageTemplate->header($pageInfo);
         </div>
 
         <div class="col-md-2">
+
+        <div style="cursor:pointer;">
+<form action="observatory_activity_year.php">
+<input type="hidden" name="id" value="<?php echo $obstory; ?>" />
+<input type="hidden" name="year" value="<?php echo $prev_month_year; ?>" />
+            <button type="submit" class="btn btn-secondary btn-sm">
+                <i class="fa fa-calendar" aria-hidden="true"></i>
+                Whole year view
+            </button>
+</form>
+        </div>
+
+
             <h4>Select month</h4>
             <form method="get" action="observatory_activity.php">
                 <input type="hidden" name="id" value="<?php echo $obstory; ?>">

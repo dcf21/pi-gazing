@@ -126,8 +126,8 @@ $pageTemplate->header($pageInfo);
     <?php echo $obstory_info['newest_obs_date_short']; ?>.
 </div>
 
-            <div style="padding:4px;overflow-x:scroll;">
-                <table class="bordered stripy">
+            <div style="padding:12px;overflow-x:scroll;" class="centred_table">
+                <table class="bordered stripy centred">
                     <thead>
                     <tr>
                         <td>Month</td>
@@ -140,8 +140,8 @@ $pageTemplate->header($pageInfo);
                         $month_names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
                         for ($mc=1; $mc<=12; $mc++) {
                             print "<tr><td>{$month_names[$mc-1]}</td>";
-                            foreach ($by_month[$mc - 1] as $column) {
-                                print "<td>{$column}</td>";
+                            foreach ($by_month[$mc] as $column) {
+                                print "<td style='padding:0 12px;'>{$column}</td>";
                             }
                         }
                         ?>
@@ -152,7 +152,7 @@ $pageTemplate->header($pageInfo);
         </div>
 
         <div class="col-md-2">
-            <h4>Select month</h4>
+            <h4>Select year</h4>
             <form method="get" action="observatory_activity.php">
                 <input type="hidden" name="id" value="<?php echo $obstory; ?>">
                 <?php
@@ -165,7 +165,7 @@ $pageTemplate->header($pageInfo);
             <div style="padding-top:25px;">
                 <?php
                 $pageTemplate->listObstories($obstories,
-                    "observatory_activity.php?year={$tmin['year']}&month={$tmin['mc']}&id=");
+                    "observatory_activity_year.php?year={$tmin['year']}&id=");
                 ?>
             </div>
 
