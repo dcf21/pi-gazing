@@ -36,19 +36,19 @@ $obstory_name = $getargs->obstory_objs[$obstory]['name'];
 
 $obstory_info = observatory_info::obstory_info($obstory);
 
-// Read which month to cover
+// Read which year to cover
 $tmin = $getargs->readTime('year', null, null, null, null, null, $const->yearMin, $const->yearMax);
 
-// Clip requested month to span over which we have data
+// Clip requested year to span over which we have data
 $newest = $obstory_info['newest_obs_utc'];
-if ( (!is_null($newest)) && ($tmin['year']>intval(date('Y',$newest))) ) {
-    $utc = mktime(0, 0, 1, 1, 1, date('Y',$obstory_info['newest_obs_utc']));
+if ((!is_null($newest)) && ($tmin['year'] > intval(date('Y', $newest)))) {
+    $utc = mktime(0, 0, 1, 1, 1, date('Y', $obstory_info['newest_obs_utc']));
     $tmin = $getargs->readTimeFromUTC($utc);
 }
 
 $oldest = $obstory_info['oldest_obs_utc'];
-if ( (!is_null($oldest)) && ($tmin['year']<intval(date('Y',$oldest))) ) {
-    $utc = mktime(0, 0, 1, 1, 1, date('Y',$obstory_info['oldest_obs_utc']));
+if ((!is_null($oldest)) && ($tmin['year'] < intval(date('Y', $oldest)))) {
+    $utc = mktime(0, 0, 1, 1, 1, date('Y', $obstory_info['oldest_obs_utc']));
     $tmin = $getargs->readTimeFromUTC($utc);
 }
 
@@ -56,8 +56,8 @@ if ( (!is_null($oldest)) && ($tmin['year']<intval(date('Y',$oldest))) ) {
 $year = date('Y', $tmin['utc'] + 1);
 
 // Look up which months to put on the "prev" and "next" buttons
-$prev_year = $year-1;
-$next_year = $year+1;
+$prev_year = $year - 1;
+$next_year = $year + 1;
 
 $by_month = [];
 
@@ -65,10 +65,10 @@ $by_month = [];
 function get_activity_history($metaKey, $suffix, $url)
 {
     global $by_month, $const, $obstory, $year;
-    for ($mc=1; $mc<=12; $mc++) {
+    for ($mc = 1; $mc <= 12; $mc++) {
         $a = mktime(0, 0, 1, $mc, 1, $year);
-        if ($mc==12) $b = $a + 31*86400;
-        else $b = mktime(0, 0, 1, $mc+1, 1, $year);
+        if ($mc == 12) $b = $a + 31 * 86400;
+        else $b = mktime(0, 0, 1, $mc + 1, 1, $year);
         $stmt = $const->db->prepare("
 SELECT COUNT(*) FROM archive_observations o
 INNER JOIN archive_observatories l ON o.observatory = l.uid
@@ -112,19 +112,19 @@ $pageTemplate->header($pageInfo);
         <div class="col-md-10">
 
             <div style="text-align: center; font-size:26px; padding-top:20px;">
-                <a href="observatory_activity_year.php?year=<?php echo $prev_year;?>">
+                <a href="observatory_activity_year.php?year=<?php echo $prev_year; ?>">
                     <span class="mp-img mp-img-leftB"></span>
                 </a>
                 <?php echo $year; ?>
-                <a href="observatory_activity_year.php?year=<?php echo $next_year;?>">
+                <a href="observatory_activity_year.php?year=<?php echo $next_year; ?>">
                     <span class="mp-img mp-img-rightB"></span>
                 </a>
             </div>
 
-<div style="text-align:center;">
-    Camera active between <?php echo $obstory_info['oldest_obs_date_short']; ?> and
-    <?php echo $obstory_info['newest_obs_date_short']; ?>.
-</div>
+            <div style="text-align:center;">
+                Camera active between <?php echo $obstory_info['oldest_obs_date_short']; ?> and
+                <?php echo $obstory_info['newest_obs_date_short']; ?>.
+            </div>
 
             <div style="padding:12px;overflow-x:scroll;" class="centred_table">
                 <table class="bordered stripy centred">
@@ -136,15 +136,15 @@ $pageTemplate->header($pageInfo);
                     </tr>
                     </thead>
                     <tbody>
-                        <?php
-                        $month_names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-                        for ($mc=1; $mc<=12; $mc++) {
-                            print "<tr><td>{$month_names[$mc-1]}</td>";
-                            foreach ($by_month[$mc] as $column) {
-                                print "<td style='padding:0 12px;'>{$column}</td>";
-                            }
+                    <?php
+                    $month_names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                    for ($mc = 1; $mc <= 12; $mc++) {
+                        print "<tr><td>{$month_names[$mc-1]}</td>";
+                        foreach ($by_month[$mc] as $column) {
+                            print "<td style='padding:0 12px;'>{$column}</td>";
                         }
-                        ?>
+                    }
+                    ?>
                     </tbody>
                 </table>
             </div>
@@ -152,6 +152,17 @@ $pageTemplate->header($pageInfo);
         </div>
 
         <div class="col-md-2">
+
+            <div style="cursor:pointer;">
+                <form action="observatory_activity_all.php">
+                    <input type="hidden" name="year" value="<?php echo $year; ?>"/>
+                    <button type="submit" class="btn btn-secondary btn-sm">
+                        <i class="fa fa-calendar" aria-hidden="true"></i>
+                        Show all cameras
+                    </button>
+                </form>
+            </div>
+
             <h4>Select year</h4>
             <form method="get" action="observatory_activity.php">
                 <input type="hidden" name="id" value="<?php echo $obstory; ?>">

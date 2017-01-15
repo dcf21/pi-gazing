@@ -140,9 +140,9 @@ __HTML__;
             <![endif]-->
 
             <?php if ($settings['includeGoogleMaps']): ?>
-            <script type="text/javascript"
-                    src="//maps.googleapis.com/maps/api/js?key=<?php echo $settings['googleAPIKey']; ?>&amp;sensor=false">
-            </script>
+                <script type="text/javascript"
+                        src="//maps.googleapis.com/maps/api/js?key=<?php echo $settings['googleAPIKey']; ?>&amp;sensor=false">
+                </script>
             <?php endif; ?>
 
 
@@ -220,12 +220,16 @@ __HTML__;
                         </li>
                         <li class="nav-item dropdown <?php if ($pageInfo["activeTab"] == "search") echo "active "; ?>">
                             <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">Search the sky<span
-                                    class="caret"></span></a>
+                                        class="caret"></span></a>
                             <div class="dropdown-menu">
-                                <a class="dropdown-item" href="<?php echo $server; ?>search_moving.php">Moving objects</a>
-                                <a class="dropdown-item" href="<?php echo $server; ?>search_still.php">Still photography</a>
-                                <a class="dropdown-item" href="<?php echo $server; ?>search_multi.php">Multi-camera detections</a>
-                                <a class="dropdown-item" href="<?php echo $server; ?>search_highlights.php">Featured images</a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>search_moving.php">Moving
+                                    objects</a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>search_still.php">Still
+                                    photography</a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>search_multi.php">Multi-camera
+                                    detections</a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>search_highlights.php">Featured
+                                    images</a>
                             </div>
                         </li>
                         <li class="nav-item <?php if ($pageInfo["activeTab"] == "projects") echo "active "; ?>">
@@ -236,11 +240,13 @@ __HTML__;
                         </li>
                         <li class="nav-item dropdown <?php if ($pageInfo["activeTab"] == "cameras") echo "active "; ?>">
                             <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">Cameras<span
-                                    class="caret"></span></a>
+                                        class="caret"></span></a>
                             <div class="dropdown-menu">
                                 <a class="dropdown-item" href="<?php echo $server; ?>map.php">Locations</a>
-                                <a class="dropdown-item" href="<?php echo $server; ?>observatory_activity.php">Activity tracker</a>
-                                <a class="dropdown-item" href="<?php echo $server; ?>observatory_metadata.php">Status information</a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>observatory_activity_all.php">Activity
+                                    tracker</a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>observatory_metadata.php">Status
+                                    information</a>
                             </div>
                         </li>
                         <li class="nav-item <?php if ($pageInfo["activeTab"] == "faqs") echo "active "; ?>">
@@ -259,7 +265,8 @@ __HTML__;
                             </a>
                         </li>
                     </ul>
-                </div></div>
+                </div>
+            </div>
             </div>
         </nav>
         <script type="application/javascript">
@@ -285,7 +292,7 @@ __HTML__;
         HTMLtemplate::breadcrumb($pageInfo["breadcrumb"], $pageInfo["activeTab"], $pageInfo["postbreadcrumb"]);
         ?>
 
-        <?php if (!array_key_exists("noTitle", $pageInfo)) echo "<h2>".$pageInfo["pageTitle"]."</h2>"; ?>
+        <?php if (!array_key_exists("noTitle", $pageInfo)) echo "<h2>" . $pageInfo["pageTitle"] . "</h2>"; ?>
 
         <?php
     }
@@ -373,8 +380,8 @@ __HTML__;
                         ?>
                         <div class="slidingPane_item" style="visibility:hidden;">
                             <a href="<?php echo $item['link']; ?>"><img
-                                    src="/<?php echo $item['teaser']; ?>"
-                                    alt="" style="width:100%;"/></a>
+                                        src="/<?php echo $item['teaser']; ?>"
+                                        alt="" style="width:100%;"/></a>
 
                             <div class="img_overcaption"><?php echo $item['caption']; ?></div>
                         </div>
