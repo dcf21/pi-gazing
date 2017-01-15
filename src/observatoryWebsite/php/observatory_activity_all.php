@@ -66,9 +66,9 @@ WHERE l.publicId=:o AND s.name=:k AND o.obsTime>=:x AND o.obsTime<:y LIMIT 1");
         $stmt->execute(['o' => $obstory, 'k' => $metaKey, 'x' => $a, 'y' => $b]);
         $items = $stmt->fetchAll();
         if (count($items) > 0) {
-            $text = "<a href='{$url}?id={$obstory}&year={$year}&month={$mc}'>Active</a>";
+            $text = "<span style='font-weight:bold;'><a href='{$url}?id={$obstory}&year={$year}&month={$mc}'>Active</a></span>";
         } else {
-            $text = "Inactive";
+            $text = "<span style='color:#ccc;'>Inactive</span>";
         }
         $by_month[$mc][] = $text;
     }
