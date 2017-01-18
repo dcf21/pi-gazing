@@ -373,6 +373,7 @@ __HTML__;
                     <div class="mp-back" style="right:18px;">
                         <div class="mp-img mp-img-rightB slidingPane_next"></div>
                     </div>
+                    <?php if ($itemList): ?>
                     <img src="/<?php echo $itemList[0]['teaser']; ?>" alt="" style="width:100%; z-index:-999;"/>
                     <?php
                     foreach ($itemList as $item) {
@@ -386,6 +387,7 @@ __HTML__;
                         </div>
                         <?php
                     }
+                    endif;
                     ?>
                 </div>
             </div>
