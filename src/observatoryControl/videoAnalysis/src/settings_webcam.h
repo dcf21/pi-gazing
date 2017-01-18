@@ -39,7 +39,7 @@
 
 // This is the mean pixel brightness that we aim for in output images, applying whatever automatic gain is needed to get there
 
-#define STACK_TARGET_BRIGHTNESS  32
+#define STACK_TARGET_BRIGHTNESS  24
 
 // Throttle the number of triggers which are allowed
 #define TRIGGER_THROTTLE_PERIOD 30 /* number of minutes */
