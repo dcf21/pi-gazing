@@ -1202,7 +1202,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
                              'INNER JOIN archive_metadata o ON x.metadataId=o.uid '
                              'WHERE c.active = 1 AND x.exportState > 0 '
                              'ORDER BY x.setAtTime ASC, o.uid ASC LIMIT 50')
-            self.export_queue_metadata = self.con.fetchall()
+            self.export_queue_metadata = list(self.con.fetchall())
 
             if not self.export_queue_metadata:
 
@@ -1214,7 +1214,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
                                  'INNER JOIN archive_observations o ON x.observationId=o.uid '
                                  'WHERE c.active = 1  AND x.exportState > 0 '
                                  'ORDER BY x.obsTime ASC, o.uid ASC LIMIT 50')
-                self.export_queue_observations = self.con.fetchall()
+                self.export_queue_observations = list(self.con.fetchall())
 
                 if not self.export_queue_observations:
                     # Try to retrieve the earliest record in archive_fileExport
@@ -1225,7 +1225,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
                                      'INNER JOIN archive_files o ON x.fileId=o.uid '
                                      'WHERE c.active = 1 AND x.exportState > 0 '
                                      'ORDER BY x.fileTime ASC, o.uid ASC LIMIT 50')
-                    self.export_queue_files = self.con.fetchall()
+                    self.export_queue_files = list(self.con.fetchall())
 
         if self.export_queue_metadata:
             row = self.export_queue_metadata.pop(0)
