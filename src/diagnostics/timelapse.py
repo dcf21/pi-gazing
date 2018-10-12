@@ -1,13 +1,12 @@
-#!../../virtual-env/bin/python
+#!../../virtualenv/bin/python3
+# -*- coding: utf-8 -*-
 # timelapse.py
-# Meteor Pi, Cambridge Science Centre
-# Dominic Ford
-
+#
 # -------------------------------------------------
-# Copyright 2016 Cambridge Science Centre.
-
+# Copyright 2015-2018 Dominic Ford
+#
 # This file is part of Meteor Pi.
-
+#
 # Meteor Pi is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -22,10 +21,10 @@
 # along with Meteor Pi.  If not, see <http://www.gnu.org/licenses/>.
 # -------------------------------------------------
 
-# This is a demo script which turns the camera on, and then records a time lapse video of frames recorded once a
-# minute until the script is killed
-
-
+"""
+This is a demo script which turns the camera on, and then records a time lapse video of frames recorded once a
+minute until the script is killed
+"""
 
 import os
 import time
