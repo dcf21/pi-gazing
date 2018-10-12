@@ -46,19 +46,19 @@ if argc > 1:
 if argc > 2:
     utc_max = float(sys.argv[2])
 
-print "# ./recalculateSkyClarity.py %s %s\n" % (utc_min, utc_max)
+print("# ./recalculateSkyClarity.py %s %s\n" % (utc_min, utc_max))
 
 search = mp.FileRecordSearch(time_min=utc_min, time_max=utc_max, limit=10000000)
 files = db.search_files(search)
 files = files['files']
 files.sort(key=lambda x: x.file_time)
-print "  * %d matching files in time range %s --> %s" % (len(files),
+print("  * %d matching files in time range %s --> %s" % (len(files),
                                                          mod_astro.time_print(utc_min),
-                                                         mod_astro.time_print(utc_max))
+                                                         mod_astro.time_print(utc_max)))
 
 
 def report_line(file, text):
-    print "%s %s -- %s" % (mod_astro.time_print(file.file_time), file.id, text)
+    print("%s %s -- %s" % (mod_astro.time_print(file.file_time), file.id, text))
 
 
 sky_clarity_tool = os.path.join(mod_settings.settings['pythonPath'],

@@ -51,7 +51,7 @@ def set_lights(x, y):
         GPIO.output(installation_info.local_conf['gpioLedA'], x)
         GPIO.output(installation_info.local_conf['gpioLedB'], y)
     else:
-        print "%10s %10s" % (x, y)
+        print("%10s %10s" % (x, y))
 
 
 # This is a sum of all of the load measurements we have ever made

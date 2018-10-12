@@ -41,7 +41,7 @@ from mod_log import log_txt
 
 
 def fetch_option(title, default):
-    value = raw_input('Set %s <default %s>: ' % (title, default))
+    value = input('Set %s <default %s>: ' % (title, default))
     if not value:
         value = default
     return value
@@ -150,18 +150,18 @@ for i in range(len(triggers)):
                            'triggers': [{'obs': triggers[x]} for x in group_members],
                            'ids': [triggers[x].id for x in group_members]})
 
-print "%6d existing observation groups within this time period (will be deleted)." % (len(existing_groups))
-print "%6d moving objects seen within this time period" % (len(triggers_raw['obs']))
-print "%6d moving objects rejected because tagged as junk" % (len(triggers_raw['obs']) - len(triggers))
-print "%6d simultaneous detections found." % (len(groups))
+print("%6d existing observation groups within this time period (will be deleted)." % (len(existing_groups)))
+print("%6d moving objects seen within this time period" % (len(triggers_raw['obs'])))
+print("%6d moving objects rejected because tagged as junk" % (len(triggers_raw['obs']) - len(triggers)))
+print("%6d simultaneous detections found." % (len(groups)))
 
 for item in groups:
-    print "%s -- %3d stations (time spread %.1f sec)" % (mod_astro.time_print(item['time']),
+    print("%s -- %3d stations (time spread %.1f sec)" % (mod_astro.time_print(item['time']),
                                                          len(item['obstory_list']),
-                                                         item['time_spread'])
+                                                         item['time_spread']))
 
 # Get user confirmation to proceed
-confirm = raw_input('Replace with newly found simultaneous detections? (Y/N) ')
+confirm = input('Replace with newly found simultaneous detections? (Y/N) ')
 if confirm not in 'Yy':
     sys.exit(0)
 

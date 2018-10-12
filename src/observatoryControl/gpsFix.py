@@ -58,7 +58,7 @@ class GpsPoller(threading.Thread):
     def run(self):
         try:
             while True:
-                self.current_value = self.session.next()
+                self.current_value = next(self.session)
                 if ('mode' in self.current_value) and (self.current_value.mode == 3):
                     dt = dateutil.parser.parse(self.current_value['time'])
                     utc = time.mktime(dt.timetuple())
@@ -95,4 +95,4 @@ def fetch_gps_fix():
 
 
 if __name__ == '__main__':
-    print json.dumps(fetch_gps_fix())
+    print(json.dumps(fetch_gps_fix()))

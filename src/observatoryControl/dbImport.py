@@ -155,7 +155,7 @@ def database_import(db):
             if utc < hwm_old[obstory_id]:
                 continue
 
-            print "Registering file <%s>, with obstoryId <%s>." % (file_name, obstory_id)
+            print("Registering file <%s>, with obstoryId <%s>." % (file_name, obstory_id))
 
             # See if we already have an observation with this time stamp. If not, create one
             created_new_observation = False
@@ -168,7 +168,7 @@ def database_import(db):
                 obs_id = obs_obj.id
                 dict_tree_append(observation_list, [obstory_id, utc], obs_id)
                 created_new_observation = True
-                print "Created new observation with ID <%s>." % obs_id
+                print("Created new observation with ID <%s>." % obs_id)
             else:
                 obs_id = observation_list[obstory_id][utc]
 
@@ -238,7 +238,7 @@ def database_import(db):
                       tmax=get_utc() - 24 * 2400 * installation_info.local_conf['dataLocalLifetime'])
 
     # Update the "import" high water marks for each obstory_name
-    for obstory_id in hwm_new.keys():
+    for obstory_id in list(hwm_new.keys()):
         obstory_name = get_obstory_name_from_id(db=db, obstory_id=obstory_id)
         db.set_high_water_mark(obstory_name=obstory_name,
                                mark_type="import",

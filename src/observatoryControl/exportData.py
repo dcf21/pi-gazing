@@ -59,7 +59,7 @@ def export_data(db, utc_now, utc_must_stop=0):
         if not state:
             log_txt("Finished export of images and events")
             break
-        print "Export status: %s" % state.state
+        print("Export status: %s" % state.state)
         if state.state == "failed":
             log_txt("Backing off, because an export failed")
             time.sleep([30, 300, 600, 1200, 2400][fail_count])

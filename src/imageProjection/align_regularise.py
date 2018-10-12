@@ -104,7 +104,7 @@ for line in config_in_lines:
                 reasons.append("Decs do not match")
             if abs(previous_pa - float(pa)) > 5:
                 reasons.append("PAs do not match")
-            print "# Splitting on <%s>; because %s." % (os.path.split(filename)[1], ", ".join(reasons))
+            print("# Splitting on <%s>; because %s." % (os.path.split(filename)[1], ", ".join(reasons)))
         image_list = []
     previous_ra = float(ra)
     previous_dec = float(dec)
@@ -157,13 +157,13 @@ for image_list in fits:
 # Start printing our new configuration file
 # First, display any metadata headers that we're piping from the input configuration
 for line in config_out_lines:
-    print line.strip()
+    print(line.strip())
 
 # Then display a list of the orientations we've inferred for each image
 for i in range(len(fits)):
     for j in range(len(fits[i])):
         [add, filename, weight, expcomp, img_size_x, img_size_y, ra, dec, pa, scalex, scaley, utc] = fits[i][j]
         # Filename, weight, expcomp, Central RA, Central Dec, position angle, scalex, scaley
-        print ("ADD %-93s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"
+        print(("ADD %-93s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"
                % (filename, weight, expcomp, img_size_x, img_size_y, ra, dec, pa, scalex, scaley)
-               )
+               ))

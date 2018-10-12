@@ -52,26 +52,26 @@ if len(sys.argv) > 3:
 if utc_max == 0:
     utc_max = time.time()
 
-print "# ./observatoryStatus.py %f %f \"%s\"\n" % (utc_min, utc_max, obstory_name)
+print("# ./observatoryStatus.py %f %f \"%s\"\n" % (utc_min, utc_max, obstory_name))
 
 try:
  obstory_info = db.get_obstory_from_name(obstory_name=obstory_name)
 except ValueError:
-    print "Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
-          obstory_name
+    print("Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
+          obstory_name)
     sys.exit(0)
 
 obstory_id = obstory_info['publicId']
 title = "Observatory <%s>" % obstory_name
-print "\n\n%s\n%s" % (title, "-" * len(title))
+print("\n\n%s\n%s" % (title, "-" * len(title)))
 
 search = mp.ObservatoryMetadataSearch(obstory_ids=[obstory_id], time_min=utc_min, time_max=utc_max)
 data = db.search_obstory_metadata(search)
 data = data['items']
 data.sort(key=lambda x: x.time)
-print "  * %d matching metadata items in time range %s --> %s" % (len(data),
+print("  * %d matching metadata items in time range %s --> %s" % (len(data),
                                                                   mod_astro.time_print(utc_min),
-                                                                  mod_astro.time_print(utc_max))
+                                                                  mod_astro.time_print(utc_max)))
 
 # Check which items remain current
 data.reverse()
@@ -90,5 +90,5 @@ for item in data:
         current_flag = "+"
     else:
         current_flag = " "
-    print "  * %s [ID %s] %s -- %16s = %s" % (current_flag, item.id, mod_astro.time_print(item.time),
-                                              item.key, item.value)
+    print("  * %s [ID %s] %s -- %16s = %s" % (current_flag, item.id, mod_astro.time_print(item.time),
+                                              item.key, item.value))

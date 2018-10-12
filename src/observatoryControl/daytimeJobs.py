@@ -55,7 +55,7 @@ db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
 # User should supply unix time on commandline at which we are to stop work
 if len(sys.argv) != 3:
-    print "Need to call daytimeJobs.py with clock offset, and an end time to tell it when it needs to quit by."
+    print("Need to call daytimeJobs.py with clock offset, and an end time to tell it when it needs to quit by.")
     sys.exit(1)
 
 utc_offset = float(sys.argv[1])
@@ -89,7 +89,7 @@ def run_job_group(job_group):
             shell_cmd = "true"
         shell_cmds.append(shell_cmd)
     for cmd in shell_cmds:
-        print "Running command: %s" % cmd
+        print("Running command: %s" % cmd)
     if len(shell_cmds) == 1:
         cmd = shell_cmds[0]
     else:
@@ -201,7 +201,7 @@ try:
                         # Fetch the status of the observatory which made this observation
                         obstory_id = params['obstoryId']
                         if obstory_id not in obstory_infos:
-                            print "Error: No observatory status set for id <%s>" % obstory_id
+                            print("Error: No observatory status set for id <%s>" % obstory_id)
                             continue
                         obstory_info = obstory_infos[obstory_id]
                         obstory_name = obstory_info['name']
@@ -271,7 +271,7 @@ try:
             # If this is the first time we've seen this observatory within this job group, delete any newer data
             if obstory_id not in obstories_seen:
                 if obstory_id not in obstory_infos:
-                    print "Error: No observatory status set for id <%s>" % obstory_id
+                    print("Error: No observatory status set for id <%s>" % obstory_id)
                     continue
                 obstory_info = obstory_infos[obstory_id]
                 obstory_name = obstory_info['name']
@@ -311,7 +311,7 @@ except TimeOut:
 # Commit new high-water marks to the database
 for obstory_id in all_obstories_seen:
     if obstory_id in hwm_new:
-        for hwm_output in hwm_new[obstory_id].keys():
+        for hwm_output in list(hwm_new[obstory_id].keys()):
             obstory_info = obstory_infos[obstory_id]
             db.set_high_water_mark(mark_type=hwm_output,
                                    obstory_name=obstory_info['name'],

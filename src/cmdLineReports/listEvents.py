@@ -57,15 +57,15 @@ if len(sys.argv) > 6:
 if (utc_max == 0):
     utc_max = time.time()
 
-print "# ./listEvents.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utc_min, utc_max, obstory_name, label, img_type, stride)
+print("# ./listEvents.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utc_min, utc_max, obstory_name, label, img_type, stride))
 
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
 try:
     obstory_info = db.get_obstory_from_name(obstory_name=obstory_name)
 except ValueError:
-    print "Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
-          obstory_name
+    print("Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
+          obstory_name)
     sys.exit(0)
 
 obstory_id = obstory_info['publicId']
@@ -76,10 +76,10 @@ triggers = db.search_observations(search)
 triggers = triggers['obs']
 triggers.sort(key=lambda x: x.obs_time)
 
-print "Observatory <%s>" % obstory_name
-print "  * %d matching triggers in time range %s --> %s" % (len(triggers),
+print("Observatory <%s>" % obstory_name)
+print("  * %d matching triggers in time range %s --> %s" % (len(triggers),
                                                             mod_astro.time_print(utc_min),
-                                                            mod_astro.time_print(utc_max))
+                                                            mod_astro.time_print(utc_max)))
 for event in triggers:
     event_id = event.id
     duration = db.get_observation_metadata(event_id, "meteorpi:duration")
@@ -88,5 +88,5 @@ for event in triggers:
         duration = -1
     if peak_amplitude is None:
         peak_amplitude = -1
-    print "  * [ID %s] %s -- Duration %5.1f sec -- Peak amplitude %7.1f" % (event_id,
-        mod_astro.time_print(event.obs_time), duration, peak_amplitude)
+    print("  * [ID %s] %s -- Duration %5.1f sec -- Peak amplitude %7.1f" % (event_id,
+        mod_astro.time_print(event.obs_time), duration, peak_amplitude))

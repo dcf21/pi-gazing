@@ -46,35 +46,35 @@ def fetch_option(title, key, indict, default, argv_index):
     if (argv_index > 0) and (len(sys.argv) > argv_index):
         value = sys.argv[argv_index]
     else:
-        value = raw_input('Set %s <default %s>: ' % (title, default))
+        value = input('Set %s <default %s>: ' % (title, default))
     if not value:
         value = default
     return value
 
 
 # List current observatory statuses
-print "Current observatory statuses"
-print "----------------------------"
+print("Current observatory statuses")
+print("----------------------------")
 obstory_list = db.get_obstory_names()
 for obstory in obstory_list:
-    print "%s\n" % obstory
-    print "  * Observatory configuration"
+    print("%s\n" % obstory)
+    print("  * Observatory configuration")
     o = db.get_obstory_from_name(obstory)
     for item in ['latitude', 'longitude', 'name', 'publicId']:
-        print "    * %s = %s" % (item, o[item])
+        print("    * %s = %s" % (item, o[item]))
     status = db.get_obstory_status(obstory_name=obstory)
-    status_keys = status.keys()
+    status_keys = list(status.keys())
     status_keys.sort()
-    print "\n  * Additional metadata"
+    print("\n  * Additional metadata")
     for item in status_keys:
-        print "    * %s = %s" % (item, status[item])
-    print "\n"
+        print("    * %s = %s" % (item, status[item]))
+    print("\n")
 if len(obstory_list) == 0:
-    print "None!\n"
+    print("None!\n")
 
-print
-print "Update or add an observatory"
-print "----------------------------"
+print()
+print("Update or add an observatory")
+print("----------------------------")
 
 # Select observatory status to update
 obstory = fetch_option(title="observatory to update",

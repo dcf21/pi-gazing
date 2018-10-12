@@ -37,14 +37,14 @@ import installation_info
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
 # List all current user accounts
-print "Current export configurations"
-print "-----------------------------"
+print("Current export configurations")
+print("-----------------------------")
 configs = db.get_export_configurations()
 for config in configs:
-    print config.as_dict()
-print "\n"
+    print(config.as_dict())
+print("\n")
 
-confirm = raw_input('Replace with default configuration? (Y/N) ')
+confirm = input('Replace with default configuration? (Y/N) ')
 if confirm not in 'Yy':
     sys.exit(0)
 

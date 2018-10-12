@@ -35,19 +35,19 @@ import installation_info
 
 # Make sure we are running on a RPi. We don't want to overwrite the contents of </etc> on a PC...
 if not mod_settings.settings['i_am_a_rpi']:
-    print "This is not running on a Raspberry Pi. You should not run this on a PC!"
+    print("This is not running on a Raspberry Pi. You should not run this on a PC!")
     sys.exit(1)
 
 # Make sure we are running as root
 if os.geteuid() != 0:
-    print "This script must be run as root!"
+    print("This script must be run as root!")
     sys.exit(1)
 
 # Change into directory containing this script, so we can use relative paths
 os.chdir(mod_settings.settings['pythonPath'])
 
 # Check with the user that they know what's about to happen
-confirmation = raw_input("""
+confirmation = input("""
 This script should only be run on an SD card which has been set up with the hostname <meteorpi-clean>
 and the standard contents of <installation_info.py>, by following the instructions in the Wiki on the Meteor Pi GitHub
 website.
@@ -73,14 +73,14 @@ def file_substitute(filename, search, replace):
 
 # Helper function to read input from user
 def user_input(prompt, default):
-    value = raw_input("Enter %s (default <%s>): " % (prompt, default))
+    value = input("Enter %s (default <%s>): " % (prompt, default))
     if not value:
         return default
     return value
 
 
 # Set hostname for this Raspberry Pi
-print "STEP 1: Set a hostname for your Raspberry Pi (e.g. meteorpi-dave)"
+print("STEP 1: Set a hostname for your Raspberry Pi (e.g. meteorpi-dave)")
 
 hostname = user_input("Enter hostname: ", "meteorpi-clean")
 file_substitute("/etc/hostname", "meteorpi-clean", hostname)
@@ -88,7 +88,7 @@ file_substitute("/etc/hosts", "meteorpi-clean", hostname)
 file_substitute("/etc/apache2/sites-available/meteorpi-clean.local.conf", "meteorpi-clean", hostname)
 
 # Set up contents of installation_info
-print "STEP 2: Update observatory details"
+print("STEP 2: Update observatory details")
 
 obstory_id = user_input("observatory ID", installation_info.local_conf['observatoryId'])
 obstory_name = user_input("observatory name", installation_info.local_conf['observatoryName'])
@@ -120,17 +120,17 @@ led_c_pin = user_input("GPIO pin which LED A is connected to", installation_info
 file_substitute("../../installation_info.py", "'gpioLedC': 24", "'gpioLedC': %s" % led_c_pin)
 
 # Set up database
-print "STEP 3: Set up database"
+print("STEP 3: Set up database")
 os.system("../sql/rebuild.sh")
 
 # Set up observatory metadata
-print "STEP 4: Set up observatory metadata"
+print("STEP 4: Set up observatory metadata")
 os.system("./updateObservatoryStatus.py")
 
 # Set up user account
-print "STEP 4: Set up admin user account"
+print("STEP 4: Set up admin user account")
 os.system("./updateUser.py")
 
 # Set up default exports
-print "STEP 5: Set up default exports"
+print("STEP 5: Set up default exports")
 os.system("./defaultExports.py")

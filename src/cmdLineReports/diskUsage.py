@@ -59,7 +59,7 @@ def render_data_size_list(data):
 
 # Render quick and dirty table
 out = sys.stdout
-cols = file_census.keys()
+cols = list(file_census.keys())
 cols.sort()
 rows = []
 for col_head in cols:

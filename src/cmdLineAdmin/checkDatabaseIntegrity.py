@@ -32,42 +32,42 @@ db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 sql = db.con
 
 # Check observation groups
-print "Checking observation groups..."
+print("Checking observation groups...")
 sql.execute("SELECT publicId FROM archive_obs_groups;")
 seen_ids = {}
 for item in sql.fetchall():
     id = item['publicId']
     if id in seen_ids:
-        print "Observation groups: Duplicate ID <%s>" % id
+        print("Observation groups: Duplicate ID <%s>" % id)
     else:
         seen_ids[id] = True
 
 # Check observations
-print "Checking observations..."
+print("Checking observations...")
 sql.execute("SELECT publicId FROM archive_observations;")
 seen_ids = {}
 for item in sql.fetchall():
     id = item['publicId']
     if id in seen_ids:
-        print "Observations: Duplicate ID <%s>" % id
+        print("Observations: Duplicate ID <%s>" % id)
     else:
         seen_ids[id] = True
 
 # Check files
-print "Checking files..."
+print("Checking files...")
 sql.execute("SELECT repositoryFname FROM archive_files;")
 seen_ids = {}
 for item in sql.fetchall():
     id = item['repositoryFname']
     if id in seen_ids:
-        print "Files: Duplicate ID <%s>" % id
+        print("Files: Duplicate ID <%s>" % id)
     else:
         seen_ids[id] = True
 
 # Check files exist
-print "Checking whether files exist..."
+print("Checking whether files exist...")
 sql.execute("SELECT repositoryFname FROM archive_files;")
 for item in sql.fetchall():
     id = item['repositoryFname']
     if not os.path.exists(db.file_path_for_id(id)):
-        print "Files: Missing file ID <%s>" % id
+        print("Files: Missing file ID <%s>" % id)

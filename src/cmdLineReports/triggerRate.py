@@ -50,7 +50,7 @@ if len(sys.argv) > 3:
 if utc_max == 0:
     utc_max = time.time()
 
-print "# ./triggerRate.py %f %f \"%s\"\n" % (utc_min, utc_max, obstory_name)
+print("# ./triggerRate.py %f %f \"%s\"\n" % (utc_min, utc_max, obstory_name))
 
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
@@ -65,8 +65,8 @@ def get_file_metadata(db, id, key):
 try:
     obstory_info = db.get_obstory_from_name(obstory_name=obstory_name)
 except ValueError:
-    print "Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
-          obstory_name
+    print("Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
+          obstory_name)
     sys.exit(0)
 
 obstory_id = obstory_info['publicId']
@@ -99,10 +99,10 @@ for e in events:
     histogram[hour_start]['events'].append(e)
 
 # Find time bounds of data
-keys = histogram.keys()
+keys = list(histogram.keys())
 keys.sort()
 if len(keys) == 0:
-    print "No results found for observatory <%s>" % obstory_name
+    print("No results found for observatory <%s>" % obstory_name)
     sys.exit(0)
 utc_min = keys[0]
 utc_max = keys[-1]

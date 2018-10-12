@@ -34,12 +34,12 @@ sql.execute("SELECT * FROM archive_exportConfig;")
 export_configs = sql.fetchall()
 
 for config in export_configs:
-    print "\n%s\n%s\n\n" % (config['exportName'], "-" * len(config['exportName']))
+    print("\n%s\n%s\n\n" % (config['exportName'], "-" * len(config['exportName'])))
 
     if (config['active']):
-        print "  * Active"
+        print("  * Active")
     else:
-        print "  * Disabled"
+        print("  * Disabled")
     n_total = n_pending = -1
     if (config['exportType'] == "metadata"):
         sql.execute("SELECT COUNT(*) FROM archive_metadataExport;")
@@ -56,5 +56,5 @@ for config in export_configs:
         n_total = sql.fetchall()[0]['COUNT(*)']
         sql.execute("SELECT COUNT(*) FROM archive_fileExport WHERE exportState>0;")
         n_pending = sql.fetchall()[0]['COUNT(*)']
-    print "  * %9d jobs in export table" % n_total
-    print "  * %9d jobs still to be done" % n_pending
+    print("  * %9d jobs in export table" % n_total)
+    print("  * %9d jobs still to be done" % n_pending)

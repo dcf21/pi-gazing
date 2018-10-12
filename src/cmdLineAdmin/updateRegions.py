@@ -50,22 +50,22 @@ def fetch_option(title, key, indict, default, argv_index):
     if (argv_index > 0) and (len(sys.argv) > argv_index):
         value = sys.argv[argv_index]
     else:
-        value = raw_input('Set %s <default %s>: ' % (title, default))
+        value = input('Set %s <default %s>: ' % (title, default))
     if not value:
         value = default
     return value
 
 
 # List current observatory statuses
-print "Current observatory statuses"
-print "----------------------------"
+print("Current observatory statuses")
+print("----------------------------")
 obstory_list = db.get_obstory_names()
 for obstory in obstory_list:
-    print "%s\n" % obstory
+    print("%s\n" % obstory)
     status = db.get_obstory_status(obstory_name=obstory)
     for item in status:
-        print "  * %s = %s\n" % (item, status[item])
-    print "\n"
+        print("  * %s = %s\n" % (item, status[item]))
+    print("\n")
 
 # Select observatory status to update
 obstory = fetch_option(title="observatory to update",
@@ -85,12 +85,12 @@ metadata_time = fetch_option(title="time stamp for update",
 metadata_time = float(metadata_time)
 
 # Read user-specified clipping region
-print "Enter new clipping region. Specify one white-space separated x y coordinate on each line."
-print "Leave a blank line to start a new region. Leave two blank lines to finish:"
+print("Enter new clipping region. Specify one white-space separated x y coordinate on each line.")
+print("Leave a blank line to start a new region. Leave two blank lines to finish:")
 regions = []
 point_list = []
 while 1:
-    line = raw_input()
+    line = input()
     words = line.split()
     if len(words) == 2:
         x = float(words[0])

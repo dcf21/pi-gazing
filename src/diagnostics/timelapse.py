@@ -25,7 +25,7 @@
 # This is a demo script which turns the camera on, and then records a time lapse video of frames recorded once a
 # minute until the script is killed
 
-from __future__ import division
+
 
 import os
 import time

@@ -43,7 +43,7 @@ import mod_gnomonic
 
 
 def log_txt(x):
-    print "# %s" % x
+    print("# %s" % x)
     sys.stderr.write("# [%s] %s\n" % (time.strftime("%a, %d %b %Y %H:%M:%S"), x))
 
 
@@ -133,26 +133,26 @@ i = int(math.floor(len(fits) / 2))
 
 # Start printing a configuration file.
 # Begin with some headers defining what we know about the camera that took this group of images
-print "SET output /tmp/output.png"
-print "SET barrel_a %s" % barrel_a
-print "SET barrel_b %s" % barrel_b
-print "SET barrel_c %s" % barrel_c
-print "SET latitude 0"
-print "SET longitude 0"
-print "SET utc %10d" % (mod_gnomonic.image_time(fits[i][0]))
+print("SET output /tmp/output.png")
+print("SET barrel_a %s" % barrel_a)
+print("SET barrel_b %s" % barrel_b)
+print("SET barrel_c %s" % barrel_c)
+print("SET latitude 0")
+print("SET longitude 0")
+print("SET utc %10d" % (mod_gnomonic.image_time(fits[i][0])))
 
 # Output files consist of one line for each image file, with the following values separated by spaces
 # Exposure compensation, x_size, y_size, Central RA, Central Dec, position angle, scale_x, scale_y
-print ("%-102s %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"
+print(("%-102s %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"
        % ("GNOMONIC", 1, fits[i][6][0], fits[i][6][1], fits[i][1], fits[i][2], fits[i][3], fits[i][4], fits[i][5])
-       )
+       ))
 for i in range(len(fits)):
     image_dimensions = mod_gnomonic.image_dimensions(fits[i][0])
     # Filename, weight, exposure compensation, Central RA, Central Dec, position angle, scale_x, scale_y
-    print ("ADD %-93s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"
+    print(("ADD %-93s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"
            % (fits[i][0], 1, 1, image_dimensions[0], image_dimensions[1],
               fits[i][1], fits[i][2], fits[i][3], fits[i][4], fits[i][5])
-           )
+           ))
 
 # Delete temporary directory
 os.system("rm -Rf %s" % tmp)

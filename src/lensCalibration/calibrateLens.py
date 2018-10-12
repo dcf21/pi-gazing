@@ -162,7 +162,7 @@ star_list = []
 for star in input_config['star_list']:
     hipp = str(star[2])
     if hipp not in hipp_positions:
-        print "Could not find star %d" % hipp
+        print("Could not find star %d" % hipp)
         continue
     [ra, dec] = hipp_positions[hipp]
     star_list.append({'xpos': int(star[0]), 'ypos': int(star[1]), 'ra': ra * degrees, 'dec': dec * degrees})
@@ -189,19 +189,19 @@ headings = [["Central RA / hr", 12 / pi], ["Central Decl / deg", 180 / pi],
             ["barrel_a", 1], ["barrel_b", 1], ["barrel_c", 1]
             ]
 
-print "\n\nBest fit parameters were:"
+print("\n\nBest fit parameters were:")
 for i in range(len(params_defaults)):
-    print "%30s : %s" % (headings[i][0], params_final[i] * headings[i][1])
+    print("%30s : %s" % (headings[i][0], params_final[i] * headings[i][1]))
 
 # Print information about how well each star was fitted
 [ra0, dec0, scale_x, scale_y, pos_ang, bca, bcb, bcc] = params_final
 if True:
-    print "\n\nStars used in fitting process:"
+    print("\n\nStars used in fitting process:")
     for star in star_list:
         pos = gnomonic_project(star['ra'], star['dec'], ra0, dec0,
                                img_size_x, img_size_y, scale_x, scale_y, pos_ang,
                                bca, bcb, bcc)
         distance = hypot(star['xpos'] - pos[0], star['ypos'] - pos[1])
-        print "User-supplied position (%4d,%4d). Model position (%4d,%4d). Mismatch %5d pixels." % (star['xpos'], star['ypos'],
-                                                                                           pos[0], pos[1], distance)
+        print("User-supplied position (%4d,%4d). Model position (%4d,%4d). Mismatch %5d pixels." % (star['xpos'], star['ypos'],
+                                                                                           pos[0], pos[1], distance))
 

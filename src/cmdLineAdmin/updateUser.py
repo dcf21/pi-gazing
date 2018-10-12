@@ -35,28 +35,28 @@ import mod_settings
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
 # List all current user accounts
-print "Current web interface accounts"
-print "------------------------------"
+print("Current web interface accounts")
+print("------------------------------")
 users = db.get_users()
 for user in users:
-    print "%20s -- roles: %s" % (user.user_id, " ".join(user.roles))
-print "\n"
+    print("%20s -- roles: %s" % (user.user_id, " ".join(user.roles)))
+print("\n")
 
 # Select user to update
 default_user_id = "admin"
 if len(sys.argv) > 1:
     user_id = sys.argv[1]
 else:
-    user_id = raw_input('Select userId to update <default %s>: ' % default_user_id)
+    user_id = input('Select userId to update <default %s>: ' % default_user_id)
 if not user_id:
     user_id = default_user_id
 
 # Enter password
-password = raw_input('Enter password: ')
+password = input('Enter password: ')
 
 # Enter roles
 defaultRoles = "user voter obstory_admin import"
-roles = raw_input('Enter roles <default %s>: ' % defaultRoles).split()
+roles = input('Enter roles <default %s>: ' % defaultRoles).split()
 if not roles:
     roles = defaultRoles.split()
 

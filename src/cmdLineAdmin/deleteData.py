@@ -54,20 +54,20 @@ if len(sys.argv) > 3:
 if utc_max == 0:
     utc_max = time.time()
 
-print "# ./deleteData.py %f %f \"%s\"\n" % (utc_min, utc_max, observatory)
+print("# ./deleteData.py %f %f \"%s\"\n" % (utc_min, utc_max, observatory))
 
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
 obstory_info = db.get_obstory_from_id(obstory_id=observatory)
 if not obstory_info:
-    print "Unknown observatory <%s>.\nRun ./listObservatories.py to see a list of available options." % observatory
+    print("Unknown observatory <%s>.\nRun ./listObservatories.py to see a list of available options." % observatory)
     sys.exit(0)
 
 obstory_name = obstory_info['name']
 
 s = db.get_obstory_status(obstory_name=obstory_name)
 if not s:
-    print "Unknown observatory <%s>.\nRun ./listObservatories.py to see a list of available options." % observatory
+    print("Unknown observatory <%s>.\nRun ./listObservatories.py to see a list of available options." % observatory)
     sys.exit(0)
 
 search = mp.FileRecordSearch(obstory_ids=[observatory],
@@ -86,13 +86,13 @@ observations = db.search_observations(search)
 observations = observations['obs']
 observations.sort(key=lambda x: x.obs_time)
 
-print "Observatory <%s>" % observatory
-print "  * %6d matching files in time range %s --> %s" % (len(files),
+print("Observatory <%s>" % observatory)
+print("  * %6d matching files in time range %s --> %s" % (len(files),
                                                           mod_astro.time_print(utc_min),
-                                                          mod_astro.time_print(utc_max))
-print "  * %6d matching observations in time range" % (len(observations))
+                                                          mod_astro.time_print(utc_max)))
+print("  * %6d matching observations in time range" % (len(observations)))
 
-confirmation = raw_input('Delete these files? (Y/N) ')
+confirmation = input('Delete these files? (Y/N) ')
 if confirmation not in 'Yy':
     sys.exit(0)
 
