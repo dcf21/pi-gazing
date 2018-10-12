@@ -1,1 +1,0 @@
-../observatoryControl/mod_hardwareProps.py
