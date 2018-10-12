@@ -1,6 +1,0 @@
-#!/bin/bash
-mkfifo stderr
-cat stderr | sed 's/\(.*\)/[01;31m\1[00m/' &
-make $@ 2>stderr | sed 's/\(.*\)/[01;32m\1[00m/'
-rm stderr
-

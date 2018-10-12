@@ -1,1 +1,0 @@
-In this directory we keep the files for a Knockout-based website where you can browse the local database of observations. You will certainly want to set this up, as it's much easier to see what your camera has been doing if you have access to a web interface. See the Wiki on our GitHub pages for more information about how to set it up.
