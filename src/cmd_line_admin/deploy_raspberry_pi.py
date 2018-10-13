@@ -31,21 +31,20 @@ It asks the user to enter the settings which the defaults should be replaced wit
 import os
 import sys
 
-import mod_settings
-import installation_info
+from meteorpi_helpers import settings_read
 
 # Make sure we are running on a RPi. We don't want to overwrite the contents of </etc> on a PC...
-if not mod_settings.settings['i_am_a_rpi']:
-    print("This is not running on a Raspberry Pi. You should not run this on a PC!")
+if not settings_read.settings['i_am_a_rpi']:
+    print("This is not running on a Raspberry Pi. You should not run this on a PC.")
     sys.exit(1)
 
 # Make sure we are running as root
 if os.geteuid() != 0:
-    print("This script must be run as root!")
+    print("This script must be run as root.")
     sys.exit(1)
 
 # Change into directory containing this script, so we can use relative paths
-os.chdir(mod_settings.settings['pythonPath'])
+os.chdir(settings_read.settings['pythonPath'])
 
 # Check with the user that they know what's about to happen
 confirmation = input("""

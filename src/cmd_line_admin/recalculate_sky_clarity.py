@@ -30,13 +30,13 @@ import os, subprocess
 import time
 import sys
 
-import mod_astro
-import mod_settings
+from meteorpi_helpers import dcf_ast
+from meteorpi_helpers import settings_read
 
-import meteorpi_model as mp
-import meteorpi_db
+from meteorpi_helpers.obsarchive import archive_model as mp
+from meteorpi_helpers.obsarchive import archive_db
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 utc_min = 0
 utc_max = time.time()
@@ -54,15 +54,15 @@ files = db.search_files(search)
 files = files['files']
 files.sort(key=lambda x: x.file_time)
 print("  * %d matching files in time range %s --> %s" % (len(files),
-                                                         mod_astro.time_print(utc_min),
-                                                         mod_astro.time_print(utc_max)))
+                                                         dcf_ast.time_print(utc_min),
+                                                         dcf_ast.time_print(utc_max)))
 
 
 def report_line(file, text):
-    print("%s %s -- %s" % (mod_astro.time_print(file.file_time), file.id, text))
+    print("%s %s -- %s" % (dcf_ast.time_print(file.file_time), file.id, text))
 
 
-sky_clarity_tool = os.path.join(mod_settings.settings['pythonPath'],
+sky_clarity_tool = os.path.join(settings_read.settings['pythonPath'],
                                 "../observatoryControl/videoAnalysis/bin/skyClarity")
 
 

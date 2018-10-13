@@ -33,8 +33,8 @@ import time
 import meteorpi_db
 import meteorpi_model as mp
 
-import mod_astro
-import mod_settings
+from meteorpi_helpers import dcf_ast
+from meteorpi_helpers import settings_read
 import installation_info
 
 pid = os.getpid()
@@ -66,7 +66,7 @@ if utc_max == 0:
 
 print("# ./viewImages.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utc_min, utc_max, obstory_name, label, img_type, stride))
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 try:
     obstory_info = db.get_obstory_from_name(obstory_name=obstory_name)
@@ -84,8 +84,8 @@ files = files['files']
 files.sort(key=lambda x: x.file_time)
 
 print("  * %d matching files in time range %s --> %s" % (len(files),
-                                                         mod_astro.time_print(utc_min),
-                                                         mod_astro.time_print(utc_max)))
+                                                         dcf_ast.time_print(utc_min),
+                                                         dcf_ast.time_print(utc_max)))
 
 cmdLine = "qiv "
 
@@ -94,7 +94,7 @@ for file_item in files:
     count += 1
     if not (count % stride == 0):
         continue
-    [year, month, day, h, m, s] = mod_astro.inv_julian_day(mod_astro.jd_from_utc(file_item.file_time))
+    [year, month, day, h, m, s] = dcf_ast.inv_julian_day(dcf_ast.jd_from_utc(file_item.file_time))
     fn = "img___%04d_%02d_%02d___%02d_%02d_%02d___%08d.png" % (year, month, day, h, m, s, count)
     os.system("ln -s %s %s/%s" % (db.file_path_for_id(file_item.id), tmp, fn))
     cmdLine += " %s/%s" % (tmp, fn)

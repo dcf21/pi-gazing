@@ -23,8 +23,7 @@
 import os
 import time
 
-from . import mod_settings
-from . import mod_astro
+from . import dcf_ast
 
 pid = os.getpid()
 
@@ -57,7 +56,7 @@ def filename_to_utc(f):
     hour = int(f[8:10])
     minute = int(f[10:12])
     sec = int(f[12:14])
-    return mod_astro.utc_from_jd(mod_astro.julian_day(year, mon, day, hour, minute, sec))
+    return dcf_ast.utc_from_jd(dcf_ast.julian_day(year, mon, day, hour, minute, sec))
 
 
 def fetch_day_name_from_filename(f):
@@ -66,5 +65,5 @@ def fetch_day_name_from_filename(f):
         return None
     utc = filename_to_utc(f)
     utc -= 12 * 3600
-    [year, month, day, hour, minu, sec] = mod_astro.inv_julian_day(mod_astro.jd_from_utc(utc))
+    [year, month, day, hour, minu, sec] = dcf_ast.inv_julian_day(dcf_ast.jd_from_utc(utc))
     return "%04d%02d%02d" % (year, month, day)

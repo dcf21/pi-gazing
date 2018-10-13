@@ -33,25 +33,25 @@ import meteorpi_db
 
 import mod_daytimejobs
 import mod_log
-import mod_settings
+from meteorpi_helpers import settings_read
 from mod_log import log_txt
 
 
 def day_time_jobs_clean(db):
-    log_txt("Running daytimeJobsClean")
+    logger.info("Running daytimeJobsClean")
     cwd = os.getcwd()
-    os.chdir(mod_settings.settings['dataPath'])
+    os.chdir(settings_read.settings['dataPath'])
 
     obstory_list = db.get_obstory_names()
 
     for obstory_name in obstory_list:
-        log_txt("Working on observatory <%s>" % obstory_name)
+        logger.info("Working on observatory <%s>" % obstory_name)
 
         # Clean up any file products which are newer than high water mark
         # Work on each task group in turn
         for taskGroup in mod_daytimejobs.dayTimeTasks:
             hwm_output = taskGroup[0]
-            log_txt("Cleaning up products of task group <%s>" % hwm_output)
+            logger.info("Cleaning up products of task group <%s>" % hwm_output)
             task_list = taskGroup[2]
             if db.get_high_water_mark(obstory_name=obstory_name, mark_type=hwm_output) is None:
                 db.set_high_water_mark(obstory_name=obstory_name, mark_type=hwm_output, time=0)
@@ -70,7 +70,7 @@ def day_time_jobs_clean(db):
                                 os.system("rm -f %s" % os.path.join(dir_name, f))
 
     os.chdir(cwd)
-    log_txt("Finished daytimeJobsClean")
+    logger.info("Finished daytimeJobsClean")
 
 
 # If we're called as a script, run the method exportData()
@@ -79,5 +79,5 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         utc_now = float(sys.argv[1])
     mod_log.set_utc_offset(utc_now - time.time())
-    dbh = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+    dbh = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
     day_time_jobs_clean(dbh)

@@ -31,12 +31,12 @@ import sys
 import meteorpi_model as mp
 import meteorpi_db
 
-import mod_astro
-import mod_settings
+from meteorpi_helpers import dcf_ast
+from meteorpi_helpers import settings_read
 
 import installation_info
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 utc_min = time.time() - 3600 * 24
 utc_max = time.time()
@@ -71,8 +71,8 @@ data = db.search_obstory_metadata(search)
 data = data['items']
 data.sort(key=lambda x: x.time)
 print("  * %d matching metadata items in time range %s --> %s" % (len(data),
-                                                                  mod_astro.time_print(utc_min),
-                                                                  mod_astro.time_print(utc_max)))
+                                                                  dcf_ast.time_print(utc_min),
+                                                                  dcf_ast.time_print(utc_max)))
 
 # Check which items remain current
 data.reverse()
@@ -91,5 +91,5 @@ for item in data:
         current_flag = "+"
     else:
         current_flag = " "
-    print("  * %s [ID %s] %s -- %16s = %s" % (current_flag, item.id, mod_astro.time_print(item.time),
+    print("  * %s [ID %s] %s -- %16s = %s" % (current_flag, item.id, dcf_ast.time_print(item.time),
                                               item.key, item.value))

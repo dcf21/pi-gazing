@@ -1,3 +1,8 @@
 datadir
 .idea/
-virtual-env/
+virtualenv/
+
+src/meteorpi_helpers/build/
+src/meteorpi_helpers/dist/
+src/meteorpi_helpers/meteorpi_helpers.egg-info/
+

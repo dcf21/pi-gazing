@@ -22,7 +22,7 @@
 
 import os
 
-from . import mod_settings
+from . import settings_read
 
 # This file defines the commands which daytimeJobs.py uses to do tasks such as encoding videos
 
@@ -41,7 +41,7 @@ rawImgToPng3 = "%(binary_path)s/rawimg2png3 %(input)s %(filename_out)s %(produce
 # This is the template command for converting a raw video file into an H264-encoded MP4 file
 # We use a different command on a Raspberry Pi, as it has a hardware H264 encoded (OpenMAX), and avconv will
 # run very slowly
-if mod_settings.settings['i_am_a_rpi']:
+if settings_read.settings['i_am_a_rpi']:
     rawVidToMp4 = "timeout 2m %(binary_path)s/rawvid2mp4_openmax       %(input)s /tmp/pivid_%(pid)s.h264 ; " \
                   "avconv -i \"/tmp/pivid_%(pid)s.h264\" -c:v copy -f mp4 %(filename_out)s.mp4 ; " \
                   "rm /tmp/pivid_%(pid)s.h264"

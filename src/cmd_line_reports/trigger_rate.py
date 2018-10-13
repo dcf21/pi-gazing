@@ -33,8 +33,8 @@ import math
 import meteorpi_db
 import meteorpi_model as mp
 
-import mod_astro
-import mod_settings
+from meteorpi_helpers import dcf_ast
+from meteorpi_helpers import settings_read
 import installation_info
 
 utc_min = time.time() - 3600 * 24
@@ -53,7 +53,7 @@ if utc_max == 0:
 
 print("# ./triggerRate.py %f %f \"%s\"\n" % (utc_min, utc_max, obstory_name))
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 
 # Get file metadata, turning NULL data into zeros
@@ -116,7 +116,7 @@ out.write("# %12s %4s %2s %2s %2s %12s %12s %12s %12s\n" % ("UTC", "Year", "M", 
                                                             "N_events", "SkyClarity", "SunAltitude"))
 while hour_start <= utc_max:
     if hour_start in histogram:
-        [year, month, day, h, m, s] = mod_astro.inv_julian_day(mod_astro.jd_from_utc(hour_start + 1))
+        [year, month, day, h, m, s] = dcf_ast.inv_julian_day(dcf_ast.jd_from_utc(hour_start + 1))
         out.write("  %12d %04d %02d %02d %02d " % (hour_start, year, month, day, h))
         d = histogram[hour_start]
         sun_alt = "---"

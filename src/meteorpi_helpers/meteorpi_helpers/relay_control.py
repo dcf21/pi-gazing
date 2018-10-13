@@ -27,7 +27,7 @@ from .mod_log import log_txt
 
 
 def camera_on():
-    log_txt("Turning camera on.")
+    logger.info("Turning camera on.")
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(installation_info.local_conf['gpioPinRelay'], GPIO.OUT)
@@ -35,7 +35,7 @@ def camera_on():
 
 
 def camera_off():
-    log_txt("Turning camera off.")
+    logger.info("Turning camera off.")
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(installation_info.local_conf['gpioPinRelay'], GPIO.OUT)

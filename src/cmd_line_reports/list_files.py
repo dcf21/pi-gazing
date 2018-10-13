@@ -28,13 +28,13 @@ Lists all of the files entered into the database by a particular observatory bet
 import time
 import sys
 
-import mod_astro
-import mod_settings
+from meteorpi_helpers import dcf_ast
+from meteorpi_helpers import settings_read
 
 import meteorpi_model as mp
 import meteorpi_db
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 utc_min = 0
 utc_max = time.time()
@@ -60,7 +60,7 @@ for obstory_name in obstory_list:
     files = files['files']
     files.sort(key=lambda x: x.file_time)
     print("  * %d matching files in time range %s --> %s" % (len(files),
-                                                             mod_astro.time_print(utc_min),
-                                                             mod_astro.time_print(utc_max)))
+                                                             dcf_ast.time_print(utc_min),
+                                                             dcf_ast.time_print(utc_max)))
     for fileObj in files:
-        print("  * %s -- %s" % (mod_astro.time_print(fileObj.file_time), fileObj.file_name))
+        print("  * %s -- %s" % (dcf_ast.time_print(fileObj.file_time), fileObj.file_name))

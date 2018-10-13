@@ -26,10 +26,10 @@ Checks for missing files, duplicate publicIds, etc
 """
 
 import os
-import meteorpi_db
-import mod_settings
+from meteorpi_helpers import settings_read
+from meteorpi_helpers.obsarchive import archive_db
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 sql = db.con
 
 # Check observation groups

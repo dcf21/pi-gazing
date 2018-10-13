@@ -36,7 +36,7 @@ import math
 import meteorpi_db
 import meteorpi_model as mp
 
-import mod_astro
+from meteorpi_helpers import dcf_ast
 import mod_gnomonic
 import mod_log
 from mod_log import log_txt
@@ -61,9 +61,9 @@ def sgn(x):
 
 
 def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
-    log_prefix = "[%12s %s]" % (obstory_id, mod_astro.time_print(utc_to_study))
+    log_prefix = "[%12s %s]" % (obstory_id, dcf_ast.time_print(utc_to_study))
 
-    log_txt("%s Starting calculation of camera alignment" % log_prefix)
+    logger.info("%s Starting calculation of camera alignment" % log_prefix)
 
     # Mathematical constants
     deg = math.pi / 180
@@ -91,7 +91,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     if obstory_info and ('name' in obstory_info):
         obstory_status = db.get_obstory_status(obstory_name=obstory_info['name'], time=utc_now)
     if not obstory_status:
-        log_txt("%s Aborting -- no observatory status available." % log_prefix)
+        logger.info("%s Aborting -- no observatory status available." % log_prefix)
         db.close_db()
         return
     obstory_name = obstory_info['name']
@@ -116,10 +116,10 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
     # If we don't have enough images, we can't proceed to get a secure orientation fit
     if len(acceptable_files) < 6:
-        log_txt("%s Not enough suitable images." % log_msg)
+        logger.info("%s Not enough suitable images." % log_msg)
         db.close_db()
         return
-    log_txt(log_msg)
+    logger.info(log_msg)
 
     # We can't afford to run astrometry.net on too many images, so pick the 20 best ones
     acceptable_files.sort(key=lambda f: db.get_file_metadata(f.id, 'meteorpi:skyClarity'))
@@ -131,7 +131,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     cwd = os.getcwd()
     pid = os.getpid()
     tmp = "/tmp/dcf21_orientationCalc_%d" % pid
-    # log_txt("Created temporary directory <%s>" % tmp)
+    # logger.info("Created temporary directory <%s>" % tmp)
     os.system("mkdir %s" % tmp)
     os.chdir(tmp)
 
@@ -147,7 +147,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         filename = db.file_path_for_id(f.id)
 
         if not os.path.exists(filename):
-            log_txt("%s Error! File <%s> is missing!" % (log_prefix, filename))
+            logger.info("%s Error! File <%s> is missing!" % (log_prefix, filename))
             continue
 
         # 1. Copy image into working directory
@@ -181,11 +181,11 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
         # Check that we've not run out of time
         if utc_must_stop and (mod_log.get_utc() > utc_must_stop):
-            log_txt("%s We have run out of time! Aborting." % log_prefix)
+            logger.info("%s We have run out of time! Aborting." % log_prefix)
             continue
 
         log_msg = ("Processed image <%s> from time <%s> -- skyClarity=%.1f. " %
-                   (f.id, mod_astro.time_print(f.file_time),
+                   (f.id, dcf_ast.time_print(f.file_time),
                     db.get_file_metadata(f.id, 'meteorpi:skyClarity')))
 
         # How long should we allow astrometry.net to run for?
@@ -208,11 +208,11 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
         # Parse the output from astrometry.net
         fit_text = open("txt").read()
-        # log_txt(fit_text)
+        # logger.info(fit_text)
         test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",
                          fit_text)
         if not test:
-            log_txt("%s FAIL(POS): %s" % (log_prefix, log_msg))
+            logger.info("%s FAIL(POS): %s" % (log_prefix, log_msg))
             continue
 
         ra_sign = sgn(float(test.group(1)))
@@ -225,7 +225,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
             dec *= -1
         test = re.search(r"up is [+]?([-\d\.]*) degrees (.) of N", fit_text)
         if not test:
-            log_txt("%s FAIL(PA ): %s" % (log_prefix, log_msg))
+            logger.info("%s FAIL(PA ): %s" % (log_prefix, log_msg))
             continue
 
         # celestial_pa is the position angle of the upward vector in the centre of the image, counterclockwise
@@ -243,7 +243,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
             celestial_pa += 360
         test = re.search(r"Field size: ([\d\.]*) x ([\d\.]*) deg", fit_text)
         if not test:
-            log_txt("%s FAIL(SIZ): %s" % (log_prefix, log_msg))
+            logger.info("%s FAIL(SIZ): %s" % (log_prefix, log_msg))
             continue
 
         # Expand reported size of image to whole image, not just the central tile we sent to astrometry.net
@@ -251,18 +251,18 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         scale_y = 2 * math.atan(math.tan(float(test.group(2)) / 2 * deg) * (1 / fraction_y)) * rad
 
         # Work out alt-az of reported (RA,Dec) using known location of camera. Fits returned in degrees.
-        alt_az = mod_astro.alt_az(ra, dec, fit['f'].file_time,
+        alt_az = dcf_ast.alt_az(ra, dec, fit['f'].file_time,
                                   obstory_status['latitude'], obstory_status['longitude'])
 
         # Get celestial coordinates of the local zenith
-        ra_dec_zenith = mod_astro.get_zenith_position(obstory_status['latitude'],
+        ra_dec_zenith = dcf_ast.get_zenith_position(obstory_status['latitude'],
                                                       obstory_status['longitude'],
                                                       fit['f'].file_time)
         ra_zenith = ra_dec_zenith['ra']
         dec_zenith = ra_dec_zenith['dec']
 
         # Work out the position angle of the zenith, counterclockwise from north, as measured at centre of frame
-        zenith_pa = mod_gnomonic.position_angle(ra, dec, ra_zenith, dec_zenith)
+        zenith_pa = gnomonic_project.position_angle(ra, dec, ra_zenith, dec_zenith)
 
         # Calculate the position angle of the zenith, clockwise from vertical, at the centre of the frame
         # If the camera is roughly upright, this ought to be close to zero!
@@ -272,8 +272,8 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         while camera_tilt > 180:
             camera_tilt -= 360
 
-        log_txt("%s PASS     : %s" % (log_prefix, log_msg))
-        log_txt("%s FIT      : RA: %7.2fh. Dec %7.2f deg. PA %6.1f deg. ScaleX %6.1f. ScaleY %6.1f. "
+        logger.info("%s PASS     : %s" % (log_prefix, log_msg))
+        logger.info("%s FIT      : RA: %7.2fh. Dec %7.2f deg. PA %6.1f deg. ScaleX %6.1f. ScaleY %6.1f. "
                 "Zenith at (%.2f h,%.2f deg). PA Zenith %.2f deg. "
                 "Alt: %7.2f deg. Az: %7.2f deg. Tilt: %7.2f deg." %
                 (log_prefix, ra, dec, celestial_pa, scale_x, scale_y, ra_zenith, dec_zenith, zenith_pa,
@@ -287,22 +287,22 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
     # Average the resulting fits
     if len(fit_list) < 4:
-        log_txt("%s ABORT    : astrometry.net only managed to fit %2d images." % (log_prefix, len(fit_list)))
+        logger.info("%s ABORT    : astrometry.net only managed to fit %2d images." % (log_prefix, len(fit_list)))
         db.close_db()
         os.chdir(cwd)
         os.system("rm -Rf %s" % tmp)
         return
 
     pa_list = [i['camera_tilt'] * deg for i in fits if i['fit']]
-    pa_best = mod_astro.mean_angle(pa_list)[0]
+    pa_best = dcf_ast.mean_angle(pa_list)[0]
     scale_x_list = [i['sx'] * deg for i in fits if i['fit']]
-    scale_x_best = mod_astro.mean_angle(scale_x_list)[0]
+    scale_x_best = dcf_ast.mean_angle(scale_x_list)[0]
     scale_y_list = [i['sy'] * deg for i in fits if i['fit']]
-    scale_y_best = mod_astro.mean_angle(scale_y_list)[0]
+    scale_y_best = dcf_ast.mean_angle(scale_y_list)[0]
 
     # Convert alt-az fits into radians
     alt_az_list_r = [[i * deg for i in j] for j in alt_az_list]
-    [alt_az_best, alt_az_error] = mod_astro.mean_angle_2d(alt_az_list_r)
+    [alt_az_best, alt_az_error] = dcf_ast.mean_angle_2d(alt_az_list_r)
 
     # Print fit information
     success = (alt_az_error * rad < 0.6)
@@ -310,7 +310,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         adjective = "SUCCESSFUL"
     else:
         adjective = "REJECTED"
-    log_txt("%s %s ORIENTATION FIT (from %2d images). "
+    logger.info("%s %s ORIENTATION FIT (from %2d images). "
             "Alt: %.2f deg. Az: %.2f deg. PA: %.2f deg. ScaleX: %.2f deg. ScaleY: %.2f deg. "
             "Uncertainty: %.2f deg." % (log_prefix, adjective, len(fit_list),
                                         alt_az_best[0] * rad,

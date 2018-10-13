@@ -32,12 +32,11 @@ import os
 import sys
 import time
 
-import meteorpi_db
-import meteorpi_model as mp
+from meteorpi_helpers.obsarchive import archive_model as mp
+from meteorpi_helpers.obsarchive import archive_db
 
-import mod_settings
-import installation_info
-import mod_astro
+from meteorpi_helpers import settings_read
+from meteorpi_helpers import dcf_ast
 
 pid = os.getpid()
 
@@ -57,7 +56,7 @@ if utc_max == 0:
 
 print("# ./deleteData.py %f %f \"%s\"\n" % (utc_min, utc_max, observatory))
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 obstory_info = db.get_obstory_from_id(obstory_id=observatory)
 if not obstory_info:
@@ -89,8 +88,8 @@ observations.sort(key=lambda x: x.obs_time)
 
 print("Observatory <%s>" % observatory)
 print("  * %6d matching files in time range %s --> %s" % (len(files),
-                                                          mod_astro.time_print(utc_min),
-                                                          mod_astro.time_print(utc_max)))
+                                                          dcf_ast.time_print(utc_min),
+                                                          dcf_ast.time_print(utc_max)))
 print("  * %6d matching observations in time range" % (len(observations)))
 
 confirmation = input('Delete these files? (Y/N) ')

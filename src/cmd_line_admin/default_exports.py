@@ -24,18 +24,17 @@
 """
 This script is used to set up an observatory to use the default export configuration specified in installation_info.py
 
-It is useful to run this after <sql/rebuild.sh>
+It is useful to run this after <init_database/rebuild.sh>
 """
 
 import sys
 
-import meteorpi_db
-import meteorpi_model as mp
+from meteorpi_helpers.obsarchive import archive_model as mp
+from meteorpi_helpers.obsarchive import archive_db
 
-import mod_settings
-import installation_info
+from meteorpi_helpers import settings_read
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 # List all current user accounts
 print("Current export configurations")

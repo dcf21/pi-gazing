@@ -31,8 +31,8 @@ import time
 import meteorpi_db
 import meteorpi_model as mp
 
-import mod_astro
-import mod_settings
+from meteorpi_helpers import dcf_ast
+from meteorpi_helpers import settings_read
 import installation_info
 
 utc_min = time.time() - 3600 * 24
@@ -60,7 +60,7 @@ if (utc_max == 0):
 
 print("# ./listEvents.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utc_min, utc_max, obstory_name, label, img_type, stride))
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 try:
     obstory_info = db.get_obstory_from_name(obstory_name=obstory_name)
@@ -79,8 +79,8 @@ triggers.sort(key=lambda x: x.obs_time)
 
 print("Observatory <%s>" % obstory_name)
 print("  * %d matching triggers in time range %s --> %s" % (len(triggers),
-                                                            mod_astro.time_print(utc_min),
-                                                            mod_astro.time_print(utc_max)))
+                                                            dcf_ast.time_print(utc_min),
+                                                            dcf_ast.time_print(utc_max)))
 for event in triggers:
     event_id = event.id
     duration = db.get_observation_metadata(event_id, "meteorpi:duration")
@@ -90,4 +90,4 @@ for event in triggers:
     if peak_amplitude is None:
         peak_amplitude = -1
     print("  * [ID %s] %s -- Duration %5.1f sec -- Peak amplitude %7.1f" % (event_id,
-        mod_astro.time_print(event.obs_time), duration, peak_amplitude))
+        dcf_ast.time_print(event.obs_time), duration, peak_amplitude))

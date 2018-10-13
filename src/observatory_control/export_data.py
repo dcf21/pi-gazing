@@ -33,11 +33,11 @@ from meteorpi_db.exporter import MeteorExporter
 
 import mod_log
 from mod_log import log_txt, get_utc
-import mod_settings
+from meteorpi_helpers import settings_read
 
 
 def export_data(db, utc_now, utc_must_stop=0):
-    log_txt("Starting export of images and events")
+    logger.info("Starting export of images and events")
 
     # Work out how long we can do exporting for
     utc_stop = get_utc() + (utc_must_stop - utc_now)
@@ -58,11 +58,11 @@ def export_data(db, utc_now, utc_must_stop=0):
         state = exporter.handle_next_export()
         db.commit()
         if not state:
-            log_txt("Finished export of images and events")
+            logger.info("Finished export of images and events")
             break
         print("Export status: %s" % state.state)
         if state.state == "failed":
-            log_txt("Backing off, because an export failed")
+            logger.info("Backing off, because an export failed")
             time.sleep([30, 300, 600, 1200, 2400][fail_count])
             fail_count += 1
         else:
@@ -70,7 +70,7 @@ def export_data(db, utc_now, utc_must_stop=0):
 
     # Exit
     if fail_count >= max_failures:
-        log_txt("Exceeded maximum allowed number of failures: giving up.")
+        logger.info("Exceeded maximum allowed number of failures: giving up.")
 
 
 # If we're called as a script, run the method exportData()
@@ -79,7 +79,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         _utc_now = float(sys.argv[1])
     mod_log.set_utc_offset(_utc_now - time.time())
-    _db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+    _db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
     export_data(db=_db,
                 utc_now=_utc_now,
                 utc_must_stop=0)

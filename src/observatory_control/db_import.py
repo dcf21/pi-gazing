@@ -30,11 +30,11 @@ import meteorpi_model as mp
 import mod_log
 from mod_log import log_txt, get_utc
 import mod_daytimejobs
-import mod_settings
+from meteorpi_helpers import settings_read
 import installation_info
 
 # Look up the username we use to add entries into the database
-user = mod_settings.settings['meteorpiUser']
+user = settings_read.settings['meteorpiUser']
 
 # Dictionary of the observatory statuses of observatories we have seen
 obstories_seen = {}
@@ -103,7 +103,7 @@ def local_filename_to_semantic_type(fname):
 def database_import(db):
     # Change into the directory where data files are kept
     cwd = os.getcwd()
-    os.chdir(mod_settings.settings['dataPath'])
+    os.chdir(settings_read.settings['dataPath'])
 
     # Lists of high water marks, showing where we've previously got up to in importing observations
     hwm_old = {}  # hwm_old[obstory_id] = old "import" high water mark
@@ -127,7 +127,7 @@ def database_import(db):
         # Create a list of all the files which match this particular wildcard
         file_list = glob.glob(glob_pattern)
         file_list.sort()
-        log_txt("Registering files which match the wildcard <%s> -- %d files." % (glob_pattern, len(file_list)))
+        logger.info("Registering files which match the wildcard <%s> -- %d files." % (glob_pattern, len(file_list)))
 
         # Loop over all the files
         for file_name in file_list:
@@ -252,5 +252,5 @@ def database_import(db):
 
 # Do import into firebird right away if we're run as a script
 if __name__ == "__main__":
-    _db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+    _db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
     database_import(_db)

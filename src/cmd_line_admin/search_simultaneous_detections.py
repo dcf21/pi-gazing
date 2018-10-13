@@ -32,13 +32,12 @@ import json
 from math import tan, atan, pi
 import scipy.optimize
 
-import meteorpi_db
-import meteorpi_model as mp
+from meteorpi_helpers.obsarchive import archive_model as mp
+from meteorpi_helpers.obsarchive import archive_db
 
-import mod_astro
-import mod_gnomonic
-import mod_settings
-from mod_log import log_txt
+from meteorpi_helpers import dcf_ast
+from meteorpi_helpers import gnomonic_project
+from meteorpi_helpers import settings_read
 
 
 def fetch_option(title, default):
@@ -51,7 +50,7 @@ def fetch_option(title, default):
 semantic_type = "simultaneous"
 
 # Fetch default search parameters
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 obstory_hwm_name = "Cambridge-South-East"  # Association high water marks with this name
 
@@ -126,7 +125,7 @@ for i in range(len(triggers)):
         obstory_locs = []
         for obstory_id in obstory_list:
             obstory_info = db.get_obstory_from_id(obstory_id)
-            obstory_loc = mod_astro.Point.from_lat_lng(lat=obstory_info['latitude'],
+            obstory_loc = dcf_ast.Point.from_lat_lng(lat=obstory_info['latitude'],
                                                        lng=obstory_info['longitude'],
                                                        alt=0,
                                                        utc=(utc_min + utc_max) / 2
@@ -157,7 +156,7 @@ print("%6d moving objects rejected because tagged as junk" % (len(triggers_raw['
 print("%6d simultaneous detections found." % (len(groups)))
 
 for item in groups:
-    print("%s -- %3d stations (time spread %.1f sec)" % (mod_astro.time_print(item['time']),
+    print("%s -- %3d stations (time spread %.1f sec)" % (dcf_ast.time_print(item['time']),
                                                          len(item['obstory_list']),
                                                          item['time_spread']))
 
@@ -179,8 +178,8 @@ fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'triangulatio
 o.obsTime>=%s AND o.obsTime<=%s;
 """, (utc_min, utc_max))
 
-log_txt("Triangulating simultaneous object detections between <%s> and <%s>." % (mod_astro.time_print(utc_min),
-                                                                                 mod_astro.time_print(utc_max)))
+logger.info("Triangulating simultaneous object detections between <%s> and <%s>." % (dcf_ast.time_print(utc_min),
+                                                                                 dcf_ast.time_print(utc_max)))
 
 # Loop over list of simultaneous event detections
 for item in groups:
@@ -188,10 +187,10 @@ for item in groups:
     group = db.register_obsgroup(title="Multi-station detection", user_id="system", semantic_type=semantic_type,
                                  obs_time=item['time'], set_time=creation_time,
                                  obs=item['ids'])
-    log_txt("Simultaneous detection at %s by %3d stations (time spread %.1f sec)" % (mod_astro.time_print(item['time']),
+    logger.info("Simultaneous detection at %s by %3d stations (time spread %.1f sec)" % (dcf_ast.time_print(item['time']),
                                                                                      len(item['obstory_list']),
                                                                                      item['time_spread']))
-    log_txt("Observation IDs: %s" % item['ids'])
+    logger.info("Observation IDs: %s" % item['ids'])
 
     # We do all positional astronomy in the frame of the Earth geocentre.
     # This means that all speeds are measured in the non-rotating frame of the centre of the Earth.
@@ -211,7 +210,7 @@ for item in groups:
         path_json = db.get_observation_metadata(obs.id, "meteorpi:pathBezier")
         if ((path_json is None) or ('lens_barrel_a' not in obstory_status) or ('latitude' not in obstory_status) or
                 ('orientation_altitude' not in obstory_status)):
-            log_txt("Cannot use observation <%s> from <%s> because orientation unknown." % (obs.id,
+            logger.info("Cannot use observation <%s> from <%s> because orientation unknown." % (obs.id,
                                                                                             obstory_id))
             continue
         bca = obstory_status['lens_barrel_a']
@@ -236,13 +235,13 @@ for item in groups:
                 altitude = obstory_status['altitude']
             else:
                 altitude = 0
-            observatory_position = mod_astro.Point.from_lat_lng(lat=obstory_status['latitude'],
+            observatory_position = dcf_ast.Point.from_lat_lng(lat=obstory_status['latitude'],
                                                                 lng=obstory_status['longitude'],
                                                                 alt=altitude,
                                                                 utc=utc)
 
             # Calculate the celestial coordinates of the centre of the frame
-            [ra0, dec0] = mod_astro.ra_dec(alt=obstory_status['orientation_altitude'],
+            [ra0, dec0] = dcf_ast.ra_dec(alt=obstory_status['orientation_altitude'],
                                            az=obstory_status['orientation_azimuth'],
                                            utc=utc,
                                            latitude=obstory_status['latitude'],
@@ -256,21 +255,21 @@ for item in groups:
             camera_tilt = obstory_status['orientation_pa']
 
             # Get celestial coordinates of the local zenith
-            ra_dec_zenith = mod_astro.get_zenith_position(lat=obstory_status['latitude'],
+            ra_dec_zenith = dcf_ast.get_zenith_position(lat=obstory_status['latitude'],
                                                           lng=obstory_status['longitude'],
                                                           utc=utc)
             ra_zenith = ra_dec_zenith['ra']
             dec_zenith = ra_dec_zenith['dec']
 
             # Work out the position angle of the zenith, counterclockwise from north, as measured at centre of frame
-            zenith_pa = mod_gnomonic.position_angle(ra0, dec0, ra_zenith, dec_zenith)
+            zenith_pa = gnomonic_project.position_angle(ra0, dec0, ra_zenith, dec_zenith)
 
             # Work out the position angle of the upward vector in the centre of the image, counterclockwise
             # from celestial north.
             celestial_pa = zenith_pa - camera_tilt
 
             # Work out the RA and Dec of the point where the object was spotted
-            [ra, dec] = mod_gnomonic.inv_gnom_project(ra0=ra0_rad, dec0=dec0_rad,
+            [ra, dec] = gnomonic_project.inv_gnom_project(ra0=ra0_rad, dec0=dec0_rad,
                                                       x=point[0], y=point[1],
                                                       size_x=size_x, size_y=size_y,
                                                       scale_x=scale_x, scale_y=scale_y,
@@ -280,10 +279,10 @@ for item in groups:
             dec *= 180 / pi  # Convert Dec into degrees
 
             # Work out alt-az of reported (RA,Dec) using known location of camera. Fits returned in degrees.
-            alt_az = mod_astro.alt_az(ra, dec, point[2], obstory_status['latitude'], obstory_status['longitude'])
+            alt_az = dcf_ast.alt_az(ra, dec, point[2], obstory_status['latitude'], obstory_status['longitude'])
 
-            direction = mod_astro.Vector.from_ra_dec(ra, dec)
-            sight_line = mod_astro.Line(observatory_position, direction)
+            direction = dcf_ast.Vector.from_ra_dec(ra, dec)
+            sight_line = dcf_ast.Line(observatory_position, direction)
             sight_line_descriptor = {
                 'ra': ra,
                 'dec': dec,
@@ -296,7 +295,7 @@ for item in groups:
             sight_line_list.append(sight_line_descriptor)
             all_sight_lines.append(sight_line_descriptor)
 
-            log_txt("Observatory <%s> is pointing at (alt %.2f; az %.2f; tilt %.2f; PA %.2f) "
+            logger.info("Observatory <%s> is pointing at (alt %.2f; az %.2f; tilt %.2f; PA %.2f) "
                     "and (RA %.3f h; Dec %.2f deg). "
                     "ScaleX = %.1f deg. ScaleY = %.1f deg." %
                     (obstory_id,
@@ -304,7 +303,7 @@ for item in groups:
                      celestial_pa, obstory_status['orientation_pa'],
                      ra0, dec0,
                      scale_x * 180 / pi, scale_y * 180 / pi))
-            log_txt("Observatory <%s> saw object at RA %.3f h; Dec %.3f deg, with sight line %s." %
+            logger.info("Observatory <%s> saw object at RA %.3f h; Dec %.3f deg, with sight line %s." %
                     (obstory_id, ra, dec, sight_line))
 
         # Store calculated information about observation
@@ -312,15 +311,15 @@ for item in groups:
 
     # If we don't have fewer than six sight lines, don't bother trying to triangulate
     if len(all_sight_lines) < 6:
-        log_txt("Giving up triangulation as we only have %d sight lines to object." % (len(all_sight_lines)))
+        logger.info("Giving up triangulation as we only have %d sight lines to object." % (len(all_sight_lines)))
         continue
 
 
     # Work out the sum of square angular mismatches of sightlines to a test trajectory
     def line_from_parameters(p):
-        x0 = mod_astro.Point(p[0] * 1000, p[1] * 1000, 0)
-        d = mod_astro.Vector.from_ra_dec(p[2], p[3])
-        trajectory = mod_astro.Line(x0=x0, direction=d)
+        x0 = dcf_ast.Point(p[0] * 1000, p[1] * 1000, 0)
+        d = dcf_ast.Vector.from_ra_dec(p[2], p[3])
+        trajectory = dcf_ast.Line(x0=x0, direction=d)
         return trajectory
 
 
@@ -338,9 +337,9 @@ for item in groups:
                                                options={'xtol': 1e-7, 'disp': False, 'maxiter': 1e6, 'maxfev': 1e6}
                                                ).x
     best_triangulation = line_from_parameters(params_optimised)
-    log_txt("Best fit path of object through space is %s." % best_triangulation)
+    logger.info("Best fit path of object through space is %s." % best_triangulation)
 
-    log_txt("Mismatch of observed sight lines from trajectory are %s deg." %
+    logger.info("Mismatch of observed sight lines from trajectory are %s deg." %
             (["%.1f" % best_triangulation.find_closest_approach(s['line'])['angular_distance']
               for s in all_sight_lines]))
 
@@ -349,7 +348,7 @@ for item in groups:
 
     # Reject trajectory if it deviates by more than 3 degrees from any observation
     if maximum_mismatch > 7:
-        log_txt("Mismatch is too great. Trajectory fit is rejected.")
+        logger.info("Mismatch is too great. Trajectory fit is rejected.")
         continue
 
     # Add triangulation information to each observation
@@ -405,13 +404,13 @@ for item in groups:
                                   'geocentre_heading_dec': object_direction_geocentre_frame['dec'],
                                   'geocentre_speed': speed_geocentre_frame,
                                   'position_list': detected_position_info}
-            log_txt("Triangulated details of observation <%s> is %s." % (trigger['obs'].id, triangulation_info))
+            logger.info("Triangulated details of observation <%s> is %s." % (trigger['obs'].id, triangulation_info))
 
             # Store triangulated information in database
             meta_item = mp.Meta("triangulation", json.dumps(triangulation_info))
             db.set_observation_metadata(observation_id=trigger['obs'].id,
                                         meta=meta_item,
-                                        user_id=mod_settings.settings['meteorpiUser'])
+                                        user_id=settings_read.settings['meteorpiUser'])
 
 # Set high water mark
 db.set_high_water_mark(mark_type="simultaneousDetectionSearch",

@@ -33,12 +33,11 @@ import sys
 import meteorpi_db
 import meteorpi_model as mp
 
-import mod_settings
-import installation_info
-import mod_hardwareProps
+from meteorpi_helpers import settings_read
+from meteorpi_helpers import hardware_properties
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
-hw = mod_hardwareProps.HardwareProps(os.path.join(mod_settings.settings['pythonPath'], "..", "sensorProperties"))
+db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+hw = mod_hardwareProps.HardwareProps(os.path.join(settings_read.settings['pythonPath'], "..", "sensorProperties"))
 
 
 def fetch_option(title, key, indict, default, argv_index):
@@ -109,19 +108,19 @@ if obstory not in obstory_list:
                                  value=installation_info.local_conf['latitude'],
                                  metadata_time=mp.now(),
                                  time_created=mp.now(),
-                                 user_created=mod_settings.settings['meteorpiUser'])
+                                 user_created=settings_read.settings['meteorpiUser'])
     db.register_obstory_metadata(obstory_name=obstory,
                                  key="longitude",
                                  value=installation_info.local_conf['longitude'],
                                  metadata_time=mp.now(),
                                  time_created=mp.now(),
-                                 user_created=mod_settings.settings['meteorpiUser'])
+                                 user_created=settings_read.settings['meteorpiUser'])
     db.register_obstory_metadata(obstory_name=obstory,
                                  key="location_source",
                                  value="manual",
                                  metadata_time=mp.now(),
                                  time_created=mp.now(),
-                                 user_created=mod_settings.settings['meteorpiUser'])
+                                 user_created=settings_read.settings['meteorpiUser'])
     obstory_status = {}
 else:
     obstory_status = db.get_obstory_status(obstory_name=obstory)
@@ -137,10 +136,10 @@ metadata_time = float(metadata_time)
 # Register software version in use
 db.register_obstory_metadata(obstory_name=obstory,
                              key="softwareVersion",
-                             value=mod_settings.settings['softwareVersion'],
+                             value=settings_read.settings['softwareVersion'],
                              metadata_time=metadata_time,
                              time_created=mp.now(),
-                             user_created=mod_settings.settings['meteorpiUser'])
+                             user_created=settings_read.settings['meteorpiUser'])
 
 # Offer user options to update metadata
 sensor = fetch_option(title="new sensor",

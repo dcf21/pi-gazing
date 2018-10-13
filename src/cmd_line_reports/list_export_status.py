@@ -26,7 +26,7 @@ Checks for missing files, duplicate publicIds, etc
 """
 
 import meteorpi_db
-import mod_settings
+from meteorpi_helpers import settings_read
 
 db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 sql = db.con

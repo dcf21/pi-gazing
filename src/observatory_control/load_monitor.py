@@ -29,11 +29,11 @@ import os
 import time
 import math
 
-import mod_settings
+from meteorpi_helpers import settings_read
 import installation_info
 
 # Set up GPIO lines as outputs. But only if we're running on a RPi, as otherwise we don't have any lines to configure...
-if mod_settings.settings['i_am_a_rpi']:
+if settings_read.settings['i_am_a_rpi']:
     import RPi.GPIO as GPIO
 
     GPIO.setwarnings(False)
@@ -48,7 +48,7 @@ if mod_settings.settings['i_am_a_rpi']:
 
 # Set the two LEDs according to whether x and y are true or false
 def set_lights(x, y):
-    if mod_settings.settings['i_am_a_rpi']:
+    if settings_read.settings['i_am_a_rpi']:
         GPIO.output(installation_info.local_conf['gpioLedA'], x)
         GPIO.output(installation_info.local_conf['gpioLedB'], y)
     else:
@@ -59,7 +59,7 @@ def set_lights(x, y):
 loadCount = 0
 
 # This is the filename of the log file which we watch for changes
-logFilename = os.path.join(mod_settings.settings['dataPath'], "meteorPi.log")
+logFilename = os.path.join(settings_read.settings['dataPath'], "meteorPi.log")
 
 # This is the last time that we saw the log file update
 lastLogTime = 0

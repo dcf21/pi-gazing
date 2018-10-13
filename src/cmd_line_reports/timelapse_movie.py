@@ -32,7 +32,7 @@ import time
 import meteorpi_db
 import meteorpi_model as mp
 
-import mod_settings
+from meteorpi_helpers import settings_read
 import installation_info
 
 pid = os.getpid()
@@ -65,7 +65,7 @@ if utc_max == 0:
 print("# ./timelapseMovie.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utc_min, utc_max, obstory_name,
                                                                  label, img_type, stride))
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 try:
     obstory_info = db.get_obstory_from_name(obstory_name=obstory_name)

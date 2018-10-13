@@ -43,11 +43,6 @@ import time
 import mod_gnomonic
 
 
-def log_txt(x):
-    print("# %s" % x)
-    sys.stderr.write("# [%s] %s\n" % (time.strftime("%a, %d %b %Y %H:%M:%S"), x))
-
-
 def sgn(val):
     if val < 0:
         return -1
@@ -79,7 +74,7 @@ count = 0
 
 # Loop over each image in the group we have been given
 for f in filenames:
-    log_txt("Working on <%s>" % f)
+    logger.info("Working on <%s>" % f)
     count += 1
     f = os.path.join(cwd, f)
     os.system("rm -f *")
@@ -100,7 +95,7 @@ for f in filenames:
     fit_text = open("txt").read()
     test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)", fit_text)
     if not test:
-        log_txt("Cannot read central RA and Dec from %s" % f)
+        logger.info("Cannot read central RA and Dec from %s" % f)
         continue
 
     # Read the central RA and Dec returned by astrometry.net
@@ -112,7 +107,7 @@ for f in filenames:
     if (decl_sign < 0): dec *= -1
     test = re.search(r"up is [+]?([-\d\.]*) degrees (.) of N", fit_text)
     if not test:
-        log_txt("Cannot read position angle from %s" % f)
+        logger.info("Cannot read position angle from %s" % f)
         continue
 
     # This 180 degree rotation appears to be a bug in astrometry.net (pos angles relative to south, not north)
@@ -123,11 +118,11 @@ for f in filenames:
         pos_ang *= -1
     test = re.search(r"Field size: ([\d\.]*) x ([\d\.]*) deg", fit_text)
     if not test:
-        log_txt("Cannot read field size from %s" % f)
+        logger.info("Cannot read field size from %s" % f)
         continue
     scale_x = float(test.group(1))
     scale_y = float(test.group(2))
-    image_dimensions = mod_gnomonic.image_dimensions(f)
+    image_dimensions = gnomonic_project.image_dimensions(f)
     fits.append([f, ra, dec, pos_ang, scale_x, scale_y, image_dimensions])
 
 i = int(math.floor(len(fits) / 2))
@@ -140,7 +135,7 @@ print("SET barrel_b %s" % barrel_b)
 print("SET barrel_c %s" % barrel_c)
 print("SET latitude 0")
 print("SET longitude 0")
-print("SET utc %10d" % (mod_gnomonic.image_time(fits[i][0])))
+print("SET utc %10d" % (gnomonic_project.image_time(fits[i][0])))
 
 # Output files consist of one line for each image file, with the following values separated by spaces
 # Exposure compensation, x_size, y_size, Central RA, Central Dec, position angle, scale_x, scale_y
@@ -148,7 +143,7 @@ print(("%-102s %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"
        % ("GNOMONIC", 1, fits[i][6][0], fits[i][6][1], fits[i][1], fits[i][2], fits[i][3], fits[i][4], fits[i][5])
        ))
 for i in range(len(fits)):
-    image_dimensions = mod_gnomonic.image_dimensions(fits[i][0])
+    image_dimensions = gnomonic_project.image_dimensions(fits[i][0])
     # Filename, weight, exposure compensation, Central RA, Central Dec, position angle, scale_x, scale_y
     print(("ADD %-93s %4.1f %4.1f %4d %4d %10.5f %10.5f %10.5f %10.5f %10.5f"
            % (fits[i][0], 1, 1, image_dimensions[0], image_dimensions[1],

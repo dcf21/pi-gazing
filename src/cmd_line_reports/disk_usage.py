@@ -28,12 +28,12 @@ of files, day by day
 
 import sys
 
-import mod_settings
-import mod_astro
+from meteorpi_helpers import settings_read
+from meteorpi_helpers import dcf_ast
 
 import meteorpi_db
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 file_census = {}
 
@@ -41,7 +41,7 @@ file_census = {}
 db.con.execute("SELECT * FROM archive_files;")
 for item in db.con.fetchall():
     file_type = item['mimeType']
-    date = mod_astro.inv_julian_day( mod_astro.jd_from_utc( item['fileTime']))
+    date = dcf_ast.inv_julian_day( dcf_ast.jd_from_utc( item['fileTime']))
     date_str = "%04d %02d %02d" % (date[0], date[1], date[2])
     if file_type not in file_census:
         file_census[file_type] = {}

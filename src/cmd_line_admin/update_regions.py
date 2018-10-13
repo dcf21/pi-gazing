@@ -36,13 +36,12 @@ may want to use the web interface instead.
 import sys
 import json
 
-import meteorpi_db
-import meteorpi_model as mp
+from meteorpi_helpers.obsarchive import archive_model as mp
+from meteorpi_helpers.obsarchive import archive_db
 
-import mod_settings
-import installation_info
+from meteorpi_helpers import settings_read
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 
 def fetch_option(title, key, indict, default, argv_index):

@@ -72,12 +72,12 @@ for line in config_in_lines:
     # able to work out where they go, so we make a list of them in rejected_files.
     if line.startswith("# Cannot read"):
         filename = line[38:].strip()
-        utc = mod_gnomonic.image_time(filename)
+        utc = gnomonic_project.image_time(filename)
         rejected_files.append([filename, utc])
         continue
     if line.startswith("# ADD"):
         filename = line.split()[2]
-        utc = mod_gnomonic.image_time(filename)
+        utc = gnomonic_project.image_time(filename)
         rejected_files.append([filename, utc])
         continue
 
@@ -89,7 +89,7 @@ for line in config_in_lines:
 
     # If we reach here, we have an ADD command in the config file. This lists an image file and associated fit
     [add, filename, weight, expcomp, img_size_x, img_size_y, ra, dec, pa, scalex, scaley] = line.split()
-    utc = mod_gnomonic.image_time(filename)
+    utc = gnomonic_project.image_time(filename)
 
     # If the proposed location of this file on the sky is very different from the previous image, assume the camera
     # did actually move...
@@ -150,7 +150,7 @@ for image_list in fits:
         [filename, utc] = x
         if (utc > image_list[0][11]) and (utc < image_list[-1][11]):
             ra = ((theta + utc / (23.9344696 * 3600) * (2 * pi)) / pi * 12) % 24
-            [img_size_x, img_size_y] = mod_gnomonic.image_dimensions(filename)
+            [img_size_x, img_size_y] = gnomonic_project.image_dimensions(filename)
             image_list.append(["ADD", x[0], 1, 1, img_size_x, img_size_y, ra, mean_declination, mean_pa,
                                mean_scale_x, mean_scale_y, utc])
             image_list.sort(sort_on_utc)

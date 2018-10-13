@@ -45,15 +45,15 @@ import daytimeJobsClean
 import dbImport
 import exportData
 import installation_info
-import mod_astro
+from meteorpi_helpers import dcf_ast
 import mod_daytimejobs
 import mod_log
-import mod_settings
+from meteorpi_helpers import settings_read
 import orientationCalc
 from mod_log import log_txt, get_utc
 
 pid = os.getpid()
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 # User should supply unix time on commandline at which we are to stop work
 if len(sys.argv) != 3:
@@ -64,15 +64,15 @@ utc_offset = float(sys.argv[1])
 quit_time = float(sys.argv[2])
 mod_log.set_utc_offset(utc_offset)
 
-log_txt("Running daytimeJobs. Need to quit at %s." % mod_astro.time_print(quit_time))
+logger.info("Running daytimeJobs. Need to quit at %s." % dcf_ast.time_print(quit_time))
 
 # Clean up any output files which are ahead of high water marks
-log_txt("Cleaning up any output files which are ahead of high water marks")
+logger.info("Cleaning up any output files which are ahead of high water marks")
 daytimeJobsClean.day_time_jobs_clean(db)
 
 # Change into the directory where data files are kept
 cwd = os.getcwd()
-os.chdir(mod_settings.settings['dataPath'])
+os.chdir(settings_read.settings['dataPath'])
 
 
 # Run a list of shell commands in parallel
@@ -87,7 +87,7 @@ def run_job_group(job_group):
         try:
             shell_cmd = " ".join((job['cmd'] % job['params']).split())
         except KeyError:
-            log_txt("Key Error prevented job from running: %s" % job)
+            logger.info("Key Error prevented job from running: %s" % job)
             shell_cmd = "true"
         shell_cmds.append(shell_cmd)
     for cmd in shell_cmds:
@@ -132,7 +132,7 @@ try:
     # Loop over task groups, e.g. PNG encoding timelapse images, or encoding trigger videos to MP4
     for task_group in mod_daytimejobs.dayTimeTasks:
         [hwm_output, n_max, task_list] = task_group
-        log_txt("Working on task group <%s>" % hwm_output)
+        logger.info("Working on task group <%s>" % hwm_output)
 
         # Look up old high-water marks for each observatory
         for obstory_id in obstory_list:
@@ -144,7 +144,7 @@ try:
 
         # Some tasks produce output files with different timestamps to the input file. Specifically, non-live
         # observing produces output over the entire length of a video. hwm_margin is the maximum size of this span
-        hwm_margin = ((mod_settings.settings['videoMaxRecordTime'] - 5) if hwm_output == "rawvideo" else 0.1)
+        hwm_margin = ((settings_read.settings['videoMaxRecordTime'] - 5) if hwm_output == "rawvideo" else 0.1)
         job_list = []
 
         # Loop over each of the input file search patterns that this task group is to be applied to
@@ -176,7 +176,7 @@ try:
                         # Job will be run as a shell command taken from mod_daytimejobs. Each shell command
                         # template has variables substituted into it. These are some default values, many of which
                         # will be overwritten with metadata associated with the input file.
-                        params = {'binary_path': mod_settings.settings['binaryPath'],
+                        params = {'binary_path': settings_read.settings['binaryPath'],
                                   'input': input_file,
                                   'outdir': out_dirs[0],
                                   'filename': f[:-(len(in_ext) + 1)],
@@ -187,7 +187,7 @@ try:
                                   'obstoryId': installation_info.local_conf['observatoryId'],
                                   'pid': pid,
                                   'triggermask': mask_file,
-                                  'opm': ('_openmax' if mod_settings.settings['i_am_a_rpi'] else ''),
+                                  'opm': ('_openmax' if settings_read.settings['i_am_a_rpi'] else ''),
 
                                   # Produce non-lens-corrected images once every 2 mins
                                   'produceFilesWithoutLC': int(math.floor(utc % 120) < 24),
@@ -235,8 +235,8 @@ try:
                         )
 
                         # Calculate metadata about the position of Sun at the time of observation
-                        sunPos = mod_astro.sun_pos(utc)
-                        sunAltAz = mod_astro.alt_az(sunPos[0], sunPos[1], utc,
+                        sunPos = dcf_ast.sun_pos(utc)
+                        sunAltAz = dcf_ast.alt_az(sunPos[0], sunPos[1], utc,
                                                     obstory_status['latitude'], obstory_status['longitude'])
                         params['metadata']['sunRA'] = sunPos[0]
                         params['metadata']['sunDecl'] = sunPos[1]
@@ -302,13 +302,13 @@ try:
             run_job_group(job_group)
             for obstory_id in obstories_seen:
                 hwm_new[obstory_id][hwm_output] = job_list[job_list_len - 1]['utc'] + hwm_margin
-            log_txt("Completed %d jobs" % len(job_list))
+            logger.info("Completed %d jobs" % len(job_list))
 
             # Delete trigger masks that we've finished with
             os.system("rm -f /tmp/triggermask_%d_*" % (os.getpid()))
 
 except TimeOut:
-    log_txt("Interrupting processing as we've run out of time")
+    logger.info("Interrupting processing as we've run out of time")
 
 # Commit new high-water marks to the database
 for obstory_id in all_obstories_seen:
@@ -327,35 +327,35 @@ db.commit()
 os.chdir(cwd)
 try:
     if (not quit_time) or (quit_time - get_utc() > 300):
-        log_txt("Importing events into database")
+        logger.info("Importing events into database")
         dbImport.database_import(db)
-        log_txt("Finished importing events into database")
+        logger.info("Finished importing events into database")
 except:
-    log_txt("Unexpected error while trying to import data into database")
+    logger.info("Unexpected error while trying to import data into database")
     traceback.print_exc()
 
 # Export data to remote server(s)
 try:
     if (not quit_time) or (quit_time - get_utc() > 3600):
-        log_txt("Exporting data to remote servers")
+        logger.info("Exporting data to remote servers")
         exportData.export_data(db=db,
                                utc_now=get_utc(),
                                utc_must_stop=quit_time)
 except:
-    log_txt("Unexpected error while trying to export data")
+    logger.info("Unexpected error while trying to export data")
     traceback.print_exc()
 
 # Figure out orientation of camera -- this may take 5 hours!
 try:
     for obstory_id in all_obstories_seen:
         if (not quit_time) or (quit_time - get_utc() > 3600 * 5):
-            log_txt("Trying to determine orientation of camera <%s>" % obstory_id)
+            logger.info("Trying to determine orientation of camera <%s>" % obstory_id)
             orientationCalc.orientation_calc(obstory_id=obstory_id,
                                              utc_to_study=get_utc() - 3600 * 24,
                                              utc_now=get_utc(),
                                              utc_must_stop=quit_time)
 except:
-    log_txt("Unexpected error while determining camera orientation")
+    logger.info("Unexpected error while determining camera orientation")
     traceback.print_exc()
 
 # Clean up temporary files
@@ -363,12 +363,12 @@ os.system("rm -Rf /tmp/tmp.* /tmp/dcf21_orientationCalc_*")
 
 # This deletes all data not imported into the database.
 # Should be uncommented on production systems where unattended operation needed.
-os.system("rm -Rf %s/t*_*" % (mod_settings.settings['dataPath']))
+os.system("rm -Rf %s/t*_*" % (settings_read.settings['dataPath']))
 
 # Twiddle our thumbs
 if quit_time:
     time_left = quit_time - get_utc()
     if time_left > 0:
-        log_txt("Finished daytimeJobs. Now twiddling our thumbs for %d seconds." % time_left)
+        logger.info("Finished daytimeJobs. Now twiddling our thumbs for %d seconds." % time_left)
         time.sleep(time_left)
-    log_txt("Finished daytimeJobs and also finished twiddling thumbs.")
+    logger.info("Finished daytimeJobs and also finished twiddling thumbs.")

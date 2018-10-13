@@ -24,7 +24,7 @@ import os
 import xml.etree.cElementTree as ElementTree
 
 from . import mod_xml
-from . import mod_settings
+from . import settings_read
 
 
 class Sensor:
@@ -81,7 +81,7 @@ class HardwareProps:
     def update_sensor(self, db, obstory_name, utc, name):
         assert name in self.sensor_data, "Unknown sensor type <%s>" % name
         x = self.sensor_data[name]
-        user = mod_settings.settings['meteorpiUser']
+        user = settings_read.settings['meteorpiUser']
         db.register_obstory_metadata(obstory_name, "sensor", name, utc, user)
         db.register_obstory_metadata(obstory_name, "sensor_width", x.width, utc, user)
         db.register_obstory_metadata(obstory_name, "sensor_height", x.height, utc, user)
@@ -92,7 +92,7 @@ class HardwareProps:
     def update_lens(self, db, obstory_name, utc, name):
         assert name in self.lens_data, "Unknown lens type <%s>" % name
         x = self.lens_data[name]
-        user = mod_settings.settings['meteorpiUser']
+        user = settings_read.settings['meteorpiUser']
         db.register_obstory_metadata(obstory_name, "lens", name, utc, user)
         db.register_obstory_metadata(obstory_name, "lens_fov", x.fov, utc, user)
         db.register_obstory_metadata(obstory_name, "lens_barrel_a", x.barrel_a, utc, user)

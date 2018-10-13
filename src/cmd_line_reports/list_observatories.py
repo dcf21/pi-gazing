@@ -27,9 +27,9 @@ List all of the observatories which have data entered into the database
 
 import meteorpi_db
 
-import mod_settings
+from meteorpi_helpers import settings_read
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 # List current observatory statuses
 print("List of observatories")

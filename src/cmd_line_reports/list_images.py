@@ -31,8 +31,8 @@ import time
 import meteorpi_db
 import meteorpi_model as mp
 
-import mod_astro
-import mod_settings
+from meteorpi_helpers import dcf_ast
+from meteorpi_helpers import settings_read
 import installation_info
 
 utc_min = time.time() - 3600 * 24
@@ -60,7 +60,7 @@ if utc_max == 0:
 
 print("# ./listImages.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utc_min, utc_max, obstory_name, label, img_type, stride))
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 try:
     obstory_info = db.get_obstory_from_name(obstory_name=obstory_name)
@@ -79,8 +79,8 @@ files.sort(key=lambda x: x.file_time)
 
 print("Observatory <%s>" % obstory_name)
 print("  * %d matching files in time range %s --> %s" % (len(files),
-                                                         mod_astro.time_print(utc_min),
-                                                         mod_astro.time_print(utc_max)))
+                                                         dcf_ast.time_print(utc_min),
+                                                         dcf_ast.time_print(utc_max)))
 count = 1
 for file_item in files:
     count += 1
@@ -89,6 +89,6 @@ for file_item in files:
     sky_clarity = db.get_file_metadata(file_item.id, 'meteorpi:skyClarity')
     if sky_clarity is None:
         sky_clarity = -1
-    [year, month, day, h, m, s] = mod_astro.inv_julian_day(mod_astro.jd_from_utc(file_item.file_time))
+    [year, month, day, h, m, s] = dcf_ast.inv_julian_day(dcf_ast.jd_from_utc(file_item.file_time))
     print("  * Date %04d/%02d/%02d %02d:%02d:%02d UTC   Sky clarity %8.1f   Filename <%s>" % (
         year, month, day, h, m, s, sky_clarity, file_item.id))

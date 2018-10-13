@@ -29,11 +29,11 @@ It is useful to run this after <sql/rebuild.sh>
 
 import sys
 
-import meteorpi_db
+from meteorpi_helpers.obsarchive import archive_db
 
-import mod_settings
+from meteorpi_helpers import settings_read
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 # List all current user accounts
 print("Current web interface accounts")
