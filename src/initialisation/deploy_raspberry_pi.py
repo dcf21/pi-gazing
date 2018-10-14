@@ -114,9 +114,9 @@ file_substitute("../../installation_info.py", "'relayOnGPIOState': True", "'rela
 
 led_a_pin = user_input("GPIO pin which LED A is connected to", installation_info.local_conf['gpioLedA'])
 file_substitute("../../installation_info.py", "'gpioLedA': 18", "'gpioLedA': %s" % led_a_pin)
-led_b_pin = user_input("GPIO pin which LED A is connected to", installation_info.local_conf['gpioLedB'])
+led_b_pin = user_input("GPIO pin which LED B is connected to", installation_info.local_conf['gpioLedB'])
 file_substitute("../../installation_info.py", "'gpioLedB': 22", "'gpioLedB': %s" % led_b_pin)
-led_c_pin = user_input("GPIO pin which LED A is connected to", installation_info.local_conf['gpioLedC'])
+led_c_pin = user_input("GPIO pin which LED C is connected to", installation_info.local_conf['gpioLedC'])
 file_substitute("../../installation_info.py", "'gpioLedC': 24", "'gpioLedC': %s" % led_c_pin)
 
 # Set up database

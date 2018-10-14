@@ -20,35 +20,20 @@
 # along with Meteor Pi.  If not, see <http://www.gnu.org/licenses/>.
 # -------------------------------------------------
 
-import os
-import re
-import sys
 # Ignore SQL warnings
 import warnings
-from os import path as os_path
 
 import MySQLdb
 
+from .settings_read import installation_info as settings
+
 warnings.filterwarnings("ignore", ".*Unknown table .*")
 
-# Fetch path to database profile
-our_path = os_path.split(os_path.abspath(os.getcwd()))[0]
-root_path = re.match(r"(.*website4/)", our_path).group(1)
-if not os.path.exists(os_path.join(root_path, "build/initdb/dbinfo/db_profile")):
-    sys.stderr.write(
-        "You must create a file <db_profile> in <build/initdb/dbinfo> to specify which database profile to use.\n")
-    sys.exit(1)
-db_profile = open(os_path.join(root_path, "build/initdb/dbinfo/db_profile")).read().strip()
-if not os.path.exists(os_path.join(root_path, "build/initdb/dbinfo/db_profile_%s" % db_profile)):
-    sys.stderr.write("File <db_profile> in <build/initdb/dbinfo> names an invalid profile.\n")
-    sys.exit(1)
-
 # Look up MySQL database log in details
-db_login = open(os_path.join(root_path, "build/initdb/dbinfo/db_profile_%s" % db_profile)).read().split('\n')
-db_host = "localhost"
-db_user = db_login[0].strip()
-db_passwd = db_login[1].strip()
-db_name = db_login[2].strip()
+db_host = settings['mysqlHost']
+db_user = settings['mysqlUser']
+db_passwd = settings['mysqlPassword']
+db_name = settings['mysqlDatabase']
 
 
 # Open database
@@ -86,12 +71,11 @@ def fetch_generator_key(c, gen_key):
         Numeric data generator identifier.
     """
 
-    c.execute("SELECT generatorId FROM inthesky_generators WHERE name=%s;", (gen_key,))
+    c.execute("SELECT generatorId FROM meteorpi_generators WHERE name=%s;", (gen_key,))
     tmp = c.fetchall()
     if len(tmp) == 0:
-        c.execute("INSERT INTO inthesky_generators VALUES (NULL, %s);", (gen_key,))
-        c.execute("SELECT generatorId FROM inthesky_generators WHERE name=%s;", (gen_key,))
+        c.execute("INSERT INTO meteorpi_generators VALUES (NULL, %s);", (gen_key,))
+        c.execute("SELECT generatorId FROM meteorpi_generators WHERE name=%s;", (gen_key,))
         tmp = c.fetchall()
     gen_id = tmp[0]["generatorId"]
     return gen_id
-
