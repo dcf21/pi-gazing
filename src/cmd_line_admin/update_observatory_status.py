@@ -86,7 +86,7 @@ for obstory in obstory_list:
     print("  * Observatory configuration")
     o = db.get_obstory_from_id(obstory_id=obstory)
     for item in ['latitude', 'longitude', 'name', 'publicId']:
-        print("    * %s = %s" % (item, o[item]))
+        print("    * {} = {}".format(item, o[item]))
     status = db.get_obstory_status(obstory_id=obstory)
     status_keys = list(status.keys())
     status_keys.sort()

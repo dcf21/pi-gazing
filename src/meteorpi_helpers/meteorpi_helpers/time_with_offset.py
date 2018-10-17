@@ -23,30 +23,68 @@
 import os
 import time
 
-from . import dcf_ast
-
-pid = os.getpid()
-
-t_offset = 0
+from .dcf_ast import unix_from_jd, jd_from_unix, julian_day, inv_julian_day
 
 
-def get_utc():
-    global t_offset
-    return time.time() + t_offset
+class ClockWithOffset:
+    """
+    Class used to create a clock with a fixed offset from the system clock. We use this if we have a GPS fix which tells
+    us a different time from the system clock.
+    """
 
+    def __init__(self, offset):
+        """
+        Create a clock with a fixed offset from the system clock.
 
-def get_utc_offset():
-    global t_offset
-    return t_offset
+        :param offset:
+            Offset from the system clock, in seconds. Positive values mean the clock will be ahead of the system clock.
+        :type offset:
+            float
+        """
+        self._offset = offset
 
+    def get_utc(self):
+        """
+        Retrieve the current time
+        :return:
+            Unix time, seconds.
+        """
+        return time.time() + self._offset
 
-def set_utc_offset(x):
-    global t_offset
-    t_offset = x
+    def get_utc_offset(self):
+        """
+        Retrieve the offset of this clock from the system clock.
+
+        :return:
+            Offset, in seconds. Positive values mean the clock will be ahead of the system clock.
+        """
+        return self._offset
+
+    def set_utc_offset(self, x):
+        """
+        Set the offset of this clock from the system clock.
+        :param x:
+            Offset, in seconds. Positive values mean the clock will be ahead of the system clock.
+        :return:
+            None
+        """
+        self._offset = x
 
 
 # Function for turning filenames into Unix times
 def filename_to_utc(f):
+    """
+    Function for turning filenames of observations into Unix times. We have a standard filename convention, where
+    all observations start with the UTC date and time that the observation was made.
+
+    :param f:
+        Filename of observation
+    :type f:
+        str
+    :return:
+        The unix time when the observation was made
+    """
+
     f = os.path.split(f)[1]
     if not f.startswith("20"):
         return -1
@@ -56,14 +94,26 @@ def filename_to_utc(f):
     hour = int(f[8:10])
     minute = int(f[10:12])
     sec = int(f[12:14])
-    return dcf_ast.utc_from_jd(dcf_ast.julian_day(year, mon, day, hour, minute, sec))
+    return unix_from_jd(julian_day(year, mon, day, hour, minute, sec))
 
 
 def fetch_day_name_from_filename(f):
+    """
+    Fetch a string describing the day when an observation was made, based on its filename. We have a standard filename
+    convention, where all observations start with the UTC date and time that the observation was made.
+
+    :param f:
+        Filename of observation
+    :type f:
+        str
+    :return:
+        The day when the observation was made
+    """
+
     f = os.path.split(f)[1]
     if not f.startswith("20"):
         return None
     utc = filename_to_utc(f)
     utc -= 12 * 3600
-    [year, month, day, hour, minu, sec] = dcf_ast.inv_julian_day(dcf_ast.jd_from_utc(utc))
-    return "%04d%02d%02d" % (year, month, day)
+    [year, month, day, hour, minu, sec] = inv_julian_day(jd_from_unix(utc))
+    return "{:04d}{:02d}{:02d}".format(year, month, day)

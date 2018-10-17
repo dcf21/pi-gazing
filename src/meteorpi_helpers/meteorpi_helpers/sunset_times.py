@@ -21,7 +21,9 @@
 # -------------------------------------------------
 
 from math import pi, sin, cos, asin, atan, atan2, floor, hypot, sqrt, isnan
+
 from .dcf_ast import sidereal_time
+from .vector_algebra import Vector
 
 deg = pi / 180
 
@@ -221,9 +223,23 @@ def alt_az(ra, dec, utc, latitude, longitude):
     return [alt * 180 / pi, az * 180 / pi]
 
 
-# Converts an altitude and azimuth into an RA and Dec
-# RA is returned in hours. All other angles should be in degrees.
 def ra_dec(alt, az, utc, latitude, longitude):
+    """
+    Converts local [altitude, azimuth] into [RA, Dec]
+
+    :param alt:
+        The altitude of the object, degrees
+    :param az:
+        The azimuth of the object, degrees
+    :param utc:
+        The unix time of the observation
+    :param longitude:
+        The longitude of the observer, degrees
+    :param latitude:
+        The latitude of the observer, degrees
+    :return:
+        The [RA, Dec] of the object, in hours and degrees
+    """
     alt *= pi / 180
     az *= pi / 180
     st = sidereal_time(utc) * pi / 12 + longitude * pi / 180
@@ -249,8 +265,19 @@ def ra_dec(alt, az, utc, latitude, longitude):
         ra += 2 * pi
     return [ra * 12 / pi, dec * 180 / pi]
 
-# Average of multiple angles; well behaved at 0/360 degree wrap-around. Input in radians.
+
 def mean_angle(angle_list):
+    """
+    Find the centroid (average) of a list of angles. This is well behaved at 0/360 degree wrap-around.
+    Input and output are radians.
+
+    :param angle_list:
+        List of input angles, in radians
+    :type angle_list:
+        list, tuple
+    :return:
+        The [mean, standard deviation] of the input angles, in radians
+    """
     xlist = [sin(a) for a in angle_list]  # Project angles onto a circle
     ylist = [cos(a) for a in angle_list]
     xmean = sum(xlist) / len(angle_list)  # Find centroid
@@ -258,11 +285,23 @@ def mean_angle(angle_list):
     amean = atan2(xmean, ymean)  # Find angle of centroid from centre
     sd = sqrt(sum([hypot(xlist[i] - xmean, ylist[i] - ymean) ** 2 for i in range(len(xlist))]))
     asd = atan(sd)  # Find angular spread of points as seen from centre
-    return [amean, asd]  # [Mean,SD] in radians
+
+    # Return [Mean,SD] in radians
+    return [amean, asd]
 
 
-# Average of multiple polar coordinate positions
 def mean_angle_2d(pos_list):
+    """
+    Find the centroid (average) of a list of a positions on a sphere. This is well behaved at 0/360 degree wrap-around.
+    Input and output are radians.
+
+    :param pos_list:
+        A list of the input positions, each specified as [latitude, longitude], in radians
+    :type pos_list:
+        list, tuple
+    :return:
+        The [mean, standard deviation] of the positions. Both are specified as [latitude, longitude], in radians.
+    """
     xlist = [sin(a[1]) * sin(a[0]) for a in pos_list]  # Project angles onto a circle
     ylist = [cos(a[1]) * sin(a[0]) for a in pos_list]
     zlist = [cos(a[0]) for a in pos_list]
@@ -271,20 +310,31 @@ def mean_angle_2d(pos_list):
     zmean = sum(zlist) / len(pos_list)
     pmean = [atan2(hypot(xmean, ymean), zmean), atan2(xmean, ymean)]
     sd = sqrt(sum(
-            [(xlist[i] - xmean) ** 2 + (ylist[i] - ymean) ** 2 + (zlist[i] - zmean) ** 2
-             for i in range(len(xlist))]
+        [(xlist[i] - xmean) ** 2 + (ylist[i] - ymean) ** 2 + (zlist[i] - zmean) ** 2
+         for i in range(len(xlist))]
     ) / len(pos_list))
     asd = atan(sd)  # Find angular spread of points as seen from centre
     return [pmean, asd]  # [Mean,SD] in radians
 
 
-# Return the right ascension and declination of the zenith
-def get_zenith_position(lat, lng, utc):
+def get_zenith_position(latitude, longitude, utc):
+    """
+    Calculate the right ascension and declination of the zenith
+    :param longitude:
+        The longitude of the observer, degrees
+    :param latitude:
+        The latitude of the observer, degrees
+    :param utc:
+        The unix time of the observation
+    :return:
+        The [RA, Dec] of the zenith in [hour, degrees]
+    """
+
     st = sidereal_time(utc) * pi / 12
-    lat *= pi / 180
-    lng *= pi / 180
-    x = cos(lng + st) * cos(lat)
-    y = sin(lng + st) * cos(lat)
-    z = sin(lat)
+    latitude *= pi / 180
+    longitude *= pi / 180
+    x = cos(longitude + st) * cos(latitude)
+    y = sin(longitude + st) * cos(latitude)
+    z = sin(latitude)
     v = Vector(x, y, z)
     return v.to_ra_dec()
