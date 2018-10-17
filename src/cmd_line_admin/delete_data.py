@@ -28,75 +28,73 @@ Commandline syntax:
 ./deleteData.py t_min t_max observatory
 """
 
-import os
+import argparse
 import sys
 import time
 
-from meteorpi_helpers.obsarchive import archive_model as mp
-from meteorpi_helpers.obsarchive import archive_db
-
-from meteorpi_helpers import settings_read
 from meteorpi_helpers import dcf_ast
+from meteorpi_helpers.obsarchive import obsarchive_db
+from meteorpi_helpers.obsarchive import obsarchive_model as mp
+from meteorpi_helpers.settings_read import settings, installation_info
 
-pid = os.getpid()
+# Read input parameters
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--t-min', dest='utc_min', default=time.time() - 3600 * 24,
+                    help="Only delete observations made after the specified unix time")
+parser.add_argument('--t-max', dest='utc_max', default=time.time(),
+                    help="Only delete observations made before the specified unix time")
+parser.add_argument('--observatory', dest='observatory', default=installation_info.local_conf['observatoryId'],
+                    help="ID of the observatory we are to delete observations from")
+args = parser.parse_args()
 
-utc_min = time.time() - 3600 * 24
-utc_max = time.time()
-observatory = installation_info.local_conf['observatoryName']
+print("# ./deleteData.py %f %f \"%s\"\n" % (args.utc_min, args.utc_max, args.observatory))
 
-if len(sys.argv) > 1:
-    utc_min = float(sys.argv[1])
-if len(sys.argv) > 2:
-    utc_max = float(sys.argv[2])
-if len(sys.argv) > 3:
-    observatory = sys.argv[3]
+db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                       db_host=settings['mysqlHost'],
+                                       db_user=settings['mysqlUser'],
+                                       db_password=settings['mysqlPassword'],
+                                       db_name=settings['mysqlDatabase'],
+                                       obstory_id=installation_info['observatoryId'])
 
-if utc_max == 0:
-    utc_max = time.time()
-
-print("# ./deleteData.py %f %f \"%s\"\n" % (utc_min, utc_max, observatory))
-
-db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
-
-obstory_info = db.get_obstory_from_id(obstory_id=observatory)
+obstory_info = db.get_obstory_from_id(obstory_id=args.observatory)
 if not obstory_info:
-    print("Unknown observatory <%s>.\nRun ./listObservatories.py to see a list of available options." % observatory)
+    print("Unknown observatory <{}>.\nRun ./listObservatories.py to see a list of available options.".
+          format(args.observatory))
     sys.exit(0)
 
-obstory_name = obstory_info['name']
-
-s = db.get_obstory_status(obstory_name=obstory_name)
+s = db.get_obstory_status(obstory_id=obstory_info['id'])
 if not s:
-    print("Unknown observatory <%s>.\nRun ./listObservatories.py to see a list of available options." % observatory)
+    print("Unknown observatory <{}>.\nRun ./listObservatories.py to see a list of available options.".
+          format(args.observatory))
     sys.exit(0)
 
-search = mp.FileRecordSearch(obstory_ids=[observatory],
-                             time_min=utc_min,
-                             time_max=utc_max,
+search = mp.FileRecordSearch(obstory_ids=[args.observatory],
+                             time_min=args.utc_min,
+                             time_max=args.utc_max,
                              limit=1000000)
 files = db.search_files(search)
 files = [i for i in files['files']]
 files.sort(key=lambda x: x.file_time)
 
-search = mp.ObservationSearch(obstory_ids=[observatory],
-                              time_min=utc_min,
-                              time_max=utc_max,
+search = mp.ObservationSearch(obstory_ids=[args.observatory],
+                              time_min=args.utc_min,
+                              time_max=args.utc_max,
                               limit=1000000)
 observations = db.search_observations(search)
 observations = observations['obs']
 observations.sort(key=lambda x: x.obs_time)
 
-print("Observatory <%s>" % observatory)
-print("  * %6d matching files in time range %s --> %s" % (len(files),
-                                                          dcf_ast.time_print(utc_min),
-                                                          dcf_ast.time_print(utc_max)))
-print("  * %6d matching observations in time range" % (len(observations)))
+print("Observatory <{}>".format(args.observatory))
+print("  * {:6d} matching files in time range {} --> {}".format(len(files),
+                                                                dcf_ast.date_string(args.utc_min),
+                                                                dcf_ast.date_string(args.utc_max)))
+print("  * {:6d} matching observations in time range".format(len(observations)))
 
 confirmation = input('Delete these files? (Y/N) ')
 if confirmation not in 'Yy':
     sys.exit(0)
 
-db.clear_database(tmin=utc_min, tmax=utc_max, obstory_names=obstory_name)
+db.clear_database(tmin=args.utc_min, tmax=args.utc_max, obstory_ids=[obstory_info['id']])
 
 # Commit changes to database
 db.commit()

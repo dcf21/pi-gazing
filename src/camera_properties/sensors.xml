@@ -1,44 +1,43 @@
-<?xml version="1.0"?>
-<sensors>
- <sensor>
+<cameras>
+ <camera>
   <name>watec_902h</name>
   <width>720</width>
   <height>480</height>
   <fps>24.71</fps>
-  <upsidedown>1</upsidedown>
+  <upside_down>1</upside_down>
   <type>webcam</type>
- </sensor>
- <sensor>
+ </camera>
+ <camera>
   <name>watec_902h2_ultimate</name>
   <width>720</width>
   <height>480</height>
   <fps>24.71</fps>
-  <upsidedown>1</upsidedown>
+  <upside_down>1</upside_down>
   <type>webcam</type>
- </sensor>
- <sensor>
+ </camera>
+ <camera>
   <name>watec_902h2_supreme</name>
   <width>720</width>
   <height>480</height>
   <fps>24.71</fps>
-  <upsidedown>1</upsidedown>
+  <upside_down>1</upside_down>
   <type>webcam</type>
- </sensor>
- <sensor>
+ </camera>
+ <camera>
   <name>pl1399</name>
   <width>720</width>
   <height>480</height>
   <fps>24.71</fps>
-  <upsidedown>0</upsidedown>
+  <upside_down>0</upside_down>
   <type>webcam</type>
- </sensor>
- <sensor>
+ </camera>
+ <camera>
   <name>eos1000d</name>
   <width>800</width>
   <height>600</height>
   <fps>0.125</fps>
-  <upsidedown>0</upsidedown>
+  <upside_down>0</upside_down>
   <type>gphoto2</type>
- </sensor>
-</sensors>
+ </camera>
+</cameras>
 

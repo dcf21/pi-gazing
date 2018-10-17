@@ -61,7 +61,7 @@ def sgn(x):
 
 
 def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
-    log_prefix = "[%12s %s]" % (obstory_id, dcf_ast.time_print(utc_to_study))
+    log_prefix = "[%12s %s]" % (obstory_id, dcf_ast.date_string(utc_to_study))
 
     logger.info("%s Starting calculation of camera alignment" % log_prefix)
 
@@ -71,7 +71,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
     # This is an estimate of the *maximum* angular width we expect images to have.
     # It should be within a factor of two of correct!
-    estimated_image_scale = installation_info.local_conf['estimated_image_scale']
+    estimated_image_scale = installation_info.local_conf['estimatedImageScale']
 
     # When passing images to astrometry.net, only work on the central portion, as this will have least bad distortion
     fraction_x = 0.4
@@ -185,7 +185,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
             continue
 
         log_msg = ("Processed image <%s> from time <%s> -- skyClarity=%.1f. " %
-                   (f.id, dcf_ast.time_print(f.file_time),
+                   (f.id, dcf_ast.date_string(f.file_time),
                     db.get_file_metadata(f.id, 'meteorpi:skyClarity')))
 
         # How long should we allow astrometry.net to run for?

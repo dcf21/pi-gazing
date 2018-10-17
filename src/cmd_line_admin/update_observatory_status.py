@@ -29,132 +29,143 @@ It is useful to run this after <sql/rebuild.sh> to specify the lens, camera, etc
 
 import os
 import sys
+import argparse
 
-import meteorpi_db
-import meteorpi_model as mp
-
-from meteorpi_helpers import settings_read
 from meteorpi_helpers import hardware_properties
+from meteorpi_helpers.obsarchive import obsarchive_db
+from meteorpi_helpers.obsarchive import obsarchive_model as mp
+from meteorpi_helpers.settings_read import settings, installation_info
 
-db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
-hw = mod_hardwareProps.HardwareProps(os.path.join(settings_read.settings['pythonPath'], "..", "sensorProperties"))
+db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                       db_host=settings['mysqlHost'],
+                                       db_user=settings['mysqlUser'],
+                                       db_password=settings['mysqlPassword'],
+                                       db_name=settings['mysqlDatabase'],
+                                       obstory_id=installation_info['observatoryId'])
 
+hw = hardware_properties.HardwareProps(os.path.join(settings['pythonPath'], "..", "camera_properties"))
 
-def fetch_option(title, key, indict, default, argv_index):
-    if key in indict:
-        default = indict[key]
-    if (argv_index > 0) and (len(sys.argv) > argv_index):
-        value = sys.argv[argv_index]
-    else:
-        value = input('Set %s <default %s>: ' % (title, default))
-    if not value:
-        value = default
-    return value
-
+# Read arguments
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--obstory',
+                    help="observatory to update",
+                    dest="obstory",
+                    default=None)
+parser.add_argument('--obstory_id',
+                    help="observatory ID code",
+                    dest="obstory_id",
+                    default=None)
+parser.add_argument('--latitude',
+                    help="latitude",
+                    dest="latitude", type=float,
+                    default=None)
+parser.add_argument('--longitude',
+                    help="longitude",
+                    dest="longitude", type=float,
+                    default=None)
+parser.add_argument('--metadata_time',
+                    help="unix time stamp for update",
+                    dest="metadata_time", type=float,
+                    default=None)
+parser.add_argument('--camera',
+                    help="new camera",
+                    dest="camera",
+                    default=None)
+parser.add_argument('--lens',
+                    help="new lens",
+                    dest="lens",
+                    default=None)
+args = parser.parse_args()
 
 # List current observatory statuses
 print("Current observatory statuses")
 print("----------------------------")
-obstory_list = db.get_obstory_names()
+obstory_list = db.get_obstory_ids()
 for obstory in obstory_list:
-    print("%s\n" % obstory)
+    print("{}\n".format(obstory))
     print("  * Observatory configuration")
-    o = db.get_obstory_from_name(obstory)
+    o = db.get_obstory_from_id(obstory_id=obstory)
     for item in ['latitude', 'longitude', 'name', 'publicId']:
         print("    * %s = %s" % (item, o[item]))
-    status = db.get_obstory_status(obstory_name=obstory)
+    status = db.get_obstory_status(obstory_id=obstory)
     status_keys = list(status.keys())
     status_keys.sort()
     print("\n  * Additional metadata")
     for item in status_keys:
-        print("    * %s = %s" % (item, status[item]))
+        print("    * {} = {}".format(item, status[item]))
     print("\n")
 if len(obstory_list) == 0:
     print("None!\n")
 
-print()
-print("Update or add an observatory")
-print("----------------------------")
+# If no observatory specified to update, do nothing more
+if args.obstory_id is None:
+    sys.exit(0)
 
-# Select observatory status to update
-obstory = fetch_option(title="observatory to update",
-                       key="_",
-                       indict={},
-                       default=installation_info.local_conf['observatoryName'],
-                       argv_index=1)
+# If observatory doesn't exist yet, create a new observatory
+if args.obstory_id not in obstory_list:
+    # If input parameters have not been supplied, read the defaults from configuration file
+    if args.latitude is None:
+        args.latitude = installation_info['latitude']
+    if args.longitude is None:
+        args.latitude = installation_info['longitude']
+    if args.obstory_name is None:
+        args.latitude = installation_info['observatoryName']
+    if args.camera is None:
+        args.camera = installation_info['defaultCamera']
+    if args.lens is None:
+        args.lens =    installation_info['defaultLens']
 
-if obstory not in obstory_list:
-    obstory_id = fetch_option(title="observatory ID code",
-                              key="observatoryId",
-                              indict=installation_info.local_conf,
-                              default="obs0",
-                              argv_index=5)
-    latitude = fetch_option(title="latitude",
-                            key="latitude",
-                            indict=installation_info.local_conf,
-                            default=0,
-                            argv_index=6)
-    longitude = fetch_option(title="longitude",
-                             key="longitude",
-                             indict=installation_info.local_conf,
-                             default=0,
-                             argv_index=7)
-    db.register_obstory(obstory_id=obstory_id,
-                        obstory_name=obstory,
-                        latitude=latitude,
-                        longitude=longitude)
-    db.register_obstory_metadata(obstory_name=obstory,
+    # Create new observatory
+    db.register_obstory(obstory_id=args.obstory_id,
+                        obstory_name=args.obstory_name,
+                        latitude=args.latitude,
+                        longitude=args.longitude,
+                        owner=settings['meteorpiUser'])
+
+    # Set location of new observatory
+    db.register_obstory_metadata(obstory_id=args.obstory_id,
                                  key="latitude",
-                                 value=installation_info.local_conf['latitude'],
+                                 value=args.latitude,
                                  metadata_time=mp.now(),
                                  time_created=mp.now(),
-                                 user_created=settings_read.settings['meteorpiUser'])
-    db.register_obstory_metadata(obstory_name=obstory,
+                                 user_created=settings['meteorpiUser'])
+    db.register_obstory_metadata(obstory_id=args.obstory_id,
                                  key="longitude",
-                                 value=installation_info.local_conf['longitude'],
+                                 value=args.longitude,
                                  metadata_time=mp.now(),
                                  time_created=mp.now(),
-                                 user_created=settings_read.settings['meteorpiUser'])
-    db.register_obstory_metadata(obstory_name=obstory,
+                                 user_created=settings['meteorpiUser'])
+    db.register_obstory_metadata(obstory_id=args.obstory_id,
                                  key="location_source",
                                  value="manual",
                                  metadata_time=mp.now(),
                                  time_created=mp.now(),
-                                 user_created=settings_read.settings['meteorpiUser'])
+                                 user_created=settings['meteorpiUser'])
+    # Newly created observatory has no metadata
     obstory_status = {}
 else:
-    obstory_status = db.get_obstory_status(obstory_name=obstory)
+    # Fetch metadata about the observatory we are updating
+    obstory_status = db.get_obstory_status(obstory_id=args.obstory_id)
 
 # Find out time that metadata update should be applied to
-metadata_time = fetch_option(title="time stamp for update",
-                             key="_",
-                             indict={},
-                             default=mp.now(),
-                             argv_index=2)
-metadata_time = float(metadata_time)
+if args.metadata_time is None:
+    args.metadata_time = mp.now()
+metadata_time = float(args.metadata_time)
 
 # Register software version in use
-db.register_obstory_metadata(obstory_name=obstory,
+db.register_obstory_metadata(obstory_id=args.obstory_id,
                              key="softwareVersion",
-                             value=settings_read.settings['softwareVersion'],
+                             value=settings['softwareVersion'],
                              metadata_time=metadata_time,
                              time_created=mp.now(),
-                             user_created=settings_read.settings['meteorpiUser'])
+                             user_created=settings['meteorpiUser'])
 
 # Offer user options to update metadata
-sensor = fetch_option(title="new sensor",
-                      key="sensor",
-                      indict=obstory_status,
-                      default=installation_info.local_conf['defaultSensor'],
-                      argv_index=3)
-hw.update_sensor(db=db, obstory_name=obstory, utc=metadata_time, name=sensor)
+if args.camera is not None:
+    hw.update_camera(db=db, obstory_id=args.obstory_id, utc=metadata_time, name=args.camera)
 
-lens = fetch_option(title="new lens",
-                    key="lens",
-                    indict=obstory_status,
-                    default=installation_info.local_conf['defaultLens'],
-                    argv_index=4)
-hw.update_lens(db=db, obstory_name=obstory, utc=metadata_time, name=lens)
+if args.lens is not None:
+    hw.update_lens(db=db, obstory_id=obstory_id, utc=metadata_time, name=args.lens)
 
 # Commit changes to database
 db.commit()

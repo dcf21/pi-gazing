@@ -60,7 +60,7 @@ for obstory_name in obstory_list:
     files = files['files']
     files.sort(key=lambda x: x.file_time)
     print("  * %d matching files in time range %s --> %s" % (len(files),
-                                                             dcf_ast.time_print(utc_min),
-                                                             dcf_ast.time_print(utc_max)))
+                                                             dcf_ast.date_string(utc_min),
+                                                             dcf_ast.date_string(utc_max)))
     for fileObj in files:
-        print("  * %s -- %s" % (dcf_ast.time_print(fileObj.file_time), fileObj.file_name))
+        print("  * %s -- %s" % (dcf_ast.date_string(fileObj.file_time), fileObj.file_name))

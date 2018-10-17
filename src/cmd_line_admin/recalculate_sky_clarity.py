@@ -26,49 +26,55 @@ Recomputes the sky clarity of all images in a given time range. This generally o
 change in the algorithm used to calculate sky clarity
 """
 
-import os, subprocess
+import argparse
+import os
+import subprocess
 import time
-import sys
 
 from meteorpi_helpers import dcf_ast
-from meteorpi_helpers import settings_read
+from meteorpi_helpers.obsarchive import obsarchive_db
+from meteorpi_helpers.obsarchive import obsarchive_model as mp
+from meteorpi_helpers.settings_read import settings, installation_info
 
-from meteorpi_helpers.obsarchive import archive_model as mp
-from meteorpi_helpers.obsarchive import archive_db
+db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                       db_host=settings['mysqlHost'],
+                                       db_user=settings['mysqlUser'],
+                                       db_password=settings['mysqlPassword'],
+                                       db_name=settings['mysqlDatabase'],
+                                       obstory_id=installation_info['observatoryId'])
 
-db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+# Read input parameters
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--t-min', dest='utc_min', default=0,
+                    help="Only delete observations made after the specified unix time")
+parser.add_argument('--t-max', dest='utc_max', default=time.time(),
+                    help="Only delete observations made before the specified unix time")
+parser.add_argument('--observatory', dest='observatory', default=installation_info.local_conf['observatoryId'],
+                    help="ID of the observatory we are to delete observations from")
+args = parser.parse_args()
 
-utc_min = 0
-utc_max = time.time()
+print("# ./recalculateSkyClarity.py {} {}\n".format(args.utc_min, args.utc_max))
 
-argc = len(sys.argv)
-if argc > 1:
-    utc_min = float(sys.argv[1])
-if argc > 2:
-    utc_max = float(sys.argv[2])
-
-print("# ./recalculateSkyClarity.py %s %s\n" % (utc_min, utc_max))
-
-search = mp.FileRecordSearch(time_min=utc_min, time_max=utc_max, limit=10000000)
+search = mp.FileRecordSearch(time_min=args.utc_min, time_max=args.utc_max, limit=10000000)
 files = db.search_files(search)
 files = files['files']
 files.sort(key=lambda x: x.file_time)
-print("  * %d matching files in time range %s --> %s" % (len(files),
-                                                         dcf_ast.time_print(utc_min),
-                                                         dcf_ast.time_print(utc_max)))
+print("  * {:d} matching files in time range {} --> {}".format(len(files),
+                                                               dcf_ast.date_string(args.utc_min),
+                                                               dcf_ast.date_string(args.utc_max)))
 
 
-def report_line(file, text):
-    print("%s %s -- %s" % (dcf_ast.time_print(file.file_time), file.id, text))
+def report_line(file_object, text):
+    print("{} {} -- {}".format(dcf_ast.date_string(file_object.file_time), file_object.id, text))
 
 
-sky_clarity_tool = os.path.join(settings_read.settings['pythonPath'],
-                                "../observatoryControl/videoAnalysis/bin/skyClarity")
+sky_clarity_tool = os.path.join(settings['pythonPath'],
+                                "../observatory_control/videoAnalysis/bin/skyClarity")
 
 
 def get_sky_clarity(file_path, noise_level):
     global sky_clarity_tool
-    new_value = subprocess.check_output([sky_clarity_tool, file_path, str(noise_level)])
+    new_value = subprocess.check_output([sky_clarity_tool, file_path, str(noise_level)]).decode('utf-8')
     try:
         output = float(new_value)
     except ValueError:
@@ -79,14 +85,14 @@ def get_sky_clarity(file_path, noise_level):
 # Switch this on to produce diagnostic images in /tmp to show the sky clarity metrics of sample images
 produce_diagnostic_images = False
 threshold_sky_clarity = 5
-filename_format = "/tmp/sky_clarity_%d_%%08d.png" % (os.getpid())
+filename_format = "/tmp/sky_clarity_{:d}_{{:08d}}.png".format(os.getpid())
 
 img_num = 1
 for file in files:
     sky_clarity = None
     noise_level = None
     if file.mime_type != "image/png":
-        report_line(file, "Ignore. Wrong mime type <%s>" % file.mime_type)
+        report_line(file, "Ignore. Wrong mime type <{}>".format(file.mime_type))
         continue
     for meta in file.meta:
         if meta.key == "meteorpi:skyClarity":
@@ -94,17 +100,21 @@ for file in files:
         if meta.key == "meteorpi:stackNoiseLevel":
             noise_level = meta.value
     if sky_clarity is None:
-        report_line(file, "Ignore. Sky clarity is not set on file with semantic type <%s>" % file.semantic_type)
+        report_line(file, "Ignore. Sky clarity is not set on file with semantic type <{}>".format(file.semantic_type))
         continue
     if noise_level is None:
-        report_line(file, "Ignore. Noise level; is not set on file with semantic type <%s>" % file.semantic_type)
+        report_line(file, "Ignore. Noise level; is not set on file with semantic type <{}>".format(file.semantic_type))
         continue
     new_sky_clarity = get_sky_clarity(db.file_path_for_id(file.id), noise_level)
-    report_line(file, "Update sky clarity from %8.3f to %8.3f. Semantic type <%s>" % (sky_clarity, new_sky_clarity,
-                                                                                      file.semantic_type))
+    report_line(file, "Update sky clarity from {:8.3f} to {:8.3f}. Semantic type <{}>".format(sky_clarity,
+                                                                                              new_sky_clarity,
+                                                                                              file.semantic_type))
 
-    if produce_diagnostic_images and (new_sky_clarity>=threshold_sky_clarity):
-        os.system("convert %s -gravity SouthEast -fill ForestGreen -pointsize 20 -font Ubuntu-Bold "
-                  "-annotate +16+10 '%s - clarity %s' %s""" % (db.file_path_for_id(file.id), file.semantic_type,
-                                                               new_sky_clarity, filename_format % img_num))
+    if produce_diagnostic_images and (new_sky_clarity >= threshold_sky_clarity):
+        os.system("convert {} -gravity SouthEast -fill ForestGreen -pointsize 20 -font Ubuntu-Bold "
+                  "-annotate +16+10 '{} - clarity {}' {}""".format(db.file_path_for_id(file.id),
+                                                                   file.semantic_type,
+                                                                   new_sky_clarity,
+                                                                   filename_format.format(img_num))
+                  )
     img_num += 1

@@ -20,14 +20,24 @@
 # along with Meteor Pi.  If not, see <http://www.gnu.org/licenses/>.
 # -------------------------------------------------
 
-from math import pi, sin, cos, acos, asin, atan, atan2, floor, fmod, fabs, hypot, sqrt, isnan
-from exceptions import KeyError
+from math import pi, sin, cos, asin, atan, atan2, floor, hypot, sqrt, isnan
+from .dcf_ast import sidereal_time
 
 deg = pi / 180
 
 
 # Return the [RA, Dec] of the Sun at a given Unix time. See Jean Meeus, Astronomical Algorithms, pp 163-4
 def sun_pos(utc):
+    """
+    Calculate an estimate of the J2000.0 RA and Decl of the Sun at a particular Unix time
+    :param utc:
+        Unix time
+    :type utc:
+        float
+    :return:
+        [RA, Dec] in [hours, degrees]
+    """
+
     jd = utc / 86400.0 + 2440587.5
 
     t = (jd - 2451545.0) / 36525.
@@ -50,8 +60,25 @@ def sun_pos(utc):
     return [ra, dec]
 
 
-# Returns the number of seconds between an object at a given declination rising and culminating
-def rs_riseculmgap(decl_obj, latitude_obs, angle_below_horizon):  # all inputs are in radians
+def rs_riseculmgap(decl_obj, latitude_obs, angle_below_horizon):
+    """
+    Estimate the number of seconds between an object rising and culminating at a given declination.
+
+    :param decl_obj:
+        The declination of the object, radians
+    :type decl_obj:
+        float
+    :param latitude_obs:
+        The latitude of the observer, radians
+    :type latitude_obs:
+        float
+    :param angle_below_horizon:
+        How far below the horizon does the centre of this object has to be before it "sets"? (radians)
+    :type angle_below_horizon:
+        float
+    :return:
+        The number of seconds between this object rising and culminating
+    """
     angle_below_horizon = -angle_below_horizon
     z = sin(decl_obj)
     alpha = (pi / 2 - latitude_obs)
@@ -59,17 +86,43 @@ def rs_riseculmgap(decl_obj, latitude_obs, angle_below_horizon):  # all inputs a
     cos_obj = sqrt(1 - pow(sin_obj, 2))
     b = atan2(cos_obj * cos(angle_below_horizon),
               (sin_obj * cos(angle_below_horizon) * cos(alpha) - sin(angle_below_horizon) * sin(alpha)))
+
+    # Return -1 if requested declination is circumpolar or below horizon
     if isnan(b):
-        return -1  # Return -1 if requested declination is circumpolar or below horizon
-    # Return number of second between rising and culmination time. Each day, object is above horizon for 2x time period.
+        return -1
+
+    # Return number of second between rising and culmination time.
+    # Each day, object is above horizon for 2x time period.
     return 3600 * 12 * (1 - abs(b / pi))
 
 
 # Returns the UTC times for the rising, culmination and setting of an astronomical object at position [RA,Dec]
-def rs_time_s(unixtime, ra, dec, longitude, latitude, angle_below_horizon):
-    unixtime = floor(unixtime / 3600 / 24) * 3600 * 24  # midnight
+def rs_time_s(unix_time, ra, dec, longitude, latitude, angle_below_horizon):
+    """
+    Estimate the UTC times for the rising, culmination and setting of an astronomical object at position [RA,Dec].
 
-    utc_min = unixtime - 3600 * 24 * 0.75
+    :param unix_time:
+        Any unix time on the day when we should calculate rising and setting times.
+    :param ra:
+        The right ascension of the object, hours.
+    :param dec:
+        The declination of the object, degrees
+    :param longitude:
+        The longitude of the observer, degrees
+    :param latitude:
+        The latitude of the observer, degrees
+    :param angle_below_horizon:
+        How far below the horizon does the centre of this object has to be before it "sets"? (radians)
+    :type angle_below_horizon:
+        float
+    :return:
+        Unix times for [rising, culminating, setting]
+    """
+
+    # calculate unix time of preceding midnight
+    unix_time = floor(unix_time / 3600 / 24) * 3600 * 24
+
+    utc_min = unix_time - 3600 * 24 * 0.75
     r = []
     for i in range(48):
         u = utc_min + i * 3600
@@ -105,16 +158,42 @@ def rs_time_s(unixtime, ra, dec, longitude, latitude, angle_below_horizon):
     return [utc_rise, utc_culm, utc_set]
 
 
-# Returns unix times for [sunrise , sun culmination , sunset]
 def sun_times(unix_time, longitude=0.12, latitude=52.2):
+    """
+    Estimate unix times for sunrise , sun culmination and sunset.
+
+    :param unix_time:
+        Any unix time on the day when we should calculate rising and setting times.
+    :param longitude:
+        The longitude of the observer, degrees
+    :param latitude:
+        The latitude of the observer, degrees
+    :return:
+        Unix times for [rising, culminating, setting]
+    """
+
     s = sun_pos(unix_time)
     r = rs_time_s(unix_time, s[0], s[1], longitude, latitude, -0.5)
     return r
 
 
-# Converts an RA and Dec into an altitude and an azimuth
-# RA should be in hours; all other angles should be in degrees.
 def alt_az(ra, dec, utc, latitude, longitude):
+    """
+    Converts [RA, Dec] into local [altitude, azimuth]
+
+    :param ra:
+        The right ascension of the object, hours.
+    :param dec:
+        The declination of the object, degrees
+    :param longitude:
+        The longitude of the observer, degrees
+    :param latitude:
+        The latitude of the observer, degrees
+    :param utc:
+        The unix time of the observation
+    :return:
+        The [altitude, azimuth] of the object in degrees
+    """
     ra *= pi / 12
     dec *= pi / 180
     st = sidereal_time(utc) * pi / 12 + longitude * pi / 180
@@ -137,7 +216,9 @@ def alt_az(ra, dec, utc, latitude, longitude):
 
     alt = -asin(xyz3[1])
     az = atan2(xyz3[0], -xyz3[2])
-    return [alt * 180 / pi, az * 180 / pi]  # [altitude, azimuth] of object in degrees
+
+    # [altitude, azimuth] of object in degrees
+    return [alt * 180 / pi, az * 180 / pi]
 
 
 # Converts an altitude and azimuth into an RA and Dec

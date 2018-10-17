@@ -64,7 +64,7 @@ utc_offset = float(sys.argv[1])
 quit_time = float(sys.argv[2])
 mod_log.set_utc_offset(utc_offset)
 
-logger.info("Running daytimeJobs. Need to quit at %s." % dcf_ast.time_print(quit_time))
+logger.info("Running daytimeJobs. Need to quit at %s." % dcf_ast.date_string(quit_time))
 
 # Clean up any output files which are ahead of high water marks
 logger.info("Cleaning up any output files which are ahead of high water marks")
@@ -215,7 +215,7 @@ try:
                             obstory_status['longitude'] = installation_info.local_conf['longitude']
 
                         if 'fps' not in params:
-                            params['fps'] = obstory_status["sensor_fps"]
+                            params['fps'] = obstory_status["camera_fps"]
 
                         # Only operate on input files which are newer than HWM
                         if utc < hwm_old[obstory_id][hwm_output]:

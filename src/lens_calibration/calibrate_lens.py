@@ -39,7 +39,7 @@ The best-fit parameter values are returned to the user. If they are believed to 
 update on the observatory setting barrel_a, barrel_b and barrel_c. Then future observations will correct for this
 lens distortion.
 
-You may also changed the values for your lens in the XML file <src/sensorProperties> which means that future
+You may also changed the values for your lens in the XML file <src/cameraProperties> which means that future
 observatories set up with your model of lens will use your barrel correction coefficients.
 """
 

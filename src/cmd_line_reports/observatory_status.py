@@ -71,8 +71,8 @@ data = db.search_obstory_metadata(search)
 data = data['items']
 data.sort(key=lambda x: x.time)
 print("  * %d matching metadata items in time range %s --> %s" % (len(data),
-                                                                  dcf_ast.time_print(utc_min),
-                                                                  dcf_ast.time_print(utc_max)))
+                                                                  dcf_ast.date_string(utc_min),
+                                                                  dcf_ast.date_string(utc_max)))
 
 # Check which items remain current
 data.reverse()
@@ -91,5 +91,5 @@ for item in data:
         current_flag = "+"
     else:
         current_flag = " "
-    print("  * %s [ID %s] %s -- %16s = %s" % (current_flag, item.id, dcf_ast.time_print(item.time),
+    print("  * %s [ID %s] %s -- %16s = %s" % (current_flag, item.id, dcf_ast.date_string(item.time),
                                               item.key, item.value))

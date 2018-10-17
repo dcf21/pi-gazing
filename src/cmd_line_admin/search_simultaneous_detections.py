@@ -156,7 +156,7 @@ print("%6d moving objects rejected because tagged as junk" % (len(triggers_raw['
 print("%6d simultaneous detections found." % (len(groups)))
 
 for item in groups:
-    print("%s -- %3d stations (time spread %.1f sec)" % (dcf_ast.time_print(item['time']),
+    print("%s -- %3d stations (time spread %.1f sec)" % (dcf_ast.date_string(item['time']),
                                                          len(item['obstory_list']),
                                                          item['time_spread']))
 
@@ -178,8 +178,8 @@ fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'triangulatio
 o.obsTime>=%s AND o.obsTime<=%s;
 """, (utc_min, utc_max))
 
-logger.info("Triangulating simultaneous object detections between <%s> and <%s>." % (dcf_ast.time_print(utc_min),
-                                                                                 dcf_ast.time_print(utc_max)))
+logger.info("Triangulating simultaneous object detections between <%s> and <%s>." % (dcf_ast.date_string(utc_min),
+                                                                                 dcf_ast.date_string(utc_max)))
 
 # Loop over list of simultaneous event detections
 for item in groups:
@@ -187,7 +187,7 @@ for item in groups:
     group = db.register_obsgroup(title="Multi-station detection", user_id="system", semantic_type=semantic_type,
                                  obs_time=item['time'], set_time=creation_time,
                                  obs=item['ids'])
-    logger.info("Simultaneous detection at %s by %3d stations (time spread %.1f sec)" % (dcf_ast.time_print(item['time']),
+    logger.info("Simultaneous detection at %s by %3d stations (time spread %.1f sec)" % (dcf_ast.date_string(item['time']),
                                                                                      len(item['obstory_list']),
                                                                                      item['time_spread']))
     logger.info("Observation IDs: %s" % item['ids'])
@@ -219,8 +219,8 @@ for item in groups:
         path = json.loads(path_json)
 
         # Look up size of image frame
-        size_x = obstory_status['sensor_width']
-        size_y = obstory_status['sensor_height']
+        size_x = obstory_status['camera_width']
+        size_y = obstory_status['camera_height']
         scale_x = obstory_status['orientation_width_x_field'] * pi / 180
         scale_y = obstory_status['orientation_width_y_field'] * pi / 180
         # scale_y = 2 * atan(tan(scale_x / 2) * size_y / size_x)

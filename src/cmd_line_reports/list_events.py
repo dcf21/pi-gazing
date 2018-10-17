@@ -79,8 +79,8 @@ triggers.sort(key=lambda x: x.obs_time)
 
 print("Observatory <%s>" % obstory_name)
 print("  * %d matching triggers in time range %s --> %s" % (len(triggers),
-                                                            dcf_ast.time_print(utc_min),
-                                                            dcf_ast.time_print(utc_max)))
+                                                            dcf_ast.date_string(utc_min),
+                                                            dcf_ast.date_string(utc_max)))
 for event in triggers:
     event_id = event.id
     duration = db.get_observation_metadata(event_id, "meteorpi:duration")
@@ -90,4 +90,4 @@ for event in triggers:
     if peak_amplitude is None:
         peak_amplitude = -1
     print("  * [ID %s] %s -- Duration %5.1f sec -- Peak amplitude %7.1f" % (event_id,
-        dcf_ast.time_print(event.obs_time), duration, peak_amplitude))
+        dcf_ast.date_string(event.obs_time), duration, peak_amplitude))

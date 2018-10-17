@@ -26,10 +26,16 @@ Checks for missing files, duplicate publicIds, etc
 """
 
 import os
-from meteorpi_helpers import settings_read
-from meteorpi_helpers.obsarchive import archive_db
 
-db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+from meteorpi_helpers.obsarchive import obsarchive_db
+from meteorpi_helpers.settings_read import settings, installation_info
+
+db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                       db_host=settings['mysqlHost'],
+                                       db_user=settings['mysqlUser'],
+                                       db_password=settings['mysqlPassword'],
+                                       db_name=settings['mysqlDatabase'],
+                                       obstory_id=installation_info['observatoryId'])
 sql = db.con
 
 # Check observation groups
@@ -39,7 +45,7 @@ seen_ids = {}
 for item in sql.fetchall():
     id = item['publicId']
     if id in seen_ids:
-        print("Observation groups: Duplicate ID <%s>" % id)
+        print("Observation groups: Duplicate ID <{}>".format(id))
     else:
         seen_ids[id] = True
 
@@ -50,7 +56,7 @@ seen_ids = {}
 for item in sql.fetchall():
     id = item['publicId']
     if id in seen_ids:
-        print("Observations: Duplicate ID <%s>" % id)
+        print("Observations: Duplicate ID <{}>".format(id))
     else:
         seen_ids[id] = True
 
@@ -61,7 +67,7 @@ seen_ids = {}
 for item in sql.fetchall():
     id = item['repositoryFname']
     if id in seen_ids:
-        print("Files: Duplicate ID <%s>" % id)
+        print("Files: Duplicate ID <{}>".format(id))
     else:
         seen_ids[id] = True
 
@@ -71,4 +77,4 @@ sql.execute("SELECT repositoryFname FROM archive_files;")
 for item in sql.fetchall():
     id = item['repositoryFname']
     if not os.path.exists(db.file_path_for_id(id)):
-        print("Files: Missing file ID <%s>" % id)
+        print("Files: Missing file ID <{}>".format(id))

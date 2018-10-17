@@ -79,8 +79,8 @@ files.sort(key=lambda x: x.file_time)
 
 print("Observatory <%s>" % obstory_name)
 print("  * %d matching files in time range %s --> %s" % (len(files),
-                                                         dcf_ast.time_print(utc_min),
-                                                         dcf_ast.time_print(utc_max)))
+                                                         dcf_ast.date_string(utc_min),
+                                                         dcf_ast.date_string(utc_max)))
 count = 1
 for file_item in files:
     count += 1

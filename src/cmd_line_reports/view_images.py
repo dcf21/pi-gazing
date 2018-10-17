@@ -84,8 +84,8 @@ files = files['files']
 files.sort(key=lambda x: x.file_time)
 
 print("  * %d matching files in time range %s --> %s" % (len(files),
-                                                         dcf_ast.time_print(utc_min),
-                                                         dcf_ast.time_print(utc_max)))
+                                                         dcf_ast.date_string(utc_min),
+                                                         dcf_ast.date_string(utc_max)))
 
 cmdLine = "qiv "
 

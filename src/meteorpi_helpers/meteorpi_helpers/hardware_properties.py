@@ -21,13 +21,17 @@
 # -------------------------------------------------
 
 import os
-import xml.etree.cElementTree as ElementTree
 
-from . import mod_xml
-from . import settings_read
+from .vendor import xmltodict
+from .settings_read import settings
 
 
-class Sensor:
+class Camera:
+    """
+    Class representing a particular model of camera which can be used with MeteorPi. This hold all of the metadata
+    associated with this particularly camera model.
+    """
+
     def __init__(self, name, width, height, fps, upside_down, camera_type):
         self.name = name
         self.width = width
@@ -37,11 +41,16 @@ class Sensor:
         self.camera_type = camera_type
 
     def __str__(self):
-        print("sensor(%s,%s,%s,%s,%s,%s)" % (
+        print("Camera(%s,%s,%s,%s,%s,%s)" % (
             self.name, self.width, self.height, self.fps, self.upside_down, self.camera_type))
 
 
 class Lens:
+    """
+    Class representing a particular model of lens which can be used with MeteorPi. This hold all of the metadata
+    associated with this particularly lens.
+    """
+
     def __init__(self, name, fov, barrel_a, barrel_b, barrel_c):
         self.name = name
         self.fov = fov
@@ -50,51 +59,109 @@ class Lens:
         self.barrel_c = barrel_c
 
     def __str__(self):
-        print("lens(%s,%s,%s,%s,%s)" % (self.name, self.fov, self.barrel_a, self.barrel_b, self.barrel_c))
+        print("Lens(%s,%s,%s,%s,%s)" % (self.name, self.fov, self.barrel_a, self.barrel_b, self.barrel_c))
 
 
 class HardwareProps:
+    """
+    Class used for holding a database of all of the cameras and lens that we have metadata for.
+    """
+
     def __init__(self, path):
-        sensors_data_path = os.path.join(path, "sensors.xml")
+        cameras_data_path = os.path.join(path, "cameras.xml")
         lenses_data_path = os.path.join(path, "lenses.xml")
-        assert os.path.exists(sensors_data_path), "Could not find sensor data in file <%s>" % sensors_data_path
-        assert os.path.exists(lenses_data_path), "Could not find lens data in file <%s>" % lenses_data_path
+        assert os.path.exists(cameras_data_path), "Could not find camera data in file <{}>".format(cameras_data_path)
+        assert os.path.exists(lenses_data_path), "Could not find lens data in file <{}>".format(lenses_data_path)
 
-        tree = ElementTree.parse(sensors_data_path)
-        root = tree.getroot()
-        sensor_xml = mod_xml.XmlListConfig(root)
+        camera_xml = xmltodict.parse(open(cameras_data_path, "rb"))['cameras']
 
-        self.sensor_data = {}
-        for d in sensor_xml:
-            self.sensor_data[d['name']] = Sensor(d['name'], int(d['width']), int(d['height']), float(d['fps']),
-                                                 int(d['upsidedown']), d['type'])
+        self.camera_data = {}
+        for d in camera_xml:
+            self.camera_data[d['name']] = Camera(d['name'], int(d['width']), int(d['height']), float(d['fps']),
+                                                 int(d['upside_down']), d['type'])
 
-        tree = ElementTree.parse(lenses_data_path)
-        root = tree.getroot()
-        lens_xml = mod_xml.XmlListConfig(root)
+        lens_xml = xmltodict.parse(open(lenses_data_path, "rb"))['lenses']
 
         self.lens_data = {}
         for d in lens_xml:
             self.lens_data[d['name']] = Lens(d['name'], float(d['fov']), float(d['barrel_a']), float(d['barrel_b']),
                                              float(d['barrel_c']))
 
-    def update_sensor(self, db, obstory_name, utc, name):
-        assert name in self.sensor_data, "Unknown sensor type <%s>" % name
-        x = self.sensor_data[name]
-        user = settings_read.settings['meteorpiUser']
-        db.register_obstory_metadata(obstory_name, "sensor", name, utc, user)
-        db.register_obstory_metadata(obstory_name, "sensor_width", x.width, utc, user)
-        db.register_obstory_metadata(obstory_name, "sensor_height", x.height, utc, user)
-        db.register_obstory_metadata(obstory_name, "sensor_fps", x.fps, utc, user)
-        db.register_obstory_metadata(obstory_name, "sensor_upside_down", x.upside_down, utc, user)
-        db.register_obstory_metadata(obstory_name, "sensor_camera_type", x.camera_type, utc, user)
+    def update_camera(self, db, obstory_id, utc, name):
+        """
+        Update the model of camera in use at a particular observatory.
 
-    def update_lens(self, db, obstory_name, utc, name):
-        assert name in self.lens_data, "Unknown lens type <%s>" % name
+        :param db:
+            A obsarchive_db object
+        :param obstory_id:
+            The string ID of the observatory to update
+        :param utc:
+            The unix time from which this change of camera is to be applied
+        :param name:
+            The name of the new camera being used
+        :return:
+            None
+        """
+        assert name in self.camera_data, "Unknown camera type <{}>".format(name)
+        x = self.camera_data[name]
+        user = settings['meteorpiUser']
+        db.register_obstory_metadata(obstory_id=obstory_id,
+                                     key="camera", value=name,
+                                     metadata_time=utc, user_created=user)
+
+        db.register_obstory_metadata(obstory_id=obstory_id,
+                                     key="camera_width", value=x.width,
+                                     metadata_time=utc, user_created=user)
+
+        db.register_obstory_metadata(obstory_id=obstory_id,
+                                     key="camera_height", value=x.height,
+                                     metadata_time=utc, user_created=user)
+
+        db.register_obstory_metadata(obstory_id=obstory_id,
+                                     key="camera_fps", value=x.fps,
+                                     metadata_time=utc, user_created=user)
+
+        db.register_obstory_metadata(obstory_id=obstory_id,
+                                     key="camera_upside_down", value=x.upside_down,
+                                     metadata_time=utc, user_created=user)
+
+        db.register_obstory_metadata(obstory_id=obstory_id,
+                                     key="camera_type", value=x.camera_type,
+                                     metadata_time=utc, user_created=user)
+
+    def update_lens(self, db, obstory_id, utc, name):
+        """
+        Update the model of lens in use at a particular observatory.
+
+        :param db:
+            A obsarchive_db object
+        :param obstory_id:
+            The string ID of the observatory to update
+        :param utc:
+            The unix time from which this change of camera is to be applied
+        :param name:
+            The name of the new lens being used
+        :return:
+            None
+        """
+
+        assert name in self.lens_data, "Unknown lens type <{}>".format(name)
         x = self.lens_data[name]
-        user = settings_read.settings['meteorpiUser']
-        db.register_obstory_metadata(obstory_name, "lens", name, utc, user)
-        db.register_obstory_metadata(obstory_name, "lens_fov", x.fov, utc, user)
-        db.register_obstory_metadata(obstory_name, "lens_barrel_a", x.barrel_a, utc, user)
-        db.register_obstory_metadata(obstory_name, "lens_barrel_b", x.barrel_b, utc, user)
-        db.register_obstory_metadata(obstory_name, "lens_barrel_c", x.barrel_c, utc, user)
+        user = settings['meteorpiUser']
+        db.register_obstory_metadata(obstory_id=obstory_id,
+                                     key="lens", value=name,
+                                     metadata_time=utc, user_created=user)
+        db.register_obstory_metadata(obstory_id=obstory_id,
+                                     key="lens_fov", value=x.fov, metadata_time=utc, user_created=user)
+
+        db.register_obstory_metadata(obstory_id=obstory_id,
+                                     key="lens_barrel_a", value=x.barrel_a,
+                                     metadata_time=utc, user_created=user)
+
+        db.register_obstory_metadata(obstory_id=obstory_id,
+                                     key="lens_barrel_b", value=x.barrel_b,
+                                     metadata_time=utc, user_created=user)
+
+        db.register_obstory_metadata(obstory_id=obstory_id,
+                                     key="lens_barrel_c", value=x.barrel_c,
+                                     metadata_time=utc, user_created=user)

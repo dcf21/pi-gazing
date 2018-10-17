@@ -41,7 +41,7 @@ if settings_read.settings['i_am_a_rpi']:
 obstory_id = installation_info.local_conf['observatoryId']
 
 db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
-hw = mod_hardwareProps.HardwareProps(os.path.join(settings_read.settings['pythonPath'], "..", "sensorProperties"))
+hw = mod_hardwareProps.HardwareProps(os.path.join(settings_read.settings['pythonPath'], "..", "cameraProperties"))
 
 logger.info("Camera controller launched")
 
@@ -139,16 +139,16 @@ else:
     obstory_name = db.get_obstory_from_id(obstory_id)['name']
     obstory_status = db.get_obstory_status(obstory_name=obstory_name)
 
-# If we don't have complete metadata regarding sensor / lens, ensure we have it now
+# If we don't have complete metadata regarding camera / lens, ensure we have it now
 if ((not isinstance(obstory_status, dict)) or
-        ('sensor' not in obstory_status) or
-        ('sensor_width' not in obstory_status) or
-        ('sensor_height' not in obstory_status) or
-        ('sensor_fps' not in obstory_status) or
-        ('sensor_upside_down' not in obstory_status) or
-        ('sensor_camera_type' not in obstory_status)):
-    logger.info("No sensor information found for '%s'. Using a default." % obstory_id)
-    hw.update_sensor(db=db, obstory_name=obstory_name, utc=0, name=installation_info.local_conf['defaultSensor'])
+        ('camera' not in obstory_status) or
+        ('camera_width' not in obstory_status) or
+        ('camera_height' not in obstory_status) or
+        ('camera_fps' not in obstory_status) or
+        ('camera_upside_down' not in obstory_status) or
+        ('camera_type' not in obstory_status)):
+    logger.info("No camera information found for '%s'. Using a default." % obstory_id)
+    hw.update_camera(db=db, obstory_id=obstory_name, utc=0, name=installation_info.local_conf['defaultCamera'])
 
 if ((not isinstance(obstory_status, dict)) or
         ('lens' not in obstory_status) or
@@ -157,7 +157,7 @@ if ((not isinstance(obstory_status, dict)) or
         ('lens_barrel_b' not in obstory_status) or
         ('lens_barrel_c' not in obstory_status)):
     logger.info("No lens information found for '%s'. Using a default." % obstory_id)
-    hw.update_lens(db=db, obstory_name=obstory_name, utc=0, name=installation_info.local_conf['defaultLens'])
+    hw.update_lens(db=db, obstory_id=obstory_name, utc=0, name=installation_info.local_conf['defaultLens'])
 
 obstory_status = db.get_obstory_status(obstory_name=obstory_name)
 
@@ -255,12 +255,12 @@ while True:
     sun_times_yesterday = dcf_ast.sun_times(unix_time=time_now - 3600 * 24, longitude=longitude, latitude=latitude)
     sun_times_today = dcf_ast.sun_times(unix_time=time_now, longitude=longitude, latitude=latitude)
     sun_times_tomorrow = dcf_ast.sun_times(unix_time=time_now + 3600 * 24, longitude=longitude, latitude=latitude)
-    logger.info("Sunrise at %s" % dcf_ast.time_print(sun_times_yesterday[0]))
-    logger.info("Sunset  at %s" % dcf_ast.time_print(sun_times_yesterday[2]))
-    logger.info("Sunrise at %s" % dcf_ast.time_print(sun_times_today[0]))
-    logger.info("Sunset  at %s" % dcf_ast.time_print(sun_times_today[2]))
-    logger.info("Sunrise at %s" % dcf_ast.time_print(sun_times_tomorrow[0]))
-    logger.info("Sunset  at %s" % dcf_ast.time_print(sun_times_tomorrow[2]))
+    logger.info("Sunrise at %s" % dcf_ast.date_string(sun_times_yesterday[0]))
+    logger.info("Sunset  at %s" % dcf_ast.date_string(sun_times_yesterday[2]))
+    logger.info("Sunrise at %s" % dcf_ast.date_string(sun_times_today[0]))
+    logger.info("Sunset  at %s" % dcf_ast.date_string(sun_times_today[2]))
+    logger.info("Sunrise at %s" % dcf_ast.date_string(sun_times_tomorrow[0]))
+    logger.info("Sunset  at %s" % dcf_ast.date_string(sun_times_tomorrow[2]))
 
     sun_margin = settings_read.settings['sunMargin']
 
@@ -310,7 +310,7 @@ while True:
         # Depending on settings, we either monitor video in real time, or we record raw video to analyse later
         if settings_read.settings['realTime']:
             t_stop = time_now + observing_duration
-            logger.info("Starting observing run until %s (running for %d seconds)." % (dcf_ast.time_print(t_stop),
+            logger.info("Starting observing run until %s (running for %d seconds)." % (dcf_ast.date_string(t_stop),
                                                                                    observing_duration))
 
             # Flick the relay to turn the camera on
@@ -323,13 +323,13 @@ while True:
             # or a DSLR connected via gphoto2
             time_key = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
             binary = "%s/debug/realtimeObserve" % settings_read.settings['binaryPath']
-            if obstory_status["sensor_camera_type"] == "gphoto2":
+            if obstory_status["camera_type"] == "gphoto2":
                 binary += "_dslr"
             cmd = "%s %.1f %.1f %.1f \"%s\" \"%s\" %d %d %s %s %s %s %d %d %s/rawvideo/%s_%s" % (
                 binary, get_utc_offset(), time_now, t_stop, obstory_id, settings_read.settings['videoDev'],
-                obstory_status['sensor_width'], obstory_status['sensor_height'],
-                obstory_status['sensor_fps'], mask_file, latitude, longitude, flag_gps,
-                obstory_status['sensor_upside_down'], settings_read.settings['dataPath'], time_key,
+                obstory_status['camera_width'], obstory_status['camera_height'],
+                obstory_status['camera_fps'], mask_file, latitude, longitude, flag_gps,
+                obstory_status['camera_upside_down'], settings_read.settings['dataPath'], time_key,
                 obstory_id)
             logger.info("Running command: %s" % cmd)
             os.system(cmd)
@@ -351,7 +351,7 @@ while True:
             observing_duration = min(observing_duration, settings_read.settings['videoMaxRecordTime'])
 
             t_stop = time_now + observing_duration
-            logger.info("Starting video recording until %s (running for %d seconds)." % (dcf_ast.time_print(t_stop),
+            logger.info("Starting video recording until %s (running for %d seconds)." % (dcf_ast.date_string(t_stop),
                                                                                      observing_duration))
 
             # Flick the relay to turn the camera on
@@ -366,9 +366,9 @@ while True:
                    % (
                        observing_duration + 30, settings_read.settings['binaryPath'], get_utc_offset(), time_now, t_stop,
                        obstory_id, settings_read.settings['videoDev'],
-                       obstory_status['sensor_width'], obstory_status['sensor_height'],
-                       obstory_status['sensor_fps'], latitude, longitude, flag_gps,
-                       obstory_status['sensor_upside_down'], settings_read.settings['dataPath'], time_key, obstory_id))
+                       obstory_status['camera_width'], obstory_status['camera_height'],
+                       obstory_status['camera_fps'], latitude, longitude, flag_gps,
+                       obstory_status['camera_upside_down'], settings_read.settings['dataPath'], time_key, obstory_id))
             # Use timeout here, because sometime the RPi's openmax encoder hangs...
             logger.info("Running command: %s" % cmd)
             os.system(cmd)
@@ -387,7 +387,7 @@ while True:
     # Do daytimejobs on a RPi only if we are doing real-time observation
     if (next_observing_time > 3600) and (settings_read.settings['realTime'] or not settings_read.settings['i_am_a_rpi']):
         t_stop = time_now + next_observing_time
-        logger.info("Starting daytime jobs until %s (running for %d seconds)." % (dcf_ast.time_print(t_stop),
+        logger.info("Starting daytime jobs until %s (running for %d seconds)." % (dcf_ast.date_string(t_stop),
                                                                               next_observing_time))
         time.sleep(300)
         logger.info("Finished snoozing.")

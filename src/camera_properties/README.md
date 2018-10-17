@@ -1,4 +1,4 @@
-This directory contains two XML files which contain the default properties of each of the lenses and sensors (i.e. models of camera) that we use.
+This directory contains two XML files which contain the default properties of each of the lenses and cameras that we use.
 
 These settings are copied into an observatory's local metadata, and can be overridden on a camera-by-camera basis.
 
