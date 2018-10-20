@@ -27,13 +27,16 @@ of files, day by day
 """
 
 import sys
-
-from meteorpi_helpers import settings_read
 from meteorpi_helpers import dcf_ast
+from meteorpi_helpers.obsarchive import obsarchive_db
+from meteorpi_helpers.settings_read import settings, installation_info
 
-import meteorpi_db
-
-db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                       db_host=settings['mysqlHost'],
+                                       db_user=settings['mysqlUser'],
+                                       db_password=settings['mysqlPassword'],
+                                       db_name=settings['mysqlDatabase'],
+                                       obstory_id=installation_info['observatoryId'])
 
 file_census = {}
 

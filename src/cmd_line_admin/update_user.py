@@ -27,13 +27,24 @@ This script is used to add users to the web interface
 It is useful to run this after <sql/rebuild.sh>
 """
 
+import argparse
 import sys
 
-from meteorpi_helpers.obsarchive import archive_db
+from meteorpi_helpers.obsarchive import obsarchive_db
+from meteorpi_helpers.settings_read import settings, installation_info
 
-from meteorpi_helpers import settings_read
+db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                       db_host=settings['mysqlHost'],
+                                       db_user=settings['mysqlUser'],
+                                       db_password=settings['mysqlPassword'],
+                                       db_name=settings['mysqlDatabase'],
+                                       obstory_id=installation_info['observatoryId'])
 
-db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+# Read input parameters
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--user', dest='user', default=None,
+                    help="The user account to update")
+args = parser.parse_args()
 
 # List all current user accounts
 print("Current web interface accounts")
@@ -43,14 +54,9 @@ for user in users:
     print("%20s -- roles: %s" % (user.user_id, " ".join(user.roles)))
 print("\n")
 
-# Select user to update
-default_user_id = "admin"
-if len(sys.argv) > 1:
-    user_id = sys.argv[1]
-else:
-    user_id = input('Select userId to update <default %s>: ' % default_user_id)
-if not user_id:
-    user_id = default_user_id
+# If no user account specified to update, stop now
+if args.user is None:
+    sys.exit(0)
 
 # Enter password
 password = input('Enter password: ')
@@ -61,7 +67,8 @@ roles = input('Enter roles <default %s>: ' % defaultRoles).split()
 if not roles:
     roles = defaultRoles.split()
 
-db.create_or_update_user(user_id=user_id.strip(), password=password.strip(), roles=roles)
+db.create_or_update_user(username=args.userstrip(), password=password.strip(), roles=roles,
+                         name=None, job=None, email=None, join_date=None, profile_pic=None, profile_text=None)
 
 # Commit changes to database
 db.commit()

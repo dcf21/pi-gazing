@@ -22,20 +22,25 @@
 # -------------------------------------------------
 
 """
-Use qiv (the quick image viewer; needs to be installed) to display the still (timelapse) images recorded by an
+Use qiv (the quick image viewer; needs to be installed) to display the still (time-lapse) images recorded by an
 observatory between specified start and end times
 """
 
 import os
 import sys
 import time
-
-import meteorpi_db
-import meteorpi_model as mp
+import argparse
 
 from meteorpi_helpers import dcf_ast
-from meteorpi_helpers import settings_read
-import installation_info
+from meteorpi_helpers.obsarchive import obsarchive_db
+from meteorpi_helpers.settings_read import settings, installation_info
+
+db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                       db_host=settings['mysqlHost'],
+                                       db_user=settings['mysqlUser'],
+                                       db_password=settings['mysqlPassword'],
+                                       db_name=settings['mysqlDatabase'],
+                                       obstory_id=installation_info['observatoryId'])
 
 pid = os.getpid()
 tmp = os.path.join("/tmp", "dcf_viewImages_%d" % pid)

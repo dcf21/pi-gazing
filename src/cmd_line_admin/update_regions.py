@@ -33,28 +33,34 @@ observatory should search for moving objects. This is a bit fiddly to do through
 may want to use the web interface instead.
 """
 
-import sys
+import argparse
 import json
 
-from meteorpi_helpers.obsarchive import archive_model as mp
-from meteorpi_helpers.obsarchive import archive_db
+from meteorpi_helpers.obsarchive import obsarchive_db
+from meteorpi_helpers.settings_read import settings, installation_info
 
-from meteorpi_helpers import settings_read
+db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                       db_host=settings['mysqlHost'],
+                                       db_user=settings['mysqlUser'],
+                                       db_password=settings['mysqlPassword'],
+                                       db_name=settings['mysqlDatabase'],
+                                       obstory_id=installation_info['observatoryId'])
 
-db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
-
-
-def fetch_option(title, key, indict, default, argv_index):
-    if key in indict:
-        default = indict[key]
-    if (argv_index > 0) and (len(sys.argv) > argv_index):
-        value = sys.argv[argv_index]
-    else:
-        value = input('Set %s <default %s>: ' % (title, default))
-    if not value:
-        value = default
-    return value
-
+# Read arguments
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--obstory-id',
+                    help="Observatory ID code",
+                    dest="obstory_id",
+                    default=installation_info['observatoryId'])
+parser.add_argument('--metadata_time',
+                    help="Unix time stamp for update",
+                    dest="metadata_time", type=float,
+                    default=None)
+parser.add_argument('--lens',
+                    help="Name of new lens",
+                    dest="lens",
+                    default=None)
+args = parser.parse_args()
 
 # List current observatory statuses
 print("Current observatory statuses")
@@ -62,27 +68,12 @@ print("----------------------------")
 obstory_list = db.get_obstory_names()
 for obstory in obstory_list:
     print("%s\n" % obstory)
-    status = db.get_obstory_status(obstory_name=obstory)
+    status = db.get_obstory_status(obstory_id=obstory)
     for item in status:
-        print("  * %s = %s\n" % (item, status[item]))
+        print("  * {} = {}\n".format(item, status[item]))
     print("\n")
 
-# Select observatory status to update
-obstory = fetch_option(title="observatory to update",
-                       key="_",
-                       indict={},
-                       default=installation_info.local_conf['observatoryName'],
-                       argv_index=1)
-
-assert obstory in obstory_list, "Observatory does not exist!"
-
-# Find out time that metadata update should be applied to
-metadata_time = fetch_option(title="time stamp for update",
-                             key="_",
-                             indict={},
-                             default=mp.now(),
-                             argv_index=2)
-metadata_time = float(metadata_time)
+assert args.obstory_id in obstory_list, "Observatory does not exist!"
 
 # Read user-specified clipping region
 print("Enter new clipping region. Specify one white-space separated x y coordinate on each line.")
@@ -103,11 +94,11 @@ while 1:
             break
         point_list = []
 
-db.register_obstory_metadata(obstory_name=obstory,
+db.register_obstory_metadata(obstory_id=args.obstory_id,
                              key="clippingRegion",
                              value=json.dumps(regions),
-                             metadata_time=metadata_time,
-                             time_created=mp.now(),
+                             metadata_time=args.metadata_time,
+                             time_created=time.time(),
                              user_created="system")
 
 # Commit changes to database

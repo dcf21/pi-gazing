@@ -29,13 +29,18 @@ This is displayed as a table which can subsequently be plotted as a graph using,
 import sys
 import time
 import math
-
-import meteorpi_db
-import meteorpi_model as mp
+import argparse
 
 from meteorpi_helpers import dcf_ast
-from meteorpi_helpers import settings_read
-import installation_info
+from meteorpi_helpers.obsarchive import obsarchive_db
+from meteorpi_helpers.settings_read import settings, installation_info
+
+db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                       db_host=settings['mysqlHost'],
+                                       db_user=settings['mysqlUser'],
+                                       db_password=settings['mysqlPassword'],
+                                       db_name=settings['mysqlDatabase'],
+                                       obstory_id=installation_info['observatoryId'])
 
 utc_min = time.time() - 3600 * 24
 utc_max = time.time()

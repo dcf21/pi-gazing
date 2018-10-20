@@ -28,6 +28,6 @@ You shouldn't normally need to do this, as the camera is automatically turned on
 observing each day. However you may want to run this when you are testing the camera.
 """
 
-import mod_relay
+from meteorpi_helpers.relay_control import camera_off
 
-mod_relay.camera_off()
+camera_off()

@@ -25,10 +25,15 @@
 Checks for missing files, duplicate publicIds, etc
 """
 
-import meteorpi_db
-from meteorpi_helpers import settings_read
+from meteorpi_helpers.obsarchive import obsarchive_db
+from meteorpi_helpers.settings_read import settings, installation_info
 
-db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                       db_host=settings['mysqlHost'],
+                                       db_user=settings['mysqlUser'],
+                                       db_password=settings['mysqlPassword'],
+                                       db_name=settings['mysqlDatabase'],
+                                       obstory_id=installation_info['observatoryId'])
 sql = db.con
 
 sql.execute("SELECT * FROM archive_exportConfig;")

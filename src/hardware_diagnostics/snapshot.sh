@@ -10,4 +10,4 @@
 
 # In this example, the snapshot would be saved to tmp.png, and would be an average of 500 video frames
 
-../observatoryControl/videoAnalysis/bin/snapshot $1 $2
+../observing/bin/snapshot $1 $2

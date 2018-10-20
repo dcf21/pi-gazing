@@ -27,13 +27,13 @@ This script is used to manually set up metadata about an observatory in the data
 It is useful to run this after <sql/rebuild.sh> to specify the lens, camera, etc being used.
 """
 
+import argparse
 import os
 import sys
-import argparse
+import time
 
 from meteorpi_helpers import hardware_properties
 from meteorpi_helpers.obsarchive import obsarchive_db
-from meteorpi_helpers.obsarchive import obsarchive_model as mp
 from meteorpi_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
@@ -47,32 +47,32 @@ hw = hardware_properties.HardwareProps(os.path.join(settings['pythonPath'], ".."
 
 # Read arguments
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--obstory',
-                    help="observatory to update",
-                    dest="obstory",
+parser.add_argument('--obstory-name',
+                    help="Name of the observatory",
+                    dest="obstory_name",
                     default=None)
-parser.add_argument('--obstory_id',
-                    help="observatory ID code",
+parser.add_argument('--obstory-id',
+                    help="Observatory ID code",
                     dest="obstory_id",
                     default=None)
 parser.add_argument('--latitude',
-                    help="latitude",
+                    help="Latitude",
                     dest="latitude", type=float,
                     default=None)
 parser.add_argument('--longitude',
-                    help="longitude",
+                    help="Longitude",
                     dest="longitude", type=float,
                     default=None)
 parser.add_argument('--metadata_time',
-                    help="unix time stamp for update",
+                    help="Unix time stamp for update",
                     dest="metadata_time", type=float,
                     default=None)
 parser.add_argument('--camera',
-                    help="new camera",
+                    help="New camera model",
                     dest="camera",
                     default=None)
 parser.add_argument('--lens',
-                    help="new lens",
+                    help="Name of new lens",
                     dest="lens",
                     default=None)
 args = parser.parse_args()
@@ -113,7 +113,7 @@ if args.obstory_id not in obstory_list:
     if args.camera is None:
         args.camera = installation_info['defaultCamera']
     if args.lens is None:
-        args.lens =    installation_info['defaultLens']
+        args.lens = installation_info['defaultLens']
 
     # Create new observatory
     db.register_obstory(obstory_id=args.obstory_id,
@@ -126,20 +126,20 @@ if args.obstory_id not in obstory_list:
     db.register_obstory_metadata(obstory_id=args.obstory_id,
                                  key="latitude",
                                  value=args.latitude,
-                                 metadata_time=mp.now(),
-                                 time_created=mp.now(),
+                                 metadata_time=time.time(),
+                                 time_created=time.time(),
                                  user_created=settings['meteorpiUser'])
     db.register_obstory_metadata(obstory_id=args.obstory_id,
                                  key="longitude",
                                  value=args.longitude,
-                                 metadata_time=mp.now(),
-                                 time_created=mp.now(),
+                                 metadata_time=time.time(),
+                                 time_created=time.time(),
                                  user_created=settings['meteorpiUser'])
     db.register_obstory_metadata(obstory_id=args.obstory_id,
                                  key="location_source",
                                  value="manual",
-                                 metadata_time=mp.now(),
-                                 time_created=mp.now(),
+                                 metadata_time=time.time(),
+                                 time_created=time.time(),
                                  user_created=settings['meteorpiUser'])
     # Newly created observatory has no metadata
     obstory_status = {}
@@ -149,7 +149,7 @@ else:
 
 # Find out time that metadata update should be applied to
 if args.metadata_time is None:
-    args.metadata_time = mp.now()
+    args.metadata_time = time.time()
 metadata_time = float(args.metadata_time)
 
 # Register software version in use
@@ -157,7 +157,7 @@ db.register_obstory_metadata(obstory_id=args.obstory_id,
                              key="softwareVersion",
                              value=settings['softwareVersion'],
                              metadata_time=metadata_time,
-                             time_created=mp.now(),
+                             time_created=time.time(),
                              user_created=settings['meteorpiUser'])
 
 # Offer user options to update metadata
