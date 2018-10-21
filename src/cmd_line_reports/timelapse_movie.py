@@ -25,11 +25,13 @@
 Make a timelapse video of still images recorded between specified start and end times
 """
 
+import argparse
 import os
 import sys
 import time
-import argparse
+
 from meteorpi_helpers.obsarchive import obsarchive_db
+from meteorpi_helpers.obsarchive import obsarchive_model as mp
 from meteorpi_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
@@ -39,68 +41,60 @@ db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                        db_name=settings['mysqlDatabase'],
                                        obstory_id=installation_info['observatoryId'])
 
+# Read input parameters
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--t-min', dest='utc_min', default=time.time() - 3600 * 24,
+                    type=float,
+                    help="Only list events seen after the specified unix time")
+parser.add_argument('--t-max', dest='utc_max', default=time.time(),
+                    type=float,
+                    help="Only list events seen before the specified unix time")
+parser.add_argument('--observatory', dest='obstory_id', default=installation_info.local_conf['observatoryId'],
+                    help="ID of the observatory we are to list events from")
+parser.add_argument('--label', dest='label', default="",
+                    help="Label to put at the bottom of each frame of the video")
+parser.add_argument('--img-type', dest='img_type', default="meteorpi:timelapse/frame/bgrdSub/lensCorr",
+                    help="The type of image to list")
+parser.add_argument('--stride', dest='stride', default=1, type=int,
+                    help="Only show every nth item, to reduce output")
+args = parser.parse_args()
+
+print("# ./timelapse_movie.py {} {} \"{}\" \"{}\" \"{}\" {}\n".
+      format(args.utc_min, args.utc_max, args.obstory_id, args.label, args.img_type, args.stride))
+
 pid = os.getpid()
 tmp = os.path.join("/tmp", "dcf_movieImages_%d" % pid)
 os.system("mkdir -p %s" % tmp)
 
-utc_min = time.time() - 3600 * 24
-utc_max = time.time()
-obstory_name = installation_info.local_conf['observatoryName']
-label = ""
-img_type = "meteorpi:timelapse/frame/bgrdSub/lensCorr"
-stride = 1
-
-if len(sys.argv) > 1:
-    utc_min = float(sys.argv[1])
-if len(sys.argv) > 2:
-    utc_max = float(sys.argv[2])
-if len(sys.argv) > 3:
-    obstory_name = sys.argv[3]
-if len(sys.argv) > 4:
-    label = sys.argv[4]
-if len(sys.argv) > 5:
-    img_type = sys.argv[5]
-if len(sys.argv) > 6:
-    stride = int(sys.argv[6])
-
-if utc_max == 0:
-    utc_max = time.time()
-
-print("# ./timelapseMovie.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utc_min, utc_max, obstory_name,
-                                                                 label, img_type, stride))
-
-db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
-
 try:
-    obstory_info = db.get_obstory_from_name(obstory_name=obstory_name)
+    obstory_info = db.get_obstory_from_id(obstory_id=args.obstory_id)
 except ValueError:
-    print("Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
-          obstory_name)
+    print("Unknown observatory <{}>. Run ./list_observatories.py to see a list of available observatories.".
+          format(args.obstory_id))
     sys.exit(0)
 
 obstory_id = obstory_info['publicId']
 
-search = mp.FileRecordSearch(obstory_ids=[obstory_id], semantic_type=img_type,
-                             time_min=utc_min, time_max=utc_max, limit=1000000)
+search = mp.FileRecordSearch(obstory_ids=[obstory_id], semantic_type=args.img_type,
+                             time_min=args.utc_min, time_max=args.utc_max, limit=1000000)
 files = db.search_files(search)
 files = files['files']
 files.sort(key=lambda x: x.file_time)
 
-print("Found %d images between time <%s> and <%s> from observatory <%s>" % (len(files), utc_min, utc_max, obstory_name))
+print("Found {:d} images between time <{}> and <{}> from observatory <{}>".
+      format(len(files), args.utc_min, args.utc_max, args.obstory_id))
 
-filename_format = os.path.join(tmp, "frame_%d_%%08d.jpg" % pid)
+filename_format = os.path.join(tmp, "frame_{:d}_{{:08d}}.jpg".format(pid))
 
 img_num = 1
-count = 1
-for file_item in files:
-    count += 1
-    if not (count % stride == 0):
+for count, file_item in enumerate(files):
+    if not (count % args.stride == 0):
         continue
     utc = file_item.file_time
-    os.system("convert %s -gravity SouthEast -fill ForestGreen -pointsize 20 -font Ubuntu-Bold "
-              "-annotate +16+10 '%s %s' %s""" % (db.file_path_for_id(file_item.id), label,
-                                                 time.strftime("%d %b %Y %H:%M", time.gmtime(utc)),
-                                                 filename_format % img_num))
+    os.system("convert {} -gravity SouthEast -fill ForestGreen -pointsize 20 -font Ubuntu-Bold "
+              "-annotate +16+10 '{} {}' {}""".format(db.file_path_for_id(file_item.id), args.label,
+                                                     time.strftime("%d %b %Y %H:%M", time.gmtime(utc)),
+                                                     filename_format.format(img_num)))
     img_num += 1
 
-os.system("avconv -r 40 -i %s -codec:v libx264 %s" % (filename_format, os.path.join(tmp, "timelapse.mp4")))
+os.system("avconv -r 40 -i {} -codec:v libx264 {}".format(filename_format, os.path.join(tmp, "timelapse.mp4")))

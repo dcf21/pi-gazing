@@ -55,8 +55,8 @@ parser.add_argument('--stride', dest='stride', default=1, type=int,
                     help="Only show every nth item, to reduce output")
 args = parser.parse_args()
 
-print("# ./list_events.py {} {} \"{}\" \"{}\" \"{}\" {}\n".
-      format(args.utc_min, args.utc_max, args.obstory_id, args.label, args.img_type, args.stride))
+print("# ./list_events.py {} {} \"{}\" \"{}\" {}\n".
+      format(args.utc_min, args.utc_max, args.obstory_id, args.img_type, args.stride))
 
 try:
     obstory_info = db.get_obstory_from_id(obstory_id=args.obstory_id)

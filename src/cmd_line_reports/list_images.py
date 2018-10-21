@@ -51,16 +51,14 @@ parser.add_argument('--t-max', dest='utc_max', default=time.time(),
                     help="Only list events seen before the specified unix time")
 parser.add_argument('--observatory', dest='obstory_id', default=installation_info.local_conf['observatoryId'],
                     help="ID of the observatory we are to list events from")
-parser.add_argument('--label', dest='label', default="",
-                    help="label")
-parser.add_argument('--img-type', dest='img_type', default="",
+parser.add_argument('--img-type', dest='img_type', default="meteorpi:timelapse/frame/bgrdSub/lensCorr",
                     help="The type of image to list")
 parser.add_argument('--stride', dest='stride', default=1, type=int,
                     help="Only show every nth item, to reduce output")
 args = parser.parse_args()
 
-print("# ./list_images.py {} {} \"{}\" \"{}\" \"{}\" {}\n".
-      format(args.utc_min, args.utc_max, args.obstory_id, args.label, args.img_type, args.stride))
+print("# ./list_images.py {} {} \"{}\" \"{}\" {}\n".
+      format(args.utc_min, args.utc_max, args.obstory_id, args.img_type, args.stride))
 
 try:
     obstory_info = db.get_obstory_from_id(obstory_id=args.obstory_id)
