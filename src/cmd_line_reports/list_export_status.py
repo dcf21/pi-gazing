@@ -22,7 +22,7 @@
 # -------------------------------------------------
 
 """
-Checks for missing files, duplicate publicIds, etc
+List the status of exporting data to external servers
 """
 
 from meteorpi_helpers.obsarchive import obsarchive_db
@@ -40,27 +40,31 @@ sql.execute("SELECT * FROM archive_exportConfig;")
 export_configs = sql.fetchall()
 
 for config in export_configs:
-    print("\n%s\n%s\n\n" % (config['exportName'], "-" * len(config['exportName'])))
+    print("\n{}\n{}\n\n".format(config['exportName'], "-" * len(config['exportName'])))
 
-    if (config['active']):
+    if config['active']:
         print("  * Active")
     else:
         print("  * Disabled")
     n_total = n_pending = -1
-    if (config['exportType'] == "metadata"):
+
+    if config['exportType'] == "metadata":
         sql.execute("SELECT COUNT(*) FROM archive_metadataExport;")
         n_total = sql.fetchall()[0]['COUNT(*)']
         sql.execute("SELECT COUNT(*) FROM archive_metadataExport WHERE exportState>0;")
         n_pending = sql.fetchall()[0]['COUNT(*)']
-    elif (config['exportType'] == "observation"):
+
+    elif config['exportType'] == "observation":
         sql.execute("SELECT COUNT(*) FROM archive_observationExport;")
         n_total = sql.fetchall()[0]['COUNT(*)']
         sql.execute("SELECT COUNT(*) FROM archive_observationExport WHERE exportState>0;")
         n_pending = sql.fetchall()[0]['COUNT(*)']
-    elif (config['exportType'] == "file"):
+
+    elif config['exportType'] == "file":
         sql.execute("SELECT COUNT(*) FROM archive_fileExport;")
         n_total = sql.fetchall()[0]['COUNT(*)']
         sql.execute("SELECT COUNT(*) FROM archive_fileExport WHERE exportState>0;")
         n_pending = sql.fetchall()[0]['COUNT(*)']
-    print("  * %9d jobs in export table" % n_total)
-    print("  * %9d jobs still to be done" % n_pending)
+
+    print("  * {:9d} jobs in export table".format(n_total))
+    print("  * {:9d} jobs still to be done".format(n_pending))

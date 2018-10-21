@@ -35,6 +35,7 @@ may want to use the web interface instead.
 
 import argparse
 import json
+import time
 
 from meteorpi_helpers.obsarchive import obsarchive_db
 from meteorpi_helpers.settings_read import settings, installation_info
@@ -56,43 +57,46 @@ parser.add_argument('--metadata_time',
                     help="Unix time stamp for update",
                     dest="metadata_time", type=float,
                     default=None)
-parser.add_argument('--lens',
-                    help="Name of new lens",
-                    dest="lens",
+parser.add_argument('--vertices',
+                    help="A JSON-encoded list of vertices of the clipping region we should set",
+                    dest="vertices",
                     default=None)
 args = parser.parse_args()
 
 # List current observatory statuses
 print("Current observatory statuses")
 print("----------------------------")
-obstory_list = db.get_obstory_names()
-for obstory in obstory_list:
-    print("%s\n" % obstory)
-    status = db.get_obstory_status(obstory_id=obstory)
+obstory_id_list = db.get_obstory_ids()
+for obstory_id in obstory_id_list:
+    print("{}\n".format(obstory_id))
+    status = db.get_obstory_status(obstory_id=obstory_id)
     for item in status:
         print("  * {} = {}\n".format(item, status[item]))
     print("\n")
 
-assert args.obstory_id in obstory_list, "Observatory does not exist!"
+assert args.obstory_id in obstory_id_list, "Observatory does not exist!"
 
 # Read user-specified clipping region
-print("Enter new clipping region. Specify one white-space separated x y coordinate on each line.")
-print("Leave a blank line to start a new region. Leave two blank lines to finish:")
-regions = []
-point_list = []
-while 1:
-    line = input()
-    words = line.split()
-    if len(words) == 2:
-        x = float(words[0])
-        y = float(words[1])
-        point_list.append([x, y])
-    else:
-        if len(point_list) > 1:
-            regions.append(point_list)
+if args.vertices is None:
+    print("Enter new clipping region. Specify one white-space separated x y coordinate on each line.")
+    print("Leave a blank line to start a new region. Leave two blank lines to finish:")
+    regions = []
+    point_list = []
+    while True:
+        line = input()
+        words = line.split()
+        if len(words) == 2:
+            x = float(words[0])
+            y = float(words[1])
+            point_list.append([x, y])
         else:
-            break
-        point_list = []
+            if len(point_list) > 1:
+                regions.append(point_list)
+            else:
+                break
+            point_list = []
+else:
+    regions = json.loads(args.vertices)
 
 db.register_obstory_metadata(obstory_id=args.obstory_id,
                              key="clippingRegion",

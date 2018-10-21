@@ -26,55 +26,59 @@ Search the database for moving objects seen at similar times by multiple observa
 objects to describe the simultaneous detections.
 """
 
+import argparse
+import json
+import logging
 import sys
 import time
-import json
-from math import tan, atan, pi
+from math import pi
+
 import scipy.optimize
-
-from meteorpi_helpers.obsarchive import archive_model as mp
-from meteorpi_helpers.obsarchive import archive_db
-
 from meteorpi_helpers import dcf_ast
 from meteorpi_helpers import gnomonic_project
-from meteorpi_helpers import settings_read
+from meteorpi_helpers import sunset_times
+from meteorpi_helpers.obsarchive import obsarchive_db
+from meteorpi_helpers.obsarchive import obsarchive_model as mp
+from meteorpi_helpers.settings_read import settings, installation_info
+from meteorpi_helpers.vector_algebra import Point, Vector, Line
 
+logging.basicConfig(level=logging.INFO,
+                    stream=sys.stdout,
+                    format='[%(asctime)s] %(levelname)s:%(filename)s:%(message)s',
+                    datefmt='%d/%m/%Y %H:%M:%S')
+logger = logging.getLogger(__name__)
+logger.info(__doc__.strip())
 
-def fetch_option(title, default):
-    value = input('Set %s <default %s>: ' % (title, default))
-    if not value:
-        value = default
-    return value
-
+db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                       db_host=settings['mysqlHost'],
+                                       db_user=settings['mysqlUser'],
+                                       db_password=settings['mysqlPassword'],
+                                       db_name=settings['mysqlDatabase'],
+                                       obstory_id=installation_info['observatoryId'])
 
 semantic_type = "simultaneous"
 
 # Fetch default search parameters
-db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--t-min', dest='utc_min', default=0,
+                    type=float,
+                    help="Only delete observations made after the specified unix time")
+parser.add_argument('--t-max', dest='utc_max', default=time.time(),
+                    type=float,
+                    help="Only delete observations made before the specified unix time")
+parser.add_argument('--observatory', dest='observatory', default=installation_info.local_conf['observatoryId'],
+                    help="ID of the observatory we are to delete observations from")
+args = parser.parse_args()
 
-obstory_hwm_name = "Cambridge-South-East"  # Association high water marks with this name
-
-utc_min = db.get_high_water_mark(mark_type="simultaneousDetectionSearch",
-                                 obstory_name=obstory_hwm_name)
-utc_max = time.time()
-creation_time = time.time()
-
-if utc_min is None:
-    utc_min = 0
-
-# Allow user to override search parameters
-utc_min = float(fetch_option("start time", utc_min))
-utc_max = float(fetch_option("stop time", utc_max))
-
-# Search for existing observation groups
+# Search for existing observation groups representing simultaneous events
 search = mp.ObservationGroupSearch(semantic_type=semantic_type,
-                                   time_min=utc_min, time_max=utc_max, limit=1000000)
+                                   time_min=args.utc_min, time_max=args.utc_max, limit=1000000)
 existing_groups = db.search_obsgroups(search)
 existing_groups = existing_groups['obsgroups']
 
 # Search for moving objects within time span
 search = mp.ObservationSearch(observation_type="movingObject",
-                              time_min=utc_min, time_max=utc_max, limit=1000000)
+                              time_min=args.utc_min, time_max=args.utc_max, limit=1000000)
 triggers_raw = db.search_observations(search)
 triggers = [x for x in triggers_raw['obs'] if db.get_observation_metadata(x.id, "web:category") != "Junk"]
 triggers.sort(key=lambda x: x.obs_time)
@@ -94,7 +98,7 @@ triggers_used = [False for i in range(len(triggers))]
 for i in range(len(triggers)):
     if triggers_used[i]:
         continue
-    obstory_list = [triggers[i].obstory_id]
+    obstory_id_list = [triggers[i].obstory_id]
     utc_min = triggers[i].obs_time
     utc_max = triggers[i].obs_time_end
     triggers_used[i] = True
@@ -106,36 +110,36 @@ for i in range(len(triggers)):
         for scan_direction in [-1, 1]:
             scan = i
             while ((scan >= 0) and (scan < len(triggers)) and (triggers[scan].obs_time_end > utc_min - 60) and
-                       (triggers[scan].obs_time < utc_max + 60)):
+                   (triggers[scan].obs_time < utc_max + 60)):
                 if not (triggers_used[scan] or (triggers[scan].obs_time > utc_max + 1)
                         or (triggers[scan].obs_time_end < utc_min - 1)):
                     group_members.append(scan)
                     utc_min = min(utc_min, triggers[scan].obs_time)
                     utc_max = max(utc_max, triggers[scan].obs_time_end)
-                    if triggers[scan].obstory_id not in obstory_list:
-                        obstory_list.append(triggers[scan].obstory_id)
+                    if triggers[scan].obstory_id not in obstory_id_list:
+                        obstory_id_list.append(triggers[scan].obstory_id)
                     triggers_used[scan] = True
                 scan += scan_direction
 
     # We have found a coincident detection if multiple observatories saw an event at the same time
-    if len(obstory_list) > 1:
+    if len(obstory_id_list) > 1:
         maximum_obstory_spacing = 0
 
         # Work out locations of all observatories which saw this event
         obstory_locs = []
-        for obstory_id in obstory_list:
+        for obstory_id in obstory_id_list:
             obstory_info = db.get_obstory_from_id(obstory_id)
-            obstory_loc = dcf_ast.Point.from_lat_lng(lat=obstory_info['latitude'],
-                                                       lng=obstory_info['longitude'],
-                                                       alt=0,
-                                                       utc=(utc_min + utc_max) / 2
-                                                       )
+            obstory_loc = Point.from_lat_lng(lat=obstory_info['latitude'],
+                                             lng=obstory_info['longitude'],
+                                             alt=0,
+                                             utc=(utc_min + utc_max) / 2
+                                             )
             obstory_locs.append(obstory_loc)
 
         # Check the distances between all pairs of observatories
         pairs = [[obstory_locs[i], obstory_locs[j]]
-                 for i in range(len(obstory_list))
-                 for j in range(i + 1, len(obstory_list))
+                 for i in range(len(obstory_id_list))
+                 for j in range(i + 1, len(obstory_id_list))
                  ]
 
         for pair in pairs:
@@ -145,25 +149,25 @@ for i in range(len(triggers)):
         # Reject event if it was not seen by any observatories more than 400 metres apart
         if maximum_obstory_spacing > 400:
             groups.append({'time': (utc_min + utc_max) / 2,
-                           'obstory_list': obstory_list,
+                           'obstory_list': obstory_id_list,
                            'time_spread': utc_max - utc_min,
                            'triggers': [{'obs': triggers[x]} for x in group_members],
                            'ids': [triggers[x].id for x in group_members]})
 
-print("%6d existing observation groups within this time period (will be deleted)." % (len(existing_groups)))
-print("%6d moving objects seen within this time period" % (len(triggers_raw['obs'])))
-print("%6d moving objects rejected because tagged as junk" % (len(triggers_raw['obs']) - len(triggers)))
-print("%6d simultaneous detections found." % (len(groups)))
+logger.info("{:6d} existing observation groups within this time period (will be deleted).".format(len(existing_groups)))
+logger.info("{:6d} moving objects seen within this time period".format(len(triggers_raw['obs'])))
+logger.info("{:6d} moving objects rejected because tagged as junk".format(len(triggers_raw['obs']) - len(triggers)))
+logger.info("{:6d} simultaneous detections found.".format(len(groups)))
 
 for item in groups:
-    print("%s -- %3d stations (time spread %.1f sec)" % (dcf_ast.date_string(item['time']),
-                                                         len(item['obstory_list']),
-                                                         item['time_spread']))
+    logger.info("{} -- {:3d} stations (time spread {:.1f} sec)".format(dcf_ast.date_string(item['time']),
+                                                                       len(item['obstory_list']),
+                                                                       item['time_spread']))
 
 # Get user confirmation to proceed
-confirm = input('Replace with newly found simultaneous detections? (Y/N) ')
-if confirm not in 'Yy':
-    sys.exit(0)
+# confirm = input('Replace with newly found simultaneous detections? (Y/N) ')
+# if confirm not in 'Yy':
+#     sys.exit(0)
 
 # Delete existing observation groups
 for item in existing_groups:
@@ -176,20 +180,22 @@ INNER JOIN archive_observations o ON m.observationId = o.uid
 WHERE
 fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'triangulation%%') AND
 o.obsTime>=%s AND o.obsTime<=%s;
-""", (utc_min, utc_max))
+""", (args.utc_min, args.utc_max))
 
-logger.info("Triangulating simultaneous object detections between <%s> and <%s>." % (dcf_ast.date_string(utc_min),
-                                                                                 dcf_ast.date_string(utc_max)))
+logger.info("Triangulating simultaneous object detections between <{}> and <{}>.".
+            format(dcf_ast.date_string(args.utc_min),
+                   dcf_ast.date_string(args.utc_max)))
 
 # Loop over list of simultaneous event detections
 for item in groups:
     # Create new observation group
     group = db.register_obsgroup(title="Multi-station detection", user_id="system", semantic_type=semantic_type,
-                                 obs_time=item['time'], set_time=creation_time,
+                                 obs_time=item['time'], set_time=time.time(),
                                  obs=item['ids'])
-    logger.info("Simultaneous detection at %s by %3d stations (time spread %.1f sec)" % (dcf_ast.date_string(item['time']),
-                                                                                     len(item['obstory_list']),
-                                                                                     item['time_spread']))
+    logger.info("Simultaneous detection at {} by {:3d} stations (time spread {:.1f} sec)".
+                format(dcf_ast.date_string(item['time']),
+                       len(item['obstory_list']),
+                       item['time_spread']))
     logger.info("Observation IDs: %s" % item['ids'])
 
     # We do all positional astronomy in the frame of the Earth geocentre.
@@ -205,13 +211,14 @@ for item in groups:
         # Look up information about observatory
         obs = trigger['obs']
         obstory_id = obs.obstory_id
-        obstory_name = db.get_obstory_from_id(obstory_id)['name']
-        obstory_status = db.get_obstory_status(time=group_time, obstory_name=obstory_name)
+        obstory_status = db.get_obstory_status(time=group_time, obstory_id=obstory_id)
         path_json = db.get_observation_metadata(obs.id, "meteorpi:pathBezier")
-        if ((path_json is None) or ('lens_barrel_a' not in obstory_status) or ('latitude' not in obstory_status) or
+        if ((path_json is None) or
+                ('lens_barrel_a' not in obstory_status) or
+                ('latitude' not in obstory_status) or
                 ('orientation_altitude' not in obstory_status)):
-            logger.info("Cannot use observation <%s> from <%s> because orientation unknown." % (obs.id,
-                                                                                            obstory_id))
+            logger.info("Cannot use observation <{}> from <{}> because orientation unknown.".format(obs.id,
+                                                                                                    obstory_id))
             continue
         bca = obstory_status['lens_barrel_a']
         bcb = obstory_status['lens_barrel_b']
@@ -235,17 +242,17 @@ for item in groups:
                 altitude = obstory_status['altitude']
             else:
                 altitude = 0
-            observatory_position = dcf_ast.Point.from_lat_lng(lat=obstory_status['latitude'],
-                                                                lng=obstory_status['longitude'],
-                                                                alt=altitude,
-                                                                utc=utc)
+            observatory_position = Point.from_lat_lng(lat=obstory_status['latitude'],
+                                                      lng=obstory_status['longitude'],
+                                                      alt=altitude,
+                                                      utc=utc)
 
             # Calculate the celestial coordinates of the centre of the frame
-            [ra0, dec0] = dcf_ast.ra_dec(alt=obstory_status['orientation_altitude'],
-                                           az=obstory_status['orientation_azimuth'],
-                                           utc=utc,
-                                           latitude=obstory_status['latitude'],
-                                           longitude=obstory_status['longitude'])
+            [ra0, dec0] = sunset_times.ra_dec(alt=obstory_status['orientation_altitude'],
+                                              az=obstory_status['orientation_azimuth'],
+                                              utc=utc,
+                                              latitude=obstory_status['latitude'],
+                                              longitude=obstory_status['longitude'])
             ra0_rad = ra0 * pi / 12  # Convert hours into radians
             dec0_rad = dec0 * pi / 180  # Convert degrees into radians
 
@@ -255,9 +262,9 @@ for item in groups:
             camera_tilt = obstory_status['orientation_pa']
 
             # Get celestial coordinates of the local zenith
-            ra_dec_zenith = dcf_ast.get_zenith_position(lat=obstory_status['latitude'],
-                                                          lng=obstory_status['longitude'],
-                                                          utc=utc)
+            ra_dec_zenith = sunset_times.get_zenith_position(lat=obstory_status['latitude'],
+                                                             lng=obstory_status['longitude'],
+                                                             utc=utc)
             ra_zenith = ra_dec_zenith['ra']
             dec_zenith = ra_dec_zenith['dec']
 
@@ -270,19 +277,20 @@ for item in groups:
 
             # Work out the RA and Dec of the point where the object was spotted
             [ra, dec] = gnomonic_project.inv_gnom_project(ra0=ra0_rad, dec0=dec0_rad,
-                                                      x=point[0], y=point[1],
-                                                      size_x=size_x, size_y=size_y,
-                                                      scale_x=scale_x, scale_y=scale_y,
-                                                      pos_ang=celestial_pa * pi / 180,
-                                                      bca=bca, bcb=bcb, bcc=bcc)
+                                                          x=point[0], y=point[1],
+                                                          size_x=size_x, size_y=size_y,
+                                                          scale_x=scale_x, scale_y=scale_y,
+                                                          pos_ang=celestial_pa * pi / 180,
+                                                          bca=bca, bcb=bcb, bcc=bcc)
             ra *= 12 / pi  # Convert RA into hours
             dec *= 180 / pi  # Convert Dec into degrees
 
             # Work out alt-az of reported (RA,Dec) using known location of camera. Fits returned in degrees.
-            alt_az = dcf_ast.alt_az(ra, dec, point[2], obstory_status['latitude'], obstory_status['longitude'])
+            alt_az = sunset_times.alt_az(ra=ra, dec=dec, utc=point[2],
+                                         latitude=obstory_status['latitude'], longitude=obstory_status['longitude'])
 
-            direction = dcf_ast.Vector.from_ra_dec(ra, dec)
-            sight_line = dcf_ast.Line(observatory_position, direction)
+            direction = Vector.from_ra_dec(ra, dec)
+            sight_line = Line(observatory_position, direction)
             sight_line_descriptor = {
                 'ra': ra,
                 'dec': dec,
@@ -295,31 +303,30 @@ for item in groups:
             sight_line_list.append(sight_line_descriptor)
             all_sight_lines.append(sight_line_descriptor)
 
-            logger.info("Observatory <%s> is pointing at (alt %.2f; az %.2f; tilt %.2f; PA %.2f) "
-                    "and (RA %.3f h; Dec %.2f deg). "
-                    "ScaleX = %.1f deg. ScaleY = %.1f deg." %
-                    (obstory_id,
-                     obstory_status['orientation_altitude'], obstory_status['orientation_azimuth'],
-                     celestial_pa, obstory_status['orientation_pa'],
-                     ra0, dec0,
-                     scale_x * 180 / pi, scale_y * 180 / pi))
-            logger.info("Observatory <%s> saw object at RA %.3f h; Dec %.3f deg, with sight line %s." %
-                    (obstory_id, ra, dec, sight_line))
+            logger.info("Observatory <{}> is pointing at (alt {:.2f}; az {:.2f}; tilt {:.2f}; PA {:.2f}) "
+                        "and (RA {:.3f} h; Dec {:.2f} deg). "
+                        "ScaleX = {:.1f} deg. ScaleY = {:.1f} deg.".
+                        format(obstory_id,
+                               obstory_status['orientation_altitude'], obstory_status['orientation_azimuth'],
+                               celestial_pa, obstory_status['orientation_pa'],
+                               ra0, dec0,
+                               scale_x * 180 / pi, scale_y * 180 / pi))
+            logger.info("Observatory <{}> saw object at RA {:.3f} h; Dec {:.3f} deg, with sight line {}.".
+                        format(obstory_id, ra, dec, sight_line))
 
         # Store calculated information about observation
         trigger['sight_line_list'] = sight_line_list
 
     # If we don't have fewer than six sight lines, don't bother trying to triangulate
     if len(all_sight_lines) < 6:
-        logger.info("Giving up triangulation as we only have %d sight lines to object." % (len(all_sight_lines)))
+        logger.info("Giving up triangulation as we only have {:d} sight lines to object.".format(len(all_sight_lines)))
         continue
 
-
-    # Work out the sum of square angular mismatches of sightlines to a test trajectory
+    # Work out the sum of square angular mismatches of sight lines to a test trajectory
     def line_from_parameters(p):
-        x0 = dcf_ast.Point(p[0] * 1000, p[1] * 1000, 0)
-        d = dcf_ast.Vector.from_ra_dec(p[2], p[3])
-        trajectory = dcf_ast.Line(x0=x0, direction=d)
+        x0 = Point(p[0] * 1000, p[1] * 1000, 0)
+        d = Vector.from_ra_dec(p[2], p[3])
+        trajectory = Line(x0=x0, direction=d)
         return trajectory
 
 
@@ -340,8 +347,8 @@ for item in groups:
     logger.info("Best fit path of object through space is %s." % best_triangulation)
 
     logger.info("Mismatch of observed sight lines from trajectory are %s deg." %
-            (["%.1f" % best_triangulation.find_closest_approach(s['line'])['angular_distance']
-              for s in all_sight_lines]))
+                (["%.1f" % best_triangulation.find_closest_approach(s['line'])['angular_distance']
+                  for s in all_sight_lines]))
 
     maximum_mismatch = max([best_triangulation.find_closest_approach(s['line'])['angular_distance']
                             for s in all_sight_lines])
@@ -410,12 +417,7 @@ for item in groups:
             meta_item = mp.Meta("triangulation", json.dumps(triangulation_info))
             db.set_observation_metadata(observation_id=trigger['obs'].id,
                                         meta=meta_item,
-                                        user_id=settings_read.settings['meteorpiUser'])
-
-# Set high water mark
-db.set_high_water_mark(mark_type="simultaneousDetectionSearch",
-                       obstory_name=obstory_hwm_name,
-                       time=utc_max)
+                                        user_id=settings['meteorpiUser'])
 
 # Commit changes
 db.commit()

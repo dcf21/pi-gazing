@@ -22,14 +22,16 @@
 # -------------------------------------------------
 
 """
-Lists all of the still (timelapse) images recorded by an observatory between specified start and end times
+Lists all of the still (time-lapse) images recorded by an observatory between specified start and end times
 """
 
-import sys
 import argparse
+import sys
 import time
 
+from meteorpi_helpers import dcf_ast
 from meteorpi_helpers.obsarchive import obsarchive_db
+from meteorpi_helpers.obsarchive import obsarchive_model as mp
 from meteorpi_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
@@ -39,60 +41,50 @@ db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                        db_name=settings['mysqlDatabase'],
                                        obstory_id=installation_info['observatoryId'])
 
-utc_min = time.time() - 3600 * 24
-utc_max = time.time()
-obstory_name = installation_info.local_conf['observatoryName']
-label = ""
-img_type = "meteorpi:timelapse/frame/bgrdSub/lensCorr"
-stride = 5
+# Read input parameters
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--t-min', dest='utc_min', default=time.time() - 3600 * 24,
+                    type=float,
+                    help="Only list events seen after the specified unix time")
+parser.add_argument('--t-max', dest='utc_max', default=time.time(),
+                    type=float,
+                    help="Only list events seen before the specified unix time")
+parser.add_argument('--observatory', dest='obstory_id', default=installation_info.local_conf['observatoryId'],
+                    help="ID of the observatory we are to list events from")
+parser.add_argument('--label', dest='label', default="",
+                    help="label")
+parser.add_argument('--img-type', dest='img_type', default="",
+                    help="The type of image to list")
+parser.add_argument('--stride', dest='stride', default=1, type=int,
+                    help="Only show every nth item, to reduce output")
+args = parser.parse_args()
 
-if len(sys.argv) > 1:
-    utc_min = float(sys.argv[1])
-if len(sys.argv) > 2:
-    utc_max = float(sys.argv[2])
-if len(sys.argv) > 3:
-    obstory_name = sys.argv[3]
-if len(sys.argv) > 4:
-    label = sys.argv[4]
-if len(sys.argv) > 5:
-    img_type = sys.argv[5]
-if len(sys.argv) > 6:
-    stride = int(sys.argv[6])
-
-if utc_max == 0:
-    utc_max = time.time()
-
-print("# ./listImages.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utc_min, utc_max, obstory_name, label, img_type, stride))
-
-db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+print("# ./list_images.py {} {} \"{}\" \"{}\" \"{}\" {}\n".
+      format(args.utc_min, args.utc_max, args.obstory_id, args.label, args.img_type, args.stride))
 
 try:
-    obstory_info = db.get_obstory_from_name(obstory_name=obstory_name)
+    obstory_info = db.get_obstory_from_id(obstory_id=args.obstory_id)
 except ValueError:
-    print("Unknown observatory <%s>. Run ./listObservatories.py to see a list of available observatories." % \
-          obstory_name)
+    print("Unknown observatory <{}>. Run ./list_observatories.py to see a list of available observatories.".
+          format(args.obstory_id))
     sys.exit(0)
 
-obstory_id = obstory_info['publicId']
-
-search = mp.FileRecordSearch(obstory_ids=[obstory_id], semantic_type=img_type,
-                             time_min=utc_min, time_max=utc_max, limit=1000000)
+search = mp.FileRecordSearch(obstory_ids=[args.obstory_id], semantic_type=args.img_type,
+                             time_min=args.utc_min, time_max=args.utc_max, limit=1000000)
 files = db.search_files(search)
 files = files['files']
 files.sort(key=lambda x: x.file_time)
 
-print("Observatory <%s>" % obstory_name)
-print("  * %d matching files in time range %s --> %s" % (len(files),
-                                                         dcf_ast.date_string(utc_min),
-                                                         dcf_ast.date_string(utc_max)))
-count = 1
-for file_item in files:
-    count += 1
-    if not (count % stride == 0):
+print("Observatory <{}>".format(args.obstory_id))
+print("  * {:d} matching files in time range {} --> {}".format(len(files),
+                                                               dcf_ast.date_string(args.utc_min),
+                                                               dcf_ast.date_string(args.utc_max)))
+for count, file_item in enumerate(files):
+    if not (count % args.stride == 0):
         continue
     sky_clarity = db.get_file_metadata(file_item.id, 'meteorpi:skyClarity')
     if sky_clarity is None:
         sky_clarity = -1
-    [year, month, day, h, m, s] = dcf_ast.inv_julian_day(dcf_ast.jd_from_utc(file_item.file_time))
-    print("  * Date %04d/%02d/%02d %02d:%02d:%02d UTC   Sky clarity %8.1f   Filename <%s>" % (
-        year, month, day, h, m, s, sky_clarity, file_item.id))
+    [year, month, day, h, m, s] = dcf_ast.inv_julian_day(dcf_ast.jd_from_unix(file_item.file_time))
+    print("  * Date {:04d}/{:02d}/{:02d} {:02d}:{:02d}:{:02d} UTC   Sky clarity {:8.1f}   Filename <{}>".
+          format(year, month, day, h, m, s, sky_clarity, file_item.id))

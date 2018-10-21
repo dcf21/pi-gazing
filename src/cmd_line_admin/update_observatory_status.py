@@ -80,29 +80,34 @@ args = parser.parse_args()
 # List current observatory statuses
 print("Current observatory statuses")
 print("----------------------------")
-obstory_list = db.get_obstory_ids()
-for obstory in obstory_list:
-    print("{}\n".format(obstory))
+obstory_id_list = db.get_obstory_ids()
+for obstory_id in obstory_id_list:
+    print("{}\n".format(obstory_id))
     print("  * Observatory configuration")
-    o = db.get_obstory_from_id(obstory_id=obstory)
+    o = db.get_obstory_from_id(obstory_id=obstory_id)
     for item in ['latitude', 'longitude', 'name', 'publicId']:
         print("    * {} = {}".format(item, o[item]))
-    status = db.get_obstory_status(obstory_id=obstory)
+    status = db.get_obstory_status(obstory_id=obstory_id)
     status_keys = list(status.keys())
     status_keys.sort()
     print("\n  * Additional metadata")
     for item in status_keys:
         print("    * {} = {}".format(item, status[item]))
     print("\n")
-if len(obstory_list) == 0:
+if len(obstory_id_list) == 0:
     print("None!\n")
 
 # If no observatory specified to update, do nothing more
 if args.obstory_id is None:
     sys.exit(0)
 
+# Find out time that metadata update should be applied to
+if args.metadata_time is None:
+    args.metadata_time = time.time()
+metadata_time = float(args.metadata_time)
+
 # If observatory doesn't exist yet, create a new observatory
-if args.obstory_id not in obstory_list:
+if args.obstory_id not in obstory_id_list:
     # If input parameters have not been supplied, read the defaults from configuration file
     if args.latitude is None:
         args.latitude = installation_info['latitude']
@@ -126,19 +131,19 @@ if args.obstory_id not in obstory_list:
     db.register_obstory_metadata(obstory_id=args.obstory_id,
                                  key="latitude",
                                  value=args.latitude,
-                                 metadata_time=time.time(),
+                                 metadata_time=metadata_time,
                                  time_created=time.time(),
                                  user_created=settings['meteorpiUser'])
     db.register_obstory_metadata(obstory_id=args.obstory_id,
                                  key="longitude",
                                  value=args.longitude,
-                                 metadata_time=time.time(),
+                                 metadata_time=metadata_time,
                                  time_created=time.time(),
                                  user_created=settings['meteorpiUser'])
     db.register_obstory_metadata(obstory_id=args.obstory_id,
                                  key="location_source",
                                  value="manual",
-                                 metadata_time=time.time(),
+                                 metadata_time=metadata_time,
                                  time_created=time.time(),
                                  user_created=settings['meteorpiUser'])
     # Newly created observatory has no metadata
@@ -146,11 +151,6 @@ if args.obstory_id not in obstory_list:
 else:
     # Fetch metadata about the observatory we are updating
     obstory_status = db.get_obstory_status(obstory_id=args.obstory_id)
-
-# Find out time that metadata update should be applied to
-if args.metadata_time is None:
-    args.metadata_time = time.time()
-metadata_time = float(args.metadata_time)
 
 # Register software version in use
 db.register_obstory_metadata(obstory_id=args.obstory_id,

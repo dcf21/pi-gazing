@@ -39,21 +39,21 @@ db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
 print("List of observatories")
 print("---------------------")
 
-obstory_list = db.get_obstory_names()
-obstory_list.sort()
+obstory_id_list = db.get_obstory_ids()
+obstory_id_list.sort()
 
-print("\nObservatories: %s\n" % obstory_list)
+print("\nObservatories: %s\n" % obstory_id_list)
 
-for obstory in obstory_list:
-    print("%s\n" % obstory)
+for obstory_id in obstory_id_list:
+    print("{}\n".format(obstory_id))
     print("  * Observatory configuration")
-    o = db.get_obstory_from_name(obstory)
+    obstory_object = db.get_obstory_from_id(obstory_id)
     for item in ['latitude', 'longitude', 'name', 'publicId']:
-        print("    * %s = %s" % (item, o[item]))
-    status = db.get_obstory_status(obstory_name=obstory)
+        print("    * {} = {}".format(item, obstory_object[item]))
+    status = db.get_obstory_status(obstory_id=obstory_id)
     status_keys = list(status.keys())
     status_keys.sort()
     print("\n  * Additional metadata")
     for item in status_keys:
-        print("    * %s = %s" % (item, status[item]))
+        print("    * {} = {}".format(item, status[item]))
     print("\n")

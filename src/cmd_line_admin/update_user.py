@@ -44,14 +44,18 @@ db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--user', dest='user', default=None,
                     help="The user account to update")
+parser.add_argument('--password', dest='password', default=None,
+                    help="The password for this user")
+parser.add_argument('--role', dest='roles', action='append', default=None,
+                    help="The list of roles for this user")
 args = parser.parse_args()
 
 # List all current user accounts
 print("Current web interface accounts")
 print("------------------------------")
-users = db.get_users()
-for user in users:
-    print("%20s -- roles: %s" % (user.user_id, " ".join(user.roles)))
+user_objects = db.get_users()
+for user_object in user_objects:
+    print("%20s -- roles: %s" % (user_object.user_id, " ".join(user_object.roles)))
 print("\n")
 
 # If no user account specified to update, stop now
@@ -59,15 +63,17 @@ if args.user is None:
     sys.exit(0)
 
 # Enter password
-password = input('Enter password: ')
+if args.pasword is None:
+    password = input('Enter password: ')
 
 # Enter roles
-defaultRoles = "user voter obstory_admin import"
-roles = input('Enter roles <default %s>: ' % defaultRoles).split()
-if not roles:
-    roles = defaultRoles.split()
+if args.roles is None:
+    default_roles = "user voter obstory_admin import"
+    args.roles = input('Enter roles <default %s>: ' % default_roles).split()
+    if not args.roles:
+        args.roles = default_roles.split()
 
-db.create_or_update_user(username=args.userstrip(), password=password.strip(), roles=roles,
+db.create_or_update_user(username=args.userstrip(), password=args.password.strip(), roles=args.roles,
                          name=None, job=None, email=None, join_date=None, profile_pic=None, profile_text=None)
 
 # Commit changes to database

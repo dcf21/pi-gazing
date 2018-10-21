@@ -46,8 +46,10 @@ db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
 # Read input parameters
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--t-min', dest='utc_min', default=0,
+                    type=float,
                     help="Only delete observations made after the specified unix time")
 parser.add_argument('--t-max', dest='utc_max', default=time.time(),
+                    type=float,
                     help="Only delete observations made before the specified unix time")
 parser.add_argument('--observatory', dest='observatory', default=installation_info.local_conf['observatoryId'],
                     help="ID of the observatory we are to delete observations from")
