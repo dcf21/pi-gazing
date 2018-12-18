@@ -109,10 +109,10 @@ d2.stringValue AS path
 FROM archive_obs_group_members m
 INNER JOIN archive_observations o ON m.observationId = o.uid
 INNER JOIN archive_files f ON f.observationId=m.observationId
-    AND f.semanticType = (SELECT uid FROM archive_semanticTypes WHERE name=\"meteorpi:triggers/event/maxBrightness\")
+    AND f.semanticType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:triggers/event/maxBrightness\")
 INNER JOIN archive_observatories l ON o.observatory = l.uid
 LEFT OUTER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
-    d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"meteorpi:pathBezier\")
+    d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:pathBezier\")
 WHERE m.groupId IN
     (SELECT groupId FROM archive_obs_groups g
      INNER JOIN archive_obs_group_members m2 ON m2.groupId=g.uid AND m2.observationId=:i);
@@ -139,8 +139,8 @@ $pageTemplate->header($pageInfo);
 ?>
 
 <?php
-if (array_key_exists("meteorpi:triggers/event", $files_by_type)):
-    $video = $files_by_type["meteorpi:triggers/event"];
+if (array_key_exists("pigazing:triggers/event", $files_by_type)):
+    $video = $files_by_type["pigazing:triggers/event"];
     $file_url = "/api/files/content/{$video['repositoryFname']}/{$video['fileName']}";
     ?>
 
@@ -240,7 +240,7 @@ if (count($simultaneous_events)>0)
                 "filename" => $item["fileName"],
                 "caption" => $caption[0],
                 "hover" => $caption[1],
-                "path" => $metadata_by_key['meteorpi:pathBezier'],
+                "path" => $metadata_by_key['pigazing:pathBezier'],
                 "linkId" => $item['repositoryFname'],
                 "mimeType" => $item['mimeType']];
         }

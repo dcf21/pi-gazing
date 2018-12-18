@@ -27,7 +27,7 @@ echo -e "\n\n# File check sums"
 find -type f -exec md5sum "{}" +
 
 echo -e "\n\n# Log messages"
-tail -n 1000 ../../datadir/meteorPi.log 
+tail -n 1000 ../../datadir/pigazing.log
 
 echo -e "\n\n# Python errors"
 tail -n 1000 ../../datadir/python.log

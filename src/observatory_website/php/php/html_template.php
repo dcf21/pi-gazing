@@ -174,7 +174,7 @@ __HTML__;
 
             <link rel="stylesheet" type="text/css" href="<?php echo $server; ?>css/style.css" media="all"/>
 
-            <script type="text/javascript" src="<?php echo $server; ?>js/meteorpi.min.js"></script>
+            <script type="text/javascript" src="<?php echo $server; ?>js/pigazing.min.js"></script>
 
             <?php if ($pageInfo["teaserImg"]): ?>
                 <link rel="image_src" href="<?php echo $server . $pageInfo["teaserImg"]; ?>"
@@ -327,12 +327,12 @@ __HTML__;
                         <p class="copyright">Contact us via</p>
 
                         <div style="display:inline-block;text-align:center;padding:3px 10px;">
-                            <a href="https://www.facebook.com/meteorpicamera/">
+                            <a href="https://www.facebook.com/pigazingcamera/">
                                 <div class="mp-img mp-img-fb"></div>
                                 <br/>Facebook</a>
                         </div>
                         <div style="display:inline-block;text-align:center;padding:3px 10px;">
-                            <a href="https://twitter.com/meteorpi">
+                            <a href="https://twitter.com/pigazing">
                                 <div class="mp-img mp-img-tweet"></div>
                                 <br/>Twitter</a>
                         </div>

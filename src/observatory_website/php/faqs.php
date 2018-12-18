@@ -149,8 +149,8 @@ $pageTemplate->header($pageInfo);
 
                 <p class="text">
                     If you'd like to get involved, why not get in touch with us via
-                    <a href="https://www.facebook.com/meteorpicamera/">Facebook</a>
-                    or <a href="https://twitter.com/meteorpi">Twitter</a>?
+                    <a href="https://www.facebook.com/pigazingcamera/">Facebook</a>
+                    or <a href="https://twitter.com/pigazing">Twitter</a>?
                 </p>
             </div>
         </div>

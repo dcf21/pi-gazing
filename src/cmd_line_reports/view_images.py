@@ -31,9 +31,9 @@ import sys
 import time
 import argparse
 
-from meteorpi_helpers import dcf_ast
-from meteorpi_helpers.obsarchive import obsarchive_db
-from meteorpi_helpers.settings_read import settings, installation_info
+from pigazing_helpers import dcf_ast
+from pigazing_helpers.obsarchive import obsarchive_db
+from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                        db_host=settings['mysqlHost'],
@@ -50,7 +50,7 @@ utc_min = time.time() - 3600 * 24
 utc_max = time.time()
 obstory_name = installation_info.local_conf['observatoryName']
 label = ""
-img_type = "meteorpi:timelapse/frame/bgrdSub/lensCorr"
+img_type = "pigazing:timelapse/frame/bgrdSub/lensCorr"
 stride = 5
 
 if len(sys.argv) > 1:
@@ -71,7 +71,7 @@ if utc_max == 0:
 
 print("# ./viewImages.py %f %f \"%s\" \"%s\" \"%s\" %d\n" % (utc_min, utc_max, obstory_name, label, img_type, stride))
 
-db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+db = pigazing_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 try:
     obstory_info = db.get_obstory_from_name(obstory_name=obstory_name)

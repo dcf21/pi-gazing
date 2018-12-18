@@ -28,12 +28,12 @@ This exports observations to remote servers, if configured
 import sys
 import time
 
-import meteorpi_db
-from meteorpi_db.exporter import MeteorExporter
+import pigazing_db
+from pigazing_db.exporter import MeteorExporter
 
 import mod_log
 from mod_log import log_txt, get_utc
-from meteorpi_helpers import settings_read
+from pigazing_helpers import settings_read
 
 
 def export_data(db, utc_now, utc_must_stop=0):
@@ -79,7 +79,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         _utc_now = float(sys.argv[1])
     mod_log.set_utc_offset(_utc_now - time.time())
-    _db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+    _db = pigazing_db.MeteorDatabase(settings_read.settings['dbFilestore'])
     export_data(db=_db,
                 utc_now=_utc_now,
                 utc_must_stop=0)

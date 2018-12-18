@@ -35,7 +35,7 @@ pip install gpsd-py3
 
 # Install custom python libraries
 cd ${cwd}
-cd src/meteorpi_helpers
+cd src/pigazing_helpers
 rm -Rf build dist *.egg-info  # Clear out the cache to make sure we install latest version of code
 python setup.py install
 

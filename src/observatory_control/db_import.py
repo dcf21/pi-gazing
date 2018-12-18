@@ -25,16 +25,16 @@ import os
 import uuid
 import glob
 import time
-import meteorpi_db
-import meteorpi_model as mp
+import pigazing_db
+import pigazing_model as mp
 import mod_log
 from mod_log import log_txt, get_utc
 import mod_daytimejobs
-from meteorpi_helpers import settings_read
+from pigazing_helpers import settings_read
 import installation_info
 
 # Look up the username we use to add entries into the database
-user = settings_read.settings['meteorpiUser']
+user = settings_read.settings['pigazingUser']
 
 # Dictionary of the observatory statuses of observatories we have seen
 obstories_seen = {}
@@ -61,7 +61,7 @@ def dict_tree_append(dict_root, dict_path, value):
     d[leaf_name].append(value)
 
 
-# Take a dictionary of metadata keys and values (metadict), and turn them into a list of meteorpi_model.Meta objects
+# Take a dictionary of metadata keys and values (metadict), and turn them into a list of pigazing_model.Meta objects
 def metadata_to_object_list(db_handle, obs_time, obs_id, meta_dict):
     metadata_objs = []
     for meta_field in meta_dict:
@@ -69,7 +69,7 @@ def metadata_to_object_list(db_handle, obs_time, obs_id, meta_dict):
 
         # Short string fields get stored as string metadata (up to 64kB, or just under)
         if type(value) != str or len(value) < 65500:
-            metadata_objs.append(mp.Meta("meteorpi:" + meta_field, meta_dict[meta_field]))
+            metadata_objs.append(mp.Meta("pigazing:" + meta_field, meta_dict[meta_field]))
 
         # Long strings are turned into separate files
         else:
@@ -97,7 +97,7 @@ def local_filename_to_semantic_type(fname):
             path.append("lensCorr")
         else:
             path.append(ext)
-    return "meteorpi:" + ("/".join(path))
+    return "pigazing:" + ("/".join(path))
 
 
 def database_import(db):
@@ -252,5 +252,5 @@ def database_import(db):
 
 # Do import into firebird right away if we're run as a script
 if __name__ == "__main__":
-    _db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+    _db = pigazing_db.MeteorDatabase(settings_read.settings['dbFilestore'])
     database_import(_db)

@@ -80,7 +80,7 @@ foreach ($obstories as $obstory_info) {
 }
 
 $pageInfo = [
-    "pageTitle" => "MeteorPi activity history",
+    "pageTitle" => "pigazing activity history",
     "pageDescription" => "Meteor Pi",
     "activeTab" => "cameras",
     "teaserImg" => null,

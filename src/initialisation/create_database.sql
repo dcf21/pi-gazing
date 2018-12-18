@@ -2,16 +2,16 @@
 
 # Create user account and database for archiving observations
 
-# Delete pre-existing meteorpi user account, if any
-GRANT USAGE ON *.* TO 'meteorpi'@'localhost';
-DROP USER 'meteorpi'@'localhost';
+# Delete pre-existing pigazing user account, if any
+GRANT USAGE ON *.* TO 'pigazing'@'localhost';
+DROP USER 'pigazing'@'localhost';
 
-# Create meteorpi user
-CREATE USER 'meteorpi'@'localhost' IDENTIFIED BY 'meteorpi';
+# Create pigazing user
+CREATE USER 'pigazing'@'localhost' IDENTIFIED BY 'pigazing';
 
 # Delete pre-existing database, if one exists
-DROP DATABASE IF EXISTS meteorpi;
+DROP DATABASE IF EXISTS pigazing;
 
 # Create new database
-CREATE DATABASE meteorpi;
-GRANT ALL ON meteorpi.* TO 'meteorpi'@'localhost';
+CREATE DATABASE pigazing;
+GRANT ALL ON pigazing.* TO 'pigazing'@'localhost';

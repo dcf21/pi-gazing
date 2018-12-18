@@ -37,8 +37,8 @@ import argparse
 import json
 import time
 
-from meteorpi_helpers.obsarchive import obsarchive_db
-from meteorpi_helpers.settings_read import settings, installation_info
+from pigazing_helpers.obsarchive import obsarchive_db
+from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                        db_host=settings['mysqlHost'],

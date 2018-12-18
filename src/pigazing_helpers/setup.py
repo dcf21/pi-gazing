@@ -24,16 +24,16 @@ def read(filename):
 # Get the version information
 here = path.abspath(path.dirname(__file__))
 vre = re_compile("__version__ = \"(.*?)\"")
-version = vre.findall(read(path.join(here, "meteorpi_helpers", "__init__.py")))[0]
+version = vre.findall(read(path.join(here, "pigazing_helpers", "__init__.py")))[0]
 
 setup(
-    name="meteorpi_helpers",
+    name="pigazing_helpers",
     version=version,
     author="Dominic Ford",
     author_email="",
-    description="Helper functions for Meteorpi",
+    description="Helper functions for pigazing",
     long_description=read(path.join(here, "README.md")),
-    url="https://meteorpi.dcford.org.uk/",
+    url="https://pigazing.dcford.org.uk/",
     license="MIT",
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -44,7 +44,7 @@ setup(
         "Topic :: Scientific/Engineering :: Astronomy",
         "Topic :: Scientific/Engineering :: Physics"
     ],
-    keywords="meteorpi",
+    keywords="pigazing",
     packages=find_packages(exclude=["docs", "tests"]),
     install_requires=[],
     extras_require={

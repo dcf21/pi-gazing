@@ -239,11 +239,11 @@ if (array_key_exists('obstory', $_GET)) {
 
     // Work out which semantic type to search for
     if ($flag_lenscorr) {
-        if ($flag_bgsub) $semantic_type = "meteorpi:timelapse/frame/bgrdSub/lensCorr";
-        else $semantic_type = "meteorpi:timelapse/frame/lensCorr";
+        if ($flag_bgsub) $semantic_type = "pigazing:timelapse/frame/bgrdSub/lensCorr";
+        else $semantic_type = "pigazing:timelapse/frame/lensCorr";
     } else {
-        if ($flag_bgsub) $semantic_type = "meteorpi:timelapse/frame/bgrdSub";
-        else $semantic_type = "meteorpi:timelapse/frame";
+        if ($flag_bgsub) $semantic_type = "pigazing:timelapse/frame/bgrdSub";
+        else $semantic_type = "pigazing:timelapse/frame";
     }
 
     // Search for results
@@ -263,9 +263,9 @@ INNER JOIN archive_files f ON f.observationId = o.uid AND
     f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name=\"{$semantic_type}\")
 INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_metadata d ON o.uid = d.observationId AND d.fieldId=
-    (SELECT uid FROM archive_metadataFields WHERE metaKey=\"meteorpi:highlight\")
+    (SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:highlight\")
 INNER JOIN archive_metadata d2 ON o.uid = d2.observationId AND d2.fieldId=
-    (SELECT uid FROM archive_metadataFields WHERE metaKey=\"meteorpi:skyClarity\")
+    (SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:skyClarity\")
 WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"timelapse\")
     AND " . implode(' AND ', $where));
 

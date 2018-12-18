@@ -29,10 +29,10 @@ It is useful to run this after <init_database/rebuild.sh>
 
 import sys
 
-from meteorpi_helpers.obsarchive import archive_model as mp
-from meteorpi_helpers.obsarchive import archive_db
+from pigazing_helpers.obsarchive import archive_model as mp
+from pigazing_helpers.obsarchive import archive_db
 
-from meteorpi_helpers import settings_read
+from pigazing_helpers import settings_read
 
 db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 

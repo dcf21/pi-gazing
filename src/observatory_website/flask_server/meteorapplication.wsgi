@@ -14,7 +14,7 @@ import logging, sys
 logging.basicConfig(stream=sys.stderr)
 
 
-from meteorpi_server import MeteorApp, admin_api, importer_api, query_api
+from pigazing_server import MeteorApp, admin_api, importer_api, query_api
 
 # Configure and create database and server objects
 file_store_path = '/home/pi/meteor-pi/datadir/db_filestore'

@@ -29,10 +29,10 @@ import argparse
 import sys
 import time
 
-from meteorpi_helpers import dcf_ast
-from meteorpi_helpers.obsarchive import obsarchive_db
-from meteorpi_helpers.obsarchive import obsarchive_model as mp
-from meteorpi_helpers.settings_read import settings, installation_info
+from pigazing_helpers import dcf_ast
+from pigazing_helpers.obsarchive import obsarchive_db
+from pigazing_helpers.obsarchive import obsarchive_model as mp
+from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                        db_host=settings['mysqlHost'],
@@ -51,7 +51,7 @@ parser.add_argument('--t-max', dest='utc_max', default=time.time(),
                     help="Only list events seen before the specified unix time")
 parser.add_argument('--observatory', dest='obstory_id', default=installation_info.local_conf['observatoryId'],
                     help="ID of the observatory we are to list events from")
-parser.add_argument('--img-type', dest='img_type', default="meteorpi:timelapse/frame/bgrdSub/lensCorr",
+parser.add_argument('--img-type', dest='img_type', default="pigazing:timelapse/frame/bgrdSub/lensCorr",
                     help="The type of image to list")
 parser.add_argument('--stride', dest='stride', default=1, type=int,
                     help="Only show every nth item, to reduce output")
@@ -80,7 +80,7 @@ print("  * {:d} matching files in time range {} --> {}".format(len(files),
 for count, file_item in enumerate(files):
     if not (count % args.stride == 0):
         continue
-    sky_clarity = db.get_file_metadata(file_item.id, 'meteorpi:skyClarity')
+    sky_clarity = db.get_file_metadata(file_item.id, 'pigazing:skyClarity')
     if sky_clarity is None:
         sky_clarity = -1
     [year, month, day, h, m, s] = dcf_ast.inv_julian_day(dcf_ast.jd_from_unix(file_item.file_time))

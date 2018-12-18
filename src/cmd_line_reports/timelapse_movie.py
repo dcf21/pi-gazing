@@ -30,9 +30,9 @@ import os
 import sys
 import time
 
-from meteorpi_helpers.obsarchive import obsarchive_db
-from meteorpi_helpers.obsarchive import obsarchive_model as mp
-from meteorpi_helpers.settings_read import settings, installation_info
+from pigazing_helpers.obsarchive import obsarchive_db
+from pigazing_helpers.obsarchive import obsarchive_model as mp
+from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                        db_host=settings['mysqlHost'],
@@ -53,7 +53,7 @@ parser.add_argument('--observatory', dest='obstory_id', default=installation_inf
                     help="ID of the observatory we are to list events from")
 parser.add_argument('--label', dest='label', default="",
                     help="Label to put at the bottom of each frame of the video")
-parser.add_argument('--img-type', dest='img_type', default="meteorpi:timelapse/frame/bgrdSub/lensCorr",
+parser.add_argument('--img-type', dest='img_type', default="pigazing:timelapse/frame/bgrdSub/lensCorr",
                     help="The type of image to list")
 parser.add_argument('--stride', dest='stride', default=1, type=int,
                     help="Only show every nth item, to reduce output")

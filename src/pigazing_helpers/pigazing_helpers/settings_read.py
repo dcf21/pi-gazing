@@ -64,7 +64,7 @@ settings = {
     'softwareVersion': 2,
 
     # The user account user by the Meteor Pi observing code
-    'meteorpiUser': 'system',
+    'pigazingUser': 'system',
 
     # The path to python scripts in the src directory
     'pythonPath': root_path,
@@ -79,7 +79,7 @@ settings = {
     # The directory where we expect to find images and video files
     'dataPath': data_directory,
 
-    # The directory where meteorpi_db stores its files
+    # The directory where pigazing_db stores its files
     'dbFilestore': os.path.join(data_directory, "db_filestore"),
 
     # Flag telling us whether to hunt for meteors in real time, or record H264 video for subsequent analysis

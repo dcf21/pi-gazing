@@ -32,9 +32,9 @@ import os
 import sys
 import time
 
-from meteorpi_helpers import hardware_properties
-from meteorpi_helpers.obsarchive import obsarchive_db
-from meteorpi_helpers.settings_read import settings, installation_info
+from pigazing_helpers import hardware_properties
+from pigazing_helpers.obsarchive import obsarchive_db
+from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                        db_host=settings['mysqlHost'],
@@ -125,7 +125,7 @@ if args.obstory_id not in obstory_id_list:
                         obstory_name=args.obstory_name,
                         latitude=args.latitude,
                         longitude=args.longitude,
-                        owner=settings['meteorpiUser'])
+                        owner=settings['pigazingUser'])
 
     # Set location of new observatory
     db.register_obstory_metadata(obstory_id=args.obstory_id,
@@ -133,19 +133,19 @@ if args.obstory_id not in obstory_id_list:
                                  value=args.latitude,
                                  metadata_time=metadata_time,
                                  time_created=time.time(),
-                                 user_created=settings['meteorpiUser'])
+                                 user_created=settings['pigazingUser'])
     db.register_obstory_metadata(obstory_id=args.obstory_id,
                                  key="longitude",
                                  value=args.longitude,
                                  metadata_time=metadata_time,
                                  time_created=time.time(),
-                                 user_created=settings['meteorpiUser'])
+                                 user_created=settings['pigazingUser'])
     db.register_obstory_metadata(obstory_id=args.obstory_id,
                                  key="location_source",
                                  value="manual",
                                  metadata_time=metadata_time,
                                  time_created=time.time(),
-                                 user_created=settings['meteorpiUser'])
+                                 user_created=settings['pigazingUser'])
     # Newly created observatory has no metadata
     obstory_status = {}
 else:
@@ -158,7 +158,7 @@ db.register_obstory_metadata(obstory_id=args.obstory_id,
                              value=settings['softwareVersion'],
                              metadata_time=metadata_time,
                              time_created=time.time(),
-                             user_created=settings['meteorpiUser'])
+                             user_created=settings['pigazingUser'])
 
 # Offer user options to update metadata
 if args.camera is not None:

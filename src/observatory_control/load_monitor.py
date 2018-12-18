@@ -29,7 +29,7 @@ import os
 import time
 import math
 
-from meteorpi_helpers import settings_read
+from pigazing_helpers import settings_read
 import installation_info
 
 # Set up GPIO lines as outputs. But only if we're running on a RPi, as otherwise we don't have any lines to configure...
@@ -59,7 +59,7 @@ def set_lights(x, y):
 loadCount = 0
 
 # This is the filename of the log file which we watch for changes
-logFilename = os.path.join(settings_read.settings['dataPath'], "meteorPi.log")
+logFilename = os.path.join(settings_read.settings['dataPath'], "pigazing.log")
 
 # This is the last time that we saw the log file update
 lastLogTime = 0

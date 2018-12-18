@@ -49,7 +49,7 @@ logger.info("timelapse launched")
 time_next_frame = floor((time.time() + 10) / 10) * 10
 
 # Make directory
-dirname = "/tmp/meteorpi_timelapse"
+dirname = "/tmp/pigazing_timelapse"
 os.system("mkdir -p %s" % dirname)
 os.chdir(dirname)
 
@@ -81,7 +81,7 @@ while True:
 
     # Use avconv to make a timelapse video. Can't do this inside the loop if we intend to observe for a very
     # long time, as otherwise it takes more than a minute to do this encoding after each frame...
-    os.system("rm -f /tmp/meteorpi_timelapse.mp4")
-    os.system("avconv -r 10 -i frame%06d.jpg -codec:v libx264 /tmp/meteorpi_timelapse.mp4")
+    os.system("rm -f /tmp/pigazing_timelapse.mp4")
+    os.system("avconv -r 10 -i frame%06d.jpg -codec:v libx264 /tmp/pigazing_timelapse.mp4")
 
     time_next_frame += frame_interval

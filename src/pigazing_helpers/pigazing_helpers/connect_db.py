@@ -71,11 +71,11 @@ def fetch_generator_key(c, gen_key):
         Numeric data generator identifier.
     """
 
-    c.execute("SELECT generatorId FROM meteorpi_generators WHERE name=%s;", (gen_key,))
+    c.execute("SELECT generatorId FROM pigazing_generators WHERE name=%s;", (gen_key,))
     tmp = c.fetchall()
     if len(tmp) == 0:
-        c.execute("INSERT INTO meteorpi_generators VALUES (NULL, %s);", (gen_key,))
-        c.execute("SELECT generatorId FROM meteorpi_generators WHERE name=%s;", (gen_key,))
+        c.execute("INSERT INTO pigazing_generators VALUES (NULL, %s);", (gen_key,))
+        c.execute("SELECT generatorId FROM pigazing_generators WHERE name=%s;", (gen_key,))
         tmp = c.fetchall()
     gen_id = tmp[0]["generatorId"]
     return gen_id

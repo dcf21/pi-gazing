@@ -204,7 +204,7 @@ $pageTemplate->header($pageInfo);
 if (array_key_exists('obstory', $_GET)) {
 
     // Search for results
-    $semantic_type = "meteorpi:triggers/event/maxBrightness/lensCorr";
+    $semantic_type = "pigazing:triggers/event/maxBrightness/lensCorr";
 
     $where = ["o.obsTime BETWEEN {$tmin['utc']} AND {$tmax['utc']}"];
 
@@ -216,10 +216,10 @@ INNER JOIN archive_files f ON f.observationId = o.uid AND
     f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name=\"{$semantic_type}\")
 INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_metadata d ON o.uid = d.observationId AND
-    d.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"meteorpi:duration\") AND
+    d.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:duration\") AND
     d.floatValue>={$duration_min} AND d.floatValue<={$duration_max}
 LEFT OUTER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
-    d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"meteorpi:pathBezier\")
+    d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:pathBezier\")
 WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"movingObject\")
     AND " . implode(' AND ', $where));
 

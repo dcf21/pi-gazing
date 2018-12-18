@@ -21,7 +21,7 @@ same object from multiple different locations. That enables us to triangulate
 their exact three-dimensional positions, including their altitude and speed.
 
 To find out more about the Meteor Pi project, you should [visit our project
-website](http://meteorpi.cambridgesciencecentre.org/).
+website](http://pigazing.cambridgesciencecentre.org/).
 
 There, you can find information sheets about educational activities, and you
 can browse our entire data archive.
@@ -50,6 +50,6 @@ use our cameras to make scientific observations of meteors, for example as part
 of the [NEMETODE](http://www.nemetode.org) and [UKMON]
 (http://www.ukmeteornetwork.co.uk) networks.
 
-You can follow us on [Twitter](https://twitter.com/meteorpi) and
-[Facebook](https://www.facebook.com/meteorpicamera).
+You can follow us on [Twitter](https://twitter.com/pigazing) and
+[Facebook](https://www.facebook.com/pigazingcamera).
 

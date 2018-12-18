@@ -1,11 +1,11 @@
 {
-  "name": "meteorpi",
+  "name": "pigazing",
   "version": "2.0.0",
   "authors": [
     "Dominic Ford <dominic@cambridgesciencecentre.org>"
   ],
   "license": "GSL",
-  "homepage": "https://meteorpi.cambridgesciencecentre.org",
+  "homepage": "https://pigazing.cambridgesciencecentre.org",
   "ignore": [
     "**/.*",
     "node_modules",

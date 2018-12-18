@@ -29,11 +29,11 @@ import os
 import sys
 import time
 
-import meteorpi_db
+import pigazing_db
 
 import mod_daytimejobs
 import mod_log
-from meteorpi_helpers import settings_read
+from pigazing_helpers import settings_read
 from mod_log import log_txt
 
 
@@ -79,5 +79,5 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         utc_now = float(sys.argv[1])
     mod_log.set_utc_offset(utc_now - time.time())
-    dbh = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+    dbh = pigazing_db.MeteorDatabase(settings_read.settings['dbFilestore'])
     day_time_jobs_clean(dbh)

@@ -31,9 +31,9 @@ import time
 import math
 import argparse
 
-from meteorpi_helpers import dcf_ast
-from meteorpi_helpers.obsarchive import obsarchive_db
-from meteorpi_helpers.settings_read import settings, installation_info
+from pigazing_helpers import dcf_ast
+from pigazing_helpers.obsarchive import obsarchive_db
+from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                        db_host=settings['mysqlHost'],
@@ -58,7 +58,7 @@ if utc_max == 0:
 
 print("# ./triggerRate.py %f %f \"%s\"\n" % (utc_min, utc_max, obstory_name))
 
-db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+db = pigazing_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 
 # Get file metadata, turning NULL data into zeros
@@ -77,7 +77,7 @@ except ValueError:
 
 obstory_id = obstory_info['publicId']
 
-search = mp.FileRecordSearch(obstory_ids=[obstory_id], semantic_type="meteorpi:timelapse/frame/lensCorr",
+search = mp.FileRecordSearch(obstory_ids=[obstory_id], semantic_type="pigazing:timelapse/frame/lensCorr",
                              time_min=utc_min, time_max=utc_max, limit=1000000)
 files = db.search_files(search)
 files = files['files']
@@ -127,9 +127,9 @@ while hour_start <= utc_max:
         sun_alt = "---"
         sky_clarity = "---"
         if d['images']:
-            sun_alt = "%.1f" % (sum(get_file_metadata(db, i.id, 'meteorpi:sunAlt') for i in d['images']) /
+            sun_alt = "%.1f" % (sum(get_file_metadata(db, i.id, 'pigazing:sunAlt') for i in d['images']) /
                                 len(d['images']))
-            sky_clarity = "%.1f" % (sum(get_file_metadata(db, i.id, 'meteorpi:skyClarity') for i in d['images']) /
+            sky_clarity = "%.1f" % (sum(get_file_metadata(db, i.id, 'pigazing:skyClarity') for i in d['images']) /
                                     len(d['images']))
         if d['images'] or d['events']:
             out.write("%12s %12s %12s %12s\n" % (len(d['images']), len(d['events']), sky_clarity, sun_alt))

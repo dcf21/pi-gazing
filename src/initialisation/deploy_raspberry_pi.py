@@ -22,7 +22,7 @@
 # -------------------------------------------------
 
 """
-This script should be run on a Raspberry Pi, using an SD card which has been set up with the hostname <meteorpi-clean>
+This script should be run on a Raspberry Pi, using an SD card which has been set up with the hostname <pigazing-clean>
 and the standard contents of <installation_info.py>
 
 It asks the user to enter the settings which the defaults should be replaced with
@@ -31,7 +31,7 @@ It asks the user to enter the settings which the defaults should be replaced wit
 import os
 import sys
 
-from meteorpi_helpers import settings_read
+from pigazing_helpers import settings_read
 
 # Make sure we are running on a RPi. We don't want to overwrite the contents of </etc> on a PC...
 if not settings_read.settings['i_am_a_rpi']:
@@ -48,7 +48,7 @@ os.chdir(settings_read.settings['pythonPath'])
 
 # Check with the user that they know what's about to happen
 confirmation = input("""
-This script should only be run on an SD card which has been set up with the hostname <meteorpi-clean>
+This script should only be run on an SD card which has been set up with the hostname <pigazing-clean>
 and the standard contents of <installation_info.py>, by following the instructions in the Wiki on the Meteor Pi GitHub
 website.
 
@@ -80,12 +80,12 @@ def user_input(prompt, default):
 
 
 # Set hostname for this Raspberry Pi
-print("STEP 1: Set a hostname for your Raspberry Pi (e.g. meteorpi-dave)")
+print("STEP 1: Set a hostname for your Raspberry Pi (e.g. pigazing-dave)")
 
-hostname = user_input("Enter hostname: ", "meteorpi-clean")
-file_substitute("/etc/hostname", "meteorpi-clean", hostname)
-file_substitute("/etc/hosts", "meteorpi-clean", hostname)
-file_substitute("/etc/apache2/sites-available/meteorpi-clean.local.conf", "meteorpi-clean", hostname)
+hostname = user_input("Enter hostname: ", "pigazing-clean")
+file_substitute("/etc/hostname", "pigazing-clean", hostname)
+file_substitute("/etc/hosts", "pigazing-clean", hostname)
+file_substitute("/etc/apache2/sites-available/pigazing-clean.local.conf", "pigazing-clean", hostname)
 
 # Set up contents of installation_info
 print("STEP 2: Update observatory details")

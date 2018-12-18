@@ -27,11 +27,11 @@ import time
 import datetime
 import subprocess
 
-import meteorpi_db
+import pigazing_db
 
-from meteorpi_helpers import dcf_ast
+from pigazing_helpers import dcf_ast
 from mod_log import log_txt, get_utc, get_utc_offset, set_utc_offset
-from meteorpi_helpers import settings_read
+from pigazing_helpers import settings_read
 import installation_info
 import mod_hardwareProps
 
@@ -40,7 +40,7 @@ if settings_read.settings['i_am_a_rpi']:
 
 obstory_id = installation_info.local_conf['observatoryId']
 
-db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+db = pigazing_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 hw = mod_hardwareProps.HardwareProps(os.path.join(settings_read.settings['pythonPath'], "..", "cameraProperties"))
 
 logger.info("Camera controller launched")
@@ -116,25 +116,25 @@ if not db.has_obstory_id(obstory_id):
                                  value=latitude,
                                  metadata_time=get_utc(),
                                  time_created=get_utc(),
-                                 user_created=settings_read.settings['meteorpiUser'])
+                                 user_created=settings_read.settings['pigazingUser'])
     db.register_obstory_metadata(obstory_name=obstory_name,
                                  key="longitude",
                                  value=longitude,
                                  metadata_time=get_utc(),
                                  time_created=get_utc(),
-                                 user_created=settings_read.settings['meteorpiUser'])
+                                 user_created=settings_read.settings['pigazingUser'])
     db.register_obstory_metadata(obstory_name=obstory_name,
                                  key="altitude",
                                  value=altitude,
                                  metadata_time=get_utc(),
                                  time_created=get_utc(),
-                                 user_created=settings_read.settings['meteorpiUser'])
+                                 user_created=settings_read.settings['pigazingUser'])
     db.register_obstory_metadata(obstory_name=obstory_name,
                                  key="location_source",
                                  value="manual",
                                  metadata_time=get_utc(),
                                  time_created=get_utc(),
-                                 user_created=settings_read.settings['meteorpiUser'])
+                                 user_created=settings_read.settings['pigazingUser'])
 else:
     obstory_name = db.get_obstory_from_id(obstory_id)['name']
     obstory_status = db.get_obstory_status(obstory_name=obstory_name)
@@ -175,7 +175,7 @@ db.register_obstory_metadata(obstory_name=obstory_name,
                              value=settings_read.settings['softwareVersion'],
                              metadata_time=get_utc(),
                              time_created=get_utc(),
-                             user_created=settings_read.settings['meteorpiUser'])
+                             user_created=settings_read.settings['pigazingUser'])
 
 # Create clipping region mask file
 logger.info("Creating clipping region mask")
@@ -185,7 +185,7 @@ if "clippingRegion" not in obstory_status:
                                  value="[[]]",
                                  metadata_time=0,
                                  time_created=get_utc(),
-                                 user_created=settings_read.settings['meteorpiUser'])
+                                 user_created=settings_read.settings['pigazingUser'])
 obstory_status = db.get_obstory_status(obstory_name=obstory_name)
 
 # Commit updates to the database
@@ -204,7 +204,7 @@ while True:
 
     # Get a new MySQL connection because old one may not be connected any longer
     del db
-    db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+    db = pigazing_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
     # Get a GPS fix on the current time and our location
     gps_fix = get_gps_fix()
@@ -219,16 +219,16 @@ while True:
             latest_position_update = get_utc()
             db.register_obstory_metadata(obstory_name=obstory_name, key="latitude", value=latitude,
                                          metadata_time=get_utc(), time_created=get_utc(),
-                                         user_created=settings_read.settings['meteorpiUser'])
+                                         user_created=settings_read.settings['pigazingUser'])
             db.register_obstory_metadata(obstory_name=obstory_name, key="longitude", value=longitude,
                                          metadata_time=get_utc(), time_created=get_utc(),
-                                         user_created=settings_read.settings['meteorpiUser'])
+                                         user_created=settings_read.settings['pigazingUser'])
             db.register_obstory_metadata(obstory_name=obstory_name, key="altitude", value=altitude,
                                          metadata_time=get_utc(), time_created=get_utc(),
-                                         user_created=settings_read.settings['meteorpiUser'])
+                                         user_created=settings_read.settings['pigazingUser'])
             db.register_obstory_metadata(obstory_name=obstory_name, key="location_source", value="gps",
                                          metadata_time=get_utc(), time_created=get_utc(),
-                                         user_created=settings_read.settings['meteorpiUser'])
+                                         user_created=settings_read.settings['pigazingUser'])
             db.commit()
 
     # If we have no location metadata, store a manual positional fix in the database
@@ -236,16 +236,16 @@ while True:
     if ('latitude' not in obstory_status) or ('longitude' not in obstory_status):
         db.register_obstory_metadata(obstory_name=obstory_name, key="latitude", value=latitude,
                                      metadata_time=0, time_created=get_utc(),
-                                     user_created=settings_read.settings['meteorpiUser'])
+                                     user_created=settings_read.settings['pigazingUser'])
         db.register_obstory_metadata(obstory_name=obstory_name, key="longitude", value=longitude,
                                      metadata_time=0, time_created=get_utc(),
-                                     user_created=settings_read.settings['meteorpiUser'])
+                                     user_created=settings_read.settings['pigazingUser'])
         db.register_obstory_metadata(obstory_name=obstory_name, key="altitude", value=altitude,
                                      metadata_time=0, time_created=get_utc(),
-                                     user_created=settings_read.settings['meteorpiUser'])
+                                     user_created=settings_read.settings['pigazingUser'])
         db.register_obstory_metadata(obstory_name=obstory_name, key="location_source", value="manual",
                                      metadata_time=0, time_created=get_utc(),
-                                     user_created=settings_read.settings['meteorpiUser'])
+                                     user_created=settings_read.settings['pigazingUser'])
     db.commit()
     obstory_status = db.get_obstory_status(obstory_name=obstory_name)
 

@@ -88,7 +88,7 @@ def makehtml():
                 continue
 
             # Report working on new directory
-            print "Working on directory <%s>" % dir_path
+            print("Working on directory <%s>" % dir_path)
 
             # Create target directory
             path = os.path.join(output, dir_path)
@@ -102,15 +102,15 @@ def makehtml():
                 infile = "%s" % (os.path.join(root, dir_path, fname))
                 outfile = "%s" % (os.path.join(output, dir_path, fname))
                 if is_javascript and fname.endswith('.js'):
-                    print "Compiling JS file <%s>" % fname
+                    print("Compiling JS file <%s>" % fname)
                     shutil.copyfile(infile, outfile)
                 elif is_css and fname.endswith('.less'):
-                    print "Compiling LESS file <%s>" % fname
+                    print("Compiling LESS file <%s>" % fname)
                     css_minify = ""
                     if minify:
                         css_minify = "--clean-css=\"--s1 --advanced --compatibility=ie8\"";
                     cmd = "lessc %s %s %s" % (infile, css_minify, outfile[:-4] + "css")
-                    print cmd
+                    print(cmd)
                     os.system(cmd)
                 elif fname.endswith('.php'):
                     php_preprocess.php_preprocess(fname, infile, outfile)
@@ -123,16 +123,17 @@ def makehtml():
     if minify:
         cmd = "cd %s ; uglifyjs *.js " % (os.path.join(output, "js"))
         cmd += " --compress --mangle --mangle-props "
-        # cmd += " --source-map " + os.path.join(output, "js", "meteorpi.min.map")
-        cmd += " --output " + os.path.join(output, "js", "meteorpi.min.js")
-        print cmd
+        # cmd += " --source-map " + os.path.join(output, "js", "pigazing.min.map")
+        cmd += " --output " + os.path.join(output, "js", "pigazing.min.js")
+        print(cmd)
         os.system(cmd)
         for js in javascripts:
             os.unlink(js)
     else:
-        cmd = "cat %s > %s"%(" ".join(javascripts),os.path.join(output, "js", "meteorpi.min.js"))
-        print cmd
+        cmd = "cat %s > %s"%(" ".join(javascripts),os.path.join(output, "js", "pigazing.min.js"))
+        print(cmd)
         os.system(cmd)
+
 
 # Do it right away if we're run as a script
 if __name__ == "__main__":

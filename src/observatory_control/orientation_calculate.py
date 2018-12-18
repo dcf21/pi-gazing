@@ -33,10 +33,10 @@ import re
 import subprocess
 import math
 
-import meteorpi_db
-import meteorpi_model as mp
+import pigazing_db
+import pigazing_model as mp
 
-from meteorpi_helpers import dcf_ast
+from pigazing_helpers import dcf_ast
 import mod_gnomonic
 import mod_log
 from mod_log import log_txt
@@ -83,7 +83,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     # Calculate time span to use images from
     utc_min = utc_to_study
     utc_max = utc_to_study + 3600 * 24
-    db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+    db = pigazing_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
 
     # Fetch observatory status
     obstory_info = db.get_obstory_from_id(obstory_id)
@@ -97,7 +97,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     obstory_name = obstory_info['name']
 
     # Search for background-subtracted time lapse photography within this range
-    search = mp.FileRecordSearch(obstory_ids=[obstory_id], semantic_type="meteorpi:timelapse/frame/bgrdSub",
+    search = mp.FileRecordSearch(obstory_ids=[obstory_id], semantic_type="pigazing:timelapse/frame/bgrdSub",
                                  time_min=utc_min, time_max=utc_max, limit=1000000)
     files = db.search_files(search)
     files = files['files']
@@ -105,9 +105,9 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     # Filter out files where the sky clarity is good and the Sun is well below horizon
     acceptable_files = []
     for f in files:
-        if db.get_file_metadata(f.id, 'meteorpi:skyClarity') < 27:
+        if db.get_file_metadata(f.id, 'pigazing:skyClarity') < 27:
             continue
-        if db.get_file_metadata(f.id, 'meteorpi:sunAlt') > -4:
+        if db.get_file_metadata(f.id, 'pigazing:sunAlt') > -4:
             continue
         acceptable_files.append(f)
 
@@ -122,7 +122,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     logger.info(log_msg)
 
     # We can't afford to run astrometry.net on too many images, so pick the 20 best ones
-    acceptable_files.sort(key=lambda f: db.get_file_metadata(f.id, 'meteorpi:skyClarity'))
+    acceptable_files.sort(key=lambda f: db.get_file_metadata(f.id, 'pigazing:skyClarity'))
     acceptable_files.reverse()
     acceptable_files = acceptable_files[0:20]
 
@@ -186,7 +186,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
         log_msg = ("Processed image <%s> from time <%s> -- skyClarity=%.1f. " %
                    (f.id, dcf_ast.date_string(f.file_time),
-                    db.get_file_metadata(f.id, 'meteorpi:skyClarity')))
+                    db.get_file_metadata(f.id, 'pigazing:skyClarity')))
 
         # How long should we allow astrometry.net to run for?
         if mod_settings.settings['i_am_a_rpi']:
@@ -322,7 +322,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
     # Update observatory status
     if success:
-        user = mod_settings.settings['meteorpiUser']
+        user = mod_settings.settings['pigazingUser']
         utc = utc_to_study
         db.register_obstory_metadata(obstory_name, "orientation_altitude", alt_az_best[0] * rad, utc, user)
         db.register_obstory_metadata(obstory_name, "orientation_azimuth", alt_az_best[1] * rad, utc, user)
@@ -340,7 +340,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
 
 def reprocess_all_data(obstory_id):
-    db = meteorpi_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+    db = pigazing_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
     db.con.execute("SELECT m.time FROM archive_metadata m "
                    "INNER JOIN archive_observatories l ON m.observatory = l.uid "
                    "AND l.publicId = %s AND m.time>0 "

@@ -71,7 +71,7 @@ the <a href="http://www.nemetode.org/">NEMETODE</a> and <a href="https://www.ukm
 networks of amateur meteor observers.
 </p>
 <p class="text">
-    The hardware used in our MeteorPi cameras was designed by Dave Ansell at Cambridge Science Centre. Our database
+    The hardware used in our pigazing cameras was designed by Dave Ansell at Cambridge Science Centre. Our database
     and communications systems were design by Tom Oinn.
 </p>
 

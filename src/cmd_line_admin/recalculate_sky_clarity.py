@@ -31,10 +31,10 @@ import os
 import subprocess
 import time
 
-from meteorpi_helpers import dcf_ast
-from meteorpi_helpers.obsarchive import obsarchive_db
-from meteorpi_helpers.obsarchive import obsarchive_model as mp
-from meteorpi_helpers.settings_read import settings, installation_info
+from pigazing_helpers import dcf_ast
+from pigazing_helpers.obsarchive import obsarchive_db
+from pigazing_helpers.obsarchive import obsarchive_model as mp
+from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                        db_host=settings['mysqlHost'],
@@ -97,9 +97,9 @@ for file in files:
         report_line(file, "Ignore. Wrong mime type <{}>".format(file.mime_type))
         continue
     for meta in file.meta:
-        if meta.key == "meteorpi:skyClarity":
+        if meta.key == "pigazing:skyClarity":
             sky_clarity = meta.value
-        if meta.key == "meteorpi:stackNoiseLevel":
+        if meta.key == "pigazing:stackNoiseLevel":
             noise_level = meta.value
     if sky_clarity is None:
         report_line(file, "Ignore. Sky clarity is not set on file with semantic type <{}>".format(file.semantic_type))

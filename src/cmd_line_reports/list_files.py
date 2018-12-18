@@ -28,10 +28,10 @@ Lists all of the files entered into the database by a particular observatory bet
 import argparse
 import time
 
-from meteorpi_helpers import dcf_ast
-from meteorpi_helpers.obsarchive import obsarchive_db
-from meteorpi_helpers.obsarchive import obsarchive_model as mp
-from meteorpi_helpers.settings_read import settings, installation_info
+from pigazing_helpers import dcf_ast
+from pigazing_helpers.obsarchive import obsarchive_db
+from pigazing_helpers.obsarchive import obsarchive_model as mp
+from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                        db_host=settings['mysqlHost'],

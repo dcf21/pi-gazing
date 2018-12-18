@@ -28,7 +28,7 @@ from .settings_read import settings
 
 class Camera:
     """
-    Class representing a particular model of camera which can be used with MeteorPi. This hold all of the metadata
+    Class representing a particular model of camera which can be used with pigazing. This hold all of the metadata
     associated with this particularly camera model.
     """
 
@@ -47,7 +47,7 @@ class Camera:
 
 class Lens:
     """
-    Class representing a particular model of lens which can be used with MeteorPi. This hold all of the metadata
+    Class representing a particular model of lens which can be used with pigazing. This hold all of the metadata
     associated with this particularly lens.
     """
 
@@ -104,7 +104,7 @@ class HardwareProps:
         """
         assert name in self.camera_data, "Unknown camera type <{}>".format(name)
         x = self.camera_data[name]
-        user = settings['meteorpiUser']
+        user = settings['pigazingUser']
         db.register_obstory_metadata(obstory_id=obstory_id,
                                      key="camera", value=name,
                                      metadata_time=utc, user_created=user)
@@ -147,7 +147,7 @@ class HardwareProps:
 
         assert name in self.lens_data, "Unknown lens type <{}>".format(name)
         x = self.lens_data[name]
-        user = settings['meteorpiUser']
+        user = settings['pigazingUser']
         db.register_obstory_metadata(obstory_id=obstory_id,
                                      key="lens", value=name,
                                      metadata_time=utc, user_created=user)

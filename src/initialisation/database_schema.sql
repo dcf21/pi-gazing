@@ -50,7 +50,7 @@ CREATE TABLE archive_observations (
     ON DELETE CASCADE,
   FOREIGN KEY (obsType) REFERENCES archive_semanticTypes (uid)
     ON DELETE CASCADE,
-  FOREIGN KEY (centralConstellation) REFERENCES meteorpi_constellations (constellationId)
+  FOREIGN KEY (centralConstellation) REFERENCES pigazing_constellations (constellationId)
     ON DELETE CASCADE,
   INDEX (obsTime),
   INDEX (creationTime),
@@ -178,7 +178,7 @@ CREATE TABLE archive_observationImport (
   importTime    REAL    NOT NULL,
   FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
     ON DELETE CASCADE,
-  FOREIGN KEY (importUser) REFERENCES meteorpi_users (userId)
+  FOREIGN KEY (importUser) REFERENCES pigazing_users (userId)
     ON DELETE CASCADE
 );
 
@@ -201,7 +201,7 @@ CREATE TABLE archive_fileImport (
   importTime REAL    NOT NULL,
   FOREIGN KEY (fileId) REFERENCES archive_files (uid)
     ON DELETE CASCADE,
-  FOREIGN KEY (importUser) REFERENCES meteorpi_users (userId)
+  FOREIGN KEY (importUser) REFERENCES pigazing_users (userId)
     ON DELETE CASCADE
 );
 
@@ -223,7 +223,7 @@ CREATE TABLE archive_metadataImport (
   importTime REAL    NOT NULL,
   FOREIGN KEY (metadataId) REFERENCES archive_metadata (uid)
     ON DELETE CASCADE,
-  FOREIGN KEY (importUser) REFERENCES meteorpi_users (userId)
+  FOREIGN KEY (importUser) REFERENCES pigazing_users (userId)
     ON DELETE CASCADE
 );
 
@@ -264,14 +264,14 @@ CREATE TABLE archive_obs_likes (
   userId INTEGER NOT NULL,
   obsId  INTEGER NOT NULL,
   PRIMARY KEY (userId, obsId),
-  FOREIGN KEY (userId) REFERENCES meteorpi_users (userId)
+  FOREIGN KEY (userId) REFERENCES pigazing_users (userId)
     ON DELETE CASCADE,
   FOREIGN KEY (obsId) REFERENCES archive_observations (uid)
     ON DELETE CASCADE
 );
 
 # Create users tables
-CREATE TABLE meteorpi_users (
+CREATE TABLE pigazing_users (
   userId      INTEGER PRIMARY KEY AUTO_INCREMENT,
   username    VARCHAR(48) UNIQUE NOT NULL,
   name        TEXT,
@@ -283,7 +283,7 @@ CREATE TABLE meteorpi_users (
   profileText TEXT
 );
 
-CREATE TABLE meteorpi_user_sessions (
+CREATE TABLE pigazing_user_sessions (
   sessionId INTEGER PRIMARY KEY AUTO_INCREMENT,
   userId    INTEGER,
   cookie    CHAR(32),
@@ -291,39 +291,39 @@ CREATE TABLE meteorpi_user_sessions (
   logIn     REAL,
   lastSeen  REAL,
   logOut    REAL,
-  FOREIGN KEY (userId) REFERENCES meteorpi_users (userId)
+  FOREIGN KEY (userId) REFERENCES pigazing_users (userId)
     ON DELETE CASCADE,
   INDEX (cookie)
 );
 
-CREATE TABLE meteorpi_roles (
+CREATE TABLE pigazing_roles (
   roleId INTEGER PRIMARY KEY AUTO_INCREMENT,
   name   VARCHAR(128) UNIQUE NOT NULL
 );
 
-CREATE TABLE meteorpi_user_roles (
+CREATE TABLE pigazing_user_roles (
   userId INTEGER NOT NULL,
   roleId INTEGER NOT NULL,
-  FOREIGN KEY (userId) REFERENCES meteorpi_users (userId)
+  FOREIGN KEY (userId) REFERENCES pigazing_users (userId)
     ON DELETE CASCADE,
-  FOREIGN KEY (roleId) REFERENCES meteorpi_roles (roleId)
+  FOREIGN KEY (roleId) REFERENCES pigazing_roles (roleId)
     ON DELETE CASCADE,
   PRIMARY KEY (userId, roleId)
 );
 
 # Table of high water marks
-CREATE TABLE meteorpi_highWaterMarkTypes (
+CREATE TABLE pigazing_highWaterMarkTypes (
   uid     INTEGER PRIMARY KEY AUTO_INCREMENT,
   metaKey VARCHAR(255) UNIQUE NOT NULL
 );
 
-CREATE TABLE meteorpi_highWaterMarks (
+CREATE TABLE pigazing_highWaterMarks (
   observatoryId INTEGER,
   markType      INTEGER,
   time          REAL,
   FOREIGN KEY (observatoryId) REFERENCES archive_observatories (uid)
     ON DELETE CASCADE,
-  FOREIGN KEY (markType) REFERENCES meteorpi_highWaterMarkTypes (uid)
+  FOREIGN KEY (markType) REFERENCES pigazing_highWaterMarkTypes (uid)
     ON DELETE CASCADE
 );
 

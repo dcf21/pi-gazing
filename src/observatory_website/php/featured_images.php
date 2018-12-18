@@ -58,7 +58,7 @@ foreach ($result_list as $item) {
 SELECT f.repositoryFname, f.fileName
 FROM archive_files f
 WHERE f.observationId=:o AND f.semanticType =
-(SELECT uid FROM archive_semanticTypes WHERE name=\"meteorpi:triggers/event\");");
+(SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:triggers/event\");");
     $stmt->bindParam(':o', $o, PDO::PARAM_INT);
     $stmt->execute([':o' => $item['observation']]);
     $video_list = $stmt->fetchAll();

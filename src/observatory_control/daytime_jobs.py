@@ -39,21 +39,21 @@ import time
 import json
 import traceback
 
-import meteorpi_db
+import pigazing_db
 
 import daytimeJobsClean
 import dbImport
 import exportData
 import installation_info
-from meteorpi_helpers import dcf_ast
+from pigazing_helpers import dcf_ast
 import mod_daytimejobs
 import mod_log
-from meteorpi_helpers import settings_read
+from pigazing_helpers import settings_read
 import orientationCalc
 from mod_log import log_txt, get_utc
 
 pid = os.getpid()
-db = meteorpi_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+db = pigazing_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 
 # User should supply unix time on commandline at which we are to stop work
 if len(sys.argv) != 3:

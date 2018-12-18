@@ -2,7 +2,7 @@ datadir
 .idea/
 virtualenv/
 
-src/meteorpi_helpers/build/
-src/meteorpi_helpers/dist/
-src/meteorpi_helpers/meteorpi_helpers.egg-info/
+src/pigazing_helpers/build/
+src/pigazing_helpers/dist/
+src/pigazing_helpers/pigazing_helpers.egg-info/
 

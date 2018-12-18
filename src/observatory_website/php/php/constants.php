@@ -59,11 +59,11 @@ class constants
         unset($this->fullMonthNames[0]);
 
         // Database connection details
-        $this->mysqlLogin = "meteorpi";
+        $this->mysqlLogin = "pigazing";
         $this->mysqlHost = "localhost";
-        $this->mysqlUser = "meteorpi";
-        $this->mysqlPassword = "meteorpi";
-        $this->mysqlDB = "meteorpi";
+        $this->mysqlUser = "pigazing";
+        $this->mysqlPassword = "pigazing";
+        $this->mysqlDB = "pigazing";
 
         // Connect to database
         $this->db = new PDO("mysql:host=" . $this->mysqlHost . ";dbname=" . $this->mysqlDB, $this->mysqlUser,
@@ -84,29 +84,29 @@ class constants
         $this->semanticTypes = [
             "timelapse" => ["Still photograph", "A long exposure image, taken over a 30-second period"],
             "movingObject" => ["Moving object", "An object moving across the sky"],
-            "meteorpi:triggers/event/triggerFrame/lensCorr" => ["Initial appearance", "This image shows the first video frame in which the moving object was detected."],
-            "meteorpi:triggers/event/triggerFrame" => null,
-            "meteorpi:triggers/event/timeAverage/lensCorr" => ["Long exposure", "This shows a long exposure of the sky, taken over the entire duration that the moving object was visible."],
-            "meteorpi:triggers/event/timeAverage" => null,
-            "meteorpi:triggers/event/previousFrame/lensCorr" => ["Previous frame", "This image shows what the sky looked like immediately before the object appeared."],
-            "meteorpi:triggers/event/previousFrame" => null,
-            "meteorpi:triggers/event/maxBrightness/lensCorr" => ["Maximum brightness", "This image shows the maximum brightness of each part of the image over the course of the object's appearance. This is usually the image that shows the object most clearly."],
-            "meteorpi:triggers/event/maxBrightness" => null,
-            "meteorpi:triggers/event/mapTrigger/lensCorr" => ["Trigger map", "This map indicates why the camera thought this object was interesting. Grey spots indicate areas which had recently brightened by an unusual amount. White spots indicate areas large enough to trigger the camera's motion sensor."],
-            "meteorpi:triggers/event/mapTrigger" => null,
-            "meteorpi:triggers/event/mapExcludedPixels/lensCorr" => ["Excluded pixels", "This is a map of pixels within the frame which were being ignored owing to too much past variability. They may be foreground objects which are often illuminated by car headlights, for example. Only white pixels are ignored; different shades of grey indicate how much each pixel has varied in the past."],
-            "meteorpi:triggers/event/mapExcludedPixels" => null,
-            "meteorpi:triggers/event/mapDifference/lensCorr" => ["Difference frame", "This frame indicates why the camera thought this object was interesting. It shows the difference between the video frame where the object appeared and the one before. White areas have brightened; dark areas have darkened."],
-            "meteorpi:triggers/event/mapDifference" => null,
-            "meteorpi:triggers/event" => ["Video of object", "This is a video of the object which triggered the camera"],
-            "meteorpi:timelapse/frame/skyBackground/lensCorr" => ["Light pollution map","This is an image of the light pollution that we believe to be present in this image, compiled from observations over the previous 20 minutes. It is subtracted from the observed image to see faint objects."],
-            "meteorpi:timelapse/frame/skyBackground" => null,
-            "meteorpi:timelapse/frame/lensCorr" => ["Lens-corrected image","This image has had lens distortions corrected."],
-            "meteorpi:timelapse/frame/bgrdSub/lensCorr" => ["Image with light pollution removed", "This image has been processed to attempt to remove light pollution."],
-            "meteorpi:timelapse/frame/bgrdSub" => null,
-            "meteorpi:timelapse/frame" => ["Original image", "This is the original image recorded by the camera, with no post-processing."],
-            "meteorpi:path" => ["Path of object across frame", "This file contains a list of positions within the frame where the object was detected, together with the time of sighting at each position"],
-            "meteorpi:logfile" => ["Internal observatory log file", "This log file contains internal reporting from the observatory to allow us to check its health"],
+            "pigazing:triggers/event/triggerFrame/lensCorr" => ["Initial appearance", "This image shows the first video frame in which the moving object was detected."],
+            "pigazing:triggers/event/triggerFrame" => null,
+            "pigazing:triggers/event/timeAverage/lensCorr" => ["Long exposure", "This shows a long exposure of the sky, taken over the entire duration that the moving object was visible."],
+            "pigazing:triggers/event/timeAverage" => null,
+            "pigazing:triggers/event/previousFrame/lensCorr" => ["Previous frame", "This image shows what the sky looked like immediately before the object appeared."],
+            "pigazing:triggers/event/previousFrame" => null,
+            "pigazing:triggers/event/maxBrightness/lensCorr" => ["Maximum brightness", "This image shows the maximum brightness of each part of the image over the course of the object's appearance. This is usually the image that shows the object most clearly."],
+            "pigazing:triggers/event/maxBrightness" => null,
+            "pigazing:triggers/event/mapTrigger/lensCorr" => ["Trigger map", "This map indicates why the camera thought this object was interesting. Grey spots indicate areas which had recently brightened by an unusual amount. White spots indicate areas large enough to trigger the camera's motion sensor."],
+            "pigazing:triggers/event/mapTrigger" => null,
+            "pigazing:triggers/event/mapExcludedPixels/lensCorr" => ["Excluded pixels", "This is a map of pixels within the frame which were being ignored owing to too much past variability. They may be foreground objects which are often illuminated by car headlights, for example. Only white pixels are ignored; different shades of grey indicate how much each pixel has varied in the past."],
+            "pigazing:triggers/event/mapExcludedPixels" => null,
+            "pigazing:triggers/event/mapDifference/lensCorr" => ["Difference frame", "This frame indicates why the camera thought this object was interesting. It shows the difference between the video frame where the object appeared and the one before. White areas have brightened; dark areas have darkened."],
+            "pigazing:triggers/event/mapDifference" => null,
+            "pigazing:triggers/event" => ["Video of object", "This is a video of the object which triggered the camera"],
+            "pigazing:timelapse/frame/skyBackground/lensCorr" => ["Light pollution map","This is an image of the light pollution that we believe to be present in this image, compiled from observations over the previous 20 minutes. It is subtracted from the observed image to see faint objects."],
+            "pigazing:timelapse/frame/skyBackground" => null,
+            "pigazing:timelapse/frame/lensCorr" => ["Lens-corrected image","This image has had lens distortions corrected."],
+            "pigazing:timelapse/frame/bgrdSub/lensCorr" => ["Image with light pollution removed", "This image has been processed to attempt to remove light pollution."],
+            "pigazing:timelapse/frame/bgrdSub" => null,
+            "pigazing:timelapse/frame" => ["Original image", "This is the original image recorded by the camera, with no post-processing."],
+            "pigazing:path" => ["Path of object across frame", "This file contains a list of positions within the frame where the object was detected, together with the time of sighting at each position"],
+            "pigazing:logfile" => ["Internal observatory log file", "This log file contains internal reporting from the observatory to allow us to check its health"],
             "logging" => ["Internal observatory log file", "This log file contains internal reporting from the observatory to allow us to check its health"]
         ];
 
@@ -122,22 +122,22 @@ class constants
             "lens_fov" => "Field of view (deg)",
             "location_source" => "Location determined from",
             "longitude" => "Longitude east of Greenwich (deg)",
-            "meteorpi:amplitudePeak" => "Peak brightness of object",
-            "meteorpi:amplitudeTimeIntegrated" => "Time-integrated brightness of object",
-            "meteorpi:cameraId" => "Observatory ID",
-            "meteorpi:detectionCount" => "Number of frames",
-            "meteorpi:duration" => "Duration of object's appearance (sec)",
-            "meteorpi:highlight" => "Image highlighted",
-            "meteorpi:inputNoiseLevel" => "Noise level of input frames (0-255)",
-            "meteorpi:path" => "Path of object",
-            "meteorpi:pathBezier" => "Path of object",
-            "meteorpi:skyClarity" => "Sky clarity estimate (0-100)",
-            "meteorpi:stackedFrames" => "Number of frames averaged",
-            "meteorpi:stackNoiseLevel" => "Noise level (0-255)",
-            "meteorpi:sunAlt" => "Altitude of Sun (sec)",
-            "meteorpi:sunAz" => "Azimuth of Sun (sec)",
-            "meteorpi:sunDecl" => "Declination of Sun (deg)",
-            "meteorpi:sunRA" => "Right Ascension of Sun (hr)",
+            "pigazing:amplitudePeak" => "Peak brightness of object",
+            "pigazing:amplitudeTimeIntegrated" => "Time-integrated brightness of object",
+            "pigazing:cameraId" => "Observatory ID",
+            "pigazing:detectionCount" => "Number of frames",
+            "pigazing:duration" => "Duration of object's appearance (sec)",
+            "pigazing:highlight" => "Image highlighted",
+            "pigazing:inputNoiseLevel" => "Noise level of input frames (0-255)",
+            "pigazing:path" => "Path of object",
+            "pigazing:pathBezier" => "Path of object",
+            "pigazing:skyClarity" => "Sky clarity estimate (0-100)",
+            "pigazing:stackedFrames" => "Number of frames averaged",
+            "pigazing:stackNoiseLevel" => "Noise level (0-255)",
+            "pigazing:sunAlt" => "Altitude of Sun (sec)",
+            "pigazing:sunAz" => "Azimuth of Sun (sec)",
+            "pigazing:sunDecl" => "Declination of Sun (deg)",
+            "pigazing:sunRA" => "Right Ascension of Sun (hr)",
             "camera" => "Camera model",
             "camera_type" => "Camera interface type",
             "camera_fps" => "Camera frame rate per sec",

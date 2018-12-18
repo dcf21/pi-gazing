@@ -34,13 +34,13 @@ import time
 from math import pi
 
 import scipy.optimize
-from meteorpi_helpers import dcf_ast
-from meteorpi_helpers import gnomonic_project
-from meteorpi_helpers import sunset_times
-from meteorpi_helpers.obsarchive import obsarchive_db
-from meteorpi_helpers.obsarchive import obsarchive_model as mp
-from meteorpi_helpers.settings_read import settings, installation_info
-from meteorpi_helpers.vector_algebra import Point, Vector, Line
+from pigazing_helpers import dcf_ast
+from pigazing_helpers import gnomonic_project
+from pigazing_helpers import sunset_times
+from pigazing_helpers.obsarchive import obsarchive_db
+from pigazing_helpers.obsarchive import obsarchive_model as mp
+from pigazing_helpers.settings_read import settings, installation_info
+from pigazing_helpers.vector_algebra import Point, Vector, Line
 
 logging.basicConfig(level=logging.INFO,
                     stream=sys.stdout,
@@ -87,7 +87,7 @@ triggers.sort(key=lambda x: x.obs_time)
 for trigger in triggers:
     duration = 0
     for meta in trigger.meta:
-        if meta.key == "meteorpi:duration":
+        if meta.key == "pigazing:duration":
             duration = meta.value
     trigger.duration = duration
     trigger.obs_time_end = trigger.obs_time + duration
@@ -212,7 +212,7 @@ for item in groups:
         obs = trigger['obs']
         obstory_id = obs.obstory_id
         obstory_status = db.get_obstory_status(time=group_time, obstory_id=obstory_id)
-        path_json = db.get_observation_metadata(obs.id, "meteorpi:pathBezier")
+        path_json = db.get_observation_metadata(obs.id, "pigazing:pathBezier")
         if ((path_json is None) or
                 ('lens_barrel_a' not in obstory_status) or
                 ('latitude' not in obstory_status) or
@@ -417,7 +417,7 @@ for item in groups:
             meta_item = mp.Meta("triangulation", json.dumps(triangulation_info))
             db.set_observation_metadata(observation_id=trigger['obs'].id,
                                         meta=meta_item,
-                                        user_id=settings['meteorpiUser'])
+                                        user_id=settings['pigazingUser'])
 
 # Commit changes
 db.commit()
