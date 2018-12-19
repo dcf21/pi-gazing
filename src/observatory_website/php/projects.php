@@ -1,33 +1,33 @@
 <?php
 
 // projects.php
-// Meteor Pi, Cambridge Science Centre
+// Pi Gazing
 // Dominic Ford
 
 // -------------------------------------------------
-// Copyright 2016 Cambridge Science Centre.
+// Copyright 2019 Dominic Ford.
 
-// This file is part of Meteor Pi.
+// This file is part of Pi Gazing.
 
-// Meteor Pi is free software: you can redistribute it and/or modify
+// Pi Gazing is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Meteor Pi is distributed in the hope that it will be useful,
+// Pi Gazing is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Meteor Pi.  If not, see <http://www.gnu.org/licenses/>.
+// along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
 require "php/imports.php";
 
 $pageInfo = [
     "pageTitle" => "Projects",
-    "pageDescription" => "Meteor Pi",
+    "pageDescription" => "Pi Gazing",
     "activeTab" => "projects",
     "teaserImg" => null,
     "cssextra" => null,
@@ -41,7 +41,7 @@ $pageTemplate->header($pageInfo);
 ?>
 
     <p class="text">
-        Once you've tried searching for <a href="whattodo.php">planes, satellites and meteors</a> in the Meteor Pi
+        Once you've tried searching for <a href="whattodo.php">planes, satellites and meteors</a> in the Pi Gazing
         <a href="search.php">data archive</a>, you'll want to know what else you can see.
         </p>
     <p class="text">
@@ -58,7 +58,7 @@ $pageTemplate->header($pageInfo);
         <li>Can you spot the Moon?</li>
         <li>Why do the constellations change with season?</li>
         <li>See the planets moving!</li>
-        <li>Accessing Meteor Pi data using Python</li>
+        <li>Accessing Pi Gazing data using Python</li>
     </ul>
 
 <?php

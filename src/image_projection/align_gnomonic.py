@@ -5,20 +5,20 @@
 # -------------------------------------------------
 # Copyright 2015-2018 Dominic Ford
 #
-# This file is part of Meteor Pi.
+# This file is part of Pi Gazing.
 #
-# Meteor Pi is free software: you can redistribute it and/or modify
+# Pi Gazing is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# Meteor Pi is distributed in the hope that it will be useful,
+# Pi Gazing is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with Meteor Pi.  If not, see <http://www.gnu.org/licenses/>.
+# along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 # -------------------------------------------------
 
 """
@@ -30,7 +30,7 @@ The command line syntax is:
 The script will then output to stdout a configuration file which can be used by the C program <stack> to stack
 the images together
 
-This script is not normally used by Meteor Pi -- the observatory control software uses
+This script is not normally used by Pi Gazing -- the observatory control software uses
 <observatoryControl/orientationCalc.py> instead to work out where each camera is pointing.
 """
 

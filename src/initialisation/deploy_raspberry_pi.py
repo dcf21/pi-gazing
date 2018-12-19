@@ -5,20 +5,20 @@
 # -------------------------------------------------
 # Copyright 2015-2018 Dominic Ford
 #
-# This file is part of Meteor Pi.
+# This file is part of Pi Gazing.
 #
-# Meteor Pi is free software: you can redistribute it and/or modify
+# Pi Gazing is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# Meteor Pi is distributed in the hope that it will be useful,
+# Pi Gazing is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with Meteor Pi.  If not, see <http://www.gnu.org/licenses/>.
+# along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 # -------------------------------------------------
 
 """
@@ -49,10 +49,10 @@ os.chdir(settings_read.settings['pythonPath'])
 # Check with the user that they know what's about to happen
 confirmation = input("""
 This script should only be run on an SD card which has been set up with the hostname <pigazing-clean>
-and the standard contents of <installation_info.py>, by following the instructions in the Wiki on the Meteor Pi GitHub
+and the standard contents of <installation_info.py>, by following the instructions in the Wiki on the Pi Gazing GitHub
 website.
 
-It will replace your network settings and Meteor Pi configuration with user-entered values.
+It will replace your network settings and Pi Gazing configuration with user-entered values.
 
 Are you sure you would like to proceed? (Y/N)
 """)

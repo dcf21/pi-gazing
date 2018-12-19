@@ -1,26 +1,26 @@
 <?php
 
 // index.php
-// Meteor Pi, Cambridge Science Centre
+// Pi Gazing
 // Dominic Ford
 
 // -------------------------------------------------
-// Copyright 2016 Cambridge Science Centre.
+// Copyright 2019 Dominic Ford.
 
-// This file is part of Meteor Pi.
+// This file is part of Pi Gazing.
 
-// Meteor Pi is free software: you can redistribute it and/or modify
+// Pi Gazing is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Meteor Pi is distributed in the hope that it will be useful,
+// Pi Gazing is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Meteor Pi.  If not, see <http://www.gnu.org/licenses/>.
+// along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
 require "php/imports.php";
@@ -54,8 +54,8 @@ foreach ($result_list as $item) {
 }
 
 $pageInfo = [
-    "pageTitle" => "Meteor Pi",
-    "pageDescription" => "Meteor Pi",
+    "pageTitle" => "Pi Gazing",
+    "pageDescription" => "Pi Gazing",
     "noTitle" => true,
     "activeTab" => "home",
     "breadcrumb" => null,
@@ -72,7 +72,7 @@ $pageTemplate->header($pageInfo);
     <div class="row">
         <div class="col-md-4" style="padding:16px;">
             <p class="text" style="font-size:18px;">
-                Meteor Pi lets you browse the night sky without having to step outside or wait until nightfall.
+                Pi Gazing lets you browse the night sky without having to step outside or wait until nightfall.
             </p>
 
             <p class="text">
@@ -91,7 +91,7 @@ $pageTemplate->header($pageInfo);
 
             <p class="text">
                 Nothing beats the experience of looking at the night sky for yourself with a pair of binoculars, but
-                Meteor Pi will help you learn what to look out for. And because our motion-sensitive cameras are keeping
+                Pi Gazing will help you learn what to look out for. And because our motion-sensitive cameras are keeping
                 constant watch, you may see rare events that you would have to wait a long time to see for yourself.
             </p>
 

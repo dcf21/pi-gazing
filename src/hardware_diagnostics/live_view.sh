@@ -1,6 +1,6 @@
 #!/bin/bash
 # liveView.sh
-# Meteor Pi, Cambridge Science Centre
+# Pi Gazing
 # Dominic Ford
 
 # This script is used to produce a live view of what a camera can see, using mplayer

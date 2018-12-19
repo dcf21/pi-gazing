@@ -1,6 +1,6 @@
 #!/bin/bash
 # observe.sh
-# Meteor Pi, Cambridge Science Centre
+# Pi Gazing
 # Dominic Ford
 
 # This script is the main entry point for the observatory control software.

@@ -1,26 +1,26 @@
 <?php
 
 // html_template.php
-// Meteor Pi, Cambridge Science Centre
+// Pi Gazing
 // Dominic Ford
 
 // -------------------------------------------------
-// Copyright 2016 Cambridge Science Centre.
+// Copyright 2019 Dominic Ford.
 
-// This file is part of Meteor Pi.
+// This file is part of Pi Gazing.
 
-// Meteor Pi is free software: you can redistribute it and/or modify
+// Pi Gazing is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Meteor Pi is distributed in the hope that it will be useful,
+// Pi Gazing is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Meteor Pi.  If not, see <http://www.gnu.org/licenses/>.
+// along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
 require_once "constants.php";
@@ -191,7 +191,7 @@ __HTML__;
         <div class="bannerback">
             <div class="banner">
                 <div class="banner_txt_right" id="top">
-                    <p class="toptitleA"><a href="#">Meteor Pi</a></p>
+                    <p class="toptitleA"><a href="#">Pi Gazing</a></p>
                 </div>
                 <div id="bannerppl"></div>
                 <div id="bannercsc"></div>
@@ -310,12 +310,12 @@ __HTML__;
                     <div class="col-sm-4" style="padding:4px;">
                         <p class="copyright">
                             <span style="font-size:15px;">
-                            &copy; <a href="#about">Cambridge Science Centre 2016.</a>
+                            &copy; <a href="#about">Dominic Ford 2019.</a>
                             </span>
                         </p>
 
                         <p class="copyright">
-                            For more information about Meteor Pi, <a href="#about">click here</a>.<br/>
+                            For more information about Pi Gazing, <a href="#about">click here</a>.<br/>
                             Website designed by Dominic Ford.<br/>
                         </p>
 

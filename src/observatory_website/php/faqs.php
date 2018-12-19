@@ -1,33 +1,33 @@
 <?php
 
 // faqs.php
-// Meteor Pi, Cambridge Science Centre
+// Pi Gazing
 // Dominic Ford
 
 // -------------------------------------------------
-// Copyright 2016 Cambridge Science Centre.
+// Copyright 2019 Dominic Ford.
 
-// This file is part of Meteor Pi.
+// This file is part of Pi Gazing.
 
-// Meteor Pi is free software: you can redistribute it and/or modify
+// Pi Gazing is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Meteor Pi is distributed in the hope that it will be useful,
+// Pi Gazing is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Meteor Pi.  If not, see <http://www.gnu.org/licenses/>.
+// along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
 require "php/imports.php";
 
 $pageInfo = [
     "pageTitle" => "Frequently asked questions",
-    "pageDescription" => "Meteor Pi",
+    "pageDescription" => "Pi Gazing",
     "activeTab" => "faqs",
     "teaserImg" => null,
     "cssextra" => null,
@@ -77,7 +77,7 @@ $pageTemplate->header($pageInfo);
                     trajectory of each shooting star, telling us where each one came from.
                 </p>
                 <p class="text">
-                    Eventually, Meteor Pi will allow us to trace out how space rocks are distributed through the Solar
+                    Eventually, Pi Gazing will allow us to trace out how space rocks are distributed through the Solar
                     System.
                 </p>
             </div>
@@ -86,7 +86,7 @@ $pageTemplate->header($pageInfo);
         <div class="faq_item">
             <div class="faq_question">
                 <a data-toggle="collapse" href="#collapse2">
-                    Why are many Meteor Pi images blank?
+                    Why are many Pi Gazing images blank?
                 </a>
             </div>
             <div class="faq_answer panel-collapse collapse" id="collapse2">
@@ -94,7 +94,7 @@ $pageTemplate->header($pageInfo);
                 <div class="rightimg">
                     <img src="img/cloudyskies.png"/>
                     <p class="caption">
-                        Meteor Pi cameras observe on cloudy skies as well as starry ones. Sometimes the Moon or
+                        Pi Gazing cameras observe on cloudy skies as well as starry ones. Sometimes the Moon or
                         twilight can dazzle them!
                     </p>
                 </div>
@@ -103,7 +103,7 @@ $pageTemplate->header($pageInfo);
                     Our cameras observe from nightfall until dawn every day, even when the weather is bad.
                 </p>
                 <p class="text">
-                    In the UK, most places have clear skies on one night in three, so roughly two thirds of Meteor Pi
+                    In the UK, most places have clear skies on one night in three, so roughly two thirds of Pi Gazing
                     images show cloudy skies.
                 </p>
                 <p class="text">
@@ -117,7 +117,7 @@ $pageTemplate->header($pageInfo);
         <div class="faq_item">
             <div class="faq_question">
                 <a data-toggle="collapse" href="#collapse3">
-                    Can I build my own Meteor Pi camera?
+                    Can I build my own Pi Gazing camera?
                 </a>
             </div>
             <div class="faq_answer panel-collapse collapse" id="collapse3">
@@ -125,7 +125,7 @@ $pageTemplate->header($pageInfo);
                 <div class="rightimg">
                     <img src="img/system_diagram.png" style="max-width:450px;"/>
                     <p class="caption">
-                        The collection of hardware found inside a Meteor Pi camera.
+                        The collection of hardware found inside a Pi Gazing camera.
                     </p>
                 </div>
 
@@ -134,7 +134,7 @@ $pageTemplate->header($pageInfo);
                 </p>
 
                 <p class="text">
-                    All the hardware designs and software used by the Meteor Pi cameras are open source, and can be
+                    All the hardware designs and software used by the Pi Gazing cameras are open source, and can be
                     found on our
                     <a href="https://github.com/camsci/meteor-pi">GitHub pages</a>.
                     Not only are they free to download, but you're also welcome to change them and see if you can make
@@ -173,7 +173,7 @@ $pageTemplate->header($pageInfo);
                 </div>
 
                 <p class="text">
-                    When we designed the Meteor Pi cameras, our priority was make them as sensitive as possible to very
+                    When we designed the Pi Gazing cameras, our priority was make them as sensitive as possible to very
                     faint objects in the night sky.
                 </p>
                 <p class="text">

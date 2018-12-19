@@ -1,4 +1,4 @@
-This directory contains the SQL schema used by the Meteor Pi archival database.
+This directory contains the SQL schema used by the Pi Gazing archival database.
 
 You must set up the required MySQL user account and database before you can use any other python scripts in our repository.
 

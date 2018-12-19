@@ -1,6 +1,6 @@
 #!/bin/bash
 # snapshot.sh
-# Meteor Pi, Cambridge Science Centre
+# Pi Gazing
 # Dominic Ford
 
 # This script is used to take a live snapshot of what a camera can see.

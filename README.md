@@ -1,6 +1,6 @@
-# Meteor Pi
+# Pi Gazing
 
-Meteor Pi makes it really easy for schools, community groups, and enthusiasts
+Pi Gazing makes it really easy for schools, community groups, and enthusiasts
 to observe the night sky.
 
 We're installing a network of CCTV cameras that point upwards and record
@@ -8,7 +8,7 @@ pictures of the sky throughout the hours of darkness.  They take a series of
 long-exposure still photos each night, and they're also motion sensitive,
 taking video clips of anything that moves.
 
-You can use Meteor Pi images to watch how the constellations circle overhead as
+You can use Pi Gazing images to watch how the constellations circle overhead as
 the night progresses, or how they change with the seasons. You can see the
 changing phases of the Moon, or watch the planets move across the sky.
 
@@ -20,7 +20,7 @@ The fact that we have a network of many cameras means that sometimes we see the
 same object from multiple different locations. That enables us to triangulate
 their exact three-dimensional positions, including their altitude and speed.
 
-To find out more about the Meteor Pi project, you should [visit our project
+To find out more about the Pi Gazing project, you should [visit our project
 website](http://pigazing.cambridgesciencecentre.org/).
 
 There, you can find information sheets about educational activities, and you
@@ -32,7 +32,7 @@ our software, you should be able to find all the information you need here.
 
 ## Our supporters
 
-Meteor Pi was developed by astronomer [Dominic
+Pi Gazing was developed by astronomer [Dominic
 Ford](https://in-the-sky.org/about.php) for [Cambridge Science
 Centre](http://www.cambridgesciencecentre.org/), with generous support from the
 [Raspberry Pi Foundation](https://www.raspberrypi.org/), and
@@ -40,7 +40,7 @@ Centre](http://www.cambridgesciencecentre.org/), with generous support from the
 
 ## Audience
 
-Meteor Pi is open to all!
+Pi Gazing is open to all!
 
 Many of our activities have been developed with children in mind, but all our
 data is open for anyone to access. You can find instructions on these GitHub

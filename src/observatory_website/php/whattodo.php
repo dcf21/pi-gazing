@@ -1,33 +1,33 @@
 <?php
 
 // whattodo.php
-// Meteor Pi, Cambridge Science Centre
+// Pi Gazing
 // Dominic Ford
 
 // -------------------------------------------------
-// Copyright 2016 Cambridge Science Centre.
+// Copyright 2019 Dominic Ford.
 
-// This file is part of Meteor Pi.
+// This file is part of Pi Gazing.
 
-// Meteor Pi is free software: you can redistribute it and/or modify
+// Pi Gazing is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Meteor Pi is distributed in the hope that it will be useful,
+// Pi Gazing is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Meteor Pi.  If not, see <http://www.gnu.org/licenses/>.
+// along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
 require "php/imports.php";
 
 $pageInfo = [
-    "pageTitle" => "Getting started with Meteor Pi",
-    "pageDescription" => "Meteor Pi",
+    "pageTitle" => "Getting started with Pi Gazing",
+    "pageDescription" => "Pi Gazing",
     "activeTab" => "whattodo",
     "teaserImg" => null,
     "cssextra" => null,
@@ -51,7 +51,7 @@ $pageTemplate->header($pageInfo);
                             </div>
 
                             <p class="text">
-                                On this website, you can browse the complete archive of images recorded by Meteor Pi
+                                On this website, you can browse the complete archive of images recorded by Pi Gazing
                                 cameras.
                             </p>
                             <p class="text">
@@ -68,7 +68,7 @@ $pageTemplate->header($pageInfo);
                                 these, and many more activities.
                             </p>
                             <p class="text">
-                                To begin with, though, let's look at some of the moving objects seen by Meteor Pi.
+                                To begin with, though, let's look at some of the moving objects seen by Pi Gazing.
                                 We'll show you how to spot planes, shooting stars, and spacecraft like the
                                 International Space Station!
                             </p>
@@ -81,7 +81,7 @@ $pageTemplate->header($pageInfo);
                             <div class="rightimg">
                                 <img style="width:400px;" src="img/example_plane_2.png"/>
                                 <p class="caption">
-                                    An example image of a plane, as it might appear when you search Meteor Pi images.
+                                    An example image of a plane, as it might appear when you search Pi Gazing images.
                                     <a href="moving_obj.php?id=20160201_213134_2ddfb9ebfb71bc54">
                                         Click here to see a full video of the event.
                                     </a>
@@ -110,7 +110,7 @@ $pageTemplate->header($pageInfo);
                                         <img class="gallery_path_marker" alt="" title="" src="img/crosshair.gif"/>
                                         <img class="gallery_img" style="width:400px;" src="img/example_plane.png"/>
                                         <p class="caption">
-                                            An example image of a plane, as it might appear when you search Meteor Pi
+                                            An example image of a plane, as it might appear when you search Pi Gazing
                                             images.
                                             <a href="moving_obj.php?id=20160203_204726_ae6e95f84da1e69e">
                                                 Click here to see a full video of the event.
@@ -142,7 +142,7 @@ $pageTemplate->header($pageInfo);
                             <div class="rightimg">
                                 <img style="width:400px;" src="img/example_meteor.png"/>
                                 <p class="caption">
-                                    An example image of a meteor, as it might appear when you search Meteor Pi
+                                    An example image of a meteor, as it might appear when you search Pi Gazing
                                     images.
                                     <a href="moving_obj.php?id=20160212_034057_4c5aead12cf736d2">
                                         Click here to see a full video of the event.
@@ -184,7 +184,7 @@ $pageTemplate->header($pageInfo);
                             <div class="rightimg position_relative">
                                 <img style="width:400px;" src="img/example_satellite.png"/>
                                 <p class="caption">
-                                    An example image of a satellite, as it might appear when you search Meteor Pi
+                                    An example image of a satellite, as it might appear when you search Pi Gazing
                                     images.
                                     <a href="moving_obj.php?id=20151211_165838_ed3b70e50e079f3d">
                                         Click here to see a full video of the event.
@@ -210,7 +210,7 @@ $pageTemplate->header($pageInfo);
                                 bright satellites are due to fly over.
                             </p>
                             <p class="text">
-                                Not all of these will be seen by Meteor Pi, since
+                                Not all of these will be seen by Pi Gazing, since
                                 our cameras can only see half the sky, and satellites are only visible in clear
                                 conditions.
                             </p>
@@ -250,7 +250,7 @@ $pageTemplate->header($pageInfo);
                         <div class="pane-item" data-title="Next steps">
                             <h3 style="padding-top:0;">What next?</h3>
                             <p class="text">
-                                To start searching for images taken by Meteor Pi, our <a href="search.php">online
+                                To start searching for images taken by Pi Gazing, our <a href="search.php">online
                                     search interface</a> is the easiest place to start.
                             </p>
                             <p class="text">

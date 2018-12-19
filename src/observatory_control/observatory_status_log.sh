@@ -1,12 +1,12 @@
 #!/bin/bash
 # observatoryStatusLog.py
-# Meteor Pi, Cambridge Science Centre
+# Pi Gazing
 # Dominic Ford
 
 # This script produces a lots of system information -- for example:
 #
 # * The amount of disk space available
-# * Check sums for all of the Meteor Pi source files
+# * Check sums for all of the Pi Gazing source files
 # * A list of recent log messages (the most recent 1000 messages)
 # * A list of recent python errors
 #
