@@ -46,8 +46,7 @@ $pageTemplate->header($pageInfo);
 </div>
 
 <p class="text">
-    Pi Gazing was developed by astronomer <a href="https://in-the-sky.org/about.php">Dominic Ford</a> for
-    Cambridge Science Centre.
+    Pi Gazing is written and maintained by astronomer <a href="https://in-the-sky.org/about.php">Dominic Ford</a>.
     </p>
 <p class="text">
     All of the software and hardware designs are open source, and can be downloaded from
@@ -70,28 +69,17 @@ We are very grateful for advice from many amateur astronomers who helped us with
 the <a href="http://www.nemetode.org/">NEMETODE</a> and <a href="https://www.ukmeteornetwork.co.uk/">UKMON</a>
 networks of amateur meteor observers.
 </p>
+
 <p class="text">
-    The hardware used in our Pi Gazing cameras was designed by Dave Ansell. Our database
-    and communications systems were design by Tom Oinn.
+    The hardware used in our Pi Gazing cameras was designed by Dave Ansell.
 </p>
 
-<h3>Supporters</h3>
+<p class="text">
 
-<p>The development of Pi Gazing was made possible thanks to generous funding from:</p>
+    Pi Gazing is based on code which was developed for Cambridge Science Centre's MeteorPi project, which was
+    created by Dominic Ford with generous support from the Raspberry Pi Foundation and Mathworks.
 
-<div class="row supporters">
-    <div class="col-sm-6">
-        <img src="img/rpi_logo.png" alt="The Raspberry Pi Foundation"
-             title="The Raspberry Pi Foundation"/>
-        <br />
-        The Raspberry Pi Foundation
-    </div>
-    <div class="col-sm-6">
-        <img src="img/Mathworks.jpg" alt="MathWorks" title="MathWorks"/>
-        <br />
-        MathWorks
-    </div>
-</div>
+</p>
 
 <?php
 $pageTemplate->footer($pageInfo);

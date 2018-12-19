@@ -2,10 +2,10 @@
   "name": "pigazing",
   "version": "2.0.0",
   "authors": [
-    "Dominic Ford <dominic@cambridgesciencecentre.org>"
+    "Dominic Ford <pigazing@dcford.org.uk>"
   ],
   "license": "GSL",
-  "homepage": "https://pigazing.cambridgesciencecentre.org",
+  "homepage": "https://pigazing.dcford.org.uk",
   "ignore": [
     "**/.*",
     "node_modules",

@@ -21,7 +21,7 @@ same object from multiple different locations. That enables us to triangulate
 their exact three-dimensional positions, including their altitude and speed.
 
 To find out more about the Pi Gazing project, you should [visit our project
-website](http://pigazing.cambridgesciencecentre.org/).
+website](https://pigazing.dcford.org.uk/).
 
 There, you can find information sheets about educational activities, and you
 can browse our entire data archive.
@@ -30,13 +30,15 @@ These GitHub pages contain all of the program code and hardware designs that we
 use. They're all open source, and if you want to set up your own camera using
 our software, you should be able to find all the information you need here.
 
-## Our supporters
+## Acknowledgments
 
-Pi Gazing was developed by astronomer [Dominic
-Ford](https://in-the-sky.org/about.php) for [Cambridge Science
-Centre](http://www.cambridgesciencecentre.org/), with generous support from the
-[Raspberry Pi Foundation](https://www.raspberrypi.org/), and
-[MathWorks](http://uk.mathworks.com).
+Pi Gazing is written and maintained by astronomer [Dominic
+Ford](https://in-the-sky.org/about.php).
+
+It is based on code that was written for [Cambridge Science
+Centre](http://www.cambridgesciencecentre.org/)'s MeteorPi project, which was
+created by Dominic Ford with generous support from the Raspberry Pi Foundation,
+and MathWorks.
 
 ## Audience
 
@@ -52,4 +54,3 @@ of the [NEMETODE](http://www.nemetode.org) and [UKMON]
 
 You can follow us on [Twitter](https://twitter.com/pigazing) and
 [Facebook](https://www.facebook.com/pigazingcamera).
-
