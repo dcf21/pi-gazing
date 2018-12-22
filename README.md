@@ -1,7 +1,7 @@
 # Pi Gazing
 
-Pi Gazing makes it really easy for schools, community groups, and enthusiasts
-to observe the night sky.
+Pi Gazing makes it really easy for amateur astronomers to observe the night
+sky.
 
 We're installing a network of CCTV cameras that point upwards and record
 pictures of the sky throughout the hours of darkness.  They take a series of
@@ -17,8 +17,9 @@ shooting stars. We also see rarer phenomena: lightning strikes, fireworks, and
 glints of light from solar panels on spacecraft.
 
 The fact that we have a network of many cameras means that sometimes we see the
-same object from multiple different locations. That enables us to triangulate
-their exact three-dimensional positions, including their altitude and speed.
+same moving object from multiple different locations at once. That enables us
+to triangulate the object's exact three-dimensional position, including its
+altitude and speed.
 
 To find out more about the Pi Gazing project, you should [visit our project
 website](https://pigazing.dcford.org.uk/).
@@ -26,9 +27,9 @@ website](https://pigazing.dcford.org.uk/).
 There, you can find information sheets about educational activities, and you
 can browse our entire data archive.
 
-These GitHub pages contain all of the program code and hardware designs that we
-use. They're all open source, and if you want to set up your own camera using
-our software, you should be able to find all the information you need here.
+These GitHub pages contain the program code and hardware designs that we use.
+They're all open source, and if you want to set up your own camera using our
+software, you should be able to find all the information you need here.
 
 ## Acknowledgments
 
@@ -49,8 +50,8 @@ data is open for anyone to access. You can find instructions on these GitHub
 pages for building your own camera, and we'd be delighted to hear how you get
 on. We're especially keen to work with amateur astronomers who would like to
 use our cameras to make scientific observations of meteors, for example as part
-of the [NEMETODE](http://www.nemetode.org) and [UKMON]
-(http://www.ukmeteornetwork.co.uk) networks.
+of the [NEMETODE](http://www.nemetode.org) and
+[UKMON](http://www.ukmeteornetwork.co.uk) networks.
 
-You can follow us on [Twitter](https://twitter.com/pigazing) and
-[Facebook](https://www.facebook.com/pigazingcamera).
+You can follow us on [Twitter](https://twitter.com/meteorpi) and
+[Facebook](https://www.facebook.com/meteorpicamera).

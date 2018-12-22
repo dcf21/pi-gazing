@@ -1,49 +1,43 @@
-<lenses>
- <lens>
-  <name>null</name>
-  <fov>0</fov>
-  <barrel_a>0</barrel_a>
-  <barrel_b>0</barrel_b>
-  <barrel_c>0</barrel_c>
- </lens>
- <lens>
-  <name>watec_902h_default</name>
-  <comment>This is the lens shipped with the Watec 902H first used at Peverel Road</comment>
-  <fov>32</fov>
-  <barrel_a> 0.00331</barrel_a>
-  <barrel_b>-0.01965</barrel_b>
-  <barrel_c> 0.00738</barrel_c>
- </lens>
- <lens>
-  <name>VF-DCD-AI-3.5-18-C-2MP</name>
-  <comment>Lens in use on the Watec 902H2 Ultimate at Peverel Road</comment>
-  <fov>73</fov>
-  <barrel_a>-0.0132245797757</barrel_a>
-  <barrel_b>-0.0434443108138</barrel_b>
-  <barrel_c>0.0242867248139</barrel_c>
- </lens>
- <lens>
-  <name>VF-DCD-AI-4-10-C-2MP</name>
-  <comment>Lens in use on the Watec 902H2 Supreme at Peverel Road</comment>
-  <fov>77</fov>
-  <barrel_a>0</barrel_a>
-  <barrel_b>0</barrel_b>
-  <barrel_c>0</barrel_c>
- </lens>
- <lens>
-  <name>HG3Z4512FCS</name>
-  <comment>Lens in use on shed-1 at Peverel Road</comment>
-  <fov>77</fov>
-  <barrel_a>0</barrel_a>
-  <barrel_b>0</barrel_b>
-  <barrel_c>0</barrel_c>
- </lens>
- <lens>
+<cameras>
+ <camera>
+  <name>watec_902h</name>
+  <width>720</width>
+  <height>480</height>
+  <fps>24.71</fps>
+  <upside_down>1</upside_down>
+  <type>webcam</type>
+ </camera>
+ <camera>
+  <name>watec_902h2_ultimate</name>
+  <width>720</width>
+  <height>480</height>
+  <fps>24.71</fps>
+  <upside_down>1</upside_down>
+  <type>webcam</type>
+ </camera>
+ <camera>
+  <name>watec_902h2_supreme</name>
+  <width>720</width>
+  <height>480</height>
+  <fps>24.71</fps>
+  <upside_down>1</upside_down>
+  <type>webcam</type>
+ </camera>
+ <camera>
+  <name>pl1399</name>
+  <width>720</width>
+  <height>480</height>
+  <fps>24.71</fps>
+  <upside_down>0</upside_down>
+  <type>webcam</type>
+ </camera>
+ <camera>
   <name>eos1000d</name>
-  <comment>Canon 1000D DSLR kit lens</comment>
-  <fov>53</fov>
-  <barrel_a>0.01262</barrel_a>
-  <barrel_b>-0.03922</barrel_b>
-  <barrel_c>0.00259</barrel_c>
- </lens>
-</lenses>
+  <width>800</width>
+  <height>600</height>
+  <fps>0.125</fps>
+  <upside_down>0</upside_down>
+  <type>gphoto2</type>
+ </camera>
+</cameras>
+
