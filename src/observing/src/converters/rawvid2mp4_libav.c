@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
     /* open codec for encoder*/
     if (avcodec_open2(ctxEncode, codecEncode, &options) < 0) { gnom_fatal(__FILE__, __LINE__, "could not open codec"); }
 
-    pictureEncoded = avcodec_alloc_frame();
+    pictureEncoded = av_frame_alloc();
     if (!pictureEncoded) { gnom_fatal(__FILE__, __LINE__, "Could not allocate video frame"); }
 
     // some formats want stream headers to be separate

@@ -1,6 +1,6 @@
+#!../../../virtualenv/bin/python3
+# -*- coding: utf-8 -*-
 # build.py
-# Pi Gazing
-# Dominic Ford
 
 # -------------------------------------------------
 # Copyright 2019 Dominic Ford.
@@ -23,7 +23,6 @@
 
 import os
 import glob
-import time
 import shutil
 
 import make_htaccess

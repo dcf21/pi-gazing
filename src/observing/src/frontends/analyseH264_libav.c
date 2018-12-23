@@ -114,7 +114,7 @@ int decoder_init(context *ctx) {
     if (!ctx->codec) { gnom_fatal(__FILE__, __LINE__, "codec not found"); }
     ctx->c = avcodec_alloc_context3(ctx->codec);
     if (avcodec_open2(ctx->c, ctx->codec, NULL) < 0) { gnom_fatal(__FILE__, __LINE__, "codec could not be opened"); }
-    ctx->picture = avcodec_alloc_frame();
+    ctx->picture = av_frame_alloc();
     signal(SIGINT, sigint_handler);
     ctx->frame = 0;
     fetchFrame((void *) ctx, NULL, NULL); // Get libav to pick up video size

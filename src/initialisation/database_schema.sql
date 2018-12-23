@@ -1,8 +1,49 @@
-# archive-schema.sql
+# database_schema.sql
 
 # Schema for database archiving observations
 
 BEGIN;
+
+# Create users tables
+CREATE TABLE pigazing_users (
+  userId      INTEGER PRIMARY KEY AUTO_INCREMENT,
+  username    VARCHAR(48) UNIQUE NOT NULL,
+  name        TEXT,
+  job         TEXT,
+  password    TEXT,
+  email       TEXT,
+  joinDate    FLOAT,
+  profilePic  TEXT,
+  profileText TEXT
+);
+
+CREATE TABLE pigazing_user_sessions (
+  sessionId INTEGER PRIMARY KEY AUTO_INCREMENT,
+  userId    INTEGER,
+  cookie    CHAR(32),
+  ip        INTEGER UNSIGNED,
+  logIn     REAL,
+  lastSeen  REAL,
+  logOut    REAL,
+  FOREIGN KEY (userId) REFERENCES pigazing_users (userId)
+    ON DELETE CASCADE,
+  INDEX (cookie)
+);
+
+CREATE TABLE pigazing_roles (
+  roleId INTEGER PRIMARY KEY AUTO_INCREMENT,
+  name   VARCHAR(128) UNIQUE NOT NULL
+);
+
+CREATE TABLE pigazing_user_roles (
+  userId INTEGER NOT NULL,
+  roleId INTEGER NOT NULL,
+  FOREIGN KEY (userId) REFERENCES pigazing_users (userId)
+    ON DELETE CASCADE,
+  FOREIGN KEY (roleId) REFERENCES pigazing_roles (roleId)
+    ON DELETE CASCADE,
+  PRIMARY KEY (userId, roleId)
+);
 
 # Create table of observations
 
@@ -19,6 +60,29 @@ CREATE TABLE archive_observatories (
   INDEX (name),
   FULLTEXT INDEX (name),
   SPATIAL INDEX (location)
+);
+
+# Create constellation table
+CREATE TABLE pigazing_constellations (
+  constellationId TINYINT PRIMARY KEY AUTO_INCREMENT,
+  name            VARCHAR(64) UNIQUE NOT NULL,
+  abbrev          VARCHAR(8) UNIQUE  NOT NULL,
+  namenospaces    VARCHAR(64) UNIQUE NOT NULL,
+  RA              FLOAT,
+  Decl            FLOAT,
+  area            FLOAT,
+  date            TEXT,
+  genitiveForm    TEXT,
+  FULLTEXT INDEX (name)
+);
+
+# Create constellations neighbours table
+CREATE TABLE pigazing_constellations_neighbours (
+  uid INTEGER PRIMARY KEY AUTO_INCREMENT,
+  a   TINYINT,
+  b   TINYINT,
+  FOREIGN KEY (a) REFERENCES pigazing_constellations (constellationId),
+  FOREIGN KEY (b) REFERENCES pigazing_constellations (constellationId)
 );
 
 # Table of types of observation
@@ -268,47 +332,6 @@ CREATE TABLE archive_obs_likes (
     ON DELETE CASCADE,
   FOREIGN KEY (obsId) REFERENCES archive_observations (uid)
     ON DELETE CASCADE
-);
-
-# Create users tables
-CREATE TABLE pigazing_users (
-  userId      INTEGER PRIMARY KEY AUTO_INCREMENT,
-  username    VARCHAR(48) UNIQUE NOT NULL,
-  name        TEXT,
-  job         TEXT,
-  password    TEXT,
-  email       TEXT,
-  joinDate    FLOAT,
-  profilePic  TEXT,
-  profileText TEXT
-);
-
-CREATE TABLE pigazing_user_sessions (
-  sessionId INTEGER PRIMARY KEY AUTO_INCREMENT,
-  userId    INTEGER,
-  cookie    CHAR(32),
-  ip        INTEGER UNSIGNED,
-  logIn     REAL,
-  lastSeen  REAL,
-  logOut    REAL,
-  FOREIGN KEY (userId) REFERENCES pigazing_users (userId)
-    ON DELETE CASCADE,
-  INDEX (cookie)
-);
-
-CREATE TABLE pigazing_roles (
-  roleId INTEGER PRIMARY KEY AUTO_INCREMENT,
-  name   VARCHAR(128) UNIQUE NOT NULL
-);
-
-CREATE TABLE pigazing_user_roles (
-  userId INTEGER NOT NULL,
-  roleId INTEGER NOT NULL,
-  FOREIGN KEY (userId) REFERENCES pigazing_users (userId)
-    ON DELETE CASCADE,
-  FOREIGN KEY (roleId) REFERENCES pigazing_roles (roleId)
-    ON DELETE CASCADE,
-  PRIMARY KEY (userId, roleId)
 );
 
 # Table of high water marks

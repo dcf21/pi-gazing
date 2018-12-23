@@ -1,6 +1,5 @@
+# -*- coding: utf-8 -*-
 # php_preprocess.py
-# Pi Gazing
-# Dominic Ford
 
 # -------------------------------------------------
 # Copyright 2019 Dominic Ford.

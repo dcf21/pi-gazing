@@ -3,8 +3,7 @@
 # Create user account and database for archiving observations
 
 # Delete pre-existing pigazing user account, if any
-GRANT USAGE ON *.* TO 'pigazing'@'localhost';
-DROP USER 'pigazing'@'localhost';
+DROP USER IF EXISTS 'pigazing'@'localhost';
 
 # Create pigazing user
 CREATE USER 'pigazing'@'localhost' IDENTIFIED BY 'pigazing';

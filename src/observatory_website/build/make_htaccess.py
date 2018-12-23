@@ -1,6 +1,5 @@
+# -*- coding: utf-8 -*-
 # make_htaccess.py
-# Pi Gazing
-# Dominic Ford
 
 # -------------------------------------------------
 # Copyright 2019 Dominic Ford.

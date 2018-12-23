@@ -23,6 +23,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <zlib.h>
 #include "png/image.h"
 #include <png.h>
 

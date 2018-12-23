@@ -61,7 +61,7 @@ data_directory = os.path.join(root_path, "../datadir")
 
 settings = {
 
-    'softwareVersion': 2,
+    'softwareVersion': 3,
 
     # The user account user by the Pi Gazing observing code
     'pigazingUser': 'system',
@@ -70,7 +70,7 @@ settings = {
     'pythonPath': root_path,
 
     # The path to compiled binary executables in the videoAnalysis directory
-    'binaryPath': os.path.join(root_path, "observatory_control/videoAnalysis/bin"),
+    'binaryPath': os.path.join(root_path, "observing/bin"),
     'stackerPath': os.path.join(root_path, "image_projection/bin"),
 
     # Flag telling us whether we're a raspberry pi or a desktop PC
@@ -101,12 +101,12 @@ settings = {
 
 }
 
-# Checks to make sure everything is going to work
+# Check to make sure everything is going to work
 assert os.path.exists(settings['binaryPath']), \
-    "You need to compile the videoAnalysis C code before using this script"
+    "You need to compile the src/observing C code before using this script"
 assert os.path.exists(settings['stackerPath']), \
-    "You need to compile the imageProjection C code before using this script"
+    "You need to compile the src/image_projection C code before using this script"
 
 assert os.path.exists(settings['dataPath']), (
-    "You need to create a symlink 'datadir' in the root of your meteor-pi working copy, "
+    "You need to create a directory or symlink 'datadir' in the root of your Pi Gazing working copy, "
     "where we store all recorded data")

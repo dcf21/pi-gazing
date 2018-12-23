@@ -17,7 +17,7 @@ compileMono    = ARGUMENTS.get('mono'   , 1)
 ccFlags   = ['-O3','-Wall','-g','-fopenmp','-D_FILE_OFFSET_BITS=64']
 #ccFlags   = ['-O0','-Wall','-g','-D_FILE_OFFSET_BITS=64'] # Use this version for debugging only
 linkFlags = ['-fopenmp']
-ccDefines = ['DATE=\\"17/02/2016\\"' , 'VERSION=\\"0.0.2\\"' , 'SRCDIR=\\"%s\\"'%srcdir , 'ALLDATAMONO=%s'%compileMono]
+ccDefines = ['DATE=\\"23/12/2018\\"' , 'VERSION=\\"0.0.3\\"' , 'SRCDIR=\\"%s\\"'%srcdir , 'ALLDATAMONO=%s'%compileMono]
 
 # C source files which are common to all binaries we are going to build
 commonFiles = ['analyse/observe.c','analyse/trigger.c','jpeg/jpeg_in.c','png/image_in.c','png/image_out.c','utils/julianDate.c','utils/asciiDouble.c','utils/error.c','utils/filledPoly.c','utils/lensCorrect.c','utils/tools.c','vidtools/color.c','vidtools/v4l2uvc.c']

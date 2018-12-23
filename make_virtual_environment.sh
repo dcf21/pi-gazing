@@ -39,3 +39,5 @@ cd src/pigazing_helpers
 rm -Rf build dist *.egg-info  # Clear out the cache to make sure we install latest version of code
 python setup.py install
 
+# Make data directory
+mkdir datadir

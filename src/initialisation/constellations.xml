@@ -1,0 +1,626 @@
+<constellations>
+
+    <constellation>
+        <name>Andromeda</name>
+        <date>Ancient</date>
+        <genitive>Andromedae</genitive>
+        <area>722.3</area>
+    </constellation>
+
+    <constellation>
+        <name>Antlia</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Antliae</genitive>
+        <area>238.9</area>
+    </constellation>
+
+    <constellation>
+        <name>Apus</name>
+        <date>1598 (Keyser &amp;amp; de Houtman)</date>
+        <genitive>Apodis</genitive>
+        <area>206.3</area>
+    </constellation>
+
+    <constellation>
+        <name>Aquarius</name>
+        <date>Ancient</date>
+        <genitive>Aquarii</genitive>
+        <area>979.9</area>
+    </constellation>
+
+    <constellation>
+        <name>Aquila</name>
+        <date>Ancient</date>
+        <genitive>Aquilae</genitive>
+        <area>652.5</area>
+    </constellation>
+
+    <constellation>
+        <name>Ara</name>
+        <date>Ancient</date>
+        <genitive>Arae</genitive>
+        <area>237.1</area>
+    </constellation>
+
+    <constellation>
+        <name>Aries</name>
+        <date>Ancient</date>
+        <genitive>Arietis</genitive>
+        <area>441.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Auriga</name>
+        <date>Ancient</date>
+        <genitive>Aurigae</genitive>
+        <area>657.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Bootes</name>
+        <date>Ancient</date>
+        <genitive>Bootis</genitive>
+        <area>906.8</area>
+    </constellation>
+
+    <constellation>
+        <name>Caelum</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Caeli</genitive>
+        <area>124.9</area>
+    </constellation>
+
+    <constellation>
+        <name>Camelopardalis</name>
+        <date>1612 (Plancius)</date>
+        <genitive>Camelopardalis</genitive>
+        <area>756.8</area>
+    </constellation>
+
+    <constellation>
+        <name>Cancer</name>
+        <date>Ancient</date>
+        <genitive>Cancri</genitive>
+        <area>505.9</area>
+    </constellation>
+
+    <constellation>
+        <name>Canes Venatici</name>
+        <date>1687 (Hevelius)</date>
+        <genitive>Canun Venaticorum</genitive>
+        <area>465.2</area>
+    </constellation>
+
+    <constellation>
+        <name>Canis Major</name>
+        <date>Ancient</date>
+        <genitive>Canis Majoris</genitive>
+        <area>380.1</area>
+    </constellation>
+
+    <constellation>
+        <name>Canis Minor</name>
+        <date>Ancient</date>
+        <genitive>Canis Minoris</genitive>
+        <area>183.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Capricornus</name>
+        <date>Ancient</date>
+        <genitive>Capricorni</genitive>
+        <area>413.9</area>
+    </constellation>
+
+    <constellation>
+        <name>Carina</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Carinae</genitive>
+        <area>494.2</area>
+    </constellation>
+
+    <constellation>
+        <name>Cassiopeia</name>
+        <date>Ancient</date>
+        <genitive>Cassiopeiae</genitive>
+        <area>598.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Centaurus</name>
+        <date>Ancient</date>
+        <genitive>Centauri</genitive>
+        <area>1060.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Cepheus</name>
+        <date>Ancient</date>
+        <genitive>Cephei</genitive>
+        <area>587.8</area>
+    </constellation>
+
+    <constellation>
+        <name>Cetus</name>
+        <date>Ancient</date>
+        <genitive>Ceti</genitive>
+        <area>1231.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Chamaeleon</name>
+        <date>1598 (Keyser &amp;amp; de Houtman)</date>
+        <genitive>Chamaeleontis</genitive>
+        <area>131.6</area>
+    </constellation>
+
+    <constellation>
+        <name>Circinus</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Circini</genitive>
+        <area>93.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Columba</name>
+        <date>1592 (Plancius)</date>
+        <genitive>Columbae</genitive>
+        <area>270.2</area>
+    </constellation>
+
+    <constellation>
+        <name>Coma Berenices</name>
+        <date>1536 (Vopel)</date>
+        <genitive>Comae Berenices</genitive>
+        <area>386.5</area>
+    </constellation>
+
+    <constellation>
+        <name>Corona Australis</name>
+        <date>Ancient</date>
+        <genitive>Coronae Australis</genitive>
+        <area>127.7</area>
+    </constellation>
+
+    <constellation>
+        <name>Corona Borealis</name>
+        <date>Ancient</date>
+        <genitive>Coronae Borealis</genitive>
+        <area>178.7</area>
+    </constellation>
+
+    <constellation>
+        <name>Corvus</name>
+        <date>Ancient</date>
+        <genitive>Corvi</genitive>
+        <area>183.8</area>
+    </constellation>
+
+    <constellation>
+        <name>Crater</name>
+        <date>Ancient</date>
+        <genitive>Crateris</genitive>
+        <area>282.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Crux</name>
+        <date>1598 (Plancius)</date>
+        <genitive>Crucis</genitive>
+        <area>68.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Cygnus</name>
+        <date>Ancient</date>
+        <genitive>Cygni</genitive>
+        <area>804.0</area>
+    </constellation>
+
+    <constellation>
+        <name>Delphinus</name>
+        <date>Ancient</date>
+        <genitive>Delphini</genitive>
+        <area>188.5</area>
+    </constellation>
+
+    <constellation>
+        <name>Dorado</name>
+        <date>1598 (Keyser &amp;amp; de Houtman)</date>
+        <genitive>Doradus</genitive>
+        <area>179.2</area>
+    </constellation>
+
+    <constellation>
+        <name>Draco</name>
+        <date>Ancient</date>
+        <genitive>Draconis</genitive>
+        <area>1083.0</area>
+    </constellation>
+
+    <constellation>
+        <name>Equuleus</name>
+        <date>Ancient (Ptolomy)</date>
+        <genitive>Equulei</genitive>
+        <area>71.6</area>
+    </constellation>
+
+    <constellation>
+        <name>Eridanus</name>
+        <date>Ancient</date>
+        <genitive>Eridani</genitive>
+        <area>1137.9</area>
+    </constellation>
+
+    <constellation>
+        <name>Fornax</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Fornacis</genitive>
+        <area>397.5</area>
+    </constellation>
+
+    <constellation>
+        <name>Gemini</name>
+        <date>Ancient</date>
+        <genitive>Geminorum</genitive>
+        <area>513.8</area>
+    </constellation>
+
+    <constellation>
+        <name>Grus</name>
+        <date>1598 (Keyser &amp;amp; de Houtman)</date>
+        <genitive>Gruis</genitive>
+        <area>365.5</area>
+    </constellation>
+
+    <constellation>
+        <name>Hercules</name>
+        <date>Ancient</date>
+        <genitive>Herculis</genitive>
+        <area>1225.1</area>
+    </constellation>
+
+    <constellation>
+        <name>Horologium</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Horologii</genitive>
+        <area>248.9</area>
+    </constellation>
+
+    <constellation>
+        <name>Hydra</name>
+        <date>Ancient</date>
+        <genitive>Hydrae</genitive>
+        <area>1302.8</area>
+    </constellation>
+
+    <constellation>
+        <name>Hydrus</name>
+        <date>1598 (Keyser &amp;amp; de Houtman)</date>
+        <genitive>Hydri</genitive>
+        <area>243.0</area>
+    </constellation>
+
+    <constellation>
+        <name>Indus</name>
+        <date>1598 (Keyser &amp;amp; de Houtman)</date>
+        <genitive>Indi</genitive>
+        <area>294.0</area>
+    </constellation>
+
+    <constellation>
+        <name>Lacerta</name>
+        <date>1690 (Hevelius)</date>
+        <genitive>Lacertae</genitive>
+        <area>200.7</area>
+    </constellation>
+
+    <constellation>
+        <name>Leo</name>
+        <date>Ancient</date>
+        <genitive>Leonis</genitive>
+        <area>947.0</area>
+    </constellation>
+
+    <constellation>
+        <name>Leo Minor</name>
+        <date>1687 (Hevelius)</date>
+        <genitive>Leonis Minoris</genitive>
+        <area>232.0</area>
+    </constellation>
+
+    <constellation>
+        <name>Lepus</name>
+        <date>Ancient</date>
+        <genitive>Leporis</genitive>
+        <area>290.3</area>
+    </constellation>
+
+    <constellation>
+        <name>Libra</name>
+        <date>Ancient (Roman)</date>
+        <genitive>Librae</genitive>
+        <area>538.1</area>
+    </constellation>
+
+    <constellation>
+        <name>Lupus</name>
+        <date>Ancient</date>
+        <genitive>Lupi</genitive>
+        <area>333.7</area>
+    </constellation>
+
+    <constellation>
+        <name>Lynx</name>
+        <date>1687 (Hevelius)</date>
+        <genitive>Lyncis</genitive>
+        <area>545.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Lyra</name>
+        <date>Ancient</date>
+        <genitive>Lyrae</genitive>
+        <area>286.5</area>
+    </constellation>
+
+    <constellation>
+        <name>Mensa</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Mensae</genitive>
+        <area>153.5</area>
+    </constellation>
+
+    <constellation>
+        <name>Microscopium</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Microscopii</genitive>
+        <area>209.5</area>
+    </constellation>
+
+    <constellation>
+        <name>Monoceros</name>
+        <date>1612 (Monoceros)</date>
+        <genitive>Monocerotis</genitive>
+        <area>481.6</area>
+    </constellation>
+
+    <constellation>
+        <name>Musca</name>
+        <date>1598 (Keyser &amp;amp; de Houtman)</date>
+        <genitive>Muscae</genitive>
+        <area>138.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Norma</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Normae</genitive>
+        <area>165.3</area>
+    </constellation>
+
+    <constellation>
+        <name>Octans</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Octantis</genitive>
+        <area>291.0</area>
+    </constellation>
+
+    <constellation>
+        <name>Ophiuchus</name>
+        <date>Ancient</date>
+        <genitive>Ophiuchi</genitive>
+        <area>948.3</area>
+    </constellation>
+
+    <constellation>
+        <name>Orion</name>
+        <date>Ancient</date>
+        <genitive>Orionis</genitive>
+        <area>594.1</area>
+    </constellation>
+
+    <constellation>
+        <name>Pavo</name>
+        <date>1598 (Keyser &amp;amp; de Houtman)</date>
+        <genitive>Pavonis</genitive>
+        <area>377.7</area>
+    </constellation>
+
+    <constellation>
+        <name>Pegasus</name>
+        <date>Ancient</date>
+        <genitive>Pegasi</genitive>
+        <area>1120.8</area>
+    </constellation>
+
+    <constellation>
+        <name>Perseus</name>
+        <date>Ancient</date>
+        <genitive>Persei</genitive>
+        <area>615.0</area>
+    </constellation>
+
+    <constellation>
+        <name>Phoenix</name>
+        <date>1598 (Keyser &amp;amp; de Houtman)</date>
+        <genitive>Phoenicis</genitive>
+        <area>469.3</area>
+    </constellation>
+
+    <constellation>
+        <name>Pictor</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Pictoris</genitive>
+        <area>246.7</area>
+    </constellation>
+
+    <constellation>
+        <name>Pisces</name>
+        <date>Ancient</date>
+        <genitive>Piscium</genitive>
+        <area>889.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Piscis Austrinus</name>
+        <date>Ancient</date>
+        <genitive>Piscis Austrini</genitive>
+        <area>245.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Puppis</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Puppis</genitive>
+        <area>673.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Pyxis</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Pyxidis</genitive>
+        <area>220.8</area>
+    </constellation>
+
+    <constellation>
+        <name>Reticulum</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Reticuli</genitive>
+        <area>113.9</area>
+    </constellation>
+
+    <constellation>
+        <name>Sagitta</name>
+        <date>Ancient</date>
+        <genitive>Sagittae</genitive>
+        <area>79.9</area>
+    </constellation>
+
+    <constellation>
+        <name>Sagittarius</name>
+        <date>Ancient</date>
+        <genitive>Sagittarii</genitive>
+        <area>867.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Scorpius</name>
+        <date>Ancient</date>
+        <genitive>Scorpii</genitive>
+        <area>496.8</area>
+    </constellation>
+
+    <constellation>
+        <name>Sculptor</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Sculptoris</genitive>
+        <area>474.8</area>
+    </constellation>
+
+    <constellation>
+        <name>Scutum</name>
+        <date>1684 (Hevelius)</date>
+        <genitive>Scuti</genitive>
+        <area>109.1</area>
+    </constellation>
+
+    <constellation>
+        <name>Serpens Caput</name>
+        <date>Ancient</date>
+        <genitive>Serpentis Caput</genitive>
+        <area>636.9</area>
+    </constellation>
+
+    <constellation>
+        <name>Serpens Cauda</name>
+        <date>Ancient</date>
+        <genitive>Serpentis Cauda</genitive>
+        <area>636.9</area>
+    </constellation>
+
+    <constellation>
+        <name>Sextans</name>
+        <date>1687 (Hevelius)</date>
+        <genitive>Sextantis</genitive>
+        <area>313.5</area>
+    </constellation>
+
+    <constellation>
+        <name>Taurus</name>
+        <date>Ancient</date>
+        <genitive>Tauri</genitive>
+        <area>797.2</area>
+    </constellation>
+
+    <constellation>
+        <name>Telescopium</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Telescopii</genitive>
+        <area>251.5</area>
+    </constellation>
+
+    <constellation>
+        <name>Triangulum</name>
+        <date>Ancient</date>
+        <genitive>Trianguli</genitive>
+        <area>131.8</area>
+    </constellation>
+
+    <constellation>
+        <name>Triangulum Australe</name>
+        <date>1598 (Keyser &amp;amp; de Houtman)</date>
+        <genitive>Trianguli Australe</genitive>
+        <area>110.0</area>
+    </constellation>
+
+    <constellation>
+        <name>Tucana</name>
+        <date>1598 (Keyser &amp;amp; de Houtman)</date>
+        <genitive>Tucanae</genitive>
+        <area>294.6</area>
+    </constellation>
+
+    <constellation>
+        <name>Ursa Major</name>
+        <date>Ancient</date>
+        <genitive>Ursae Majoris</genitive>
+        <area>1279.7</area>
+    </constellation>
+
+    <constellation>
+        <name>Ursa Minor</name>
+        <date>Ancient</date>
+        <genitive>Ursae Minoris</genitive>
+        <area>255.9</area>
+    </constellation>
+
+    <constellation>
+        <name>Vela</name>
+        <date>1756 (Lacaille)</date>
+        <genitive>Velorum</genitive>
+        <area>499.6</area>
+    </constellation>
+
+    <constellation>
+        <name>Virgo</name>
+        <date>Ancient</date>
+        <genitive>Virginis</genitive>
+        <area>1294.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Volans</name>
+        <date>1598 (Keyser &amp;amp; de Houtman)</date>
+        <genitive>Volantis</genitive>
+        <area>141.4</area>
+    </constellation>
+
+    <constellation>
+        <name>Vulpecula</name>
+        <date>1687 (Hevelius)</date>
+        <genitive>Vulpeculae</genitive>
+        <area>268.2</area>
+    </constellation>
+
+</constellations>
