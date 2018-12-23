@@ -194,7 +194,7 @@ __HTML__;
                     <p class="toptitleA"><a href="#">Pi Gazing</a></p>
                 </div>
                 <div id="bannerppl"></div>
-                <div id="bannercsc"></div>
+                <div id="bannerlogo"></div>
             </div>
             <div id="bannerfull"></div>
         </div>

@@ -136,7 +136,7 @@ $pageTemplate->header($pageInfo);
                 <p class="text">
                     All the hardware designs and software used by the Pi Gazing cameras are open source, and can be
                     found on our
-                    <a href="https://github.com/camsci/meteor-pi">GitHub pages</a>.
+                    <a href="https://github.com/dcf21/pi-gazing">GitHub pages</a>.
                     Not only are they free to download, but you're also welcome to change them and see if you can make
                     them work better!
                 </p>
@@ -144,7 +144,7 @@ $pageTemplate->header($pageInfo);
                 <p class="text">
                     The cost of building a camera is around &pound;300&ndash;&pound;400, depending on optional extras.
                     You can find a complete guide to how to build your own camera on our
-                    <a href="https://github.com/camsci/meteor-pi">GitHub pages</a>.
+                    <a href="https://github.com/dcf21/pi-gazing">GitHub pages</a>.
                 </p>
 
                 <p class="text">

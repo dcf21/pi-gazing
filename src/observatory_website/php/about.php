@@ -50,7 +50,7 @@ $pageTemplate->header($pageInfo);
     </p>
 <p class="text">
     All of the software and hardware designs are open source, and can be downloaded from
-    our <a href="https://github.com/camsci/meteor-pi">GitHub pages</a> under a
+    our <a href="https://github.com/dcf21/pi-gazing">GitHub pages</a> under a
     <a href="http://www.gnu.org/licenses/gpl-3.0.en.html">Gnu General Public License V3</a>.
 </p>
 <p class="text">
