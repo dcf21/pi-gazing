@@ -5,7 +5,7 @@ import time
 from urllib.parse import unquote
 
 from flask import request, g
-from flask.ext.jsonpify import jsonify
+from flask_jsonpify import jsonify
 from yaml import safe_load
 
 from . import obsarchive_model as model

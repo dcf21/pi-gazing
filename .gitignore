@@ -1,6 +1,9 @@
 datadir
 .idea/
 virtualenv/
+__pycache__
+
+src/observatory_website/web_api/pigazing_cert*
 
 src/pigazing_helpers/build/
 src/pigazing_helpers/dist/

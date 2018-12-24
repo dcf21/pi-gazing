@@ -5,7 +5,7 @@ from logging import getLogger
 from os import path, remove
 
 from flask import request, g
-from flask.ext.jsonpify import jsonify
+from flask_jsonpify import jsonify
 from yaml import safe_load
 
 from . import obsarchive_model as model

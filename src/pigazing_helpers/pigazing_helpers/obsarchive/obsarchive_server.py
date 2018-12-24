@@ -4,8 +4,9 @@
 from functools import wraps
 
 from flask import Flask, request, g
-from flask.ext.cors import CORS
-from flask.ext.jsonpify import jsonify
+from flask_cors import CORS
+from flask_jsonpify import jsonify
+from pigazing_helpers.settings_read import installation_info
 
 from .obsarchive_db import ObservationDatabase
 
@@ -22,20 +23,40 @@ class ObservationApp(object):
         external server such as LigHTTPD or Apache to the application logic.
     """
 
-    def __init__(self, file_store_path, binary_path):
+    def __init__(self, file_store_path, binary_path, db_host, db_user, db_password, db_name, obstory_id):
         """
         Create a new ObservationApp, setting up the internal DB
 
-        :param string file_store_path
+        :param file_store_path
             The path to the database file store.
+        :param db_host:
+            Host of the database
+        :param db_user:
+            User login to the database
+        :param db_password:
+            Password for the database
+        :param db_name:
+            Database name
+        :param obstory_id:
+            The local obstory ID
         """
         self.file_store_path = file_store_path
         self.binary_path = binary_path
+        self.db_host = db_host
+        self.db_user = db_user
+        self.db_password = db_password
+        self.db_name = db_name
+        self.obstory_id = obstory_id
         self.app = Flask(__name__)
         CORS(app=self.app, resources='/*', allow_headers=['authorization', 'content-type'])
 
     def get_db(self):
-        return ObservationDatabase(file_store_path=self.file_store_path)
+        return ObservationDatabase(file_store_path=self.file_store_path,
+                                   db_host=self.db_host,
+                                   db_user=self.db_user,
+                                   db_password=self.db_password,
+                                   db_name=self.db_name,
+                                   obstory_id=self.obstory_id)
 
     @staticmethod
     def success(message='Okay'):

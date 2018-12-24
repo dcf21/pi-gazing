@@ -7,7 +7,7 @@ import traceback
 
 from requests import post
 from requests.exceptions import HTTPError, ConnectionError
-from requests_toolbelt.multipart.encoder import MultipartEncoder
+from requests_toolbelt import MultipartEncoder
 
 
 class ObservationExporter(object):

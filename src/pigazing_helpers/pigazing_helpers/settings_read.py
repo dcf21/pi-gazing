@@ -25,8 +25,8 @@ import re
 import sys
 
 # Fetch path to local installation settings
-our_path = os.path.abspath(os.getcwd())
-root_path = re.match(r"(.*/src)", our_path).group(1) + "/"
+our_path = os.path.abspath(__file__)
+root_path = re.match(r"(.*)virtualenv", our_path).group(1) + "/src/"
 if not os.path.exists(os.path.join(root_path, "../configuration/installation_settings.conf")):
     sys.stderr.write(
         "You must create a file <configuration/installation_settings.conf> with local camera settings.\n")

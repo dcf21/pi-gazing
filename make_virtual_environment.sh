@@ -29,7 +29,10 @@ pip install pyopenssl
 pip install ndg-httpsclient
 pip install pyasn1
 pip install requests[security]
+pip install requests-toolbelt
 pip install flask
+pip install flask-cors
+pip install flask-jsonpify
 pip install bcrypt
 pip install gpsd-py3
 

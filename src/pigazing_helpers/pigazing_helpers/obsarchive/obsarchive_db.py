@@ -60,7 +60,7 @@ class ObservationDatabase(object):
             Password for the database
         :param db_name:
             Database name
-        :param string obstory_id:
+        :param obstory_id:
             The local obstory ID
         """
         self.db = MySQLdb.connect(host=db_host, user=db_user, passwd=db_password, db=db_name)
