@@ -2,7 +2,7 @@
 # vector_algebra.py
 #
 # -------------------------------------------------
-# Copyright 2015-2018 Dominic Ford
+# Copyright 2015-2019 Dominic Ford
 #
 # This file is part of Pi Gazing.
 #
@@ -20,8 +20,7 @@
 # along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 # -------------------------------------------------
 
-from math import pi, sin, cos, acos, asin, atan, atan2, floor, fmod, fabs, hypot, sqrt, isnan
-from exceptions import KeyError
+from math import pi, sin, cos, acos, asin, atan2, fmod, sqrt
 
 """
 Functions for dealing with planes and lines

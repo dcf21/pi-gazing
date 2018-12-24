@@ -3,7 +3,7 @@
 # recalculate_sky_clarity.py
 #
 # -------------------------------------------------
-# Copyright 2015-2018 Dominic Ford
+# Copyright 2015-2019 Dominic Ford
 #
 # This file is part of Pi Gazing.
 #
@@ -37,10 +37,10 @@ from pigazing_helpers.obsarchive import obsarchive_model as mp
 from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                       db_host=settings['mysqlHost'],
-                                       db_user=settings['mysqlUser'],
-                                       db_password=settings['mysqlPassword'],
-                                       db_name=settings['mysqlDatabase'],
+                                       db_host=installation_info['mysqlHost'],
+                                       db_user=installation_info['mysqlUser'],
+                                       db_password=installation_info['mysqlPassword'],
+                                       db_name=installation_info['mysqlDatabase'],
                                        obstory_id=installation_info['observatoryId'])
 
 # Read input parameters
@@ -51,11 +51,13 @@ parser.add_argument('--t-min', dest='utc_min', default=0,
 parser.add_argument('--t-max', dest='utc_max', default=time.time(),
                     type=float,
                     help="Only delete observations made before the specified unix time")
-parser.add_argument('--observatory', dest='observatory', default=installation_info.local_conf['observatoryId'],
+parser.add_argument('--observatory', dest='observatory', default=installation_info['observatoryId'],
                     help="ID of the observatory we are to delete observations from")
 args = parser.parse_args()
 
-print("# ./recalculateSkyClarity.py {} {}\n".format(args.utc_min, args.utc_max))
+print("# ./recalculateSkyClarity.py --t-min {} --t-max {} --observatory \"{}\"\n".format(args.utc_min,
+                                                                                         args.utc_max,
+                                                                                         args.observatory))
 
 search = mp.FileRecordSearch(time_min=args.utc_min, time_max=args.utc_max, limit=10000000)
 files = db.search_files(search)

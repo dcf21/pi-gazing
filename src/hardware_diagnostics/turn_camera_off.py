@@ -3,7 +3,7 @@
 # turn_camera_off.py
 #
 # -------------------------------------------------
-# Copyright 2015-2018 Dominic Ford
+# Copyright 2015-2019 Dominic Ford
 #
 # This file is part of Pi Gazing.
 #
@@ -28,6 +28,16 @@ You shouldn't normally need to do this, as the camera is automatically turned on
 observing each day. However you may want to run this when you are testing the camera.
 """
 
+import logging
+import sys
+
 from pigazing_helpers.relay_control import camera_off
 
-camera_off()
+logging.basicConfig(level=logging.INFO,
+                    stream=sys.stdout,
+                    format='[%(asctime)s] %(levelname)s:%(filename)s:%(message)s',
+                    datefmt='%d/%m/%Y %H:%M:%S')
+logger = logging.getLogger(__name__)
+logger.info(__doc__.strip())
+
+camera_off(logger=logger)

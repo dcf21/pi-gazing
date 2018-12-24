@@ -2,7 +2,7 @@
 # hardware_properties.py
 #
 # -------------------------------------------------
-# Copyright 2015-2018 Dominic Ford
+# Copyright 2015-2019 Dominic Ford
 #
 # This file is part of Pi Gazing.
 #
@@ -73,14 +73,14 @@ class HardwareProps:
         assert os.path.exists(cameras_data_path), "Could not find camera data in file <{}>".format(cameras_data_path)
         assert os.path.exists(lenses_data_path), "Could not find lens data in file <{}>".format(lenses_data_path)
 
-        camera_xml = xmltodict.parse(open(cameras_data_path, "rb"))['cameras']
+        camera_xml = xmltodict.parse(open(cameras_data_path, "rb"))['cameras']['camera']
 
         self.camera_data = {}
         for d in camera_xml:
             self.camera_data[d['name']] = Camera(d['name'], int(d['width']), int(d['height']), float(d['fps']),
                                                  int(d['upside_down']), d['type'])
 
-        lens_xml = xmltodict.parse(open(lenses_data_path, "rb"))['lenses']
+        lens_xml = xmltodict.parse(open(lenses_data_path, "rb"))['lenses']['lens']
 
         self.lens_data = {}
         for d in lens_xml:

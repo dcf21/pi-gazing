@@ -3,7 +3,7 @@
 # delete_data.py
 #
 # -------------------------------------------------
-# Copyright 2015-2018 Dominic Ford
+# Copyright 2015-2019 Dominic Ford
 #
 # This file is part of Pi Gazing.
 #
@@ -45,22 +45,24 @@ parser.add_argument('--t-min', dest='utc_min', default=time.time() - 3600 * 24,
 parser.add_argument('--t-max', dest='utc_max', default=time.time(),
                     type = float,
                     help="Only delete observations made before the specified unix time")
-parser.add_argument('--observatory', dest='observatory', default=installation_info.local_conf['observatoryId'],
+parser.add_argument('--observatory', dest='observatory', default=installation_info['observatoryId'],
                     help="ID of the observatory we are to delete observations from")
 args = parser.parse_args()
 
-print("# ./delete_data.py %f %f \"%s\"\n" % (args.utc_min, args.utc_max, args.observatory))
+print("# ./delete_data.py --t-min {:f} --t-max {:f} --observatory \"{}\"\n".format(args.utc_min,
+                                                                                   args.utc_max,
+                                                                                   args.observatory))
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                       db_host=settings['mysqlHost'],
-                                       db_user=settings['mysqlUser'],
-                                       db_password=settings['mysqlPassword'],
-                                       db_name=settings['mysqlDatabase'],
+                                       db_host=installation_info['mysqlHost'],
+                                       db_user=installation_info['mysqlUser'],
+                                       db_password=installation_info['mysqlPassword'],
+                                       db_name=installation_info['mysqlDatabase'],
                                        obstory_id=installation_info['observatoryId'])
 
 obstory_info = db.get_obstory_from_id(obstory_id=args.observatory)
 if not obstory_info:
-    print("Unknown observatory <{}>.\nRun ./listObservatories.py to see a list of available options.".
+    print("Unknown observatory <{}>.\nRun ./list_observatories.py to see a list of available options.".
           format(args.observatory))
     sys.exit(0)
 

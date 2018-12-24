@@ -5,7 +5,8 @@
 BEGIN;
 
 # Create users tables
-CREATE TABLE pigazing_users (
+CREATE TABLE pigazing_users
+(
   userId      INTEGER PRIMARY KEY AUTO_INCREMENT,
   username    VARCHAR(48) UNIQUE NOT NULL,
   name        TEXT,
@@ -17,7 +18,8 @@ CREATE TABLE pigazing_users (
   profileText TEXT
 );
 
-CREATE TABLE pigazing_user_sessions (
+CREATE TABLE pigazing_user_sessions
+(
   sessionId INTEGER PRIMARY KEY AUTO_INCREMENT,
   userId    INTEGER,
   cookie    CHAR(32),
@@ -30,12 +32,14 @@ CREATE TABLE pigazing_user_sessions (
   INDEX (cookie)
 );
 
-CREATE TABLE pigazing_roles (
+CREATE TABLE pigazing_roles
+(
   roleId INTEGER PRIMARY KEY AUTO_INCREMENT,
   name   VARCHAR(128) UNIQUE NOT NULL
 );
 
-CREATE TABLE pigazing_user_roles (
+CREATE TABLE pigazing_user_roles
+(
   userId INTEGER NOT NULL,
   roleId INTEGER NOT NULL,
   FOREIGN KEY (userId) REFERENCES pigazing_users (userId)
@@ -48,13 +52,14 @@ CREATE TABLE pigazing_user_roles (
 # Create table of observations
 
 # Table of observatories
-CREATE TABLE archive_observatories (
+CREATE TABLE archive_observatories
+(
   uid          INTEGER PRIMARY KEY AUTO_INCREMENT,
   publicId     CHAR(32) UNIQUE NOT NULL,
   userId       VARCHAR(48),
   name         VARCHAR(256),
   location     POINT           NOT NULL,
-  locationNull BOOLEAN             DEFAULT FALSE,
+  locationNull BOOLEAN DEFAULT FALSE,
   INDEX (publicId),
   INDEX (userId),
   INDEX (name),
@@ -63,7 +68,8 @@ CREATE TABLE archive_observatories (
 );
 
 # Create constellation table
-CREATE TABLE pigazing_constellations (
+CREATE TABLE pigazing_constellations
+(
   constellationId TINYINT PRIMARY KEY AUTO_INCREMENT,
   name            VARCHAR(64) UNIQUE NOT NULL,
   abbrev          VARCHAR(8) UNIQUE  NOT NULL,
@@ -77,7 +83,8 @@ CREATE TABLE pigazing_constellations (
 );
 
 # Create constellations neighbours table
-CREATE TABLE pigazing_constellations_neighbours (
+CREATE TABLE pigazing_constellations_neighbours
+(
   uid INTEGER PRIMARY KEY AUTO_INCREMENT,
   a   TINYINT,
   b   TINYINT,
@@ -86,13 +93,15 @@ CREATE TABLE pigazing_constellations_neighbours (
 );
 
 # Table of types of observation
-CREATE TABLE archive_semanticTypes (
+CREATE TABLE archive_semanticTypes
+(
   uid  INTEGER PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(255) NOT NULL UNIQUE
 );
 
 # Table of observations
-CREATE TABLE archive_observations (
+CREATE TABLE archive_observations
+(
   uid                  INTEGER PRIMARY KEY AUTO_INCREMENT,
   publicId             CHAR(32) UNIQUE NOT NULL,
   observatory          INTEGER         NOT NULL,
@@ -125,7 +134,8 @@ CREATE TABLE archive_observations (
 );
 
 # Groups of observations
-CREATE TABLE archive_obs_groups (
+CREATE TABLE archive_obs_groups
+(
   uid          INTEGER PRIMARY KEY AUTO_INCREMENT,
   publicId     CHAR(32) UNIQUE NOT NULL,
   title        TEXT,
@@ -139,7 +149,8 @@ CREATE TABLE archive_obs_groups (
   INDEX (setByUser)
 );
 
-CREATE TABLE archive_obs_group_members (
+CREATE TABLE archive_obs_group_members
+(
   uid              INTEGER PRIMARY KEY AUTO_INCREMENT,
   groupId          INTEGER NOT NULL,
   childObservation INTEGER,
@@ -153,7 +164,8 @@ CREATE TABLE archive_obs_group_members (
 );
 
 # Links to files in whatever external store we use
-CREATE TABLE archive_files (
+CREATE TABLE archive_files
+(
   uid             INTEGER PRIMARY KEY AUTO_INCREMENT,
   observationId   INTEGER         NOT NULL,
   mimeType        VARCHAR(100)    NOT NULL,
@@ -173,13 +185,15 @@ CREATE TABLE archive_files (
 );
 
 # Metadata pertaining to observations, observatories, or groups of observations
-CREATE TABLE archive_metadataFields (
+CREATE TABLE archive_metadataFields
+(
   uid     INTEGER PRIMARY KEY AUTO_INCREMENT,
   metaKey VARCHAR(255) NOT NULL UNIQUE,
   INDEX (metaKey)
 );
 
-CREATE TABLE archive_metadata (
+CREATE TABLE archive_metadata
+(
   uid           INTEGER PRIMARY KEY AUTO_INCREMENT,
   publicId      CHAR(32) UNIQUE NOT NULL,
   fieldId       INTEGER,
@@ -210,7 +224,8 @@ CREATE TABLE archive_metadata (
 );
 
 # Configuration used to export observations to an external server
-CREATE TABLE archive_exportConfig (
+CREATE TABLE archive_exportConfig
+(
   uid            INTEGER PRIMARY KEY AUTO_INCREMENT,
   exportConfigId CHAR(32) UNIQUE NOT NULL,
   exportType     VARCHAR(16)     NOT NULL,
@@ -224,7 +239,8 @@ CREATE TABLE archive_exportConfig (
   INDEX (exportConfigId)
 );
 
-CREATE TABLE archive_observationExport (
+CREATE TABLE archive_observationExport
+(
   uid           INTEGER PRIMARY KEY AUTO_INCREMENT,
   observationId INTEGER NOT NULL,
   exportConfig  INTEGER NOT NULL,
@@ -235,7 +251,8 @@ CREATE TABLE archive_observationExport (
     ON DELETE CASCADE
 );
 
-CREATE TABLE archive_observationImport (
+CREATE TABLE archive_observationImport
+(
   uid           INTEGER PRIMARY KEY AUTO_INCREMENT,
   observationId INTEGER NOT NULL,
   importUser    INTEGER NOT NULL,
@@ -246,7 +263,8 @@ CREATE TABLE archive_observationImport (
     ON DELETE CASCADE
 );
 
-CREATE TABLE archive_fileExport (
+CREATE TABLE archive_fileExport
+(
   uid          INTEGER PRIMARY KEY AUTO_INCREMENT,
   fileId       INTEGER NOT NULL,
   exportConfig INTEGER NOT NULL,
@@ -258,7 +276,8 @@ CREATE TABLE archive_fileExport (
 );
 
 
-CREATE TABLE archive_fileImport (
+CREATE TABLE archive_fileImport
+(
   uid        INTEGER PRIMARY KEY AUTO_INCREMENT,
   fileId     INTEGER NOT NULL,
   importUser INTEGER NOT NULL,
@@ -269,7 +288,8 @@ CREATE TABLE archive_fileImport (
     ON DELETE CASCADE
 );
 
-CREATE TABLE archive_metadataExport (
+CREATE TABLE archive_metadataExport
+(
   uid          INTEGER PRIMARY KEY AUTO_INCREMENT,
   metadataId   INTEGER NOT NULL,
   exportConfig INTEGER NOT NULL, /* URL of the target import API */
@@ -280,7 +300,8 @@ CREATE TABLE archive_metadataExport (
     ON DELETE CASCADE
 );
 
-CREATE TABLE archive_metadataImport (
+CREATE TABLE archive_metadataImport
+(
   uid        INTEGER PRIMARY KEY AUTO_INCREMENT,
   metadataId INTEGER NOT NULL,
   importUser INTEGER NOT NULL,
@@ -292,19 +313,22 @@ CREATE TABLE archive_metadataImport (
 );
 
 # Create tables of data about observations
-CREATE TABLE archive_equipment_type (
+CREATE TABLE archive_equipment_type
+(
   equipTypeId SMALLINT PRIMARY KEY AUTO_INCREMENT,
   name        VARCHAR(255) UNIQUE NOT NULL
 );
 
-CREATE TABLE archive_equipment_item (
+CREATE TABLE archive_equipment_item
+(
   equipId     INTEGER PRIMARY KEY AUTO_INCREMENT,
   equipTypeId SMALLINT NOT NULL,
   FOREIGN KEY (equipTypeId) REFERENCES archive_equipment_type (equipTypeId)
     ON DELETE CASCADE
 );
 
-CREATE TABLE archive_equipment_names (
+CREATE TABLE archive_equipment_names
+(
   name        VARCHAR(255) UNIQUE NOT NULL PRIMARY KEY,
   primaryName BOOLEAN,
   equipId     INTEGER             NOT NULL,
@@ -314,7 +338,8 @@ CREATE TABLE archive_equipment_names (
     ON DELETE CASCADE
 );
 
-CREATE TABLE archive_obs_equipment (
+CREATE TABLE archive_obs_equipment
+(
   obsId       INTEGER NOT NULL,
   equipId     INTEGER NOT NULL,
   description TEXT,
@@ -324,23 +349,26 @@ CREATE TABLE archive_obs_equipment (
     ON DELETE CASCADE
 );
 
-CREATE TABLE archive_obs_likes (
-  userId INTEGER NOT NULL,
-  obsId  INTEGER NOT NULL,
-  PRIMARY KEY (userId, obsId),
+CREATE TABLE archive_obs_likes
+(
+  userId        INTEGER NOT NULL,
+  observationId INTEGER NOT NULL,
+  PRIMARY KEY (userId, observationId),
   FOREIGN KEY (userId) REFERENCES pigazing_users (userId)
     ON DELETE CASCADE,
-  FOREIGN KEY (obsId) REFERENCES archive_observations (uid)
+  FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
     ON DELETE CASCADE
 );
 
 # Table of high water marks
-CREATE TABLE pigazing_highWaterMarkTypes (
+CREATE TABLE pigazing_highWaterMarkTypes
+(
   uid     INTEGER PRIMARY KEY AUTO_INCREMENT,
   metaKey VARCHAR(255) UNIQUE NOT NULL
 );
 
-CREATE TABLE pigazing_highWaterMarks (
+CREATE TABLE pigazing_highWaterMarks
+(
   observatoryId INTEGER,
   markType      INTEGER,
   time          REAL,

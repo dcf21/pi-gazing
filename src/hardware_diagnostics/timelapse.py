@@ -3,7 +3,7 @@
 # timelapse.py
 #
 # -------------------------------------------------
-# Copyright 2015-2018 Dominic Ford
+# Copyright 2015-2019 Dominic Ford
 #
 # This file is part of Pi Gazing.
 #
@@ -50,7 +50,7 @@ time_next_frame = floor((time.time() + 10) / 10) * 10
 
 # Make directory
 dirname = "/tmp/pigazing_timelapse"
-os.system("mkdir -p %s" % dirname)
+os.system("mkdir -p {}".format(dirname))
 os.chdir(dirname)
 
 frame_num = 1
@@ -62,11 +62,11 @@ while True:
         time.sleep(wait)
 
     # Filename
-    fname = "frame{:06d}.jpg".format(frame_num)
+    filename = "frame{:06d}.jpg".format(frame_num)
     while True:
-        if os.path.exists(fname):
+        if os.path.exists(filename):
             frame_num += 1
-            fname = "frame{:06d}.jpg".format(frame_num)
+            filename = "frame{:06d}.jpg".format(frame_num)
         else:
             break
 
@@ -77,11 +77,11 @@ while True:
     os.system("convert tmp.png -background black -rotate -180 tmp2.jpg")
     os.system("convert tmp2.jpg -gravity South -background Green -splice 0x26 -pointsize 16 -font Ubuntu-Bold "
               "-annotate +0+2 '{}' {}".format(time.strftime("%b %d %Y %H:%M:%S", time.gmtime(time.time())),
-                                              fname))
+                                              filename))
 
-    # Use avconv to make a timelapse video. Can't do this inside the loop if we intend to observe for a very
+    # Use ffmpeg to make a time lapse video. Can't do this inside the loop if we intend to observe for a very
     # long time, as otherwise it takes more than a minute to do this encoding after each frame...
     os.system("rm -f /tmp/pigazing_timelapse.mp4")
-    os.system("avconv -r 10 -i frame%06d.jpg -codec:v libx264 /tmp/pigazing_timelapse.mp4")
+    os.system("ffmpeg -r 10 -i frame%06d.jpg -codec:v libx264 /tmp/pigazing_timelapse.mp4")
 
     time_next_frame += frame_interval

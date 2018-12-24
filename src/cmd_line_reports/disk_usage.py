@@ -3,7 +3,7 @@
 # disk_usage.py
 #
 # -------------------------------------------------
-# Copyright 2015-2018 Dominic Ford
+# Copyright 2015-2019 Dominic Ford
 #
 # This file is part of Pi Gazing.
 #
@@ -33,10 +33,10 @@ from pigazing_helpers.obsarchive import obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                       db_host=settings['mysqlHost'],
-                                       db_user=settings['mysqlUser'],
-                                       db_password=settings['mysqlPassword'],
-                                       db_name=settings['mysqlDatabase'],
+                                       db_host=installation_info['mysqlHost'],
+                                       db_user=installation_info['mysqlUser'],
+                                       db_password=installation_info['mysqlPassword'],
+                                       db_name=installation_info['mysqlDatabase'],
                                        obstory_id=installation_info['observatoryId'])
 
 file_census = {}
@@ -46,7 +46,7 @@ db.con.execute("SELECT * FROM archive_files;")
 for item in db.con.fetchall():
     file_type = item['mimeType']
     date = dcf_ast.inv_julian_day(dcf_ast.jd_from_unix(item['fileTime']))
-    date_str = "%04d %02d %02d" % (date[0], date[1], date[2])
+    date_str = "{:04d} {:02d} {:02d}".format(date[0], date[1], date[2])
     if file_type not in file_census:
         file_census[file_type] = {}
     if date_str not in file_census[file_type]:
@@ -66,7 +66,7 @@ def render_data_size_list(file_sizes):
     total_file_size = sum(file_sizes)
     output = []
     for item in file_sizes:
-        output.append("%8.2f MB (%5.1f%%)" % (item / 1.e6, item * 100. / total_file_size))
+        output.append("{:8.2f} MB ({:5.1f}%)".format(item / 1.e6, item * 100. / total_file_size))
     return output
 
 

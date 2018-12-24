@@ -3,7 +3,7 @@
 # update_observatory_status.py
 #
 # -------------------------------------------------
-# Copyright 2015-2018 Dominic Ford
+# Copyright 2015-2019 Dominic Ford
 #
 # This file is part of Pi Gazing.
 #
@@ -37,13 +37,13 @@ from pigazing_helpers.obsarchive import obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                       db_host=settings['mysqlHost'],
-                                       db_user=settings['mysqlUser'],
-                                       db_password=settings['mysqlPassword'],
-                                       db_name=settings['mysqlDatabase'],
+                                       db_host=installation_info['mysqlHost'],
+                                       db_user=installation_info['mysqlUser'],
+                                       db_password=installation_info['mysqlPassword'],
+                                       db_name=installation_info['mysqlDatabase'],
                                        obstory_id=installation_info['observatoryId'])
 
-hw = hardware_properties.HardwareProps(os.path.join(settings['pythonPath'], "..", "camera_properties"))
+hw = hardware_properties.HardwareProps(os.path.join(settings['pythonPath'], "camera_properties"))
 
 # Read arguments
 parser = argparse.ArgumentParser(description=__doc__)
@@ -112,9 +112,9 @@ if args.obstory_id not in obstory_id_list:
     if args.latitude is None:
         args.latitude = installation_info['latitude']
     if args.longitude is None:
-        args.latitude = installation_info['longitude']
+        args.longitude = installation_info['longitude']
     if args.obstory_name is None:
-        args.latitude = installation_info['observatoryName']
+        args.obstory_name = installation_info['observatoryName']
     if args.camera is None:
         args.camera = installation_info['defaultCamera']
     if args.lens is None:
@@ -154,7 +154,7 @@ else:
 
 # Register software version in use
 db.register_obstory_metadata(obstory_id=args.obstory_id,
-                             key="softwareVersion",
+                             key="software_version",
                              value=settings['softwareVersion'],
                              metadata_time=metadata_time,
                              time_created=time.time(),
@@ -165,7 +165,7 @@ if args.camera is not None:
     hw.update_camera(db=db, obstory_id=args.obstory_id, utc=metadata_time, name=args.camera)
 
 if args.lens is not None:
-    hw.update_lens(db=db, obstory_id=obstory_id, utc=metadata_time, name=args.lens)
+    hw.update_lens(db=db, obstory_id=args.obstory_id, utc=metadata_time, name=args.lens)
 
 # Commit changes to database
 db.commit()

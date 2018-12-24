@@ -34,10 +34,10 @@ from pigazing_helpers.obsarchive import obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                       db_host=settings['mysqlHost'],
-                                       db_user=settings['mysqlUser'],
-                                       db_password=settings['mysqlPassword'],
-                                       db_name=settings['mysqlDatabase'],
+                                       db_host=installation_info['mysqlHost'],
+                                       db_user=installation_info['mysqlUser'],
+                                       db_password=installation_info['mysqlPassword'],
+                                       db_name=installation_info['mysqlDatabase'],
                                        obstory_id=installation_info['observatoryId'])
 
 # Read input parameters
@@ -55,7 +55,7 @@ print("Current web interface accounts")
 print("------------------------------")
 user_objects = db.get_users()
 for user_object in user_objects:
-    print("%20s -- roles: %s" % (user_object.user_id, " ".join(user_object.roles)))
+    print("{:20s} -- roles: {}".format(user_object.user_id, " ".join(user_object.roles)))
 print("\n")
 
 # If no user account specified to update, stop now
@@ -63,17 +63,17 @@ if args.user is None:
     sys.exit(0)
 
 # Enter password
-if args.pasword is None:
-    password = input('Enter password: ')
+if args.password is None:
+    args.password = input('Enter password: ')
 
 # Enter roles
 if args.roles is None:
     default_roles = "user voter obstory_admin import"
-    args.roles = input('Enter roles <default %s>: ' % default_roles).split()
+    args.roles = input('Enter roles <default {}>: '.format(default_roles)).split()
     if not args.roles:
         args.roles = default_roles.split()
 
-db.create_or_update_user(username=args.userstrip(), password=args.password.strip(), roles=args.roles,
+db.create_or_update_user(username=args.user.strip(), password=args.password.strip(), roles=args.roles,
                          name=None, job=None, email=None, join_date=None, profile_pic=None, profile_text=None)
 
 # Commit changes to database

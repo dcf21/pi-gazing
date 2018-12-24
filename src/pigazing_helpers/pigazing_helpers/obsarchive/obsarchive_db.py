@@ -84,8 +84,8 @@ class ObservationDatabase(object):
         :return:
             info about the db path and file store location
         """
-        return ('ObservationDatabase(file_store_path={0}, db_path={1}, db_host={2}, db_user={3}, db_password={4}, '
-                'db_name={5}, obstory_id={6})'.format(
+        return ('ObservationDatabase(file_store_path={0}, db_host={1}, db_user={2}, db_password={3}, '
+                'db_name={4}, obstory_id={5})'.format(
             self.file_store_path,
             self.db_host,
             self.db_user,
@@ -111,7 +111,7 @@ SELECT uid, publicId, userId, name, ST_X(location) AS longitude, ST_Y(location) 
 FROM archive_observatories WHERE publicId=%s;""", (obstory_id,))
         results = self.con.fetchall()
         if len(results) < 1:
-            raise ValueError("No such obstory: %s" % obstory_id)
+            raise ValueError("No such obstory: {}".format(obstory_id))
         return results[0]
 
     def register_obstory(self, obstory_id, obstory_name, owner, latitude, longitude):
@@ -157,7 +157,8 @@ VALUES
         search = mp.ObservatoryMetadataSearch(item_id=item_id)
         b = search_metadata_sql_builder(search)
         sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
-                                       'l.latitude AS obstory_lat, l.longitude AS obstory_lng, '
+                                       'ST_Y(l.location) AS obstory_lat, '
+                                       'ST_X(l.location) AS obstory_lng, '
                                        'stringValue, floatValue, m.publicId AS metadata_id, '
                                        'f.metaKey AS metadata_key, time, setAtTime AS time_created, '
                                        'setByUser AS user_created',
@@ -170,7 +171,8 @@ VALUES
     def search_obstory_metadata(self, search):
         b = search_metadata_sql_builder(search)
         sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, '
-                                       'l.latitude AS obstory_lat, l.longitude AS obstory_lng, '
+                                       'ST_Y(l.location) AS obstory_lat, '
+                                       'ST_X(l.location) AS obstory_lng, '
                                        'stringValue, floatValue, m.publicId AS metadata_id, '
                                        'f.metaKey AS metadata_key, time, setAtTime AS time_created, '
                                        'setByUser AS user_created',
@@ -197,9 +199,10 @@ VALUES
         if previous_value == value:
             return None
 
-        self.import_obstory_metadata(obstory['uid'], key, value, metadata_time, time_created, user_created, item_id)
+        self.import_obstory_metadata(obstory_id=obstory_id, key=key, value=value, metadata_time=metadata_time,
+                                     time_created=time_created, user_created=user_created, item_id=item_id)
 
-        return mp.ObservatoryMetadata(metadata_id=item_id, obstory_id=obstory['uid'], obstory_name=obstory['name'],
+        return mp.ObservatoryMetadata(metadata_id=item_id, obstory_id=obstory_id, obstory_name=obstory['name'],
                                       obstory_lat=obstory['latitude'], obstory_lng=obstory['longitude'],
                                       key=key, value=value, metadata_time=metadata_time,
                                       time_created=time_created, user_created=user_created)
@@ -208,7 +211,6 @@ VALUES
         if self.has_obstory_metadata(item_id):
             return
 
-        obstory = self.get_obstory_from_id(obstory_id)
         key_id = self.get_metadata_key_id(key)
         str_value = float_value = None
         if isinstance(value, numbers.Number):
@@ -221,15 +223,14 @@ VALUES
 INSERT INTO archive_metadata
 (publicId, observatory, fieldId, time, setAtTime, setByUser, stringValue, floatValue)
 VALUES
-(%s, %s, %s, %s, %s, %s, %s, %s);
-""", (item_id, obstory['uid'], key_id, metadata_time, time_created, user_created, str_value, float_value))
+(%s, (SELECT uid FROM archive_observatories WHERE publicId=%s), %s, %s, %s, %s, %s, %s);
+""", (item_id, obstory_id, key_id, metadata_time, time_created, user_created, str_value, float_value))
 
     def get_obstory_status(self, time=None, obstory_id=None):
         if time is None:
             time = mp.now()
         if obstory_id is None:
             obstory_id = self.obstory_id
-        obstory = self.get_obstory_from_id(obstory_id)
 
         output = {}
 
@@ -237,8 +238,9 @@ VALUES
         for item in self.con.fetchall():
             self.con.execute("""
 SELECT floatValue, stringValue FROM archive_metadata
-WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
-""", (obstory['uid'], item['uid'], time))
+WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s) AND fieldId=%s AND time<%s
+ORDER BY time DESC LIMIT 1
+""", (obstory_id, item['uid'], time))
             results = self.con.fetchall()
             if len(results) > 0:
                 result = results[0]
@@ -254,7 +256,6 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
             time = mp.now()
         if obstory_id is None:
             obstory_id = self.obstory_id
-        obstory = self.get_obstory_from_id(obstory_id)
 
         self.con.execute('SELECT uid FROM archive_metadataFields WHERE metaKey=%s;', (key,))
         results = self.con.fetchall()
@@ -262,8 +263,9 @@ WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
             return None
         self.con.execute("""
 SELECT floatValue, stringValue FROM archive_metadata
-WHERE observatory=%s AND fieldId=%s AND time<%s ORDER BY time DESC LIMIT 1
-""", (obstory['uid'], results[0]['uid'], time))
+WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s) AND fieldId=%s AND time<%s
+ORDER BY time DESC LIMIT 1
+""", (obstory_id, results[0]['uid'], time))
         results = self.con.fetchall()
         if len(results) < 1:
             return None
@@ -574,7 +576,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
         sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, l.userId AS obstory_owner, '
                                        'o.obsTime, s.name AS obsType, o.publicId, o.uid, o.creationTime, '
                                        'o.published, o.moderated, o.featured, ST_X(o.position) AS ra, '
-                                       'ST_Y(o.position) AS dec, o.fieldWidth, o.fieldHeight, o.positionAngle, '
+                                       'ST_Y(o.position) AS decl, o.fieldWidth, o.fieldHeight, o.positionAngle, '
                                        'o.centralConstellation, o.astrometryProcessed',
                                skip=0, limit=1, order='o.obsTime DESC')
         obs = list(self.generators.observation_generator(sql=sql, sql_args=b.sql_args))
@@ -597,7 +599,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
         sql = b.get_select_sql(columns='l.publicId AS obstory_id, l.name AS obstory_name, l.userId AS obstory_owner, '
                                        'o.obsTime, s.name AS obsType, o.publicId, o.uid, o.creationTime, '
                                        'o.published, o.moderated, o.featured, ST_X(o.position) AS ra, '
-                                       'ST_Y(o.position) AS dec, o.fieldWidth, o.fieldHeight, o.positionAngle, '
+                                       'ST_Y(o.position) AS decl, o.fieldWidth, o.fieldHeight, o.positionAngle, '
                                        'o.centralConstellation, o.astrometryProcessed',
                                skip=search.skip,
                                limit=search.limit,
@@ -721,7 +723,8 @@ VALUES
         obs_type_id = self.get_obs_type_id(observation.obs_type)
 
         # Get a polygon representing the sky area of this image
-        sky_area = get_sky_area(ra=ra, dec=dec, pa=position_angle,
+        sky_area = get_sky_area(ra=observation.ra, dec=observation.dec,
+                                pa=observation.position_angle,
                                 scale_x=observation.field_width,
                                 scale_y=observation.field_height)
 
@@ -784,23 +787,26 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
         return results[0]['floatValue']
 
     def like_observation(self, observation_id, user_id):
-        self.con.execute('SELECT uid FROM inthesky_users WHERE userId = %s;', (user_id,))
+        self.con.execute('SELECT userId FROM pigazing_users WHERE username = %s;', (user_id,))
         results = self.con.fetchall()
         if len(results) == 0:
             return None
         uid = results[0]['uid']
-        self.con.execute('DELETE FROM archive_obs_likes WHERE userId=%s AND observationId=%d;',
+        self.con.execute("DELETE FROM archive_obs_likes WHERE userId=%s AND "
+                         "observationId=(SELECT uid FROM archive_observations WHERE publicId=%s);",
                          (uid, observation_id))
-        self.con.execute('INSERT INTO archive_obs_likes (userId, observationId) VALUES (%s,%s);',
+        self.con.execute("INSERT INTO archive_obs_likes (userId, observationId) "
+                         "VALUES (%s,(SELECT uid FROM archive_observations WHERE publicId=%s));",
                          (uid, observation_id))
 
     def unlike_observation(self, observation_id, user_id):
-        self.con.execute('SELECT uid FROM inthesky_users WHERE userId = %s;', (user_id,))
+        self.con.execute('SELECT uid FROM pigazing_users WHERE userId = %s;', (user_id,))
         results = self.con.fetchall()
         if len(results) == 0:
             return None
         uid = results[0]['uid']
-        self.con.execute('DELETE FROM archive_obs_likes WHERE userId=%s AND observationId=%d;',
+        self.con.execute("DELETE FROM archive_obs_likes WHERE userId=%s AND "
+                         "observationId=(SELECT uid FROM archive_observations WHERE publicId=%s);",
                          (uid, observation_id))
 
     # Functions for handling observation groups
@@ -1010,7 +1016,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
         :raises:
             ValueError if the user is found but password is incorrect or if the user is not found.
         """
-        self.con.execute('SELECT * FROM inthesky_users WHERE username = %s;', (username,))
+        self.con.execute('SELECT * FROM pigazing_users WHERE username = %s;', (username,))
         results = self.con.fetchall()
         if len(results) == 0:
             raise ValueError("No such user")
@@ -1020,7 +1026,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
             raise ValueError("Incorrect password")
 
         # Fetch list of roles
-        self.con.execute('SELECT name FROM inthesky_roles r INNER JOIN inthesky_user_roles u ON u.roleId=r.roleId '
+        self.con.execute('SELECT name FROM pigazing_roles r INNER JOIN pigazing_user_roles u ON u.roleId=r.roleId '
                          'WHERE u.userId = %s;', (results[0]['userId'],))
         role_list = [row['name'] for row in self.con.fetchall()]
         return mp.User(user_id=username,
@@ -1040,12 +1046,12 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
             A list of :class:`obsarchive_model.User`
         """
         output = []
-        self.con.execute('SELECT * FROM inthesky_users;')
+        self.con.execute('SELECT * FROM pigazing_users;')
         results = self.con.fetchall()
 
         for result in results:
             # Fetch list of roles
-            self.con.execute('SELECT name FROM inthesky_roles r INNER JOIN inthesky_user_roles u ON u.roleId=r.roleId '
+            self.con.execute('SELECT name FROM pigazing_roles r INNER JOIN pigazing_user_roles u ON u.roleId=r.roleId '
                              'WHERE u.userId = %s;', (result['userId'],))
             role_list = [row['name'] for row in self.con.fetchall()]
             output.append(mp.User(user_id=result['username'],
@@ -1074,51 +1080,51 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
             ValueError if there is no existing user and either password or roles is None
         """
         action = "update"
-        self.con.execute('SELECT 1 FROM inthesky_users WHERE username = %s;', (username,))
+        self.con.execute('SELECT 1 FROM pigazing_users WHERE username = %s;', (username,))
         results = self.con.fetchall()
         if len(results) == 0:
             if password is None:
                 raise ValueError("Must specify an initial password when creating a new user!")
             action = "create"
-            self.con.execute('INSERT INTO inthesky_users (username, password) VALUES (%s,%s)',
+            self.con.execute('INSERT INTO pigazing_users (username, password) VALUES (%s,%s)',
                              (username, passlib.hash.bcrypt.encrypt(password)))
 
         if name is not None:
-            self.con.execute('UPDATE inthesky_users SET name = %s WHERE username = %s', (name, username))
+            self.con.execute('UPDATE pigazing_users SET name = %s WHERE username = %s', (name, username))
         if job is not None:
-            self.con.execute('UPDATE inthesky_users SET job = %s WHERE username = %s', (job, username))
+            self.con.execute('UPDATE pigazing_users SET job = %s WHERE username = %s', (job, username))
         if email is not None:
-            self.con.execute('UPDATE inthesky_users SET email = %s WHERE username = %s', (email, username))
+            self.con.execute('UPDATE pigazing_users SET email = %s WHERE username = %s', (email, username))
         if join_date is not None:
-            self.con.execute('UPDATE inthesky_users SET joinDate = %s WHERE username = %s', (join_date, username))
+            self.con.execute('UPDATE pigazing_users SET joinDate = %s WHERE username = %s', (join_date, username))
         if profile_pic is not None:
-            self.con.execute('UPDATE inthesky_users SET profilePic = %s WHERE username = %s', (profile_pic, username))
+            self.con.execute('UPDATE pigazing_users SET profilePic = %s WHERE username = %s', (profile_pic, username))
         if profile_text is not None:
-            self.con.execute('UPDATE inthesky_users SET profileText = %s WHERE username = %s', (profile_text, username))
+            self.con.execute('UPDATE pigazing_users SET profileText = %s WHERE username = %s', (profile_text, username))
 
         if password is None and roles is None:
             action = "none"
         if password is not None:
-            self.con.execute('UPDATE inthesky_users SET password = %s WHERE username = %s',
+            self.con.execute('UPDATE pigazing_users SET password = %s WHERE username = %s',
                              (passlib.hash.bcrypt.encrypt(password), username))
         if roles is not None:
 
             # Clear out existing roles, and delete any unused roles
-            self.con.execute("DELETE r FROM inthesky_user_roles AS r WHERE "
-                             "(SELECT u.userId FROM  inthesky_users AS u WHERE r.userId=u.userId)=%s;", (username,))
-            self.con.execute("DELETE r FROM inthesky_roles AS r WHERE r.roleId NOT IN "
-                             "(SELECT roleId FROM inthesky_user_roles);")
+            self.con.execute("DELETE r FROM pigazing_user_roles AS r WHERE "
+                             "(SELECT u.userId FROM  pigazing_users AS u WHERE r.userId=u.userId)=%s;", (username,))
+            self.con.execute("DELETE r FROM pigazing_roles AS r WHERE r.roleId NOT IN "
+                             "(SELECT roleId FROM pigazing_user_roles);")
 
             for role in roles:
-                self.con.execute("SELECT roleId FROM inthesky_roles WHERE name=%s;", (role,))
+                self.con.execute("SELECT roleId FROM pigazing_roles WHERE name=%s;", (role,))
                 results = self.con.fetchall()
                 if len(results) < 1:
-                    self.con.execute("INSERT INTO inthesky_roles (name) VALUES (%s);", (role,))
-                    self.con.execute("SELECT roleId FROM inthesky_roles WHERE name=%s;", (role,))
+                    self.con.execute("INSERT INTO pigazing_roles (name) VALUES (%s);", (role,))
+                    self.con.execute("SELECT roleId FROM pigazing_roles WHERE name=%s;", (role,))
                     results = self.con.fetchall()
 
-                self.con.execute('INSERT INTO inthesky_user_roles (userId, roleId) VALUES '
-                                 '((SELECT u.userId FROM inthesky_users u WHERE u.username=%s),'
+                self.con.execute('INSERT INTO pigazing_user_roles (userId, roleId) VALUES '
+                                 '((SELECT u.userId FROM pigazing_users u WHERE u.username=%s),'
                                  '%s)', (username, results[0]['roleId']))
             return action
 
@@ -1129,7 +1135,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
         :param string username:
             The username to remove
         """
-        self.con.execute('DELETE FROM inthesky_users WHERE username = %s', (username,))
+        self.con.execute('DELETE FROM pigazing_users WHERE username = %s', (username,))
 
     # Functions for handling export configurations
     def get_export_configuration(self, config_id):

@@ -3,7 +3,7 @@
 # timelapse_movie.py
 #
 # -------------------------------------------------
-# Copyright 2015-2018 Dominic Ford
+# Copyright 2015-2019 Dominic Ford
 #
 # This file is part of Pi Gazing.
 #
@@ -22,7 +22,7 @@
 # -------------------------------------------------
 
 """
-Make a timelapse video of still images recorded between specified start and end times
+Make a time lapse video of still images recorded between specified start and end times
 """
 
 import argparse
@@ -30,15 +30,14 @@ import os
 import sys
 import time
 
-from pigazing_helpers.obsarchive import obsarchive_db
-from pigazing_helpers.obsarchive import obsarchive_model as mp
+from pigazing_helpers.obsarchive import obsarchive_db, obsarchive_model
 from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                       db_host=settings['mysqlHost'],
-                                       db_user=settings['mysqlUser'],
-                                       db_password=settings['mysqlPassword'],
-                                       db_name=settings['mysqlDatabase'],
+                                       db_host=installation_info['mysqlHost'],
+                                       db_user=installation_info['mysqlUser'],
+                                       db_password=installation_info['mysqlPassword'],
+                                       db_name=installation_info['mysqlDatabase'],
                                        obstory_id=installation_info['observatoryId'])
 
 # Read input parameters
@@ -49,7 +48,7 @@ parser.add_argument('--t-min', dest='utc_min', default=time.time() - 3600 * 24,
 parser.add_argument('--t-max', dest='utc_max', default=time.time(),
                     type=float,
                     help="Only list events seen before the specified unix time")
-parser.add_argument('--observatory', dest='obstory_id', default=installation_info.local_conf['observatoryId'],
+parser.add_argument('--observatory', dest='obstory_id', default=installation_info['observatoryId'],
                     help="ID of the observatory we are to list events from")
 parser.add_argument('--label', dest='label', default="",
                     help="Label to put at the bottom of each frame of the video")
@@ -59,12 +58,12 @@ parser.add_argument('--stride', dest='stride', default=1, type=int,
                     help="Only show every nth item, to reduce output")
 args = parser.parse_args()
 
-print("# ./timelapse_movie.py {} {} \"{}\" \"{}\" \"{}\" {}\n".
-      format(args.utc_min, args.utc_max, args.obstory_id, args.label, args.img_type, args.stride))
+print("# ./timelapse_movie.py --t-min {} --t-max {} --observatory \"{}\" --label \"{}\" --img-type \"{}\" --stride {}\n"
+      .format(args.utc_min, args.utc_max, args.obstory_id, args.label, args.img_type, args.stride))
 
 pid = os.getpid()
-tmp = os.path.join("/tmp", "dcf_movieImages_%d" % pid)
-os.system("mkdir -p %s" % tmp)
+tmp = os.path.join("/tmp", "dcf_movieImages_{:d}".format(pid))
+os.system("mkdir -p {}".format(tmp))
 
 try:
     obstory_info = db.get_obstory_from_id(obstory_id=args.obstory_id)
@@ -75,8 +74,8 @@ except ValueError:
 
 obstory_id = obstory_info['publicId']
 
-search = mp.FileRecordSearch(obstory_ids=[obstory_id], semantic_type=args.img_type,
-                             time_min=args.utc_min, time_max=args.utc_max, limit=1000000)
+search = obsarchive_model.FileRecordSearch(obstory_ids=[obstory_id], semantic_type=args.img_type,
+                                           time_min=args.utc_min, time_max=args.utc_max, limit=1000000)
 files = db.search_files(search)
 files = files['files']
 files.sort(key=lambda x: x.file_time)
@@ -97,4 +96,4 @@ for count, file_item in enumerate(files):
                                                      filename_format.format(img_num)))
     img_num += 1
 
-os.system("avconv -r 40 -i {} -codec:v libx264 {}".format(filename_format, os.path.join(tmp, "timelapse.mp4")))
+os.system("ffmpeg -r 40 -i {} -codec:v libx264 {}".format(filename_format, os.path.join(tmp, "timelapse.mp4")))

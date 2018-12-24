@@ -29,12 +29,15 @@ It is useful to run this after <init_database/rebuild.sh>
 
 import sys
 
-from pigazing_helpers.obsarchive import archive_model as mp
-from pigazing_helpers.obsarchive import archive_db
+from pigazing_helpers.obsarchive import obsarchive_model, obsarchive_db
+from pigazing_helpers.settings_read import settings, installation_info
 
-from pigazing_helpers import settings_read
-
-db = archive_db.MeteorDatabase(settings_read.settings['dbFilestore'])
+db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                       db_host=installation_info['mysqlHost'],
+                                       db_user=installation_info['mysqlUser'],
+                                       db_password=installation_info['mysqlPassword'],
+                                       db_name=installation_info['mysqlDatabase'],
+                                       obstory_id=installation_info['observatoryId'])
 
 # List all current user accounts
 print("Current export configurations")
@@ -53,30 +56,32 @@ for config in configs:
     db.delete_export_configuration(config.config_id)
 
 # Set up default observatory metadata export configuration
-search = mp.ObservatoryMetadataSearch(limit=None)
-config = mp.ExportConfiguration(target_url=installation_info.local_conf['exportURL'],
-                                user_id=installation_info.local_conf['exportUsername'],
-                                password=installation_info.local_conf['exportPassword'],
-                                search=search, name="metadata_export",
-                                description="Export all observatory metadata to remote server", enabled=True)
+search = obsarchive_model.ObservatoryMetadataSearch(limit=None)
+config = obsarchive_model.ExportConfiguration(target_url=installation_info.local_conf['exportURL'],
+                                              user_id=installation_info.local_conf['exportUsername'],
+                                              password=installation_info.local_conf['exportPassword'],
+                                              search=search, name="metadata_export",
+                                              description="Export all observatory metadata to remote server",
+                                              enabled=True)
 db.create_or_update_export_configuration(config)
 
 # Set up default observation export configuration
-search = mp.ObservationSearch(limit=None)
-config = mp.ExportConfiguration(target_url=installation_info.local_conf['exportURL'],
-                                user_id=installation_info.local_conf['exportUsername'],
-                                password=installation_info.local_conf['exportPassword'],
-                                search=search, name="obs_export",
-                                description="Export all observation objects to remote server", enabled=True)
+search = obsarchive_model.ObservationSearch(limit=None)
+config = obsarchive_model.ExportConfiguration(target_url=installation_info.local_conf['exportURL'],
+                                              user_id=installation_info.local_conf['exportUsername'],
+                                              password=installation_info.local_conf['exportPassword'],
+                                              search=search, name="obs_export",
+                                              description="Export all observation objects to remote server",
+                                              enabled=True)
 db.create_or_update_export_configuration(config)
 
 # Set up default file export configuration
-search = mp.FileRecordSearch(limit=None)
-config = mp.ExportConfiguration(target_url=installation_info.local_conf['exportURL'],
-                                user_id=installation_info.local_conf['exportUsername'],
-                                password=installation_info.local_conf['exportPassword'],
-                                search=search, name="file_export",
-                                description="Export all image files to remote server", enabled=True)
+search = obsarchive_model.FileRecordSearch(limit=None)
+config = obsarchive_model.ExportConfiguration(target_url=installation_info.local_conf['exportURL'],
+                                              user_id=installation_info.local_conf['exportUsername'],
+                                              password=installation_info.local_conf['exportPassword'],
+                                              search=search, name="file_export",
+                                              description="Export all image files to remote server", enabled=True)
 db.create_or_update_export_configuration(config)
 
 # Commit changes to database

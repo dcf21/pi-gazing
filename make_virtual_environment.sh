@@ -40,4 +40,4 @@ rm -Rf build dist *.egg-info  # Clear out the cache to make sure we install late
 python setup.py install
 
 # Make data directory
-mkdir datadir
+mkdir -p datadir

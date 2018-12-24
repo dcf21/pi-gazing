@@ -3,7 +3,7 @@
 # list_events.py
 #
 # -------------------------------------------------
-# Copyright 2015-2018 Dominic Ford
+# Copyright 2015-2019 Dominic Ford
 #
 # This file is part of Pi Gazing.
 #
@@ -35,10 +35,10 @@ from pigazing_helpers.obsarchive import obsarchive_model as mp
 from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                       db_host=settings['mysqlHost'],
-                                       db_user=settings['mysqlUser'],
-                                       db_password=settings['mysqlPassword'],
-                                       db_name=settings['mysqlDatabase'],
+                                       db_host=installation_info['mysqlHost'],
+                                       db_user=installation_info['mysqlUser'],
+                                       db_password=installation_info['mysqlPassword'],
+                                       db_name=installation_info['mysqlDatabase'],
                                        obstory_id=installation_info['observatoryId'])
 
 # Read input parameters
@@ -49,14 +49,14 @@ parser.add_argument('--t-min', dest='utc_min', default=time.time() - 3600 * 24,
 parser.add_argument('--t-max', dest='utc_max', default=time.time(),
                     type=float,
                     help="Only list events seen before the specified unix time")
-parser.add_argument('--observatory', dest='obstory_id', default=installation_info.local_conf['observatoryId'],
+parser.add_argument('--observatory', dest='obstory_id', default=installation_info['observatoryId'],
                     help="ID of the observatory we are to list events from")
 parser.add_argument('--stride', dest='stride', default=1, type=int,
                     help="Only show every nth item, to reduce output")
 args = parser.parse_args()
 
-print("# ./list_events.py {} {} \"{}\" \"{}\" {}\n".
-      format(args.utc_min, args.utc_max, args.obstory_id, args.img_type, args.stride))
+print("# ./list_events.py --t-min {} --t-max {} --observatory \"{}\" --stride {}\n".
+      format(args.utc_min, args.utc_max, args.obstory_id, args.stride))
 
 try:
     obstory_info = db.get_obstory_from_id(obstory_id=args.obstory_id)

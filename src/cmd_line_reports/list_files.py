@@ -3,7 +3,7 @@
 # list_files.py
 #
 # -------------------------------------------------
-# Copyright 2015-2018 Dominic Ford
+# Copyright 2015-2019 Dominic Ford
 #
 # This file is part of Pi Gazing.
 #
@@ -34,10 +34,10 @@ from pigazing_helpers.obsarchive import obsarchive_model as mp
 from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                       db_host=settings['mysqlHost'],
-                                       db_user=settings['mysqlUser'],
-                                       db_password=settings['mysqlPassword'],
-                                       db_name=settings['mysqlDatabase'],
+                                       db_host=installation_info['mysqlHost'],
+                                       db_user=installation_info['mysqlUser'],
+                                       db_password=installation_info['mysqlPassword'],
+                                       db_name=installation_info['mysqlDatabase'],
                                        obstory_id=installation_info['observatoryId'])
 
 # Read input parameters
@@ -50,7 +50,7 @@ parser.add_argument('--t-max', dest='utc_max', default=time.time(),
                     help="Only list events seen before the specified unix time")
 args = parser.parse_args()
 
-print("# ./listFiles.py {} {}\n".format(args.utc_min, args.utc_max))
+print("# ./list_files.py --t-min {} --t-max {}\n".format(args.utc_min, args.utc_max))
 
 obstory_id_list = db.get_obstory_ids()
 for obstory_id in obstory_id_list:
@@ -63,8 +63,8 @@ for obstory_id in obstory_id_list:
     files = db.search_files(search)
     files = files['files']
     files.sort(key=lambda x: x.file_time)
-    print("  * %d matching files in time range %s --> %s" % (len(files),
-                                                             dcf_ast.date_string(args.utc_min),
-                                                             dcf_ast.date_string(args.utc_max)))
+    print("  * {:d} matching files in time range {} --> {}".format(len(files),
+                                                                   dcf_ast.date_string(args.utc_min),
+                                                                   dcf_ast.date_string(args.utc_max)))
     for file_objects in files:
         print("  * {} -- {}".format(dcf_ast.date_string(file_objects.file_time), file_objects.file_name))

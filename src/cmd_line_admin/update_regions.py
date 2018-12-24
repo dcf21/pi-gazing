@@ -3,7 +3,7 @@
 # update_regions.py
 #
 # -------------------------------------------------
-# Copyright 2015-2018 Dominic Ford
+# Copyright 2015-2019 Dominic Ford
 #
 # This file is part of Pi Gazing.
 #
@@ -41,10 +41,10 @@ from pigazing_helpers.obsarchive import obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 
 db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                       db_host=settings['mysqlHost'],
-                                       db_user=settings['mysqlUser'],
-                                       db_password=settings['mysqlPassword'],
-                                       db_name=settings['mysqlDatabase'],
+                                       db_host=installation_info['mysqlHost'],
+                                       db_user=installation_info['mysqlUser'],
+                                       db_password=installation_info['mysqlPassword'],
+                                       db_name=installation_info['mysqlDatabase'],
                                        obstory_id=installation_info['observatoryId'])
 
 # Read arguments
@@ -71,10 +71,15 @@ for obstory_id in obstory_id_list:
     print("{}\n".format(obstory_id))
     status = db.get_obstory_status(obstory_id=obstory_id)
     for item in status:
-        print("  * {} = {}\n".format(item, status[item]))
+        print("  * {} = {}".format(item, status[item]))
     print("\n")
 
 assert args.obstory_id in obstory_id_list, "Observatory does not exist!"
+
+# Find out time that metadata update should be applied to
+if args.metadata_time is None:
+    args.metadata_time = time.time()
+metadata_time = float(args.metadata_time)
 
 # Read user-specified clipping region
 if args.vertices is None:
@@ -99,9 +104,9 @@ else:
     regions = json.loads(args.vertices)
 
 db.register_obstory_metadata(obstory_id=args.obstory_id,
-                             key="clippingRegion",
+                             key="clipping_region",
                              value=json.dumps(regions),
-                             metadata_time=args.metadata_time,
+                             metadata_time=metadata_time,
                              time_created=time.time(),
                              user_created="system")
 
