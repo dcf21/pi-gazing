@@ -29,7 +29,7 @@ def make_htaccess(dirpath):
     force_https = """
 RewriteCond %{HTTPS} !=on
 RewriteCond %{REQUEST_URI} !google97b1895dd6619486.html
-RewriteCond %{REQUEST_URI} !^/berg/
+RewriteCond %{REQUEST_URI} !^/.well-known/
 RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R,L]
 """
 
