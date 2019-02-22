@@ -105,6 +105,48 @@ foreach ($postbreadcrumb as $c) {
         <?php
     }
 
+    public static function advertFooter()
+    {
+        ?>
+        <div>
+            <div class="tallright2">
+            <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+            <!-- pigazing.dcford.org.uk -->
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-0140009944980327"
+                 data-ad-slot="9542057108"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>
+            (adsbygoogle = window.adsbygoogle || []).push({});
+            </script>
+            </div>
+        </div>
+        <?php
+    }
+
+    public static function advertSidebar()
+    {
+        ?>
+        <div>
+            <div class="tallright1 centerblock">
+            <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+            <!-- pigazing.dcford.org.uk -->
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-0140009944980327"
+                 data-ad-slot="9542057108"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>
+            (adsbygoogle = window.adsbygoogle || []).push({});
+            </script>
+            </div>
+        </div>
+        <?php
+    }
+
     public static function header($pageInfo)
     {
         global $const, $user;
@@ -138,6 +180,15 @@ __HTML__;
             <script src="<?php echo $server; ?>vendor/html5shiv/dist/html5shiv.min.js" type="text/javascript"></script>
             <script src="<?php echo $server; ?>vendor/ExplorerCanvas/excanvas.js" type="text/javascript"></script>
             <![endif]-->
+
+            <!-- Global site tag (gtag.js) - Google Analytics -->
+            <script async src="https://www.googletagmanager.com/gtag/js?id=UA-22395429-8"></script>
+            <script>
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'UA-22395429-8');
+            </script>
 
             <?php if ($settings['includeGoogleMaps']): ?>
                 <script type="text/javascript"
@@ -298,9 +349,17 @@ __HTML__;
 
     public function footer($pageInfo)
     {
-        echo "</div>";  // mainpage
-
         ?>
+        <div class="row">
+            <div class="col-xl-12 wideright">
+                <hr/>
+                <?php $this->advertFooter(); ?>
+            </div>
+        </div>
+
+        <?php echo "</div>";  // mainpage
+        ?>
+
         <div class="footer">
             <div class="container">
                 <div class="row">
