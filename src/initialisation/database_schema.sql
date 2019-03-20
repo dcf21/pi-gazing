@@ -119,6 +119,15 @@ CREATE TABLE archive_observations
   positionAngle        REAL,
   centralConstellation TINYINT,
   astrometryProcessed  REAL,
+
+  derived_published_year SMALLINT NOT NULL,
+  derived_published_month TINYINT NOT NULL,
+  derived_published_day TINYINT NOT NULL,
+
+  derived_observed_year SMALLINT NOT NULL,
+  derived_observed_month TINYINT NOT NULL,
+  derived_observed_day TINYINT NOT NULL,
+
   FOREIGN KEY (observatory) REFERENCES archive_observatories (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (obsType) REFERENCES archive_semanticTypes (uid)
@@ -130,7 +139,9 @@ CREATE TABLE archive_observations
   INDEX (publicId),
   INDEX (astrometryProcessed),
   SPATIAL INDEX (position),
-  SPATIAL INDEX (skyArea)
+  SPATIAL INDEX (skyArea),
+  INDEX (derived_observed_year, derived_observed_month, derived_observed_day),
+  INDEX (derived_published_year, derived_published_month, derived_published_day)
 );
 
 # Groups of observations
