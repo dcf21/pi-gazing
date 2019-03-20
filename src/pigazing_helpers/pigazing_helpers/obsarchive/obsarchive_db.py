@@ -18,6 +18,7 @@ from .generators import first_from_generator, ObservationDatabaseGenerators
 from .obsarchive_sky_area import get_sky_area
 from .sql_builder import search_observations_sql_builder, search_files_sql_builder, \
     search_metadata_sql_builder, search_obsgroups_sql_builder
+from .dcf_ast import inv_julian_day, jd_from_unix
 
 SOFTWARE_VERSION = 2
 
@@ -676,19 +677,29 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
         # Get a polygon representing the sky area of this image
         sky_area = get_sky_area(ra=ra, dec=dec, pa=position_angle, scale_x=field_width, scale_y=field_height)
 
+        # Convert times into calendar dates to aid indexing of observations
+        observed_calendar_date = inv_julian_day(jd_from_unix(obs_time))
+        published_calendar_date = inv_julian_day(jd_from_unix(creation_time))
+
         # Insert into database
         self.con.execute("""
 INSERT INTO archive_observations (publicId, observatory, userId, obsTime, obsType, creationTime, published, moderated,
                                   featured, position, fieldWidth, fieldHeight, positionAngle, centralConstellation,
-                                  astrometryProcessed, skyArea)
+                                  astrometryProcessed, skyArea,
+                                  derived_observed_year, derived_observed_month, derived_observed_day,
+                                  derived_published_year, derived_published_month, derived_published_day)
 VALUES
 (%s, %s, %s, %s, %s, %s, %s, %s,
- %s, POINT(%s, %s), %s, %s, %s, %s, %s, ST_GEOMFROMTEXT(%s));
+ %s, POINT(%s, %s), %s, %s, %s, %s, %s, ST_GEOMFROMTEXT(%s),
+ %s, %s, %s, %s, %s, %s);
 """,
                          (observation_id, obstory['uid'], user_id, obs_time, obs_type_id,
                           creation_time, published, moderated,
                           featured, ra, dec, field_width, field_height, position_angle, central_constellation,
-                          astrometry_processed, sky_area))
+                          astrometry_processed, sky_area,
+                          observed_calendar_date[0], observed_calendar_date[1], observed_calendar_date[2],
+                          published_calendar_date[0], published_calendar_date[1], published_calendar_date[2]
+                          ))
 
         # Store the observation metadata
         for meta in obs_meta:
@@ -728,21 +739,31 @@ VALUES
                                 scale_x=observation.field_width,
                                 scale_y=observation.field_height)
 
+        # Convert times into calendar dates to aid indexing of observations
+        observed_calendar_date = inv_julian_day(jd_from_unix(observation.obs_time))
+        published_calendar_date = inv_julian_day(jd_from_unix(observation.creation_time))
+
         # Insert into database
         self.con.execute("""
 INSERT INTO archive_observations (publicId, observatory, userId, obsTime, obsType, creationTime, published, moderated,
                                   featured, position, fieldWidth, fieldHeight, positionAngle, centralConstellation,
-                                  astrometryProcessed, skyArea)
+                                  astrometryProcessed, skyArea,
+                                  derived_observed_year, derived_observed_month, derived_observed_day,
+                                  derived_published_year, derived_published_month, derived_published_day)
 VALUES
 (%s, (SELECT uid FROM archive_observatories WHERE publicId=%s), %s, %s, %s, %s, %s, %s,
- %s, POINT(%s, %s), %s, %s, %s, %s, %s, ST_GEOMFROMTEXT(%s));
+ %s, POINT(%s, %s), %s, %s, %s, %s, %s, ST_GEOMFROMTEXT(%s),
+ %s, %s, %s, %s, %s, %s);
 """,
                          (observation.obs_id, observation.obstory_id, user_id, observation.obs_time, obs_type_id,
                           observation.creation_time, observation.published, observation.moderated,
                           observation.featured, observation.ra, observation.dec,
                           observation.field_width, observation.field_height,
                           observation.position_angle, observation.central_constellation,
-                          observation.astrometry_processed, sky_area))
+                          observation.astrometry_processed, sky_area,
+                          observed_calendar_date[0], observed_calendar_date[1], observed_calendar_date[2],
+                          published_calendar_date[0], published_calendar_date[1], published_calendar_date[2]
+                          ))
 
         # Store the observation metadata
         for meta in observation.meta:
