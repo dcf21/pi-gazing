@@ -125,9 +125,9 @@ def inv_julian_day(jd):
         c = int(a + 1524)  # Julian calendar
     else:
         b = int((a - 1867216.25) / 36524.25)
-        c = int(a + b - (b / 4) + 1525)  # Gregorian calendar
+        c = int(a + b - (b // 4) + 1525)  # Gregorian calendar
     d = int((c - 122.1) / 365.25)  # Number of 365.25 periods, starting the year at the end of February
-    e_ = int(365 * d + d / 4)  # Number of days accounted for by these
+    e_ = int(365 * d + d // 4)  # Number of days accounted for by these
     f = int((c - e_) / 30.6001)  # Number of 30.6001 days periods (a.k.a. months) in remainder
     day = int(floor(c - e_ - int(30.6001 * f)))
     month = int(floor(f - 1 - 12 * (f >= 14)))
