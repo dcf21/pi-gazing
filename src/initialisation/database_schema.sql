@@ -49,6 +49,15 @@ CREATE TABLE pigazing_user_roles
   PRIMARY KEY (userId, roleId)
 );
 
+# Create table of sources of data
+CREATE TABLE pigazing_sources
+(
+  sourceId SMALLINT PRIMARY KEY AUTO_INCREMENT,
+  abbrev   VARCHAR(32) UNIQUE,
+  name     TEXT,
+  url      TEXT
+);
+
 # Create table of observations
 
 # Table of observatories
@@ -102,37 +111,43 @@ CREATE TABLE archive_semanticTypes
 # Table of observations
 CREATE TABLE archive_observations
 (
-  uid                  INTEGER PRIMARY KEY AUTO_INCREMENT,
-  publicId             CHAR(32) UNIQUE NOT NULL,
-  observatory          INTEGER         NOT NULL,
-  userId               VARCHAR(48),
-  obsTime              REAL            NOT NULL,
-  obsType              INTEGER         NOT NULL,
-  creationTime         REAL            NOT NULL,
-  published            BOOLEAN         NOT NULL,
-  moderated            BOOLEAN         NOT NULL,
-  featured             BOOLEAN         NOT NULL,
-  position             POINT           NOT NULL,
-  skyArea              MULTIPOLYGON    NOT NULL,
-  fieldWidth           REAL,
-  fieldHeight          REAL,
-  positionAngle        REAL,
-  centralConstellation TINYINT,
-  astrometryProcessed  REAL,
+  uid                      INTEGER PRIMARY KEY AUTO_INCREMENT,
+  publicId                 CHAR(32) UNIQUE NOT NULL,
+  observatory              INTEGER         NOT NULL,
+  userId                   VARCHAR(48),
+  obsTime                  REAL            NOT NULL,
+  obsType                  INTEGER         NOT NULL,
+  creationTime             REAL            NOT NULL,
+  published                BOOLEAN         NOT NULL,
+  moderated                BOOLEAN         NOT NULL,
+  featured                 BOOLEAN         NOT NULL,
+  position                 POINT           NOT NULL,
+  skyArea                  MULTIPOLYGON    NOT NULL,
+  fieldWidth               REAL,
+  fieldHeight              REAL,
+  positionAngle            REAL,
+  centralConstellation     TINYINT,
+  astrometrySource         SMALLINT,
+  astrometryProcessed      REAL,
+  astrometryProcessingTime REAL,
+  altAz                    POINT           NOT NULL,
+  altAzPositionAngle       REAL,
 
-  derived_published_year SMALLINT NOT NULL,
-  derived_published_month TINYINT NOT NULL,
-  derived_published_day TINYINT NOT NULL,
+  derived_published_year   SMALLINT        NOT NULL,
+  derived_published_month  TINYINT         NOT NULL,
+  derived_published_day    TINYINT         NOT NULL,
 
-  derived_observed_year SMALLINT NOT NULL,
-  derived_observed_month TINYINT NOT NULL,
-  derived_observed_day TINYINT NOT NULL,
+  derived_observed_year    SMALLINT        NOT NULL,
+  derived_observed_month   TINYINT         NOT NULL,
+  derived_observed_day     TINYINT         NOT NULL,
 
   FOREIGN KEY (observatory) REFERENCES archive_observatories (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (obsType) REFERENCES archive_semanticTypes (uid)
     ON DELETE CASCADE,
   FOREIGN KEY (centralConstellation) REFERENCES pigazing_constellations (constellationId)
+    ON DELETE CASCADE,
+  FOREIGN KEY (astrometrySource) REFERENCES pigazing_sources (sourceId)
     ON DELETE CASCADE,
   INDEX (obsTime),
   INDEX (creationTime),

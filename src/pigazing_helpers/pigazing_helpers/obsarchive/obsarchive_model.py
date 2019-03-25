@@ -795,7 +795,10 @@ class Observation(ModelEqualityMixin):
             creation_time,
             published,
             moderated,
-            featured, ra, dec, field_width, field_height, position_angle, central_constellation, astrometry_processed,
+            featured,
+            ra, dec, field_width, field_height, position_angle, central_constellation,
+            altitude, azimuth, alt_az_pa,
+            astrometry_processed, astrometry_processing_time, astrometry_source,
             file_records=None,
             meta=None):
         """
@@ -803,14 +806,22 @@ class Observation(ModelEqualityMixin):
         create a new Observation, or on the client API to retrieve an existing one. This constructor is only for
         internal use within the database layer.
 
-        :param string obstory_id: Camera ID which is responsible for this observation
-        :param string obstory_name: Name of the obstory which is responsible for this observation
-        :param float obs_time: Date for the observation
-        :param string obs_id: UUID for this observation
-        :param string obs_type: string defining the observation type
-        :param float creation_time: Date when this observation was created
-        :param integer published: flag indicating whether this observations has been published
-        :param integer moderated: flag indicating whether this observation has been accepted by the moderators
+        :param string obstory_id:
+            Camera ID which is responsible for this observation
+        :param string obstory_name:
+            Name of the obstory which is responsible for this observation
+        :param float obs_time:
+            Date for the observation
+        :param string obs_id:
+            UUID for this observation
+        :param string obs_type:
+            string defining the observation type
+        :param float creation_time:
+            Date when this observation was created
+        :param integer published:
+            flag indicating whether this observations has been published
+        :param integer moderated:
+            flag indicating whether this observation has been accepted by the moderators
         :param featured:
             flag indicating whether this is a "featured" observation
         :param ra:
@@ -825,8 +836,18 @@ class Observation(ModelEqualityMixin):
             Position angle at the centre of the image, in degrees.
         :param central_constellation:
             Constellation where the centre of the image falls.
+        :param altitude:
+            The altitude of the centre of the field above the horizon, in degrees.
+        :param azimuth:
+            The azimuth of the centre of the field around the horizon, in degrees.
+        :param alt_az_pa:
+            The position angle of the frame relative to the local vertical, in degrees.
         :param astrometry_processed:
             Unix time when the astrometric coordinates of this image were (last) processed.
+        :param astrometry_processing_time:
+            The number of seconds taken to compute the astrometric coordinates of this image.
+        :param astrometry_source:
+            The method used to plate solve this image.
         :param list[FileRecord] file_records:
             A list of :class:`obsarchive_model.FileRecord`, or None to specify no files, which support the observation.
         :param list[Meta] meta:
@@ -849,7 +870,12 @@ class Observation(ModelEqualityMixin):
         self.field_height = field_height
         self.position_angle = position_angle
         self.central_constellation = central_constellation
+        self.altitude = altitude
+        self.azimuth = azimuth
+        self.alt_az_pa = alt_az_pa
         self.astrometry_processed = astrometry_processed
+        self.astrometry_processing_time = astrometry_processing_time
+        self.astrometry_source = astrometry_source
         self.likes = 0
 
         # Sequence of FileRecord
@@ -866,14 +892,11 @@ class Observation(ModelEqualityMixin):
 
     def __str__(self):
         return (
-            'Observation(obstory_id={0}, obstory_name={1}, obstory_owner={2}, obs_time={3}, obs_id={4}, obs_type={5}, creation_time={6})'.format(
+            'Observation(obstory_id={0}, obs_time={1}, obs_id={2}, obs_type={3})'.format(
                 self.obstory_id,
-                self.obstory_name,
-                self.obstory_owner,
                 self.obs_time,
                 self.obs_id,
-                self.obs_type,
-                self.creation_time
+                self.obs_type
             )
         )
 
@@ -895,7 +918,12 @@ class Observation(ModelEqualityMixin):
                 'field_height': self.field_height,
                 'position_angle': self.position_angle,
                 'central_constellation': self.central_constellation,
+                'altitude': self.altitude,
+                'azimuth': self.azimuth,
+                'alt_az_pa': self.alt_az_pa,
                 'astrometry_processed': self.astrometry_processed,
+                'astrometry_processing_time': self.astrometry_processing_time,
+                'astrometry_source': self.astrometry_source,
                 'files': list(fr.as_dict() for fr in self.file_records),
                 'meta': list(fm.as_dict() for fm in self.meta)}
 
@@ -917,7 +945,12 @@ class Observation(ModelEqualityMixin):
                            field_height=_value_from_dict(d, 'field_height'),
                            position_angle=_value_from_dict(d, 'position_angle'),
                            central_constellation=_value_from_dict(d, 'central_constellation'),
+                           altitude=_value_from_dict(d, 'altitude'),
+                           azimuth=_value_from_dict(d, 'azimuth'),
+                           alt_az_pa=_value_from_dict(d, 'alt_az_pa'),
                            astrometry_processed=_value_from_dict(d, 'astrometry_processed'),
+                           astrometry_processing_time=_value_from_dict(d, 'astrometry_processing_time'),
+                           astrometry_source=_value_from_dict(d, 'astrometry_source'),
                            file_records=list(FileRecord.from_dict(frd) for frd in d['files']),
                            meta=list((Meta.from_dict(m) for m in d['meta'])))
 

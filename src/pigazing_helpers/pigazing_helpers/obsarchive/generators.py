@@ -53,7 +53,8 @@ class ObservationDatabaseGenerators(object):
         self.db = db
 
     def file_generator(self, sql, sql_args):
-        """Generator for FileRecord
+        """
+        Generator for FileRecord
 
         :param sql:
             A SQL statement which must return rows describing files.
@@ -92,7 +93,8 @@ WHERE m.fileId=%s
         return output
 
     def observation_generator(self, sql, sql_args):
-        """Generator for Observation
+        """
+        Generator for Observation
 
         :param sql:
             A SQL statement which must return rows describing observations
@@ -119,7 +121,12 @@ WHERE m.fileId=%s
                                          field_height=result['fieldHeight'],
                                          position_angle=result['positionAngle'],
                                          central_constellation=result['centralConstellation'],
+                                         altitude=result['altitude'],
+                                         azimuth=result['azimuth'],
+                                         alt_az_pa=result['altAzPositionAngle'],
                                          astrometry_processed=result['astrometryProcessed'],
+                                         astrometry_processing_time=result['astrometryProcessingTime'],
+                                         astrometry_source=result['astrometrySource'],
                                          obs_type=result['obsType'])
 
             # Look up observation metadata
@@ -149,7 +156,8 @@ WHERE m.observationId=%s
         return output
 
     def obsgroup_generator(self, sql, sql_args):
-        """Generator for ObservationGroup
+        """
+        Generator for ObservationGroup
 
         :param sql:
             A SQL statement which must return rows describing observation groups

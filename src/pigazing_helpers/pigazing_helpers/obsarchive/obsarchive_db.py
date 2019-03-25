@@ -555,6 +555,15 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
             results = self.con.fetchall()
         return results[0]['uid']
 
+    def get_source_id(self, name):
+        self.con.execute("SELECT sourceId FROM pigazing_sources WHERE name=%s;", (name,))
+        results = self.con.fetchall()
+        if len(results) < 1:
+            self.con.execute("INSERT INTO pigazing_sources (abbrev, name) VALUES (%s, %s);", (name, name))
+            self.con.execute("SELECT sourceId FROM pigazing_sources WHERE name=%s;", (name,))
+            results = self.con.fetchall()
+        return results[0]['sourceId']
+
     def delete_observation(self, observation_id):
         self.con.execute('SELECT repositoryFname FROM archive_files f '
                          'INNER JOIN archive_observations o ON f.observationId=o.uid '
@@ -578,7 +587,11 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
                                        'o.obsTime, s.name AS obsType, o.publicId, o.uid, o.creationTime, '
                                        'o.published, o.moderated, o.featured, ST_X(o.position) AS ra, '
                                        'ST_Y(o.position) AS decl, o.fieldWidth, o.fieldHeight, o.positionAngle, '
-                                       'o.centralConstellation, o.astrometryProcessed',
+                                       'o.centralConstellation, '
+                                       'ST_X(o.altAz) AS altitude, ST_Y(o.altAz) AS azimuth, o.altAzPositionAngle '
+                                       'o.astrometryProcessed, o.astrometryProcessingTime, '
+                                       '(SELECT abbrev FROM pigazing_sources WHERE sourceId=o.astrometrySource) '
+                                       '    AS astrometrySource ',
                                skip=0, limit=1, order='o.obsTime DESC')
         obs = list(self.generators.observation_generator(sql=sql, sql_args=b.sql_args))
         if not obs:
@@ -616,7 +629,9 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
 
     def register_observation(self, obstory_id, user_id, obs_time, obs_type, creation_time, published, moderated,
                              featured, ra, dec, field_width, field_height, position_angle, central_constellation,
-                             astrometry_processed, obs_meta=None, random_id=False):
+                             altitude, azimuth, alt_az_pa,
+                             astrometry_processed, astrometry_processing_time, astrometry_source,
+                             obs_meta=None, random_id=False):
         """
         Register a new observation, updating the database and returning the corresponding Observation object
 
@@ -648,8 +663,18 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
             Position angle at the centre of the image, in degrees.
         :param central_constellation:
             Constellation where the centre of the image falls.
+        :param altitude:
+            The altitude of the centre of the field above the horizon, in degrees.
+        :param azimuth:
+            The azimuth of the centre of the field around the horizon, in degrees.
+        :param alt_az_pa:
+            The position angle of the frame relative to the local vertical, in degrees.
         :param astrometry_processed:
             Unix time when the astrometric coordinates of this image were (last) processed.
+        :param astrometry_processing_time:
+            The number of seconds taken to compute the astrometric coordinates of this image.
+        :param astrometry_source:
+            The method used to plate solve this image.
         :param list obs_meta:
             A list of :class:`obsarchive_model.Meta` used to provide additional information about this observation
         :param random_id:
@@ -677,6 +702,12 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
         # Get a polygon representing the sky area of this image
         sky_area = get_sky_area(ra=ra, dec=dec, pa=position_angle, scale_x=field_width, scale_y=field_height)
 
+        # Get ID for the source of astrometry
+        if astrometry_source:
+            astrometry_source_id = self.get_source_id(name=astrometry_source)
+        else:
+            astrometry_source_id = None
+
         # Convert times into calendar dates to aid indexing of observations
         observed_calendar_date = inv_julian_day(jd_from_unix(obs_time))
         published_calendar_date = inv_julian_day(jd_from_unix(creation_time))
@@ -685,18 +716,25 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
         self.con.execute("""
 INSERT INTO archive_observations (publicId, observatory, userId, obsTime, obsType, creationTime, published, moderated,
                                   featured, position, fieldWidth, fieldHeight, positionAngle, centralConstellation,
-                                  astrometryProcessed, skyArea,
+                                  altAz, altAzPositionAngle,
+                                  astrometryProcessed, astrometryProcessingTime, astrometrySource,
+                                  skyArea,
                                   derived_observed_year, derived_observed_month, derived_observed_day,
                                   derived_published_year, derived_published_month, derived_published_day)
 VALUES
 (%s, %s, %s, %s, %s, %s, %s, %s,
- %s, POINT(%s, %s), %s, %s, %s, %s, %s, ST_GEOMFROMTEXT(%s),
+ %s, POINT(%s, %s), %s, %s, %s, %s,
+ POINT(%s, %s), %s,
+ %s, %s, %s,
+ ST_GEOMFROMTEXT(%s),
  %s, %s, %s, %s, %s, %s);
 """,
                          (observation_id, obstory['uid'], user_id, obs_time, obs_type_id,
                           creation_time, published, moderated,
                           featured, ra, dec, field_width, field_height, position_angle, central_constellation,
-                          astrometry_processed, sky_area,
+                          altitude, azimuth, alt_az_pa,
+                          astrometry_processed, astrometry_processing_time, astrometry_source_id,
+                          sky_area,
                           observed_calendar_date[0], observed_calendar_date[1], observed_calendar_date[2],
                           published_calendar_date[0], published_calendar_date[1], published_calendar_date[2]
                           ))
@@ -721,7 +759,12 @@ VALUES
                                      field_height=field_height,
                                      position_angle=position_angle,
                                      central_constellation=central_constellation,
+                                     altitude=altitude,
+                                     azimuth=azimuth,
+                                     alt_az_pa=alt_az_pa,
                                      astrometry_processed=astrometry_processed,
+                                     astrometry_processing_time=astrometry_processing_time,
+                                     astrometry_source=astrometry_source,
                                      file_records=[],
                                      meta=obs_meta)
         return observation
@@ -739,6 +782,12 @@ VALUES
                                 scale_x=observation.field_width,
                                 scale_y=observation.field_height)
 
+        # Get ID for the source of astrometry
+        if observation.astrometry_source:
+            source_id = self.get_source_id(name=observation.astrometry_source)
+        else:
+            source_id = None
+
         # Convert times into calendar dates to aid indexing of observations
         observed_calendar_date = inv_julian_day(jd_from_unix(observation.obs_time))
         published_calendar_date = inv_julian_day(jd_from_unix(observation.creation_time))
@@ -747,12 +796,17 @@ VALUES
         self.con.execute("""
 INSERT INTO archive_observations (publicId, observatory, userId, obsTime, obsType, creationTime, published, moderated,
                                   featured, position, fieldWidth, fieldHeight, positionAngle, centralConstellation,
-                                  astrometryProcessed, skyArea,
+                                  altAz, altAzPositionAngle,
+                                  astrometryProcessed, astrometryProcessingTime, astrometrySource,
+                                  skyArea,
                                   derived_observed_year, derived_observed_month, derived_observed_day,
                                   derived_published_year, derived_published_month, derived_published_day)
 VALUES
-(%s, (SELECT uid FROM archive_observatories WHERE publicId=%s), %s, %s, %s, %s, %s, %s,
- %s, POINT(%s, %s), %s, %s, %s, %s, %s, ST_GEOMFROMTEXT(%s),
+(%s, %s, %s, %s, %s, %s, %s, %s,
+ %s, POINT(%s, %s), %s, %s, %s, %s,
+ POINT(%s, %s), %s,
+ %s, %s, %s,
+ ST_GEOMFROMTEXT(%s),
  %s, %s, %s, %s, %s, %s);
 """,
                          (observation.obs_id, observation.obstory_id, user_id, observation.obs_time, obs_type_id,
@@ -760,7 +814,9 @@ VALUES
                           observation.featured, observation.ra, observation.dec,
                           observation.field_width, observation.field_height,
                           observation.position_angle, observation.central_constellation,
-                          observation.astrometry_processed, sky_area,
+                          observation.altitude, observation.azimuth, observation.alt_az_pa,
+                          observation.astrometry_processed, observation.astrometry_processing_time, source_id,
+                          sky_area,
                           observed_calendar_date[0], observed_calendar_date[1], observed_calendar_date[2],
                           published_calendar_date[0], published_calendar_date[1], published_calendar_date[2]
                           ))
