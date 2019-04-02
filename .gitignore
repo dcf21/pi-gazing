@@ -1,11 +1,15 @@
 datadir
 .idea/
+
+bin
+obj
+
+build
+dist
+*.egg-info
+*.pyc
 __pycache__
 .sconsign.dblite
 
 src/web_interface/web_api/pigazing_cert*
-
-src/helpers/python_packages/build/
-src/helpers/python_packages/dist/
-src/helpers/python_packages/pigazing_helpers.egg-info/
 
