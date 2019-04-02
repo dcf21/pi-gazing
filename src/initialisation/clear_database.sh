@@ -5,7 +5,7 @@ DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 cd ${DIR}
 
 
-read -p "This will destroy and rebuild the Pi Gazing databases, hit 'y' to confirm or any other key to cancel." -n 1 -r
+read -p $'This will destroy and rebuild the Pi Gazing databases.\nHit "Y" to confirm or any other key to cancel.\n' -n 1 -r
 echo 
 if [[ $REPLY =~ ^[Yy]$ ]]
 then

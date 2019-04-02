@@ -26,14 +26,14 @@ import sys
 
 # Fetch path to local installation settings
 our_path = os.path.abspath(__file__)
-root_path = re.match(r"(.*)virtualenv", our_path).group(1) + "/src/"
-if not os.path.exists(os.path.join(root_path, "../configuration/installation_settings.conf")):
+root_path = re.match(r"(.*/src/)", our_path).group(1)
+if not os.path.exists(os.path.join(root_path, "../configuration_local/installation_settings.conf")):
     sys.stderr.write(
-        "You must create a file <configuration/installation_settings.conf> with local camera settings.\n")
+        "You must create a file <configuration_local/installation_settings.conf> with local camera settings.\n")
     sys.exit(1)
 
 installation_info = {}
-for line in open(os.path.join(root_path, "../configuration/installation_settings.conf")):
+for line in open(os.path.join(root_path, "../configuration_local/installation_settings.conf")):
     line = line.strip()
 
     # Ignore blank lines and comment lines
@@ -70,8 +70,8 @@ settings = {
     'pythonPath': root_path,
 
     # The path to compiled binary executables in the videoAnalysis directory
-    'binaryPath': os.path.join(root_path, "observing/bin"),
-    'stackerPath': os.path.join(root_path, "image_projection/bin"),
+    'binaryPath': os.path.join(root_path, "observe/video_analysis/bin"),
+    'stackerPath': os.path.join(root_path, "helpers/image_projection/bin"),
 
     # Flag telling us whether we're a raspberry pi or a desktop PC
     'i_am_a_rpi': os.uname()[4].startswith("arm"),

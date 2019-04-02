@@ -1,4 +1,4 @@
-#!../../virtualenv/bin/python3
+#!../../datadir/virtualenv/bin/python3
 # -*- coding: utf-8 -*-
 # check_database_integrity.py
 #

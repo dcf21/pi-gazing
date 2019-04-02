@@ -1,11 +1,11 @@
 datadir
 .idea/
-virtualenv/
 __pycache__
+.sconsign.dblite
 
-src/observatory_website/web_api/pigazing_cert*
+src/web_interface/web_api/pigazing_cert*
 
-src/pigazing_helpers/build/
-src/pigazing_helpers/dist/
-src/pigazing_helpers/pigazing_helpers.egg-info/
+src/helpers/python_packages/build/
+src/helpers/python_packages/dist/
+src/helpers/python_packages/pigazing_helpers.egg-info/
 
