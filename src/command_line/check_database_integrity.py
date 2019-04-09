@@ -38,39 +38,6 @@ db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                        obstory_id=installation_info['observatoryId'])
 sql = db.con
 
-# Check observation groups
-print("Checking observation groups...")
-sql.execute("SELECT publicId FROM archive_obs_groups;")
-seen_ids = {}
-for item in sql.fetchall():
-    id = item['publicId']
-    if id in seen_ids:
-        print("Observation groups: Duplicate ID <{}>".format(id))
-    else:
-        seen_ids[id] = True
-
-# Check observations
-print("Checking observations...")
-sql.execute("SELECT publicId FROM archive_observations;")
-seen_ids = {}
-for item in sql.fetchall():
-    id = item['publicId']
-    if id in seen_ids:
-        print("Observations: Duplicate ID <{}>".format(id))
-    else:
-        seen_ids[id] = True
-
-# Check files
-print("Checking files...")
-sql.execute("SELECT repositoryFname FROM archive_files;")
-seen_ids = {}
-for item in sql.fetchall():
-    id = item['repositoryFname']
-    if id in seen_ids:
-        print("Files: Duplicate ID <{}>".format(id))
-    else:
-        seen_ids[id] = True
-
 # Check files exist
 print("Checking whether files exist...")
 sql.execute("SELECT repositoryFname FROM archive_files;")
