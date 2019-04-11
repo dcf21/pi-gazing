@@ -40,14 +40,14 @@ class ObservationExporter(object):
         """
 
         # Similar operation for archive_metadataExport
-        self.db.con.execute('SELECT c.exportConfigId, o.publicId, x.exportState, '
-                            'c.targetURL, c.targetUser, c.targetPassword '
-                            'FROM archive_metadataExport x '
-                            'INNER JOIN archive_exportConfig c ON x.exportConfig=c.uid '
-                            'INNER JOIN archive_metadata o ON x.metadataId=o.uid '
-                            'AND c.active = 1 '
-                            'AND x.exportState > 0 '
-                            'ORDER BY o.setAtTime ASC, o.uid ASC LIMIT 1')
+        self.db.con.execute("""
+SELECT c.exportConfigId, o.publicId, x.exportState, c.targetURL, c.targetUser, c.targetPassword
+FROM archive_metadataExport x
+INNER JOIN archive_exportConfig c ON x.exportConfig=c.uid
+INNER JOIN archive_metadata o ON x.metadataId=o.uid
+WHERE c.active = 1 AND x.exportState > 0
+ORDER BY o.setAtTime ASC, o.uid ASC LIMIT 1
+""")
         row = self.db.con.fetchone()
         if row is not None:
             config_id = row['exportConfigId']
@@ -61,14 +61,14 @@ class ObservationExporter(object):
                                       target_password=target_password)
 
         # Try to retrieve the earliest record in archive_observationExport
-        self.db.con.execute('SELECT c.exportConfigId, o.publicId, x.exportState, '
-                            'c.targetURL, c.targetUser, c.targetPassword '
-                            'FROM archive_observationExport x '
-                            'INNER JOIN archive_exportConfig c ON x.exportConfig=c.uid '
-                            'INNER JOIN archive_observations o ON x.observationId=o.uid '
-                            'WHERE c.active = 1 '
-                            'AND x.exportState > 0 '
-                            'ORDER BY o.obsTime ASC, o.uid ASC LIMIT 1')
+        self.db.con.execute("""
+SELECT c.exportConfigId, o.publicId, x.exportState, c.targetURL, c.targetUser, c.targetPassword
+FROM archive_observationExport x
+INNER JOIN archive_exportConfig c ON x.exportConfig=c.uid
+INNER JOIN archive_observations o ON x.observationId=o.uid
+WHERE c.active = 1 AND x.exportState > 0
+ORDER BY o.obsTime ASC, o.uid ASC LIMIT 1
+""")
         row = self.db.con.fetchone()
         if row is not None:
             config_id = row['exportConfigId']
@@ -82,14 +82,14 @@ class ObservationExporter(object):
                                          target_password=target_password)
 
         # Try to retrieve the earliest record in archive_fileExport
-        self.db.con.execute('SELECT c.exportConfigId, o.repositoryFname, x.exportState, '
-                            'c.targetURL, c.targetUser, c.targetPassword '
-                            'FROM archive_fileExport x '
-                            'INNER JOIN archive_exportConfig c ON x.exportConfig=c.uid '
-                            'INNER JOIN archive_files o ON x.fileId=o.uid '
-                            'WHERE c.active = 1 '
-                            'AND x.exportState > 0 '
-                            'ORDER BY o.fileTime ASC, o.uid ASC LIMIT 1')
+        self.db.con.execute("""
+SELECT c.exportConfigId, o.repositoryFname, x.exportState, c.targetURL, c.targetUser, c.targetPassword
+FROM archive_fileExport x
+INNER JOIN archive_exportConfig c ON x.exportConfig=c.uid
+INNER JOIN archive_files o ON x.fileId=o.uid
+WHERE c.active = 1 AND x.exportState > 0
+ORDER BY o.fileTime ASC, o.uid ASC LIMIT 1
+""")
         row = self.db.con.fetchone()
         if row is not None:
             config_id = row['exportConfigId']
@@ -144,7 +144,7 @@ class ObservationExporter(object):
         """
         # Use a cached state, or generate a new one if required
         if export_state is None or export_state.export_task is None:
-            export = self.db.get_next_entity_to_export()
+            export = self.get_next_entity_to_export()
             if export is not None:
                 export_state = self.ExportState(export_task=export)
             else:
@@ -168,10 +168,11 @@ class ObservationExporter(object):
                     return export_state.failed()
                 with open(self.db.file_path_for_id(file_id), 'rb') as file_content:
                     multi = MultipartEncoder(fields={'file': ('file', file_content, file_record.mime_type)})
-                    post(url="{0}/data/{1}/{2}".format(target_url, file_id, file_record.file_md5),
-                         data=multi, verify=False,
-                         headers={'Content-Type': multi.content_type},
-                         auth=auth)
+                    response = post(url="{0}/data/{1}/{2}".format(target_url, file_id, file_record.file_md5),
+                                    data=multi, verify=False,
+                                    headers={'Content-Type': multi.content_type},
+                                    auth=auth)
+                    response.raise_for_status()
                 return export_state.partially_processed()
             elif state == 'continue':
                 return export_state.partially_processed()

@@ -165,11 +165,11 @@ if __name__ == "__main__":
                         action='store_true',
                         dest='delete',
                         help='This switch deletes the user altogether')
-    parser.add_argument('--add_roles',
+    parser.add_argument('--add-role',
                         action='append',
                         dest='add_roles',
                         help='Add a role to this user')
-    parser.add_argument('--remove_roles',
+    parser.add_argument('--remove-role',
                         action='append',
                         dest='remove_roles',
                         help='Remove a role from this user')

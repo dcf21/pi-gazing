@@ -131,7 +131,7 @@ class ObservationApp(object):
                 password = auth.password
                 try:
                     db = self.get_db()
-                    user = db.get_user(user_id=user_id, password=password)
+                    user = db.get_user(username=user_id, password=password)
                     if user is None:
                         return ObservationApp.authentication_failure(message='Username and / or password incorrect')
                     if roles is not None:
@@ -141,7 +141,7 @@ class ObservationApp(object):
                     g.user = user
                     db.close_db()
                 except ValueError:
-                    return ObservationApp.authentication_failure(message='Unrecognized role encountered')
+                    return ObservationApp.authentication_failure(message='Username and / or password incorrect')
                 return f(*args, **kwargs)
 
             return decorated

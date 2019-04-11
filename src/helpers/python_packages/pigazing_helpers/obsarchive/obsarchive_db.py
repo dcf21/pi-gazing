@@ -332,7 +332,7 @@ ORDER BY time DESC LIMIT 1
         search = mp.FileRecordSearch(repository_fname=repository_fname)
         b = search_files_sql_builder(search)
         sql = b.get_select_sql(columns='f.uid, o.publicId AS observationId, f.mimeType, '
-                                       'f.fileName, s2.name AS semanticType, f.fileTime, '
+                                       'f.fileName, s2.name AS semanticType, f.fileTime, f.primaryImage, '
                                        'f.fileSize, f.fileMD5, l.publicId AS obstory_id, l.name AS obstory_name, '
                                        'f.repositoryFname',
                                skip=0, limit=1, order='f.fileTime DESC')
@@ -588,7 +588,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
                                        'o.published, o.moderated, o.featured, ST_X(o.position) AS ra, '
                                        'ST_Y(o.position) AS decl, o.fieldWidth, o.fieldHeight, o.positionAngle, '
                                        'o.centralConstellation, '
-                                       'ST_X(o.altAz) AS altitude, ST_Y(o.altAz) AS azimuth, o.altAzPositionAngle '
+                                       'ST_X(o.altAz) AS altitude, ST_Y(o.altAz) AS azimuth, o.altAzPositionAngle, '
                                        'o.astrometryProcessed, o.astrometryProcessingTime, '
                                        '(SELECT abbrev FROM pigazing_sources WHERE sourceId=o.astrometrySource) '
                                        '    AS astrometrySource ',
@@ -773,6 +773,9 @@ VALUES
         if self.has_observation_id(observation.obs_id):
             return
 
+        # Get obstory id from name
+        obstory = self.get_obstory_from_id(observation.obstory_id)
+
         # Get ID code for obs_type
         obs_type_id = self.get_obs_type_id(observation.obs_type)
 
@@ -809,7 +812,7 @@ VALUES
  ST_GEOMFROMTEXT(%s),
  %s, %s, %s, %s, %s, %s);
 """,
-                         (observation.obs_id, observation.obstory_id, user_id, observation.obs_time, obs_type_id,
+                         (observation.obs_id, obstory['uid'], user_id, observation.obs_time, obs_type_id,
                           observation.creation_time, observation.published, observation.moderated,
                           observation.featured, observation.ra, observation.dec,
                           observation.field_width, observation.field_height,

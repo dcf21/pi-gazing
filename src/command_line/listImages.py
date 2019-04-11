@@ -85,30 +85,29 @@ def list_images(utc_min=None, utc_max=None, username=None, obstory=None, img_typ
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
 
-    where = [1]
+    where = ["1"]
     args = []
 
     if utc_min is not None:
-        where.append("WHERE o.obsTime >=%s")
+        where.append("o.obsTime >=%s")
         args.append(utc_min)
     if utc_max is not None:
-        where.append("WHERE o.obsTime <=%s")
+        where.append("o.obsTime <=%s")
         args.append(utc_max)
     if username is not None:
-        where.append("WHERE o.userId=%s")
+        where.append("o.userId=%s")
         args.append(username)
     if obstory is not None:
-        where.append("WHERE l.publicId=%s")
+        where.append("l.publicId=%s")
         args.append(obstory)
     if obs_type is not None:
-        where.append("WHERE ast.name=%s")
+        where.append("ast.name=%s")
         args.append(obs_type)
 
     conn.execute("""
 SELECT o.uid, o.userId, l.name AS place, o.creationTime FROM archive_observations o
 INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_semanticTypes ast ON o.obsType = ast.uid
-INNER JOIN archive_observatories l ON o.observatory = l.uid
 WHERE """ + " AND ".join(where) + """
 ORDER BY creationTime DESC LIMIT 20;
 """, args)
@@ -172,7 +171,7 @@ if __name__ == "__main__":
 
     list_images(utc_min=args.utc_min,
                 utc_max=args.utc_max,
-                obstory=args.observatory,
+                obstory=args.obstory_id,
                 username=args.username,
                 obs_type=args.obs_type,
                 img_type=args.img_type,
