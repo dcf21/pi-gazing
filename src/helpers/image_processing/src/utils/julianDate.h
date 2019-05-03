@@ -1,4 +1,4 @@
-// settings.h
+// julianDate.h
 // Pi Gazing
 // Dominic Ford
 
@@ -21,19 +21,21 @@
 // along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
-// The settings below define how the video capture and analysis works
+#ifndef JULIANDATE_H
+#define JULIANDATE_H 1
 
-#ifndef _SETTINGS_H
-#define _SETTINGS_H 1
+void switchOverCalDate(double *lastJulian, double *firstGregorian);
 
-// This is the directory into which we dump output video and image files
-#define OUTPUT_PATH  SRCDIR "/../../../../datadir"
+double switchOverJD();
 
-// Are we working with greyscale images, or three colour channels?
-#define ALLDATAMONO 1
+char *getMonthName(int i);
 
-// Size of buffer used for storing filenames
-#define FNAME_BUFFER 4096
+char *getWeekDayName(int i);
+
+double julianDay(int year, int month, int day, int hour, int min, int sec, int *status, char *errtext);
+
+void invJulianDay(double JD, int *year, int *month, int *day, int *hour, int *min, double *sec, int *status,
+                  char *errtext);
 
 #endif
 

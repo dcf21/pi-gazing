@@ -98,7 +98,7 @@ void *videoRecord(struct vdIn *videoIn, double seconds) {
     return out;
 }
 
-void snapshot(struct vdIn *videoIn, int nfr, int zero, double expComp, char *fname, unsigned char *medianRaw) {
+void snapshot(struct vdIn *videoIn, int nfr, int zero, double expComp, char *fname, unsigned char *backgroundRaw) {
     int i, j;
     const int frameSize = videoIn->width * videoIn->height;
     int *tmpi = calloc(3 * frameSize * sizeof(int), 1);
@@ -115,18 +115,18 @@ void snapshot(struct vdIn *videoIn, int nfr, int zero, double expComp, char *fna
 
     image_ptr img;
     image_alloc(&img, videoIn->width, videoIn->height);
-    img.data_w = nfr;
+    for (i = 0; i < frameSize; i++) img.data_w[i] = nfr;
 
-    if (!medianRaw) {
+    if (!backgroundRaw) {
         for (i = 0; i < frameSize; i++) img.data_red[i] = (tmpi[i] - zero * nfr) * expComp;
         for (i = 0; i < frameSize; i++) img.data_grn[i] = (tmpi[i + frameSize] - zero * nfr) * expComp;
         for (i = 0; i < frameSize; i++) img.data_blu[i] = (tmpi[i + 2 * frameSize] - zero * nfr) * expComp;
     } else {
-        for (i = 0; i < frameSize; i++) img.data_red[i] = (tmpi[i] - (zero - medianRaw[i]) * nfr) * expComp;
+        for (i = 0; i < frameSize; i++) img.data_red[i] = (tmpi[i] - (zero - backgroundRaw[i]) * nfr) * expComp;
         for (i = 0; i < frameSize; i++)
-            img.data_grn[i] = (tmpi[i + frameSize] - (zero - medianRaw[i + frameSize]) * nfr) * expComp;
+            img.data_grn[i] = (tmpi[i + frameSize] - (zero - backgroundRaw[i + frameSize]) * nfr) * expComp;
         for (i = 0; i < frameSize; i++)
-            img.data_blu[i] = (tmpi[i + 2 * frameSize] - (zero - medianRaw[i + 2 * frameSize]) * nfr) * expComp;
+            img.data_blu[i] = (tmpi[i + 2 * frameSize] - (zero - backgroundRaw[i + 2 * frameSize]) * nfr) * expComp;
     }
 
     image_deweight(&img);
@@ -135,51 +135,6 @@ void snapshot(struct vdIn *videoIn, int nfr, int zero, double expComp, char *fna
 
     free(tmpi);
     return;
-}
-
-double calculateSkyClarity(image_ptr *img, double noiseLevel) {
-    int i, j, score = 0;
-    const int gridsize = 10;
-    const int search_distance = 4;
-
-    // To be counted as a star-like source, must be this much brighter than surroundings
-    const int threshold = MAX(12, noiseLevel * 4);
-    const int stride = img->xsize;
-#pragma omp parallel for private(i,j)
-    for (i = 1; i < gridsize; i++)
-        for (j = 1; j < gridsize; j++) {
-            const int xmin = img->xsize * j / (gridsize + 1);
-            const int ymin = img->ysize * i / (gridsize + 1);
-            const int xmax = img->xsize * (j + 1) / (gridsize + 1);
-            const int ymax = img->ysize * (i + 1) / (gridsize + 1);
-            int x, y, n_bright_pixels = 0, n_stars = 0;
-            const int n_pixels = (xmax - xmin) * (ymax - ymin);
-            for (y = ymin; y < ymax; y++)
-                for (x = xmin; x < xmax; x++) {
-                    double pixel_value = img->data_red[y * stride + x];
-                    if (pixel_value > 128) n_bright_pixels++;
-                    int k, reject = 0;
-                    for (k = -search_distance; (k <= search_distance) && (!reject); k += 2)
-                        if (pixel_value - threshold <= img->data_red[(y + search_distance) * stride + (x + k)])
-                            reject = 1;
-                    for (k = -search_distance; (k <= search_distance) && (!reject); k += 2)
-                        if (pixel_value - threshold <= img->data_red[(y - search_distance) * stride + (x + k)])
-                            reject = 1;
-                    for (k = -search_distance; (k <= search_distance) && (!reject); k += 2)
-                        if (pixel_value - threshold <= img->data_red[(y + k) * stride + (x + search_distance)])
-                            reject = 1;
-                    for (k = -search_distance; (k <= search_distance) && (!reject); k += 2)
-                        if (pixel_value - threshold <= img->data_red[(y + k) * stride + (x - search_distance)])
-                            reject = 1;
-
-                    if (!reject) n_stars++;
-                }
-            if ((n_stars >= 4) && (n_bright_pixels < n_pixels * 0.05)) {
-#pragma omp critical (count_stars)
-                { score++; }
-            }
-        }
-    return (100. * score) / pow(gridsize - 1, 2);
 }
 
 double estimateNoiseLevel(int width, int height, unsigned char *buffer, int Nframes) {
@@ -212,8 +167,8 @@ double estimateNoiseLevel(int width, int height, unsigned char *buffer, int Nfra
     return sd_sum / NStudyPixels; // Average standard deviation of the studied pixels
 }
 
-void medianCalculate(const int width, const int height, const int channels, const int reductionCycle,
-                     const int NreductionCycles, int *medianWorkspace, unsigned char *medianMap) {
+void backgroundCalculate(const int width, const int height, const int channels, const int reductionCycle,
+                     const int NreductionCycles, int *backgroundWorkspace, unsigned char *backgroundMap) {
     const int frameSize = width * height;
     int i;
 
@@ -222,23 +177,23 @@ void medianCalculate(const int width, const int height, const int channels, cons
     const int i_start = i_step * reductionCycle;
     const int i_stop = MIN(i_max, i_start + i_step);
 
-    // Find the modal value of each cell in the median grid
+    // Find the modal value of each cell in the background grid
 #pragma omp parallel for private(i)
     for (i = i_start; i < i_stop; i++) {
         int f, d;
         const int offset = i * 256;
         int mode = 0, modeSamples = 0;
         for (f = 4; f < 256; f++) {
-            const int v = 4 * medianWorkspace[offset + f - 4] + 8 * medianWorkspace[offset + f - 3] +
-                          10 * medianWorkspace[offset + f - 2] + 8 * medianWorkspace[offset + f - 1] +
-                          4 * medianWorkspace[offset + f - 0];
+            const int v = 4 * backgroundWorkspace[offset + f - 4] + 8 * backgroundWorkspace[offset + f - 3] +
+                          10 * backgroundWorkspace[offset + f - 2] + 8 * backgroundWorkspace[offset + f - 1] +
+                          4 * backgroundWorkspace[offset + f - 0];
             if (v > modeSamples) {
                 mode = f;
                 modeSamples = v;
             }
         }
         // This is a slight over-estimate of the background sky brightness, but images look less noisy that way.
-        medianMap[i] = CLIP256(mode - 1);
+        backgroundMap[i] = CLIP256(mode - 1);
     }
     return;
 }

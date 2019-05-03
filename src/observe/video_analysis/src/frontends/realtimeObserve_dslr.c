@@ -1,4 +1,4 @@
-// observe_dslr.c
+// realtimeObserve_dslr.c
 // Pi Gazing
 // Dominic Ford
 
@@ -41,6 +41,12 @@
 
 #include "settings.h"
 #include "settings_dslr.h"
+
+static const char *const usage[] = {
+    "realtimeObserve_dslr [options] [[--] args]",
+    "realtimeObserve_dslr [options]",
+    NULL,
+};
 
 extern char *analysisObstoryId;
 
@@ -162,7 +168,7 @@ int main(int argc, char *argv[]) {
     vmd.flagUpsideDown = getFloat(argv[13], NULL) ? 1 : 0;
     vmd.filename = argv[14];
 
-    const int medianMapUseEveryNthStack = 1, medianMapUseNImages = 120, medianMapReductionCycles = 1;
+    const int backgroundMapUseEveryNthStack = 1, backgroundMapUseNImages = 120, backgroundMapReductionCycles = 1;
 
     initLut();
 
@@ -176,8 +182,8 @@ int main(int argc, char *argv[]) {
     observe((void *) &vmd, vmd.obstoryId, utcoffset, vmd.tstart, vmd.tstop, vmd.width, vmd.height, vmd.fps, "live",
             mask, Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP,
             TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE,
-            TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, medianMapUseEveryNthStack, medianMapUseNImages,
-            medianMapReductionCycles, &fetchFrame, &rewindVideo);
+            TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, backgroundMapUseEveryNthStack, backgroundMapUseNImages,
+            backgroundMapReductionCycles, &fetchFrame, &rewindVideo);
 
     return 0;
 }

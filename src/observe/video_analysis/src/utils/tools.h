@@ -43,14 +43,12 @@ void frameInvert(unsigned char *buffer, int len);
 
 void *videoRecord(struct vdIn *videoIn, double seconds);
 
-void snapshot(struct vdIn *videoIn, int nfr, int zero, double expComp, char *fname, unsigned char *medianRaw);
-
-double calculateSkyClarity(image_ptr *img, double noiseLevel);
+void snapshot(struct vdIn *videoIn, int nfr, int zero, double expComp, char *fname, unsigned char *backgroundRaw);
 
 double estimateNoiseLevel(int width, int height, unsigned char *buffer, int Nframes);
 
-void medianCalculate(const int width, const int height, const int channels, const int reductionCycle,
-                     const int NreductionCycles, int *medianWorkspace, unsigned char *medianMap);
+void backgroundCalculate(const int width, const int height, const int channels, const int reductionCycle,
+                     const int NreductionCycles, int *backgroundWorkspace, unsigned char *backgroundMap);
 
 int dumpFrame(int width, int height, int channels, const unsigned char *buffer, char *fName);
 

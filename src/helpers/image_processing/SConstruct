@@ -19,24 +19,29 @@ linkFlags = ['-fopenmp']
 ccDefines = ['DATE=\\"03/05/2019\\"', 'VERSION=\\"0.0.3\\"', 'SRCDIR=\\"%s\\"' % srcdir]
 
 # C source files which are common to all binaries we are going to build
-commonFiles = ['analyse/observe.c', 'analyse/trigger.c', 'argparse/argparse.c', 'jpeg/jpeg_in.c', 'png/image_in.c',
-               'png/image_out.c', 'utils/asciiDouble.c', 'utils/error.c', 'utils/filledPoly.c', 'utils/julianDate.c',
-               'utils/tools.c', 'vidtools/color.c', 'vidtools/v4l2uvc.c']
+commonFiles = ['argparse/argparse.c', 'backgroundSub.c', 'gnomonic.c', 'imageProcess.c',
+               'jpeg/jpeg_in.c', 'png/image_in.c', 'png/image_out.c', 'readConfig.c', 'settings.c',
+               'utils/asciiDouble.c', 'utils/error.c', 'utils/julianDate.c', 'utils/lensCorrect.c',
+               'utils/skyClarity.c', 'vidtools/color.c']
 
 # List of all the binaries we are going to build
 # [ Requires OpenMAX , Requires libav , list of source files  , binary name ]
-targets = [[0, 0, commonFiles + ['frontends/videoRecord.c'], 'videoRecord'],
-           [0, 0, commonFiles + ['frontends/realtimeObserve.c'], 'realtimeObserve'],
-           [0, 0, commonFiles + ['frontends/realtimeObserve_dslr.c'], 'realtimeObserve_dslr'],
-           [0, 1, commonFiles + ['frontends/analyseH264_libav.c'], 'analyseH264_libav'],
-           [1, 0, commonFiles + ['frontends/recordH264.c'], 'recordH264'],
-           [0, 0, commonFiles + ['frontends/snapshot.c'], 'snapshot'],
-           [0, 0, commonFiles + ['frontends/makeBackgroundMap.c'], 'makeBackgroundMap'],
-           ];
+targets = [[0, 0, commonFiles + ['frontends/lensCorrect.c'], 'lensCorrect'],
+           [0, 0, commonFiles + ['frontends/multiply.c'], 'multiply'],
+           [0, 0, commonFiles + ['frontends/resize.c'], 'resize'],
+           [0, 0, commonFiles + ['frontends/stack.c'], 'stack'],
+           [0, 0, commonFiles + ['frontends/skyClarity.c'], 'skyClarity'],
+           [0, 0, commonFiles + ['frontends/subtract.c'], 'subtract'],
+           [0, 0, commonFiles + ['frontends/converters/rawimg2png.c'], 'rawimg2png'],
+           [0, 0, commonFiles + ['frontends/converters/rawimg2png3.c'], 'rawimg2png3'],
+           [0, 0, commonFiles + ['frontends/converters/rawvid2frames.c'], 'rawvid2frames'],
+           [1, 0, commonFiles + ['frontends/converters/rawvid2mp4_openmax.c'], 'rawvid2mp4_openmax'],
+           [0, 1, commonFiles + ['frontends/converters/rawvid2mp4_libav.c'], 'rawvid2mp4_libav'],
+           ]
 
-subDirs = ['', 'analyse', 'frontends', 'png', 'jpeg', 'utils', 'vidtools']
+subDirs = ['', 'frontends', 'frontends/converters', 'png', 'jpeg', 'utils']
 includePaths = [os.path.join('src', i) for i in subDirs]
-libraries = ['gsl', 'gslcblas', 'v4l2', 'jpeg', 'png', 'm', 'rt']
+libraries = ['gsl', 'gslcblas', 'jpeg', 'png', 'm']
 libraryPaths = ['/usr/lib']
 
 includePaths_openmax = ['/opt/vc/include', '/opt/vc/include/interface/vcos/pthreads',

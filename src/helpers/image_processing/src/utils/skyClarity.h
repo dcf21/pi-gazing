@@ -1,4 +1,4 @@
-// settings.h
+// skyClarity.h
 // Pi Gazing
 // Dominic Ford
 
@@ -21,19 +21,12 @@
 // along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
-// The settings below define how the video capture and analysis works
+#ifndef SKYCLARITY_H
+#define SKYCLARITY_H 1
 
-#ifndef _SETTINGS_H
-#define _SETTINGS_H 1
+#include "png/image.h"
 
-// This is the directory into which we dump output video and image files
-#define OUTPUT_PATH  SRCDIR "/../../../../datadir"
-
-// Are we working with greyscale images, or three colour channels?
-#define ALLDATAMONO 1
-
-// Size of buffer used for storing filenames
-#define FNAME_BUFFER 4096
+double calculateSkyClarity(image_ptr *img, double noiseLevel);
 
 #endif
 

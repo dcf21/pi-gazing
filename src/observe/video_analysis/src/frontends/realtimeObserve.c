@@ -1,4 +1,4 @@
-// observe.c
+// realtimeObserve.c
 // Pi Gazing
 // Dominic Ford
 
@@ -27,6 +27,8 @@
 #include <math.h>
 #include <time.h>
 #include <unistd.h>
+
+#include "argparse/argparse.h"
 #include "utils/asciiDouble.h"
 #include "vidtools/v4l2uvc.h"
 #include "utils/tools.h"
@@ -39,9 +41,13 @@
 #include "settings.h"
 #include "settings_webcam.h"
 
-extern char *analysisObstoryId;
+static const char *const usage[] = {
+    "realtimeObserve [options] [[--] args]",
+    "realtimeObserve [options]",
+    NULL,
+};
 
-int utcoffset;
+extern char *analysisObstoryId;
 
 int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc) {
     struct vdIn *videoIn = videoHandle;
@@ -51,7 +57,7 @@ int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc) {
 
     struct timespec spec;
     clock_gettime(CLOCK_REALTIME, &spec);
-    *utc = spec.tv_sec + ((double) spec.tv_nsec) / 1e9 + utcoffset;
+    *utc = spec.tv_sec + ((double) spec.tv_nsec) / 1e9;
     return 0;
 }
 
@@ -59,34 +65,60 @@ int rewindVideo(void *videoHandle, double *utc) {
     return 0; // Can't rewind live video!
 }
 
-int main(int argc, char *argv[]) {
-    // Initialise video capture process
-    if (argc != 15) {
-        sprintf(temp_err_string,
-                "ERROR: Command line syntax is:\n\n observe <UTC clock offset> <UTC start> <UTC stop> <obstoryId> <video device> <width> <height> <fps> <mask> <lat> <long> <flagGPS> <flagUpsideDown> <output filename>\n\ne.g.:\n\n observe 0 1428162067 1428165667 1 /dev/video0 720 480 24.71 mask.txt 52.2 0.12 0 1 output.h264\n");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
-    }
-
+int main(int argc, const char *argv[]) {
     videoMetadata vmd;
+    char mask_file[FNAME_LENGTH] = "\0";
+    char obstory[FNAME_BUFFER] = "\0";
+    char input_device[FNAME_BUFFER] = "\0";
 
-    const double utcoffset = getFloat(argv[1], NULL);
-    UTC_OFFSET = utcoffset;
-    vmd.tstart = getFloat(argv[2], NULL);
+    vmd.tstart = time(NULL);
     vmd.tstop = getFloat(argv[3], NULL);
     vmd.nframe = 0;
-    vmd.obstoryId = argv[4];
-    vmd.videoDevice = argv[5];
-    vmd.width = (int) getFloat(argv[6], NULL);
-    vmd.height = (int) getFloat(argv[7], NULL);
-    vmd.fps = getFloat(argv[8], NULL);
-    vmd.maskFile = argv[9];
-    vmd.lat = getFloat(argv[10], NULL);
-    vmd.lng = getFloat(argv[11], NULL);
-    vmd.flagGPS = getFloat(argv[12], NULL) ? 1 : 0;
-    vmd.flagUpsideDown = getFloat(argv[13], NULL) ? 1 : 0;
-    vmd.filename = argv[14];
+    vmd.obstoryId = obstory;
+    vmd.videoDevice = input_device;
+    vmd.width = 720;
+    vmd.height = 480;
+    vmd.fps = 24.71;
+    vmd.maskFile = mask_file;
+    vmd.lat = 52.2;
+    vmd.lng = 0.12;
+    vmd.flagGPS = 0;
+    vmd.flagUpsideDown = 1;
+    vmd.filename = "dummy.h264";
 
-    const int medianMapUseEveryNthStack = 1, medianMapUseNImages = 3600, medianMapReductionCycles = 32;
+    struct argparse_option options[] = {
+        OPT_HELP(),
+        OPT_GROUP("Basic options"),
+        OPT_STRING('o', "obsid", &obstory, "observatory id"),
+        OPT_STRING('d', "device", &input_device, "input video device, e.g. /dev/video0"),
+        OPT_STRING('m', "mask", &mask_file, "mask file"),
+        OPT_FLOAT('s', "utc-stop", &vmd.tstop, "time stamp at which to end observing"),
+        OPT_FLOAT('f', "fps", &vmd.fps, "frame count per second"),
+        OPT_FLOAT('l', "latitude", &vmd.lat, "latitude of observatory"),
+        OPT_FLOAT('L', "longitude", &vmd.lng, "longitude of observatory"),
+        OPT_INTEGER('w', "width", &vmd.width, "frame width"),
+        OPT_INTEGER('h', "height", &vmd.height, "frame height"),
+        OPT_INTEGER('g', "flag-gps", &vmd.flagGPS, "boolean flag indicating whether position determined by GPS"),
+        OPT_INTEGER('u', "flag-upside-down", &vmd.flagUpsideDown, "boolean flag indicating whether the camera is upside down"),
+        OPT_END(),
+    };
+
+    struct argparse argparse;
+    argparse_init(&argparse, options, usage, 0);
+    argparse_describe(&argparse,
+    "\nObserve and analyse a video stream in real time.",
+    "\n");
+    argc = argparse_parse(&argparse, argc, argv);
+
+    if (argc != 0) {
+        int i;
+        for (i = 0; i < argc; i++) {
+            printf("Error: unparsed argument <%s>\n", *(argv + i));
+        }
+        gnom_fatal(__FILE__, __LINE__, "Unparsed arguments");
+    }
+
+    const int backgroundMapUseEveryNthStack = 1, backgroundMapUseNImages = 3600, backgroundMapReductionCycles = 32;
 
     struct vdIn *videoIn;
 
@@ -124,11 +156,11 @@ int main(int argc, char *argv[]) {
     fillPolygonsFromFile(maskfile, mask, width, height);
     fclose(maskfile);
 
-    observe((void *) videoIn, vmd.obstoryId, utcoffset, vmd.tstart, vmd.tstop, width, height, vmd.fps, "live", mask,
+    observe((void *) videoIn, vmd.obstoryId, 0, vmd.tstart, vmd.tstop, width, height, vmd.fps, "live", mask,
             Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP,
             TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE,
-            TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, medianMapUseEveryNthStack, medianMapUseNImages,
-            medianMapReductionCycles, &fetchFrame, &rewindVideo);
+            TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, backgroundMapUseEveryNthStack, backgroundMapUseNImages,
+            backgroundMapReductionCycles, &fetchFrame, &rewindVideo);
 
     return 0;
 }

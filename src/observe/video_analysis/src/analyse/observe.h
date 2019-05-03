@@ -73,13 +73,13 @@ typedef struct observeStatus {
     int TIMELAPSE_INTERVAL;
     int STACK_TARGET_BRIGHTNESS;
 
-    // medianMap is a structure used to keep track of the average brightness of each pixel in the frame. This is subtracted from stacked image to remove the sky background and hot pixels
+    // backgroundMap is a structure used to keep track of the average brightness of each pixel in the frame. This is subtracted from stacked image to remove the sky background and hot pixels
     // A histogram is constructed of the brightnesses of each pixel in successive groups of frames.
-    int medianMapUseEveryNthStack;
+    int backgroundMapUseEveryNthStack;
     /* Add every Nth stacked group of frames of histogram. Increase this to reduce CPU load */
-    int medianMapUseNImages;
+    int backgroundMapUseNImages;
     /* Stack this many groups of frames before generating a sky brightness map from histograms. */
-    int medianMapReductionCycles; /* Reducing histograms to brightness map is time consuming, so we'll miss frames if we do it all at once. Do it in this many chunks after successive frames. */
+    int backgroundMapReductionCycles; /* Reducing histograms to brightness map is time consuming, so we'll miss frames if we do it all at once. Do it in this many chunks after successive frames. */
 
     // Video parameters
     void *videoHandle;
@@ -112,9 +112,9 @@ typedef struct observeStatus {
     int framesTimelapse;
     int *stackT;
 
-    // Median maps are used for background subtraction. Maps A and B are used alternately and contain the median value of each pixel.
-    unsigned char *medianMap;
-    int *medianWorkspace;
+    // Background maps are used for background subtraction. Maps A and B are used alternately and contain the background value of each pixel.
+    unsigned char *backgroundMap;
+    int *backgroundWorkspace;
 
     // Map of past triggers, used to weight against pixels that trigger too often (they're probably trees...)
     int *pastTriggerMap;
@@ -126,10 +126,10 @@ typedef struct observeStatus {
     unsigned char *triggerRGB;
 
     int groupNum; // Flag for whether we're feeding images into stackA or stackB
-    int medianCount; // Count how many frames we've fed into the brightness histograms in medianWorkspace
+    int backgroundCount; // Count how many frames we've fed into the brightness histograms in backgroundWorkspace
     int timelapseCount; // Count how many frames have been stacked into the timelapse buffer (stackT)
     int frameCounter;
-    int runInCountdown; // Let the camera run for a period before triggering, as it takes this long to make first median map
+    int runInCountdown; // Let the camera run for a period before triggering, as it takes this long to make first background map
 
     int triggerThrottlePeriod; // Reset trigger throttle counter after this many frame groups have been processed
     int triggerThrottleTimer;
@@ -149,7 +149,7 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
             const int TRIGGER_SUFFIX_TIME, const int TRIGGER_FRAMEGROUP, const int TRIGGER_MAXRECORDLEN,
             const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT, const int TIMELAPSE_EXPOSURE,
             const int TIMELAPSE_INTERVAL, const int STACK_TARGET_BRIGHTNESS,
-            const int medianMapUseEveryNthStack, const int medianMapUseNImages, const int medianMapReductionCycles,
+            const int backgroundMapUseEveryNthStack, const int backgroundMapUseNImages, const int backgroundMapReductionCycles,
             int (*fetchFrame)(void *, unsigned char *, double *), int (*rewindVideo)(void *, double *));
 
 void registerTrigger(observeStatus *os, const int blockId, const int xpos, const int ypos, const int npixels,

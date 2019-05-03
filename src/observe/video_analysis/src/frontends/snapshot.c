@@ -35,6 +35,12 @@
 #include "settings.h"
 #include "settings_webcam.h"
 
+static const char *const usage[] = {
+    "snapshot [options] [[--] args]",
+    "snapshot [options]",
+    NULL,
+};
+
 int main(int argc, char *argv[]) {
     if ((argc != 3) && (argc != 4)) {
         sprintf(temp_err_string,
@@ -46,7 +52,7 @@ int main(int argc, char *argv[]) {
     int nfr = (int) getFloat(argv[2], NULL);
     if (nfr < 1) nfr = 1;
 
-    int haveMedianSub = (argc == 4);
+    int haveBackgroundSub = (argc == 4);
     int tstop;
     struct vdIn *videoIn;
 
@@ -73,35 +79,35 @@ int main(int argc, char *argv[]) {
 
     initLut();
 
-    unsigned char *medianRaw = NULL;
+    unsigned char *backgroundRaw = NULL;
 
-    if (haveMedianSub) {
+    if (haveBackgroundSub) {
         char *rawFname = argv[4];
 
         FILE *infile;
         if ((infile = fopen(rawFname, "rb")) == NULL) {
-            sprintf(temp_err_string, "ERROR: Cannot open median filter image %s.\n", rawFname);
+            sprintf(temp_err_string, "ERROR: Cannot open background filter image %s.\n", rawFname);
             gnom_fatal(__FILE__, __LINE__, temp_err_string);
         }
 
-        int size, medianwidth, medianheight;
-        tstop = fread(&medianwidth, sizeof(int), 1, infile);
-        tstop = fread(&medianheight, sizeof(int), 1, infile);
+        int size, backgroundwidth, backgroundheight;
+        tstop = fread(&backgroundwidth, sizeof(int), 1, infile);
+        tstop = fread(&backgroundheight, sizeof(int), 1, infile);
 
-        if ((medianwidth != width) || (medianheight != height)) {
+        if ((backgroundwidth != width) || (backgroundheight != height)) {
             sprintf(temp_err_string,
-                    "ERROR: Median subtraction image has dimensions %d x %d. But frames from webcam have dimensions %d x %d. These must match.\n",
-                    medianwidth, medianheight, width, height);
+                    "ERROR: Background subtraction image has dimensions %d x %d. But frames from webcam have dimensions %d x %d. These must match.\n",
+                    backgroundwidth, backgroundheight, width, height);
             gnom_fatal(__FILE__, __LINE__, temp_err_string);
         }
 
         size = width * height;
-        medianRaw = malloc(size);
-        if (medianRaw == NULL) {
+        backgroundRaw = malloc(size);
+        if (backgroundRaw == NULL) {
             sprintf(temp_err_string, "ERROR: malloc fail in snapshot.");
             gnom_fatal(__FILE__, __LINE__, temp_err_string);
         }
-        tstop = fread(medianRaw, 1, size, infile);
+        tstop = fread(backgroundRaw, 1, size, infile);
         fclose(infile);
     }
 
@@ -111,7 +117,7 @@ int main(int argc, char *argv[]) {
         gnom_log(line);
     }
 
-    snapshot(videoIn, nfr, 0, 1, argv[1], medianRaw);
+    snapshot(videoIn, nfr, 0, 1, argv[1], backgroundRaw);
 
     tstop = time(NULL);
     if (DEBUG) {

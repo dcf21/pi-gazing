@@ -1,4 +1,4 @@
-// recordH264.c
+// rawvid2mp4_openmax.c
 // Pi Gazing
 // Dominic Ford
 
@@ -26,16 +26,18 @@
 #include <unistd.h>
 #include "png/image.h"
 #include "utils/error.h"
-#include "vidtools/v4l2uvc.h"
-#include "utils/asciiDouble.h"
-#include "utils/tools.h"
-#include "vidtools/color.h"
 
 #include "settings.h"
 
+#define VIDEO_FPS 25
+
+int nearestMultiple(double in, int factor) {
+    return (int) (round(in / factor) * factor);
+}
+
 static const char *const usage[] = {
-    "recordH264 [options] [[--] args]",
-    "recordH264 [options]",
+    "rawvid2mp4_openmax [options] [[--] args]",
+    "rawvid2mp4_openmax [options]",
     NULL,
 };
 
@@ -62,14 +64,6 @@ static const char *const usage[] = {
 #define VIDEO_BITRATE   6000000
 
 static int want_quit = 0;
-
-// Fetch an input frame from v4l2
-int fetchFrame(struct vdIn *videoIn, unsigned char *tmpc, int upsideDown) {
-    int status = uvcGrab(videoIn);
-    if (status) return status;
-    Pyuv422to420(videoIn->framebuffer, tmpc, videoIn->width, videoIn->height, upsideDown);
-    return 0;
-}
 
 // Dunno where this is originally stolen from...
 #define OMX_INIT_STRUCTURE(a) \
@@ -137,7 +131,11 @@ static void say(const char *message, ...) {
     va_start(args, message);
     vsnprintf(str, sizeof(str) - 1, message, args);
     va_end(args);
-    if (DEBUG) gnom_log(str);
+    size_t str_len = strnlen(str, sizeof(str));
+    if (str[str_len - 1] != '\n') {
+        str[str_len] = '\n';
+    }
+    gnom_report(str);
 }
 
 static void die(const char *message, ...) {
@@ -625,67 +623,6 @@ static OMX_ERRORTYPE fill_output_buffer_done_handler(
 }
 
 int main(int argc, char **argv) {
-    char line[FNAME_BUFFER];
-
-    // Initialise video capture process
-    if (argc != 14) {
-        sprintf(temp_err_string,
-                "ERROR: Command line syntax is:\n\n recordH264 <UTC clock offset> <UTC start> <UTC stop> <obstoryId> <video device> <width> <height> <fps> <lat> <long> <flagGPS> <flagUpsideDown> <output filename>\n\ne.g.:\n\n recordH264 0 1428162067 1428165667 1 /dev/video0 720 480 24.71 52.2 0.12 0 1 output.h264\n");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
-    }
-
-    videoMetadata vmd;
-
-    const double utcoffset = getFloat(argv[1], NULL);
-    UTC_OFFSET = utcoffset;
-    vmd.tstart = getFloat(argv[2], NULL);
-    vmd.tstop = getFloat(argv[3], NULL);
-    vmd.nframe = 0;
-    vmd.obstoryId = argv[4];
-    vmd.videoDevice = argv[5];
-    vmd.width = (int) getFloat(argv[6], NULL);
-    vmd.height = (int) getFloat(argv[7], NULL);
-    vmd.fps = getFloat(argv[8], NULL);
-    vmd.lat = getFloat(argv[9], NULL);
-    vmd.lng = getFloat(argv[10], NULL);
-    vmd.flagGPS = getFloat(argv[11], NULL) ? 1 : 0;
-    vmd.flagUpsideDown = getFloat(argv[12], NULL) ? 1 : 0;
-    vmd.filename = argv[13];
-
-    // Append .h264 suffix to output filename
-    char frOut[4096];
-    sprintf(frOut, "%s.h264", vmd.filename);
-
-    if (DEBUG) {
-        sprintf(line, "Starting video recording run at %s.", strStrip(friendlyTimestring(vmd.tstart), temp_err_string));
-        gnom_log(line);
-    }
-    if (DEBUG) {
-        sprintf(line, "Video will end at %s.", strStrip(friendlyTimestring(vmd.tstop), temp_err_string));
-        gnom_log(line);
-    }
-
-    initLut();
-
-    struct vdIn *videoIn;
-
-    const float fps = nearestMultiple(vmd.fps, 1);       // Requested frame rate
-    const int v4l_format = V4L2_PIX_FMT_YUYV;
-    const int grabmethod = 1;
-    char *avifilename = "/tmp/foo";
-
-    videoIn = (struct vdIn *) calloc(1, sizeof(struct vdIn));
-
-    // Fetch the dimensions of the video stream as returned by V4L (which may differ from what we requested)
-    if (init_videoIn(videoIn, vmd.videoDevice, vmd.width, vmd.height, fps, v4l_format, grabmethod, avifilename) < 0)
-        exit(1);
-    const int width = videoIn->width;
-    const int height = videoIn->height;
-    vmd.width = width;
-    vmd.height = height;
-    writeRawVidMetaData(vmd);
-
-    // Initialise H264 encoder
     bcm_host_init();
 
     OMX_ERRORTYPE r;
@@ -694,10 +631,40 @@ int main(int argc, char **argv) {
         omx_die(r, "OMX initalization failed");
     }
 
-    const int frameSize = width * height;
-    unsigned char *tmpc = malloc(
-            frameSize * 1.5); // Temporary frame buffer for converting YUV422 data from v4l2 into YUV420
-    if (!tmpc) gnom_fatal(__FILE__, __LINE__, "Malloc fail");
+    // Read commandline switches
+
+    if (argc != 3) {
+        sprintf(temp_err_string,
+                "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'rawvid2mp4_openmax foo.raw frame.mp4'.");
+        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+    }
+
+    char *rawFname = argv[1];
+    char *frOut = argv[2];
+
+    FILE *infile;
+    if ((infile = fopen(rawFname, "rb")) == NULL) {
+        sprintf(temp_err_string, "ERROR: Cannot open output raw video file %s.\n", rawFname);
+        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+    }
+
+    int size, width, height, i;
+    i = fread(&size, sizeof(int), 1, infile);
+    i = fread(&width, sizeof(int), 1, infile);
+    i = fread(&height, sizeof(int), 1, infile);
+
+    size -= 3 * sizeof(int);
+    unsigned char *vidRaw = malloc(size);
+    if (vidRaw == NULL) {
+        sprintf(temp_err_string, "ERROR: malloc fail");
+        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+    }
+    i = fread(vidRaw, 1, size, infile);
+    fclose(infile);
+
+    const int imageSize = width * height;
+    const int frameSize = width * height * 1.5;
+    const int nfr = size / frameSize;
 
     // Init context
     appctx ctx;
@@ -730,7 +697,7 @@ int main(int argc, char **argv) {
     }
     encoder_portdef.format.video.nFrameWidth = width;
     encoder_portdef.format.video.nFrameHeight = height;
-    encoder_portdef.format.video.xFramerate = ((int) vmd.fps) << 16;
+    encoder_portdef.format.video.xFramerate = nearestMultiple(VIDEO_FPS, 1) << 16;
     // Stolen from gstomxvideodec.c of gst-omx
     encoder_portdef.format.video.nStride =
             (encoder_portdef.format.video.nFrameWidth + encoder_portdef.nBufferAlignment - 1) &
@@ -814,7 +781,7 @@ int main(int argc, char **argv) {
     // Just use stdin for input and stdout for output
     say("Opening input and output files...");
     FILE *fd_out = fopen(frOut, "w");
-    if (fd_out == NULL) omx_die(r, "Could not open output h264 file <%s>.", frOut);
+    if (fd_out == NULL) omx_die(r, "Could not open output mp4 file <%s>.", frOut);
 
     // Switch state of the components prior to starting
     // the video capture and encoding loop
@@ -842,7 +809,7 @@ int main(int argc, char **argv) {
             ctx.encoder_ppBuffer_in->nAllocLen, buf_info.size);
     }
 
-    say("Enter encode loop, press Ctrl-C to quit...");
+    say("Enter encode loop (%d frames), press Ctrl-C to quit...", nfr);
 
     int frame_in = 0, frame_out = 0, firstPass = 1;
     size_t input_total_read, output_written;
@@ -855,35 +822,21 @@ int main(int argc, char **argv) {
     signal(SIGTERM, signal_handler);
     signal(SIGQUIT, signal_handler);
 
-    while (!want_quit) {
-
-        int t = time(NULL) + utcoffset;
-        if (t >= vmd.tstop) break; // Check how we're doing for time; if we've reached the time to stop, stop now!
-
-
+    while ((frame_in < nfr) && (!want_quit)) {
         // empty_input_buffer_done_handler() has marked that there's
         // a need for a buffer to be filled by us
         if (ctx.encoder_input_buffer_needed) {
-            int line;
             input_total_read = 0;
-
-            if (fetchFrame(videoIn, tmpc, vmd.flagUpsideDown)) {
-                want_quit = 1;
-                break;
-            }
-
-#pragma omp parallel for private(line)
+            int line;
             for (line = 0; line < height; line++)
                 memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[0] + frame_info.buf_stride * line,
-                       tmpc + width * line, width);
-#pragma omp parallel for private(line)
+                       vidRaw + frame_in * frameSize + width * line, width);
             for (line = 0; line < height / 2; line++)
                 memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[1] + frame_info.buf_stride / 2 * line,
-                       tmpc + (width / 2) * line + frameSize, width / 2);
-#pragma omp parallel for private(line)
+                       vidRaw + frame_in * frameSize + imageSize + width / 2 * line, width / 2);
             for (line = 0; line < height / 2; line++)
                 memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[2] + frame_info.buf_stride / 2 * line,
-                       tmpc + (width / 2) * line + frameSize * 5 / 4, width / 2);
+                       vidRaw + frame_in * frameSize + imageSize * 5 / 4 + width / 2 * line, width / 2);
 
             input_total_read += (frame_info.p_stride[0] * plane_span_y) + (frame_info.p_stride[1] * plane_span_uv) +
                                 (frame_info.p_stride[2] * plane_span_uv);
@@ -891,7 +844,8 @@ int main(int argc, char **argv) {
             ctx.encoder_ppBuffer_in->nOffset = 0;
             ctx.encoder_ppBuffer_in->nFilledLen = (buf_info.size - frame_info.size) + input_total_read;
             frame_in++;
-            //say("Read from input file and wrote to input buffer %d/%d, frame %d", ctx.encoder_ppBuffer_in->nFilledLen, ctx.encoder_ppBuffer_in->nAllocLen, frame_in);
+            say("Read from input file and wrote to input buffer %d/%d, frame %d", ctx.encoder_ppBuffer_in->nFilledLen,
+                ctx.encoder_ppBuffer_in->nAllocLen, frame_in);
             if (input_total_read > 0) {
                 ctx.encoder_input_buffer_needed = 0;
                 if ((r = OMX_EmptyThisBuffer(ctx.encoder, ctx.encoder_ppBuffer_in)) != OMX_ErrorNone) {
@@ -911,7 +865,8 @@ int main(int argc, char **argv) {
             if (output_written != ctx.encoder_ppBuffer_out->nFilledLen) {
                 die("Failed to write to output file: %s", strerror(errno));
             }
-            //say("Read from output buffer and wrote to output file %d/%d, frame %d", ctx.encoder_ppBuffer_out->nFilledLen, ctx.encoder_ppBuffer_out->nAllocLen, frame_out + 1);
+            say("Read from output buffer and wrote to output file %d/%d, frame %d",
+                ctx.encoder_ppBuffer_out->nFilledLen, ctx.encoder_ppBuffer_out->nAllocLen, frame_out + 1);
         }
         if (ctx.encoder_output_buffer_available || firstPass) {
             // Buffer flushed, request a new buffer to be filled by the encoder component
@@ -982,9 +937,6 @@ int main(int argc, char **argv) {
         omx_die(r, "OMX de-initalization failed");
     }
 
-    vmd.nframe = frame_in;
-    vmd.tstop = time(NULL) + utcoffset;
-    writeRawVidMetaData(vmd);
     say("Exit!");
 
     return 0;

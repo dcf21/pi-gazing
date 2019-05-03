@@ -1,4 +1,4 @@
-// settings.h
+// image.h
 // Pi Gazing
 // Dominic Ford
 
@@ -21,19 +21,41 @@
 // along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
-// The settings below define how the video capture and analysis works
+#ifndef IMAGE_H
+#define IMAGE_H 1
 
-#ifndef _SETTINGS_H
-#define _SETTINGS_H 1
+/* Variable format used to store images */
 
-// This is the directory into which we dump output video and image files
-#define OUTPUT_PATH  SRCDIR "/../../../../datadir"
+typedef struct {
+    int xsize;
+    int ysize;
+    double *data_w;
+    double *data_red;
+    double *data_grn;
+    double *data_blu;
+} image_ptr;
 
-// Are we working with greyscale images, or three colour channels?
-#define ALLDATAMONO 1
+/* Variable format used to image pixels */
 
-// Size of buffer used for storing filenames
-#define FNAME_BUFFER 4096
+typedef struct {
+    double red;
+    double grn;
+    double blu;
+} pixel;
+
+/* Functions defined in image_in.c */
+void image_alloc(image_ptr *out, int x, int y);
+
+void image_dealloc(image_ptr *in);
+
+void image_cp(image_ptr *in, image_ptr *out);
+
+void image_deweight(image_ptr *out);
+
+image_ptr image_get(char *filename);
+
+/* Functions defined in image_out.c */
+int image_put(char *filename, image_ptr image, int greyscale);
 
 #endif
 

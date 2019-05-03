@@ -146,15 +146,15 @@ int readFrameGroup(observeStatus *os, unsigned char *buffer, int *stack1, int *s
             stack2[i] += stack1[i]; // Stack2 can stack output of many calls to this function
     }
 
-    // Add the pixel values in this stack into the histogram in medianWorkspace
-    const int includeInMedianHistograms = ((os->medianCount % os->medianMapUseEveryNthStack) == 0) &&
-                                          (os->medianCount < os->medianMapUseNImages * os->medianMapUseEveryNthStack);
-    if (includeInMedianHistograms) {
+    // Add the pixel values in this stack into the histogram in backgroundWorkspace
+    const int includeInBackgroundHistograms = ((os->backgroundCount % os->backgroundMapUseEveryNthStack) == 0) &&
+                                          (os->backgroundCount < os->backgroundMapUseNImages * os->backgroundMapUseEveryNthStack);
+    if (includeInBackgroundHistograms) {
 #pragma omp parallel for private(j)
         for (j = 0; j < os->frameSize * os->Nchannels; j++) {
             int d;
             int pixelVal = CLIP256(stack1[j] / os->TRIGGER_FRAMEGROUP);
-            os->medianWorkspace[j * 256 + pixelVal]++;
+            os->backgroundWorkspace[j * 256 + pixelVal]++;
         }
     }
     if (!ALLDATAMONO) free(tmprgb);
@@ -167,7 +167,7 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
             const int TRIGGER_SUFFIX_TIME, const int TRIGGER_FRAMEGROUP, const int TRIGGER_MAXRECORDLEN,
             const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT, const int TIMELAPSE_EXPOSURE,
             const int TIMELAPSE_INTERVAL, const int STACK_TARGET_BRIGHTNESS,
-            const int medianMapUseEveryNthStack, const int medianMapUseNImages, const int medianMapReductionCycles,
+            const int backgroundMapUseEveryNthStack, const int backgroundMapUseNImages, const int backgroundMapReductionCycles,
             int (*fetchFrame)(void *, unsigned char *, double *), int (*rewindVideo)(void *, double *)) {
     int i;
     char line[FNAME_LENGTH], line2[FNAME_LENGTH], line3[FNAME_LENGTH];
@@ -207,9 +207,9 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
     os->TIMELAPSE_INTERVAL = TIMELAPSE_INTERVAL;
     os->STACK_TARGET_BRIGHTNESS = STACK_TARGET_BRIGHTNESS;
 
-    os->medianMapUseEveryNthStack = medianMapUseEveryNthStack;
-    os->medianMapUseNImages = medianMapUseNImages;
-    os->medianMapReductionCycles = medianMapReductionCycles;
+    os->backgroundMapUseEveryNthStack = backgroundMapUseEveryNthStack;
+    os->backgroundMapUseNImages = backgroundMapUseNImages;
+    os->backgroundMapReductionCycles = backgroundMapReductionCycles;
 
     // Trigger buffers. These are used to store 1 second of video for comparison with the next
     os->buffNGroups = (int)(os->fps * os->TRIGGER_MAXRECORDLEN / os->TRIGGER_FRAMEGROUP);
@@ -235,12 +235,12 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
     os->framesTimelapse = (int)(os->fps * os->TIMELAPSE_EXPOSURE);
     os->stackT = malloc(os->frameSize * sizeof(int) * os->Nchannels);
 
-    // Median maps are used for background subtraction. Maps A and B are used alternately and contain the median value of each pixel.
-    // Holds the median value of each pixel, sampled over 255 stacked images
-    os->medianMap = calloc(1, (size_t)(os->frameSize * os->Nchannels));
+    // Background maps are used for background subtraction. Maps A and B are used alternately and contain the background value of each pixel.
+    // Holds the background value of each pixel, sampled over 255 stacked images
+    os->backgroundMap = calloc(1, (size_t)(os->frameSize * os->Nchannels));
 
     // Workspace which counts the number of times any given pixel has a particular value
-    os->medianWorkspace = calloc(1, (size_t)(os->frameSize * os->Nchannels * 256 * sizeof(int)));
+    os->backgroundWorkspace = calloc(1, (size_t)(os->frameSize * os->Nchannels * 256 * sizeof(int)));
 
     // Map of past triggers, used to weight against pixels that trigger too often (they're probably trees...)
     os->pastTriggerMap = calloc(1, os->frameSize * sizeof(int));
@@ -261,7 +261,7 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
 
     if ((!os->buffer) ||
         (!os->stackT) ||
-        (!os->medianMap) || (!os->medianWorkspace) || (!os->pastTriggerMap) ||
+        (!os->backgroundMap) || (!os->backgroundWorkspace) || (!os->pastTriggerMap) ||
         (!os->triggerMap) || (!os->triggerRGB) ||
         (!os->triggerBlock_N) || (!os->triggerBlock_top) || (!os->triggerBlock_bot) || (!os->triggerBlock_sumx) ||
         (!os->triggerBlock_sumy) || (!os->triggerBlock_suml) || (!os->triggerBlock_redirect)
@@ -284,11 +284,11 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
     }
 
     os->groupNum = 0; // Flag for whether we're feeding images into stackA or stackB
-    os->medianCount = 0; // Count how many frames we've fed into the brightness histograms in medianWorkspace
+    os->backgroundCount = 0; // Count how many frames we've fed into the brightness histograms in backgroundWorkspace
     os->timelapseCount = -1; // Count how many frames have been stacked into the timelapse buffer (stackT)
     os->frameCounter = 0;
-    os->runInCountdown = 8 + os->medianMapReductionCycles + os->medianMapUseEveryNthStack *
-                                                            os->medianMapUseNImages; // Let the camera run for a period before triggering, as it takes this long to make first median map
+    os->runInCountdown = 8 + os->backgroundMapReductionCycles + os->backgroundMapUseEveryNthStack *
+                                                            os->backgroundMapUseNImages; // Let the camera run for a period before triggering, as it takes this long to make first background map
     os->noiseLevel = 128;
 
     // Trigger throttling
@@ -324,15 +324,15 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
                                     (os->timelapseCount >= 0) ? os->stackT : NULL);
         if (status) break; // We've run out of video
 
-        // If we've stacked enough frames since we last made a median map, make a new median map
-        os->medianCount++;
-        if (os->medianCount >= os->medianMapUseNImages * os->medianMapUseEveryNthStack) {
-            const int reductionCycle = os->medianCount - os->medianMapUseNImages * os->medianMapUseEveryNthStack;
-            medianCalculate(os->width, os->height, os->Nchannels, reductionCycle, os->medianMapReductionCycles,
-                            os->medianWorkspace, os->medianMap);
-            if (reductionCycle >= os->medianMapReductionCycles) {
-                os->medianCount = 0;
-                memset(os->medianWorkspace, 0, os->frameSize * os->Nchannels * 256 * sizeof(int));
+        // If we've stacked enough frames since we last made a background map, make a new background map
+        os->backgroundCount++;
+        if (os->backgroundCount >= os->backgroundMapUseNImages * os->backgroundMapUseEveryNthStack) {
+            const int reductionCycle = os->backgroundCount - os->backgroundMapUseNImages * os->backgroundMapUseEveryNthStack;
+            backgroundCalculate(os->width, os->height, os->Nchannels, reductionCycle, os->backgroundMapReductionCycles,
+                            os->backgroundWorkspace, os->backgroundMap);
+            if (reductionCycle >= os->backgroundMapReductionCycles) {
+                os->backgroundCount = 0;
+                memset(os->backgroundWorkspace, 0, os->frameSize * os->Nchannels * 256 * sizeof(int));
             }
         }
 
@@ -360,7 +360,7 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
                           "stackedFrames", Nframes);
             sprintf(fname, "%s%s", fstub, "BS1.rgb");
             dumpFrameFromISub(os->width, os->height, os->Nchannels, os->stackT, Nframes, os->STACK_TARGET_BRIGHTNESS, &gainFactor,
-                              os->medianMap, fname);
+                              os->backgroundMap, fname);
             writeMetaData(fname, "sddii",
                           "obstoryId", os->obstoryId,
                           "inputNoiseLevel", os->noiseLevel,
@@ -371,9 +371,9 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
                 0) // Every 15 minutes, dump an image of the sky background map for diagnostic purposes
             {
                 sprintf(fname, "%s%s", fstub, "skyBackground.rgb");
-                dumpFrame(os->width, os->height, os->Nchannels, os->medianMap, fname);
+                dumpFrame(os->width, os->height, os->Nchannels, os->backgroundMap, fname);
                 writeMetaData(fname, "sddi", "obstoryId", os->obstoryId, "inputNoiseLevel", os->noiseLevel,
-                              "stackNoiseLevel", os->noiseLevel, "stackedFrames", ((int) os->medianMapUseNImages));
+                              "stackNoiseLevel", os->noiseLevel, "stackedFrames", ((int) os->backgroundMapUseNImages));
             }
             os->timelapseUTCStart += os->TIMELAPSE_INTERVAL;
             os->timelapseCount = -1;
@@ -413,8 +413,8 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
     free(os->triggerRGB);
     free(os->buffer);
     free(os->stackT);
-    free(os->medianMap);
-    free(os->medianWorkspace);
+    free(os->backgroundMap);
+    free(os->backgroundWorkspace);
     free(os->pastTriggerMap);
     free(os);
     return 0;

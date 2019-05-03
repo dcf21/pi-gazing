@@ -36,6 +36,7 @@
 #include <libavutil/mem.h>
 #include <libavutil/mathematics.h>
 
+#include "argparse/argparse.h"
 #include "analyse/observe.h"
 #include "utils/asciiDouble.h"
 #include "utils/tools.h"
@@ -45,6 +46,12 @@
 
 #include "settings.h"
 #include "settings_webcam.h"
+
+static const char *const usage[] = {
+    "analyseH264_libav [options] [[--] args]",
+    "analyseH264_libav [options]",
+    NULL,
+};
 
 void sigint_handler(int signal) {
     printf("\n");
@@ -57,7 +64,7 @@ typedef struct context {
     AVCodec *codec;
     AVCodecContext *c;
     int frame, got_picture, len2, len, streamNum;
-    double tstart, tstop, utcoffset, FPS;
+    double tstart, tstop, FPS;
     const char *filename, *maskFile;
     unsigned char *mask;
     FILE *f;
@@ -96,7 +103,7 @@ int fetchFrame(void *ctx_void, unsigned char *tmpc, double *utc) {
             }
             ctx->frame++;
         }
-        av_free_packet(&ctx->avpkt);
+        av_packet_unref(&ctx->avpkt);
         if (ctx->got_picture) return 0;
         if (!ctx->got_picture) return 1;
     }
@@ -141,34 +148,57 @@ int rewindVideo(void *ctx_void, double *utc) {
     return 0;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, const char **argv) {
     context ctx;
+    char fname[FNAME_LENGTH] = "\0";
+    char mask_file[FNAME_LENGTH] = "\0";
+    char obstory[FNAME_LENGTH] = "\0";
 
-    if (argc != 6) {
-        sprintf(temp_err_string,
-                "ERROR: Command line syntax is:\n\n analyseH264_libav <filename> <tstart> <fps> <mask> <obstoryId>\n\ne.g.\n\n analyseH264_libav foo.rawvid 1234 24.71 mask.txt xxx\n");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+    ctx.filename = fname;
+    ctx.tstart = 0;
+    ctx.tstop = time(NULL) + 3600 * 24;
+    ctx.FPS = 0;
+    ctx.maskFile = mask_file;
+
+    struct argparse_option options[] = {
+        OPT_HELP(),
+        OPT_GROUP("Basic options"),
+        OPT_STRING('i', "input", &fname, "input filename"),
+        OPT_STRING('o', "obsid", &obstory, "observatory id"),
+        OPT_STRING('m', "mask", &mask_file, "mask file"),
+        OPT_FLOAT('t', "time-start", &ctx.tstart, "time stamp of start of video clip"),
+        OPT_FLOAT('f', "fps", &ctx.FPS, "frame count per second"),
+        OPT_END(),
+    };
+
+    struct argparse argparse;
+    argparse_init(&argparse, options, usage, 0);
+    argparse_describe(&argparse,
+    "\nAnalyse an H264 video clip.",
+    "\n");
+    argc = argparse_parse(&argparse, argc, argv);
+
+    if (argc != 0) {
+        int i;
+        for (i = 0; i < argc; i++) {
+            printf("Error: unparsed argument <%s>\n", *(argv + i));
+        }
+        gnom_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
-    ctx.filename = argv[1];
-    ctx.tstart = getFloat(argv[2], NULL);
-    ctx.tstop = time(NULL) + 3600 * 24;
-    ctx.utcoffset = 0;
-    ctx.FPS = getFloat(argv[3], NULL);
-    ctx.maskFile = argv[4];
     initLut();
 
-    const int medianMapUseEveryNthStack = 1, medianMapUseNImages = 3600, medianMapReductionCycles = 32;
+    const int backgroundMapUseEveryNthStack = 1, backgroundMapUseNImages = 3600, backgroundMapReductionCycles = 32;
 
     // Register all the codecs
     av_register_all();
     avcodec_register_all();
     decoder_init(&ctx);
-    observe((void *) &ctx, argv[5], ctx.utcoffset, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, ctx.FPS,
+    observe((void *) &ctx, obstory, 0, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, ctx.FPS,
             "nonlive", ctx.mask, Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME,
             TRIGGER_FRAMEGROUP, TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT,
-            TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, medianMapUseEveryNthStack,
-            medianMapUseNImages, medianMapReductionCycles, &fetchFrame, &rewindVideo);
+            TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, backgroundMapUseEveryNthStack,
+            backgroundMapUseNImages, backgroundMapReductionCycles, &fetchFrame, &rewindVideo);
     decoder_shutdown(&ctx);
     printf("\n");
     return 0;
