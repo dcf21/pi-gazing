@@ -24,6 +24,6 @@
 #ifndef LENSCORRECT_H
 #define LENSCORRECT_H 1
 
-image_ptr lensCorrect(image_ptr *imgIn, double barrelA, double barrelB, double barrelC);
+image_ptr lens_correct(image_ptr *image_in, double barrel_a, double barrel_b, double barrel_c);
 
 #endif

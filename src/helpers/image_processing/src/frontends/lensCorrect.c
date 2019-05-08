@@ -110,7 +110,7 @@ int main(int argc, const char *argv[]) {
     char product_filename[FNAME_LENGTH];
     sprintf(product_filename, "%s.png", output_filename);
 
-    image_ptr image_corrected = lensCorrect(&output_image, barrel_a, barrel_b, barrel_c);
+    image_ptr image_corrected = lens_correct(&output_image, barrel_a, barrel_b, barrel_c);
     image_put(product_filename, image_corrected, (channels < 3));
     image_dealloc(&image_corrected);
 

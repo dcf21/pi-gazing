@@ -31,39 +31,39 @@
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
-double calculateSkyClarity(image_ptr *img, double noiseLevel) {
+double calculate_sky_clarity(image_ptr *image, double noise_level) {
     int i, j, score = 0;
-    const int gridsize = 10;
+    const int grid_size = 10;
     const int search_distance = 4;
 
     // To be counted as a star-like source, must be this much brighter than surroundings
-    const int threshold = MAX(12, noiseLevel * 4);
-    const int stride = img->xsize;
+    const int threshold = MAX(12, noise_level * 4);
+    const int stride = image->xsize;
 #pragma omp parallel for private(i, j)
-    for (i = 1; i < gridsize; i++)
-        for (j = 1; j < gridsize; j++) {
-            const int xmin = img->xsize * j / (gridsize + 1);
-            const int ymin = img->ysize * i / (gridsize + 1);
-            const int xmax = img->xsize * (j + 1) / (gridsize + 1);
-            const int ymax = img->ysize * (i + 1) / (gridsize + 1);
+    for (i = 1; i < grid_size; i++)
+        for (j = 1; j < grid_size; j++) {
+            const int xmin = image->xsize * j / (grid_size + 1);
+            const int ymin = image->ysize * i / (grid_size + 1);
+            const int xmax = image->xsize * (j + 1) / (grid_size + 1);
+            const int ymax = image->ysize * (i + 1) / (grid_size + 1);
             int x, y, n_bright_pixels = 0, n_stars = 0;
             const int n_pixels = (xmax - xmin) * (ymax - ymin);
             for (y = ymin; y < ymax; y++)
                 for (x = xmin; x < xmax; x++) {
-                    double pixel_value = img->data_red[y * stride + x];
+                    double pixel_value = image->data_red[y * stride + x];
                     if (pixel_value > 128) n_bright_pixels++;
                     int k, reject = 0;
                     for (k = -search_distance; (k <= search_distance) && (!reject); k += 2)
-                        if (pixel_value - threshold <= img->data_red[(y + search_distance) * stride + (x + k)])
+                        if (pixel_value - threshold <= image->data_red[(y + search_distance) * stride + (x + k)])
                             reject = 1;
                     for (k = -search_distance; (k <= search_distance) && (!reject); k += 2)
-                        if (pixel_value - threshold <= img->data_red[(y - search_distance) * stride + (x + k)])
+                        if (pixel_value - threshold <= image->data_red[(y - search_distance) * stride + (x + k)])
                             reject = 1;
                     for (k = -search_distance; (k <= search_distance) && (!reject); k += 2)
-                        if (pixel_value - threshold <= img->data_red[(y + k) * stride + (x + search_distance)])
+                        if (pixel_value - threshold <= image->data_red[(y + k) * stride + (x + search_distance)])
                             reject = 1;
                     for (k = -search_distance; (k <= search_distance) && (!reject); k += 2)
-                        if (pixel_value - threshold <= img->data_red[(y + k) * stride + (x - search_distance)])
+                        if (pixel_value - threshold <= image->data_red[(y + k) * stride + (x - search_distance)])
                             reject = 1;
 
                     if (!reject) n_stars++;
@@ -73,6 +73,5 @@ double calculateSkyClarity(image_ptr *img, double noiseLevel) {
                 { score++; }
             }
         }
-    return (100. * score) / pow(gridsize - 1, 2);
+    return (100. * score) / pow(grid_size - 1, 2);
 }
-

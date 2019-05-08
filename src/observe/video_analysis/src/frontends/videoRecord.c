@@ -1,4 +1,4 @@
-// videoRecord.c
+// video_record.c
 // Pi Gazing
 // Dominic Ford
 
@@ -34,8 +34,8 @@
 #include "settings_webcam.h"
 
 static const char *const usage[] = {
-    "videoRecord [options] [[--] args]",
-    "videoRecord [options]",
+    "video_record [options] [[--] args]",
+    "video_record [options]",
     NULL,
 };
 
@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
     struct vdIn *videoIn;
 
     const char *videodevice = VIDEO_DEV;
-    float fps = nearestMultiple(VIDEO_FPS, 1); // Requested frame rate
+    float fps = nearest_multiple(VIDEO_FPS, 1); // Requested frame rate
     int format = V4L2_PIX_FMT_YUYV;
     int grabmethod = 1;
     int queryformats = 0;
@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
 
     initLut();
 
-    void *vidRaw = videoRecord(videoIn, 4);
+    void *vidRaw = video_record(videoIn, 4);
 
     FILE *outfile;
     if ((outfile = fopen(avifilename, "wb")) == NULL) {

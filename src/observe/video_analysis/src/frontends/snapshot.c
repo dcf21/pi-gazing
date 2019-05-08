@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
     struct vdIn *videoIn;
 
     const char *videodevice = VIDEO_DEV;
-    float fps = nearestMultiple(VIDEO_FPS, 1);       // Requested frame rate
+    float fps = nearest_multiple(VIDEO_FPS, 1);       // Requested frame rate
     int format = V4L2_PIX_FMT_YUYV;
     int grabmethod = 1;
     int queryformats = 0;
@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
 
     int tstart = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Commencing snapshot at %s. Will stack %d frames.", friendlyTimestring(tstart), nfr);
+        sprintf(line, "Commencing snapshot at %s. Will stack %d frames.", friendly_time_string(tstart), nfr);
         logging_info(line);
     }
 
@@ -122,7 +122,7 @@ int main(int argc, char *argv[]) {
 
     tstop = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Finishing snapshot at %s.", friendlyTimestring(tstop));
+        sprintf(line, "Finishing snapshot at %s.", friendly_time_string(tstop));
         logging_info(line);
     }
     if (DEBUG) {

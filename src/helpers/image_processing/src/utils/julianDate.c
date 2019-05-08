@@ -31,19 +31,18 @@
 
 // Routines for looking up the dates when the transition between the Julian calendar and the Gregorian calendar occurred
 
-void switchOverCalDate(double *lastJulian, double *firstGregorian) {
+void switch_over_calendar_date(double *lastJulian, double *firstGregorian) {
     *lastJulian = 17520902.0;
     *firstGregorian = 17520914.0; // British
-    return;
 }
 
-double switchOverJD() {
+double switch_over_jd() {
     return 2361222.0; // British
 }
 
 // Functions for looking up the names of the Nth calendar month and the Nth day of the week
 
-char *getMonthName(int i) {
+char *get_month_name(int i) {
     switch (i) {
         case 1:
             return "January";
@@ -72,10 +71,9 @@ char *getMonthName(int i) {
         default:
             return "???";
     }
-    return "???";
 }
 
-char *getWeekDayName(int i) {
+char *get_week_day_name(int i) {
     switch (i) {
         case 0:
             return "Monday";
@@ -94,93 +92,92 @@ char *getWeekDayName(int i) {
         default:
             return "???";
     }
-    return "???";
 }
 
 // Routines for converting between Julian Day numbers and Calendar Dates in Gregorian and Julian calendars
 
-double julianDay(int year, int month, int day, int hour, int min, int sec, int *status, char *errtext) {
-    double JD, DayFraction, LastJulian, FirstGregorian, ReqDate;
+double julian_day(int year, int month, int day, int hour, int min, int sec, int *status, char *err_text) {
+    double jd, day_fraction, last_julian, first_gregorian, required_date;
     int b;
 
     if ((year < -1e6) || (year > 1e6) || (!gsl_finite(year))) {
         *status = 1;
-        sprintf(errtext, "Supplied year is too big.");
+        sprintf(err_text, "Supplied year is too big.");
         return 0.0;
     }
     if ((day < 1) || (day > 31)) {
         *status = 1;
-        sprintf(errtext, "Supplied day number should be in the range 1-31.");
+        sprintf(err_text, "Supplied day number should be in the range 1-31.");
         return 0.0;
     }
     if ((hour < 0) || (hour > 23)) {
         *status = 1;
-        sprintf(errtext, "Supplied hour number should be in the range 0-23.");
+        sprintf(err_text, "Supplied hour number should be in the range 0-23.");
         return 0.0;
     }
     if ((min < 0) || (min > 59)) {
         *status = 1;
-        sprintf(errtext, "Supplied minute number should be in the range 0-59.");
+        sprintf(err_text, "Supplied minute number should be in the range 0-59.");
         return 0.0;
     }
     if ((sec < 0) || (sec > 59)) {
         *status = 1;
-        sprintf(errtext, "Supplied second number should be in the range 0-59.");
+        sprintf(err_text, "Supplied second number should be in the range 0-59.");
         return 0.0;
     }
     if ((month < 1) || (month > 12)) {
         *status = 1;
-        sprintf(errtext, "Supplied month number should be in the range 1-12.");
+        sprintf(err_text, "Supplied month number should be in the range 1-12.");
         return 0.0;
     }
 
-    switchOverCalDate(&LastJulian, &FirstGregorian);
-    ReqDate = 10000.0 * year + 100 * month + day;
+    switch_over_calendar_date(&last_julian, &first_gregorian);
+    required_date = 10000.0 * year + 100 * month + day;
 
     if (month <= 2) {
         month += 12;
         year--;
     }
 
-    if (ReqDate <= LastJulian) { b = -2 + ((year + 4716) / 4) - 1179; } // Julian calendar
-    else if (ReqDate >= FirstGregorian) { b = (year / 400) - (year / 100) + (year / 4); } // Gregorian calendar
+    if (required_date <= last_julian) { b = -2 + ((year + 4716) / 4) - 1179; } // Julian calendar
+    else if (required_date >= first_gregorian) { b = (year / 400) - (year / 100) + (year / 4); } // Gregorian calendar
     else {
         *status = 1;
-        sprintf(errtext,
+        sprintf(err_text,
                 "The requested date never happened in the British calendar: it was lost in the transition from the Julian to the Gregorian calendar.");
         return 0.0;
     }
 
-    JD = 365.0 * year - 679004.0 + 2400000.5 + b + floor(30.6001 * (month + 1)) + day;
+    jd = 365.0 * year - 679004.0 + 2400000.5 + b + floor(30.6001 * (month + 1)) + day;
 
-    DayFraction = (fabs(hour) + fabs(min) / 60.0 + fabs(sec) / 3600.0) / 24.0;
+    day_fraction = (fabs(hour) + fabs(min) / 60.0 + fabs(sec) / 3600.0) / 24.0;
 
-    return JD + DayFraction;
+    return jd + day_fraction;
 }
 
-void invJulianDay(double JD, int *year, int *month, int *day, int *hour, int *min, double *sec, int *status,
-                  char *errtext) {
+void inv_julian_day(double jd, int *year, int *month, int *day, int *hour, int *min, double *sec, int *status,
+                    char *err_text) {
     long a, b, c, d, e, f;
-    double DayFraction;
+    double day_fraction;
     int temp;
     if (month == NULL) month = &temp; // Dummy placeholder, since we need month later in the calculation
 
-    if ((JD < -1e8) || (JD > 1e8) || (!gsl_finite(JD))) {
+    if ((jd < -1e8) || (jd > 1e8) || (!gsl_finite(jd))) {
         *status = 1;
-        sprintf(errtext, "Supplied Julian Day number is too big.");
+        sprintf(err_text, "Supplied Julian Day number is too big.");
         return;
     }
 
     // Work out hours, minutes and seconds
-    DayFraction = (JD + 0.5) - floor(JD + 0.5);
-    if (hour != NULL) *hour = (int) floor(24 * DayFraction);
-    if (min != NULL) *min = (int) floor(fmod(1440 * DayFraction, 60));
-    if (sec != NULL) *sec = fmod(86400 * DayFraction, 60);
+    day_fraction = (jd + 0.5) - floor(jd + 0.5);
+    if (hour != NULL) *hour = (int) floor(24 * day_fraction);
+    if (min != NULL) *min = (int) floor(fmod(1440 * day_fraction, 60));
+    if (sec != NULL) *sec = fmod(86400 * day_fraction, 60);
 
     // Now work out calendar date
-    a = JD +
+    a = jd +
         0.5; // Number of whole Julian days. b = Number of centuries since the Council of Nicaea. c = Julian Day number as if century leap years happened.
-    if (a < switchOverJD()) {
+    if (a < switch_over_jd()) {
         b = 0;
         c = a + 1524;
     } // Julian calendar
@@ -194,6 +191,4 @@ void invJulianDay(double JD, int *year, int *month, int *day, int *hour, int *mi
     if (day != NULL) *day = (int) floor(c - e - (int) (30.6001 * f));
     *month = (int) floor(f - 1 - 12 * (f >= 14));
     if (year != NULL) *year = (int) floor(d - 4715 - (*month >= 3));
-
-    return;
 }

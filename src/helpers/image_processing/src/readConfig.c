@@ -30,16 +30,16 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
 
-#include "asciiDouble.h"
-#include "error.h"
+#include "utils/asciiDouble.h"
+#include "utils/error.h"
 #include "gnomonic.h"
 #include "imageProcess.h"
-#include "image.h"
+#include "png/image.h"
 #include "settings.h"
 #include "str_constants.h"
 #include "backgroundSub.h"
 
-int readConfig(char *filename, settings *feed_s, settingsIn *si, settingsIn *s_in_default, int *nImages) {
+int read_config(char *filename, settings *feed_s, settingsIn *si, settingsIn *s_in_default, int *nImages) {
     char line[LSTR_LENGTH], key[LSTR_LENGTH], *keyval;
     int file_linenumber;
     FILE *infile;
@@ -55,7 +55,7 @@ int readConfig(char *filename, settings *feed_s, settingsIn *si, settingsIn *s_i
     while (!feof(infile)) {
         file_readline(infile, line, LSTR_LENGTH);
         file_linenumber++;
-        strStrip(line, line);
+        str_strip(line, line);
         if (strlen(line) == 0) continue; // Ignore blank lines
         if (line[0] == '#') continue;
 

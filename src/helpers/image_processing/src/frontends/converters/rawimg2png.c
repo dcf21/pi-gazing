@@ -114,7 +114,7 @@ int main(int argc, const char *argv[]) {
     sprintf(product_filename, "%s.txt", output_filename);
     FILE *f = fopen(product_filename, "w");
     if (f) {
-        fprintf(f, "skyClarity %.2f\n", calculateSkyClarity(&output_image, noise_level));
+        fprintf(f, "skyClarity %.2f\n", calculate_sky_clarity(&output_image, noise_level));
         fclose(f);
     }
 

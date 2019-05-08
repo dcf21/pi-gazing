@@ -27,20 +27,20 @@
 
 #include "png/image.h"
 
-image_ptr lensCorrect(image_ptr *imgIn, double barrelA, double barrelB, double barrelC) {
-    const int width = imgIn->xsize;
-    const int height = imgIn->ysize;
-    const double barrelD = 1 - barrelA - barrelB - barrelC;
+image_ptr lens_correct(image_ptr *image_in, double barrel_a, double barrel_b, double barrel_c) {
+    const int width = image_in->xsize;
+    const int height = image_in->ysize;
+    const double barrelD = 1 - barrel_a - barrel_b - barrel_c;
 
     int x, y;
 
-    image_ptr imgNew;
-    image_alloc(&imgNew, width, height);
+    image_ptr image_new;
+    image_alloc(&image_new, width, height);
 
     for (y = 0; y < height; y++)
         for (x = 0; x < width; x++) {
             // Index of pixel in new image
-            int oNew = x + y * width;
+            int offset_new = x + y * width;
 
             // Offset of pixel from center of image, expressed as position angle and radial distance
             int x2 = x - width / 2;
@@ -49,20 +49,20 @@ image_ptr lensCorrect(image_ptr *imgIn, double barrelA, double barrelB, double b
             double t = atan2(x2, y2);
 
             // Apply barrel correction to radial component of position
-            double r2 = (((barrelA * r + barrelB) * r + barrelC) * r + barrelD) * r * (width / 2);
+            double r2 = (((barrel_a * r + barrel_b) * r + barrel_c) * r + barrelD) * r * (width / 2);
 
             // Calculate offset of pixel in the original (uncorrected) pixel array
             int x3 = r2 * sin(t) + width / 2;
             int y3 = r2 * cos(t) + height / 2;
-            int oOld = x3 + y3 * width;
+            int offset_old = x3 + y3 * width;
 
             if ((x3 >= 0) && (x3 < width) && (y3 >= 0) && (y3 < height)) {
-                imgNew.data_red[oNew] = imgIn->data_red[oOld];
-                imgNew.data_grn[oNew] = imgIn->data_grn[oOld];
-                imgNew.data_blu[oNew] = imgIn->data_blu[oOld];
+                image_new.data_red[offset_new] = image_in->data_red[offset_old];
+                image_new.data_grn[offset_new] = image_in->data_grn[offset_old];
+                image_new.data_blu[offset_new] = image_in->data_blu[offset_old];
             }
         }
 
-    imgNew.data_w = imgIn->data_w;
-    return imgNew;
+    image_new.data_w = image_in->data_w;
+    return image_new;
 }

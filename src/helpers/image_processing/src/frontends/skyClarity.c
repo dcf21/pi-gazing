@@ -73,7 +73,7 @@ int main(int argc, const char *argv[]) {
     input_image = image_get(input_filename);
     if (input_image.data_red == NULL) logging_fatal(__FILE__, __LINE__, "Could not read input image file 1");
 
-    double sky_clarity = calculateSkyClarity(&input_image, noise_level);
+    double sky_clarity = calculate_sky_clarity(&input_image, noise_level);
     printf("%f", sky_clarity);
 
     // Free image

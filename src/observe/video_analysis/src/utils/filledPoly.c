@@ -44,7 +44,7 @@ void fillPolygonsFromFile(FILE *infile, unsigned char *mask, int width, int heig
             goto blankLine;
         }
         file_readline(infile, line, LSTR_LENGTH);
-        strStrip(line, line);
+        str_strip(line, line);
         if (strlen(line) == 0) goto blankLine;
         if (line[0] == '#') continue;
 

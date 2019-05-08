@@ -67,7 +67,7 @@ int rewindVideo(void *videoHandle, double *utc) {
 }
 
 int main(int argc, const char *argv[]) {
-    videoMetadata vmd;
+    video_metadata vmd;
     char mask_file[FNAME_LENGTH] = "\0";
     char obstory[FNAME_LENGTH] = "\0";
     char input_device[FNAME_LENGTH] = "\0";
@@ -124,7 +124,7 @@ int main(int argc, const char *argv[]) {
     struct vdIn *videoIn;
 
     const char *videodevice = vmd.videoDevice;
-    const float fps = nearestMultiple(vmd.fps, 1); // Requested frame rate
+    const float fps = nearest_multiple(vmd.fps, 1); // Requested frame rate
     const int format = V4L2_PIX_FMT_YUYV;
     const int grabmethod = 1;
     const int queryformats = 0;
@@ -148,7 +148,7 @@ int main(int argc, const char *argv[]) {
     const int height = videoIn->height;
     vmd.width = width;
     vmd.height = height;
-    //writeRawVidMetaData(vmd);
+    //write_raw_video_metadata(vmd);
     videoIn->upsideDown = vmd.flagUpsideDown;
 
     unsigned char *mask = malloc((size_t)(width * height));
@@ -157,8 +157,8 @@ int main(int argc, const char *argv[]) {
     fillPolygonsFromFile(maskfile, mask, width, height);
     fclose(maskfile);
 
-    observe((void *) videoIn, vmd.obstoryId, 0, vmd.tstart, vmd.tstop, width, height, vmd.fps, "live", mask,
-            Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP,
+    observe((void *) videoIn, vmd.obstoryId, vmd.tstart, vmd.tstop, width, height, vmd.fps, "live", mask,
+            CHANNEL_COUNT, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP,
             TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE,
             TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, backgroundMapUseEveryNthStack, backgroundMapUseNImages,
             backgroundMapReductionCycles, &fetchFrame, &rewindVideo);

@@ -76,7 +76,7 @@ int main(int argc, const char *argv[]) {
     struct vdIn *videoIn;
 
     const char *videodevice = VIDEO_DEV;
-    float fps = nearestMultiple(VIDEO_FPS, 1);       // Requested frame rate
+    float fps = nearest_multiple(VIDEO_FPS, 1);       // Requested frame rate
     int format = V4L2_PIX_FMT_YUYV;
     int grabmethod = 1;
     int queryformats = 0;
@@ -105,7 +105,7 @@ int main(int argc, const char *argv[]) {
 
     int tstart = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Commencing makeBackgroundMap at %s.", friendlyTimestring(tstart));
+        sprintf(line, "Commencing makeBackgroundMap at %s.", friendly_time_string(tstart));
         logging_info(line);
     }
 
@@ -149,7 +149,7 @@ int main(int argc, const char *argv[]) {
 
         // Add stacked image into background map
 #pragma omp parallel for private(j)
-        for (j = 0; j < Nchannels * frameSize; j++) {
+        for (j = 0; j < CHANNEL_COUNT * frameSize; j++) {
             int d;
             int pixelVal = CLIP256(tmpi[j] / nfr);
             backgroundWorkspace[j * 256 + pixelVal]++;
@@ -157,8 +157,8 @@ int main(int argc, const char *argv[]) {
     }
 
     // Calculate background map
-    backgroundCalculate(width, height, Nchannels, 0, 1, backgroundWorkspace, backgroundMap);
-    dumpFrame(width, height, Nchannels, backgroundMap, rawfname);
+    background_calculate(width, height, CHANNEL_COUNT, 0, 1, backgroundWorkspace, backgroundMap);
+    dump_frame(width, height, CHANNEL_COUNT, backgroundMap, rawfname);
 
     // Make a PNG version for diagnostic use
     image_ptr OutputImage;
@@ -166,7 +166,7 @@ int main(int argc, const char *argv[]) {
 
     for (i = 0; i < frameSize; i++) OutputImage.data_w[i] = 1;
 
-    if (Nchannels >= 3) {
+    if (CHANNEL_COUNT >= 3) {
         for (i = 0; i < frameSize; i++) OutputImage.data_red[i] = backgroundMap[i];
         for (i = 0; i < frameSize; i++) OutputImage.data_grn[i] = backgroundMap[i + frameSize];
         for (i = 0; i < frameSize; i++) OutputImage.data_blu[i] = backgroundMap[i + frameSize * 2];
@@ -184,7 +184,7 @@ int main(int argc, const char *argv[]) {
 
     int tstop = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Finishing making background map at %s.", friendlyTimestring(tstop));
+        sprintf(line, "Finishing making background map at %s.", friendly_time_string(tstop));
         logging_info(line);
     }
 

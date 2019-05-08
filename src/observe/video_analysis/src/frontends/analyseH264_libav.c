@@ -195,8 +195,8 @@ int main(int argc, const char **argv) {
     av_register_all();
     avcodec_register_all();
     decoder_init(&ctx);
-    observe((void *) &ctx, obstory, 0, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, ctx.FPS,
-            "nonlive", ctx.mask, Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME,
+    observe((void *) &ctx, obstory, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, ctx.FPS,
+            "nonlive", ctx.mask, CHANNEL_COUNT, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME,
             TRIGGER_FRAMEGROUP, TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT,
             TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, backgroundMapUseEveryNthStack,
             backgroundMapUseNImages, backgroundMapReductionCycles, &fetchFrame, &rewindVideo);

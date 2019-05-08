@@ -32,17 +32,25 @@
 #include "str_constants.h"
 
 typedef struct detection {
-    int frameCount;
-    int x, y, npixels, amplitude;
+    int frame_count;
+    int x, y, pixel_count, amplitude;
     double utc;
 } detection;
 
 typedef struct event {
     int active;
-    int Ndetections;
-    char filenameStub[FNAME_LENGTH]; // When testTrigger detects a meteor, this string is set to a filename stub with time stamp of the time when the camera triggered
-    int *stackedImage; // Stacked image, averaged over whole duration of event
-    int *maxStack; // Maximum pixel values over whole duration of event
+    int detection_count;
+
+    // When testTrigger detects a meteor, this string is set to a filename stub with time stamp of the time when the
+    // camera triggered
+    char filename_stub[FNAME_LENGTH];
+
+    // Stacked image, averaged over whole duration of event
+    int *stacked_image;
+
+    // Maximum pixel values over whole duration of event
+    int *max_stack;
+
     detection detections[MAX_DETECTIONS];
 } event;
 
@@ -51,17 +59,17 @@ typedef struct videoOutput {
     int width;
     int height;
     unsigned char *buffer1;
-    int buffer1frames;
+    int buffer1_frames;
     unsigned char *buffer2;
-    int buffer2frames;
+    int buffer2_frames;
     char fName[FNAME_LENGTH];
-    FILE *fileHandle;
-    int framesWritten;
+    FILE *file_handle;
+    int frames_written;
 } videoOutput;
 
 typedef struct observeStatus {
     // Trigger settings
-    int Nchannels;
+    int channel_count;
     int STACK_COMPARISON_INTERVAL;
     int TRIGGER_PREFIX_TIME;
     int TRIGGER_SUFFIX_TIME;
@@ -73,89 +81,104 @@ typedef struct observeStatus {
     int TIMELAPSE_INTERVAL;
     int STACK_TARGET_BRIGHTNESS;
 
-    // backgroundMap is a structure used to keep track of the average brightness of each pixel in the frame. This is subtracted from stacked image to remove the sky background and hot pixels
+    // backgroundMap is a structure used to keep track of the average brightness of each pixel in the frame.
+    // This is subtracted from stacked image to remove the sky background and hot pixels
     // A histogram is constructed of the brightnesses of each pixel in successive groups of frames.
-    int backgroundMapUseEveryNthStack;
-    /* Add every Nth stacked group of frames of histogram. Increase this to reduce CPU load */
-    int backgroundMapUseNImages;
-    /* Stack this many groups of frames before generating a sky brightness map from histograms. */
-    int backgroundMapReductionCycles; /* Reducing histograms to brightness map is time consuming, so we'll miss frames if we do it all at once. Do it in this many chunks after successive frames. */
+    int background_map_use_every_nth_stack;
+
+    // Add every Nth stacked group of frames of histogram. Increase this to reduce CPU load.
+    int background_map_use_n_images;
+
+    // Stack this many groups of frames before generating a sky brightness map from histograms.
+    // Reducing histograms to brightness map is time consuming, so we'll miss frames if we do it all at once.
+    // Do it in this many chunks after successive frames.
+    int background_map_reduction_cycles;
 
     // Video parameters
-    void *videoHandle;
+    void *video_handle;
     int width, height;
     const unsigned char *mask;
     const char *label;
 
-    int (*fetchFrame)(void *, unsigned char *, double *);
+    int (*fetch_frame)(void *, unsigned char *, double *);
 
     float fps;
-    int frameSize;
-    const char *obstoryId;
+    int frame_size;
+    const char *obstory_id;
 
     double utc;
-    int triggeringAllowed;
-    double noiseLevel;
+    int triggering_allowed;
+    double noise_level;
 
     // Trigger buffers. These are used to store 1 second of video for comparison with the next
-    int buffNGroups;
-    int buffGroupBytes;
-    int buffNFrames;
-    int bufflen;
+    int buffer_group_count;
+    int buffer_group_bytes;
+    int buffer_frame_count;
+    int buffer_length;
     unsigned char *buffer;
     int *stack[256];
-    int triggerPrefixNGroups;
-    int triggerSuffixNGroups;
+    int trigger_prefix_group_count;
+    int trigger_suffix_group_count;
 
     // Timelapse buffers
-    double timelapseUTCStart;
-    int framesTimelapse;
+    double timelapse_utc_start;
+    int frames_timelapse;
     int *stackT;
 
     // Background maps are used for background subtraction. Maps A and B are used alternately and contain the background value of each pixel.
-    unsigned char *backgroundMap;
-    int *backgroundWorkspace;
+    unsigned char *background_map;
+    int *background_workspace;
 
     // Map of past triggers, used to weight against pixels that trigger too often (they're probably trees...)
-    int *pastTriggerMap;
+    int *past_trigger_map;
 
     // Buffers used while checking for triggers, to give a visual report on why triggers occur when they do
-    int Nblocks;
-    int *triggerMap;
-    int *triggerBlock_N, *triggerBlock_top, *triggerBlock_bot, *triggerBlock_sumx, *triggerBlock_sumy, *triggerBlock_suml, *triggerBlock_redirect;
-    unsigned char *triggerRGB;
+    int block_count;
+    int *trigger_map;
+    int *trigger_block_count, *trigger_block_top, *trigger_block_bot;
+    int *trigger_block_sumx, *trigger_block_sumy, *trigger_block_suml, *trigger_block_redirect;
+    unsigned char *trigger_rgb;
 
-    int groupNum; // Flag for whether we're feeding images into stackA or stackB
-    int backgroundCount; // Count how many frames we've fed into the brightness histograms in backgroundWorkspace
-    int timelapseCount; // Count how many frames have been stacked into the timelapse buffer (stackT)
-    int frameCounter;
-    int runInCountdown; // Let the camera run for a period before triggering, as it takes this long to make first background map
+    // Flag for whether we're feeding images into stackA or stackB
+    int group_number;
 
-    int triggerThrottlePeriod; // Reset trigger throttle counter after this many frame groups have been processed
-    int triggerThrottleTimer;
-    int triggerThrottleCounter;
+    // Count how many frames we've fed into the brightness histograms in background_workspace
+    int background_count;
 
-    event eventList[MAX_EVENTS];
-    videoOutput videoOutputs[MAX_EVENTS];
-} observeStatus;
+    // Count how many frames have been stacked into the timelapse buffer (stackT)
+    int timelapse_count;
+    int frame_counter;
 
-char *fNameGenerate(char *output, const char *obstoryId, double utc, char *tag, const char *dirname, const char *label);
+    // Let the camera run for a period before triggering, as it takes this long to make first background map
+    int run_in_countdown;
 
-int readFrameGroup(observeStatus *os, unsigned char *buffer, int *stack1, int *stack2);
+    // Reset trigger throttle counter after this many frame groups have been processed
+    int trigger_throttle_period;
+    int trigger_throttle_timer;
+    int trigger_throttle_counter;
 
-int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const int tstart, const int tstop,
+    event event_list[MAX_EVENTS];
+    videoOutput video_outputs[MAX_EVENTS];
+} observe_status;
+
+char *filename_generate(char *output, const char *obstory_id, double utc, char *tag, const char *dir_name,
+                        const char *label);
+
+int read_frame_group(observe_status *os, unsigned char *buffer, int *stack1, int *stack2);
+
+int observe(void *video_handle, const char *obstory_id, const int utc_start, const int utc_stop,
             const int width, const int height, const double fps, const char *label, const unsigned char *mask,
-            const int Nchannels, const int STACK_COMPARISON_INTERVAL, const int TRIGGER_PREFIX_TIME,
+            const int channel_count, const int STACK_COMPARISON_INTERVAL, const int TRIGGER_PREFIX_TIME,
             const int TRIGGER_SUFFIX_TIME, const int TRIGGER_FRAMEGROUP, const int TRIGGER_MAXRECORDLEN,
             const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT, const int TIMELAPSE_EXPOSURE,
             const int TIMELAPSE_INTERVAL, const int STACK_TARGET_BRIGHTNESS,
-            const int backgroundMapUseEveryNthStack, const int backgroundMapUseNImages, const int backgroundMapReductionCycles,
-            int (*fetchFrame)(void *, unsigned char *, double *), int (*rewindVideo)(void *, double *));
+            const int background_map_use_every_nth_stack, const int background_map_use_n_images, const int background_map_reduction_cycles,
+            int (*fetch_frame)(void *, unsigned char *, double *), int (*rewind_video)(void *, double *));
 
-void registerTrigger(observeStatus *os, const int blockId, const int xpos, const int ypos, const int npixels,
-                     const int amplitude, const int *image1, const int *image2, const int coAddedFrames);
+void register_trigger(observe_status *os, const int block_id, const int x_pos, const int y_pos, const int pixel_count,
+                      const int amplitude, const int *image1, const int *image2, const int coadded_frames);
 
-void registerTriggerEnds(observeStatus *os);
+void register_trigger_ends(observe_status *os);
 
 #endif
 

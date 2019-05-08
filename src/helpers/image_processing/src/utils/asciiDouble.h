@@ -44,9 +44,9 @@ void getWord(char *out, const char *in, int max);
 
 char *nextWord(char *in);
 
-char *friendlyTimestring(int t);
+char *friendly_time_string(int t);
 
-char *strStrip(const char *in, char *out);
+char *str_strip(const char *in, char *out);
 
 char *strUpper(const char *in, char *out);
 

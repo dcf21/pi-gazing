@@ -24,18 +24,18 @@
 #ifndef JULIANDATE_H
 #define JULIANDATE_H 1
 
-void switchOverCalDate(double *lastJulian, double *firstGregorian);
+void switch_over_calendar_date(double *lastJulian, double *firstGregorian);
 
-double switchOverJD();
+double switch_over_jd();
 
-char *getMonthName(int i);
+char *get_month_name(int i);
 
-char *getWeekDayName(int i);
+char *get_week_day_name(int i);
 
-double julianDay(int year, int month, int day, int hour, int min, int sec, int *status, char *errtext);
+double julian_day(int year, int month, int day, int hour, int min, int sec, int *status, char *err_text);
 
-void invJulianDay(double JD, int *year, int *month, int *day, int *hour, int *min, double *sec, int *status,
-                  char *errtext);
+void inv_julian_day(double jd, int *year, int *month, int *day, int *hour, int *min, double *sec, int *status,
+                    char *err_text);
 
 #endif
 

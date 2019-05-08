@@ -33,35 +33,38 @@ typedef struct videoMetadata {
     double tstart, tstop, fps, lng, lat;
     int width, height, flagGPS, flagUpsideDown, nframe;
     char *obstoryId, *videoDevice, *filename, *maskFile;
-} videoMetadata;
+} video_metadata;
 
-void writeRawVidMetaData(videoMetadata v);
+void write_raw_video_metadata(video_metadata v);
 
-int nearestMultiple(double in, int factor);
+int nearest_multiple(double in, int factor);
 
-void frameInvert(unsigned char *buffer, int len);
+void frame_invert(unsigned char *buffer, int len);
 
-void *videoRecord(struct vdIn *videoIn, double seconds);
+void *video_record(struct vdIn *video_in, double seconds);
 
-void snapshot(struct vdIn *videoIn, int nfr, int zero, double expComp, char *fname, unsigned char *backgroundRaw);
+void snapshot(struct vdIn *video_in, int frame_count, int zero, double exposure_compensation, char *filename, unsigned char *background_raw);
 
-double estimateNoiseLevel(int width, int height, unsigned char *buffer, int Nframes);
+double estimate_noise_level(int width, int height, unsigned char *buffer, int frame_count);
 
-void backgroundCalculate(const int width, const int height, const int channels, const int reductionCycle,
-                     const int NreductionCycles, int *backgroundWorkspace, unsigned char *backgroundMap);
+void background_calculate(const int width, const int height, const int channels, const int reduction_cycle,
+                          const int reduction_cycle_count, int *background_workspace, unsigned char *background_map);
 
-int dumpFrame(int width, int height, int channels, const unsigned char *buffer, char *fName);
+int dump_frame(int width, int height, int channels, const unsigned char *buffer, char *filename);
 
-int dumpFrameFromInts(int width, int height, int channels, const int *buffer, int nfr, int targetBrightness, int *gainOut, char *fName);
+int dump_frame_from_ints(int width, int height, int channels, const int *buffer, int frame_count, int target_brightness,
+                         int *gain_out, char *filename);
 
-int dumpFrameFromISub(int width, int height, int channels, const int *buffer, int nfr, int targetBrightness, int *gainOut,
-                      const unsigned char *buffer2, char *fName);
+int dump_frame_from_int_subtraction(int width, int height, int channels, const int *buffer, int frame_count,
+                                    int target_brightness, int *gain_out,
+                                    const unsigned char *buffer2, char *filename);
 
-FILE *dumpVideoInit(int width, int height, const unsigned char *buffer1, int buffer1frames,
-                    const unsigned char *buffer2, int buffer2frames, char *fName);
+FILE *dump_video_init(int width, int height, const unsigned char *buffer1, int buffer1_frames,
+                      const unsigned char *buffer2, int buffer2_frames, char *filename);
 
-int dumpVideoFrame(int width, int height, const unsigned char *buffer1, int buffer1frames, const unsigned char *buffer2,
-                   int buffer2frames, FILE *outfile, int *framesWritten);
+int dump_video_frame(int width, int height, const unsigned char *buffer1, int buffer1_frames,
+                     const unsigned char *buffer2,
+                     int buffer2_frames, FILE *out_file, int *frames_written);
 
 #endif
 

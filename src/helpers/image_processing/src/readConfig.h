@@ -1,4 +1,4 @@
-// readConfig.h
+// read_config.h
 // Pi Gazing
 // Dominic Ford
 
@@ -26,7 +26,7 @@
 
 #include "settings.h"
 
-int readConfig(char *filename, settings *feed_s, settingsIn *si, settingsIn *s_in_default, int *nImages);
+int read_config(char *filename, settings *feed_s, settingsIn *si, settingsIn *s_in_default, int *nImages);
 
 #endif
 

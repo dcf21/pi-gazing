@@ -221,11 +221,11 @@ char *nextWord(char *in) {
     return (in); /* Return pointer to next word */
 }
 
-/* friendlyTimestring(): Returns pointer to time string */
+/* friendly_time_string(): Returns pointer to time string */
 
 int UTC_OFFSET = 0;
 
-char *friendlyTimestring(int t) {
+char *friendly_time_string(int t) {
     static char output[256];
 
     time_t timenow;
@@ -235,17 +235,17 @@ char *friendlyTimestring(int t) {
     const double JD = timenow / 86400.0 + 2440587.5;
     int year, month, day, hour, min, status;
     double sec;
-    invJulianDay(JD, &year, &month, &day, &hour, &min, &sec, &status,
-                 output); // Subtract 0.5 from Julian Day as we want days to start at noon, not midnight
-    char *mn = getMonthName(month);
+    inv_julian_day(JD, &year, &month, &day, &hour, &min, &sec, &status,
+                   output); // Subtract 0.5 from Julian Day as we want days to start at noon, not midnight
+    char *mn = get_month_name(month);
     sprintf(output, "%c%c%c %02d %04d %02d:%02d:%02d", mn[0], mn[1], mn[2], day, year, hour, min, (int) sec);
 
     return output;
 }
 
-/* strStrip(): Strip whitespace from both ends of a string */
+/* str_strip(): Strip whitespace from both ends of a string */
 
-char *strStrip(const char *in, char *out) {
+char *str_strip(const char *in, char *out) {
     char *scan = out;
     while ((*in <= ' ') && (*in > '\0')) in++;
     while (*in != '\0') *(scan++) = *(in++);
@@ -300,7 +300,7 @@ char *strRemoveCompleteLine(char *in, char *out) {
         while (scan2 < scan)
             *scanout++ = *scan2++; // If one is found, copy up to this point into temporary string processing buffer
     *scanout = '\0';
-    strStrip(out, out); // Strip it, and then this is what we will return
+    str_strip(out, out); // Strip it, and then this is what we will return
 
     if (*scan != '\0') // If we've taken a line out of the buffer, delete it from buffer
     {
@@ -330,7 +330,7 @@ char *strCommaSeparatedListScan(char **inscan, char *out) {
     while ((**inscan != '\0') && (**inscan != ',')) *(outscan++) = *((*inscan)++);
     if (**inscan == ',') (*inscan)++; // Fastforward over comma character
     *outscan = '\0';
-    strStrip(out, out);
+    str_strip(out, out);
     return out;
 }
 
@@ -569,7 +569,7 @@ void readConfig_FetchKey(char *line, char *out) {
     char *scan = out;
     while ((*line != '\0') && ((*(scan) = *(line++)) != '=')) scan++;
     *scan = '\0';
-    strStrip(out, out);
+    str_strip(out, out);
     return;
 }
 
@@ -578,7 +578,7 @@ void readConfig_FetchValue(char *line, char *out) {
     while ((*line != '\0') && (*(line++) != '='));
     while (*line != '\0') *(scan++) = *(line++);
     *scan = '\0';
-    strStrip(out, out);
+    str_strip(out, out);
     return;
 }
 

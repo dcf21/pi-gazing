@@ -94,7 +94,7 @@ int main(int argc, const char **argv) {
     }
 
     // Go through command script line by line
-    if (readConfig(config_filename, feed_s, s_in, &s_in_default, &image_count)) return 1;
+    if (read_config(config_filename, feed_s, s_in, &s_in_default, &image_count)) return 1;
 
     // Malloc output image
     image_alloc(&output_image, feed_s->XSize, feed_s->YSize);

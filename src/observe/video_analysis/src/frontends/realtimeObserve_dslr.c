@@ -54,7 +54,7 @@ extern char *analysisObstoryId;
 int utcoffset;
 
 int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc) {
-    const videoMetadata *vmd = videoHandle;
+    const video_metadata *vmd = videoHandle;
     const int frameSize = vmd->width * vmd->height;
 
     // Assuming we want to keep a regular number of FPS, when should we deliver this frame by?
@@ -150,10 +150,8 @@ int main(int argc, char *argv[]) {
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
-    videoMetadata vmd;
+    video_metadata vmd;
 
-    const double utcoffset = getFloat(argv[1], NULL);
-    UTC_OFFSET = (int)utcoffset;
     vmd.tstart = getFloat(argv[2], NULL);
     vmd.tstop = getFloat(argv[3], NULL);
     vmd.nframe = 0;
@@ -180,8 +178,8 @@ int main(int argc, char *argv[]) {
     fillPolygonsFromFile(maskfile, mask, vmd.width, vmd.height);
     fclose(maskfile);
 
-    observe((void *) &vmd, vmd.obstoryId, utcoffset, vmd.tstart, vmd.tstop, vmd.width, vmd.height, vmd.fps, "live",
-            mask, Nchannels, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP,
+    observe((void *) &vmd, vmd.obstoryId, vmd.tstart, vmd.tstop, vmd.width, vmd.height, vmd.fps, "live",
+            mask, CHANNEL_COUNT, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP,
             TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE,
             TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, backgroundMapUseEveryNthStack, backgroundMapUseNImages,
             backgroundMapReductionCycles, &fetchFrame, &rewindVideo);

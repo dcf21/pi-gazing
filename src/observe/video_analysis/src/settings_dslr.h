@@ -26,17 +26,22 @@
 #ifndef _SETTINGS2_H
 #define _SETTINGS2_H 1
 
-// Define the device from which to capture video, and the resolution and frame-rate we expect from it
-// These parameters affect test bench routines such as vidRec and snapshot. Main observe process overrides these with data passed on the command line
+// Define the device from which to capture video, and the resolution and frame-rate we expect from it.
+// These parameters affect test bench routines such as vidRec and snapshot. Main observe process overrides these with
+// data passed on the command line
 
 #define VIDEO_WIDTH  800
 #define VIDEO_HEIGHT 600
 #define VIDEO_FPS    0.125
-#define VIDEO_UPSIDE_DOWN 0 /* If this flag is set, we assume the camera is mounted upside down. Video is flipped before analysis. */
 
-#define Nchannels ( GREYSCALE_IMAGING ? 1 : 3 ) /* Number of colour channels to process. *Much* faster to process only one */
+// If this flag is set, we assume the camera is mounted upside down. Video is flipped before analysis.
+#define VIDEO_UPSIDE_DOWN 0
 
-// This is the mean pixel brightness that we aim for in output images, applying whatever automatic gain is needed to get there
+// Number of colour channels to process. *Much* faster to process only one
+#define CHANNEL_COUNT ( GREYSCALE_IMAGING ? 1 : 3 )
+
+// This is the mean pixel brightness that we aim for in output images, applying whatever automatic gain is needed to
+// get there.
 
 #define STACK_TARGET_BRIGHTNESS  32
 
@@ -50,7 +55,8 @@
 #define TRIGGER_SUFFIX_TIME   16  /* include N seconds of video after trigger has gone away */
 #define TRIGGER_FRAMEGROUP     1  /* triggering is calculated on the basis of stacked groups of frames of this length */
 
-#define STACK_COMPARISON_INTERVAL 1 /* Compare stacked groups of frames that are two stacks apart; makes us more sensitive to slow-moving things */
+// Compare stacked groups of frames that are two stacks apart; makes us more sensitive to slow-moving things.
+#define STACK_COMPARISON_INTERVAL 1
 
 // Timelapse
 #define TIMELAPSE_EXPOSURE 32 /* Exposure length for timelapse photography */

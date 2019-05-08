@@ -153,7 +153,7 @@ void logging_info(char *msg) {
     }
 
     if (msg != temp_string_d) strcpy(temp_string_d, msg);
-    fprintf(logfile, "[%s c ] %s\n", strStrip(friendlyTimestring(0), linebuffer), temp_string_d);
+    fprintf(logfile, "[%s c ] %s\n", str_strip(friendly_time_string(0), linebuffer), temp_string_d);
     fflush(logfile);
     latch = 0;
     return;

@@ -635,7 +635,7 @@ int main(int argc, char **argv) {
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
-    videoMetadata vmd;
+    video_metadata vmd;
 
     const double utcoffset = getFloat(argv[1], NULL);
     UTC_OFFSET = utcoffset;
@@ -658,11 +658,12 @@ int main(int argc, char **argv) {
     sprintf(frOut, "%s.h264", vmd.filename);
 
     if (DEBUG) {
-        sprintf(line, "Starting video recording run at %s.", strStrip(friendlyTimestring(vmd.tstart), temp_err_string));
+        sprintf(line, "Starting video recording run at %s.",
+                str_strip(friendly_time_string(vmd.tstart), temp_err_string));
         logging_info(line);
     }
     if (DEBUG) {
-        sprintf(line, "Video will end at %s.", strStrip(friendlyTimestring(vmd.tstop), temp_err_string));
+        sprintf(line, "Video will end at %s.", str_strip(friendly_time_string(vmd.tstop), temp_err_string));
         logging_info(line);
     }
 
@@ -670,7 +671,7 @@ int main(int argc, char **argv) {
 
     struct vdIn *videoIn;
 
-    const float fps = nearestMultiple(vmd.fps, 1);       // Requested frame rate
+    const float fps = nearest_multiple(vmd.fps, 1);       // Requested frame rate
     const int v4l_format = V4L2_PIX_FMT_YUYV;
     const int grabmethod = 1;
     char *avifilename = "/tmp/foo";
@@ -684,7 +685,7 @@ int main(int argc, char **argv) {
     const int height = videoIn->height;
     vmd.width = width;
     vmd.height = height;
-    writeRawVidMetaData(vmd);
+    write_raw_video_metadata(vmd);
 
     // Initialise H264 encoder
     bcm_host_init();
@@ -985,7 +986,7 @@ int main(int argc, char **argv) {
 
     vmd.nframe = frame_in;
     vmd.tstop = time(NULL) + utcoffset;
-    writeRawVidMetaData(vmd);
+    write_raw_video_metadata(vmd);
     say("Exit!");
 
     return 0;

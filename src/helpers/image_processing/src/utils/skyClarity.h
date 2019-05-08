@@ -26,7 +26,7 @@
 
 #include "png/image.h"
 
-double calculateSkyClarity(image_ptr *img, double noiseLevel);
+double calculate_sky_clarity(image_ptr *image, double noise_level);
 
 #endif
 

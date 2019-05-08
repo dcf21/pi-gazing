@@ -41,22 +41,23 @@
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
 // Used by testTrigger. When blocks idOld and idNew are determined to be connected, their pixels counts are added together.
-inline void triggerBlocksMerge(observeStatus *os, int idOld, int idNew) {
-    while (os->triggerBlock_redirect[idOld] > 0) idOld = os->triggerBlock_redirect[idOld];
-    while (os->triggerBlock_redirect[idNew] > 0) idNew = os->triggerBlock_redirect[idNew];
-    if (idOld == idNew) return;
-    os->triggerBlock_N[idNew] += os->triggerBlock_N[idOld];
-    os->triggerBlock_top[idNew] = MIN(os->triggerBlock_top[idNew], os->triggerBlock_top[idOld]);
-    os->triggerBlock_bot[idNew] = MAX(os->triggerBlock_bot[idNew], os->triggerBlock_bot[idOld]);
-    os->triggerBlock_sumx[idNew] += os->triggerBlock_sumx[idOld];
-    os->triggerBlock_sumy[idNew] += os->triggerBlock_sumy[idOld];
-    os->triggerBlock_suml[idNew] += os->triggerBlock_suml[idOld];
-    os->triggerBlock_N[idOld] = 0;
-    os->triggerBlock_redirect[idOld] = idNew;
+inline void trigger_blocks_merge(observe_status *os, int id_old, int id_new) {
+    while (os->trigger_block_redirect[id_old] > 0) id_old = os->trigger_block_redirect[id_old];
+    while (os->trigger_block_redirect[id_new] > 0) id_new = os->trigger_block_redirect[id_new];
+    if (id_old == id_new) return;
+    os->trigger_block_count[id_new] += os->trigger_block_count[id_old];
+    os->trigger_block_top[id_new] = MIN(os->trigger_block_top[id_new], os->trigger_block_top[id_old]);
+    os->trigger_block_bot[id_new] = MAX(os->trigger_block_bot[id_new], os->trigger_block_bot[id_old]);
+    os->trigger_block_sumx[id_new] += os->trigger_block_sumx[id_old];
+    os->trigger_block_sumy[id_new] += os->trigger_block_sumy[id_old];
+    os->trigger_block_suml[id_new] += os->trigger_block_suml[id_old];
+    os->trigger_block_count[id_old] = 0;
+    os->trigger_block_redirect[id_old] = id_new;
     return;
 }
 
-static inline int testPixel(observeStatus *os, const int *image1, const int *image2, const int o, const int threshold) {
+static inline int
+test_pixel(observe_status *os, const int *image1, const int *image2, const int o, const int threshold) {
     const int radius = 16; // Pixel must be brighter than test pixels this distance away
     if (image1[o] - image2[o] >
         threshold) // Search for pixels which have brightened by more than threshold since past image
@@ -77,139 +78,140 @@ static inline int testPixel(observeStatus *os, const int *image1, const int *ima
 }
 
 // Test stacked images B and A, to see if pixels have brightened in B versus A. Image arrays contain the sum of <coAddedFrames> frames.
-int checkForTriggers(observeStatus *os, const int *image1, const int *image2, const int coAddedFrames) {
+int check_for_triggers(observe_status *os, const int *image1, const int *image2, const int coadded_frames) {
     int y;
     int output = 0;
 
     const int margin = 20; // Ignore pixels within this distance of the edge
     const int threshold_blockSize = 7; // To trigger this number of pixels connected together must have brightened
     const int threshold_intensity =
-            110 * os->noiseLevel * sqrt(coAddedFrames); // Total brightness excess must be 110 standard deviations
-    const int thresholdTrigger = MAX(1, 3.5 * os->noiseLevel *
-                                        sqrt(coAddedFrames)); // Pixel must have brightened by at least N standard deviations to trigger
-    const int thresholdMonitor = MAX(1, 2.0 * os->noiseLevel *
-                                        sqrt(coAddedFrames)); // Monitor and flag pixels which brighten by this amount
-    unsigned char *triggerR = os->triggerRGB;
-    unsigned char *triggerG = os->triggerRGB + os->frameSize *
-                                               1; // These arrays are used to produce diagnostic images when the camera triggers
-    unsigned char *triggerB = os->triggerRGB + os->frameSize * 2;
-    memset(os->triggerMap, 0, os->frameSize * sizeof(int));
-    os->Nblocks = 0;
+            110 * os->noise_level * sqrt(coadded_frames); // Total brightness excess must be 110 standard deviations
+    const int threshold_trigger = MAX(1, 3.5 * os->noise_level *
+                                         sqrt(coadded_frames)); // Pixel must have brightened by at least N standard deviations to trigger
+    const int threshold_monitor = MAX(1, 2.0 * os->noise_level *
+                                         sqrt(coadded_frames)); // Monitor and flag pixels which brighten by this amount
+    unsigned char *trigger_r = os->trigger_rgb;
+    unsigned char *trigger_g = os->trigger_rgb + os->frame_size *
+                                                 1; // These arrays are used to produce diagnostic images when the camera triggers
+    unsigned char *trigger_b = os->trigger_rgb + os->frame_size * 2;
+    memset(os->trigger_map, 0, os->frame_size * sizeof(int));
+    os->block_count = 0;
 
-    static unsigned long long pastTriggerMapAverage = 1;
-    unsigned int nPixelsWithinMask = 1;
-    unsigned long long pastTriggerMapAverageNew = 0;
+    static unsigned long long past_trigger_map_average = 1;
+    unsigned int pixel_count_within_mask = 1;
+    unsigned long long past_trigger_map_average_new = 0;
 
 #pragma omp parallel for private(y)
     for (y = margin; y < os->height - margin; y++) {
         int x, d;
-        int triggerMap_linesum = 0, nPixelsWithinMask_linesum = 0;
+        int trigger_map_line_sum = 0, pixel_count_within_mask_line_sum = 0;
         for (x = margin; x < os->width - margin; x++) {
             const int o = x + y * os->width;
-            triggerMap_linesum += os->pastTriggerMap[o];
-            if (os->mask[o]) nPixelsWithinMask_linesum++;
-            triggerR[o] = CLIP256(
-                    (image1[o] - image2[o]) * 64 / thresholdTrigger); // RED channel - difference between images B and A
-            triggerG[o] = CLIP256(os->pastTriggerMap[o] * 256 / (2.3 *
-                                                                 pastTriggerMapAverage)); // GRN channel - map of pixels which are excluded for triggering too often
-            triggerB[o] = 0;
-            if ((os->mask[o]) && testPixel(os, image1, image2, o, thresholdMonitor)) {
-                os->pastTriggerMap[o]++;
-                if (testPixel(os, image1, image2, o,
-                              thresholdTrigger)) // Search for pixels which have brightened by more than threshold since past image
+            trigger_map_line_sum += os->past_trigger_map[o];
+            if (os->mask[o]) pixel_count_within_mask_line_sum++;
+            trigger_r[o] = CLIP256(
+                    (image1[o] - image2[o]) * 64 /
+                    threshold_trigger); // RED channel - difference between images B and A
+            trigger_g[o] = CLIP256(os->past_trigger_map[o] * 256 / (2.3 *
+                                                                    past_trigger_map_average)); // GRN channel - map of pixels which are excluded for triggering too often
+            trigger_b[o] = 0;
+            if ((os->mask[o]) && test_pixel(os, image1, image2, o, threshold_monitor)) {
+                os->past_trigger_map[o]++;
+                if (test_pixel(os, image1, image2, o,
+                               threshold_trigger)) // Search for pixels which have brightened by more than threshold since past image
                 {
-                    os->pastTriggerMap[o]++;
+                    os->past_trigger_map[o]++;
 #pragma omp critical (add_trigger)
                     {
                         // Put triggering pixel on map. Wait till be have <Npixels> connected pixels.
-                        triggerB[o] = (os->pastTriggerMap[o] < 3 * pastTriggerMapAverage) ? 63 : 31;
-                        int blockId = 0;
-                        if (os->triggerMap[o - 1]) {
-                            if (!blockId) {
-                                blockId = os->triggerMap[o - 1];
-                            } else { triggerBlocksMerge(os, os->triggerMap[o - 1], blockId); }
+                        trigger_b[o] = (os->past_trigger_map[o] < 3 * past_trigger_map_average) ? 63 : 31;
+                        int block_id = 0;
+                        if (os->trigger_map[o - 1]) {
+                            if (!block_id) {
+                                block_id = os->trigger_map[o - 1];
+                            } else { trigger_blocks_merge(os, os->trigger_map[o - 1], block_id); }
                         }
-                        if (os->triggerMap[o + 1 - os->width]) {
-                            if (!blockId) {
-                                blockId = os->triggerMap[o + 1 - os->width];
-                            } else { triggerBlocksMerge(os, os->triggerMap[o + 1 - os->width], blockId); }
+                        if (os->trigger_map[o + 1 - os->width]) {
+                            if (!block_id) {
+                                block_id = os->trigger_map[o + 1 - os->width];
+                            } else { trigger_blocks_merge(os, os->trigger_map[o + 1 - os->width], block_id); }
                         }
-                        if (os->triggerMap[o - os->width]) {
-                            if (!blockId) {
-                                blockId = os->triggerMap[o - os->width];
-                            } else { triggerBlocksMerge(os, os->triggerMap[o - os->width], blockId); }
+                        if (os->trigger_map[o - os->width]) {
+                            if (!block_id) {
+                                block_id = os->trigger_map[o - os->width];
+                            } else { trigger_blocks_merge(os, os->trigger_map[o - os->width], block_id); }
                         }
-                        if (os->triggerMap[o - 1 - os->width]) {
-                            if (!blockId) {
-                                blockId = os->triggerMap[o - 1 - os->width];
-                            } else { triggerBlocksMerge(os, os->triggerMap[o - 1 - os->width], blockId); }
+                        if (os->trigger_map[o - 1 - os->width]) {
+                            if (!block_id) {
+                                block_id = os->trigger_map[o - 1 - os->width];
+                            } else { trigger_blocks_merge(os, os->trigger_map[o - 1 - os->width], block_id); }
                         }
-                        if (os->triggerMap[o + 1 + os->width]) {
-                            if (!blockId) {
-                                blockId = os->triggerMap[o + 1 + os->width];
-                            } else { triggerBlocksMerge(os, os->triggerMap[o + 1 + os->width], blockId); }
+                        if (os->trigger_map[o + 1 + os->width]) {
+                            if (!block_id) {
+                                block_id = os->trigger_map[o + 1 + os->width];
+                            } else { trigger_blocks_merge(os, os->trigger_map[o + 1 + os->width], block_id); }
                         }
-                        if (os->triggerMap[o + os->width]) {
-                            if (!blockId) {
-                                blockId = os->triggerMap[o + os->width];
-                            } else { triggerBlocksMerge(os, os->triggerMap[o + os->width], blockId); }
+                        if (os->trigger_map[o + os->width]) {
+                            if (!block_id) {
+                                block_id = os->trigger_map[o + os->width];
+                            } else { trigger_blocks_merge(os, os->trigger_map[o + os->width], block_id); }
                         }
-                        if (os->triggerMap[o - 1 + os->width]) {
-                            if (!blockId) {
-                                blockId = os->triggerMap[o - 1 + os->width];
-                            } else { triggerBlocksMerge(os, os->triggerMap[o - 1 + os->width], blockId); }
+                        if (os->trigger_map[o - 1 + os->width]) {
+                            if (!block_id) {
+                                block_id = os->trigger_map[o - 1 + os->width];
+                            } else { trigger_blocks_merge(os, os->trigger_map[o - 1 + os->width], block_id); }
                         }
-                        while (blockId && (os->triggerBlock_redirect[blockId] > 0))
-                            blockId = os->triggerBlock_redirect[blockId];
-                        if (blockId == 0) {
-                            if (os->Nblocks < MAX_TRIGGER_BLOCKS - 1) os->Nblocks++;
-                            blockId = os->Nblocks;
-                            os->triggerBlock_N[blockId] = 0;
-                            os->triggerBlock_sumx[blockId] = 0;
-                            os->triggerBlock_sumy[blockId] = 0;
-                            os->triggerBlock_suml[blockId] = 0;
-                            os->triggerBlock_top[blockId] = y;
-                            os->triggerBlock_bot[blockId] = y;
-                            os->triggerBlock_redirect[blockId] = 0;
+                        while (block_id && (os->trigger_block_redirect[block_id] > 0))
+                            block_id = os->trigger_block_redirect[block_id];
+                        if (block_id == 0) {
+                            if (os->block_count < MAX_TRIGGER_BLOCKS - 1) os->block_count++;
+                            block_id = os->block_count;
+                            os->trigger_block_count[block_id] = 0;
+                            os->trigger_block_sumx[block_id] = 0;
+                            os->trigger_block_sumy[block_id] = 0;
+                            os->trigger_block_suml[block_id] = 0;
+                            os->trigger_block_top[block_id] = y;
+                            os->trigger_block_bot[block_id] = y;
+                            os->trigger_block_redirect[block_id] = 0;
                         }
 
-                        if (os->pastTriggerMap[o] < 2.3 * pastTriggerMapAverage) {
-                            os->triggerBlock_N[blockId]++;
-                            os->triggerBlock_top[blockId] = MIN(os->triggerBlock_top[blockId], y);
-                            os->triggerBlock_bot[blockId] = MAX(os->triggerBlock_bot[blockId], y);
-                            os->triggerBlock_sumx[blockId] += x;
-                            os->triggerBlock_sumy[blockId] += y;
-                            os->triggerBlock_suml[blockId] += image1[o] - image2[o];
+                        if (os->past_trigger_map[o] < 2.3 * past_trigger_map_average) {
+                            os->trigger_block_count[block_id]++;
+                            os->trigger_block_top[block_id] = MIN(os->trigger_block_top[block_id], y);
+                            os->trigger_block_bot[block_id] = MAX(os->trigger_block_bot[block_id], y);
+                            os->trigger_block_sumx[block_id] += x;
+                            os->trigger_block_sumy[block_id] += y;
+                            os->trigger_block_suml[block_id] += image1[o] - image2[o];
                         }
-                        os->triggerMap[o] = blockId;
+                        os->trigger_map[o] = block_id;
                     }
                 }
             }
         }
 #pragma omp critical (trigger_cleanup)
         {
-            pastTriggerMapAverageNew += triggerMap_linesum;
-            nPixelsWithinMask += nPixelsWithinMask_linesum;
+            past_trigger_map_average_new += trigger_map_line_sum;
+            pixel_count_within_mask += pixel_count_within_mask_line_sum;
         }
     }
 
     // Loop over blocks of pixels which have brightened and see if any are large enough to be interesting
     int i;
-    for (i = 1; i <= os->Nblocks; i++) {
+    for (i = 1; i <= os->block_count; i++) {
         if (i == MAX_TRIGGER_BLOCKS - 1) break;
-        if ((os->triggerBlock_suml[i] > threshold_intensity) &&
-            (os->triggerBlock_N[i] > threshold_blockSize) &&
-            (os->triggerBlock_bot[i] - os->triggerBlock_top[i] >= 2)
+        if ((os->trigger_block_suml[i] > threshold_intensity) &&
+            (os->trigger_block_count[i] > threshold_blockSize) &&
+            (os->trigger_block_bot[i] - os->trigger_block_top[i] >= 2)
                 ) {
-            const int n = os->triggerBlock_N[i];
-            const int x = (os->triggerBlock_sumx[i] / n); // average x position of moving object
-            const int y = (os->triggerBlock_sumy[i] / n); // average y position of moving object
-            const int l = os->triggerBlock_suml[i] / coAddedFrames; // total excess brightness
+            const int n = os->trigger_block_count[i];
+            const int x = (os->trigger_block_sumx[i] / n); // average x position of moving object
+            const int y = (os->trigger_block_sumy[i] / n); // average y position of moving object
+            const int l = os->trigger_block_suml[i] / coadded_frames; // total excess brightness
             output = 1; // We have triggered!
-            registerTrigger(os, i, x, y, n, l, image1, image2, coAddedFrames);
+            register_trigger(os, i, x, y, n, l, image1, image2, coadded_frames);
         }
     }
-    pastTriggerMapAverage = pastTriggerMapAverageNew / nPixelsWithinMask + 1;
+    past_trigger_map_average = past_trigger_map_average_new / pixel_count_within_mask + 1;
     return output;
 }
 
