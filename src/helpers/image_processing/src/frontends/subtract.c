@@ -30,123 +30,103 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
 
-#include "asciiDouble.h"
-#include "error.h"
+#include "argparse/argparse.h"
+
+#include "utils/asciiDouble.h"
+#include "utils/error.h"
 #include "gnomonic.h"
 #include "imageProcess.h"
-#include "image.h"
+#include "png/image.h"
 #include "readConfig.h"
 #include "settings.h"
 #include "str_constants.h"
 #include "backgroundSub.h"
 
 static const char *const usage[] = {
-    "subtract [options] [[--] args]",
-    "subtract [options]",
-    NULL,
+        "subtract [options] [[--] args]",
+        "subtract [options]",
+        NULL,
 };
 
-int main(int argc, char **argv) {
-    char help_string[LSTR_LENGTH], version_string[FNAME_LENGTH], version_string_underline[FNAME_LENGTH];
-    char *filename[3];
-    int i, haveFilename = 0;
+int main(int argc, const char **argv) {
+    int i;
     settingsIn s_in_default;
-    image_ptr outputImage;
+    image_ptr input_image_1, input_image_2;
+    image_ptr output_image;
 
     // Initialise sub-modules
-    if (DEBUG) gnom_log("Initialising image subtractor.");
+    if (DEBUG) logging_info("Initialising image subtract tool.");
 
     // Turn off GSL's automatic error handler
     gsl_set_error_handler_off();
 
-    // Make help and version strings
-    sprintf(version_string, "Image Subtractor %s", VERSION);
+    // Scan commandline options for any switches
+    char input_filename_1[FNAME_LENGTH] = "\0";
+    char input_filename_2[FNAME_LENGTH] = "\0";
+    char output_filename[FNAME_LENGTH] = "\0";
 
-    sprintf(help_string, "Image Subtractor %s\n\
-%s\n\
-\n\
-Usage: subtract.bin <filename1> <filename2> <output filename>\n\
-  -h, --help:       Display this help.\n\
-  -v, --version:    Display version number.", VERSION, strUnderline(version_string, version_string_underline));
+    // Turn off GSL's automatic error handler
+    gsl_set_error_handler_off();
 
     // Scan commandline options for any switches
-    haveFilename = 0;
-    for (i = 1; i < argc; i++) {
-        if (strlen(argv[i]) == 0) continue;
-        if (argv[i][0] != '-') {
-            if (haveFilename > 2) {
-                sprintf(temp_err_string,
-                        "subtract.bin should be provided with three filenames on the command line to act upon. Too many filenames appear to have been supplied. Type 'subtract.bin -help' for a list of available commandline options.");
-                gnom_error(ERR_GENERAL, temp_err_string);
-                return 1;
-            }
-            filename[haveFilename] = argv[i];
-            haveFilename++;
-            continue;
+    struct argparse_option options[] = {
+            OPT_HELP(),
+            OPT_GROUP("Basic options"),
+            OPT_STRING('a', "input1", &input_filename_1, "input filename 1"),
+            OPT_STRING('b', "input2", &input_filename_2, "input filename 2"),
+            OPT_STRING('o', "output", &output_filename, "output filename"),
+            OPT_END(),
+    };
+
+    struct argparse argparse;
+    argparse_init(&argparse, options, usage, 0);
+    argparse_describe(&argparse,
+                      "\nSubtract the contents of one PNG file from another.",
+                      "\n");
+    argc = argparse_parse(&argparse, argc, argv);
+
+    if (argc != 0) {
+        int i;
+        for (i = 0; i < argc; i++) {
+            printf("Error: unparsed argument <%s>\n", *(argv + i));
         }
-        if ((strcmp(argv[i], "-v") == 0) || (strcmp(argv[i], "-version") == 0) || (strcmp(argv[i], "--version") == 0)) {
-            gnom_report(version_string);
-            return 0;
-        } else if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "-help") == 0) ||
-                   (strcmp(argv[i], "--help") == 0)) {
-            gnom_report(help_string);
-            return 0;
-        } else {
-            sprintf(temp_err_string,
-                    "Received switch '%s' which was not recognised.\nType 'subtract.bin -help' for a list of available commandline options.",
-                    argv[i]);
-            gnom_error(ERR_GENERAL, temp_err_string);
-            return 1;
-        }
+        logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
-    // Check that we have been provided with exactly one filename on the command line
-    if (haveFilename < 3) {
-        sprintf(temp_err_string,
-                "subtract.bin should be provided with three filenames on the command line to act upon. Type 'subtract.bin -help' for a list of available commandline options.");
-        gnom_error(ERR_GENERAL, temp_err_string);
-        return 1;
-    }
+    // Read image
+    strcpy(s_in_default.InFName, input_filename_1);
+    input_image_1 = image_get(input_filename_1);
+    if (input_image_1.data_red == NULL) logging_fatal(__FILE__, __LINE__, "Could not read input image file 1");
 
-    {
-        image_ptr InputImage1, InputImage2;
+    strcpy(s_in_default.InFName, input_filename_2);
+    input_image_2 = image_get(input_filename_2);
+    if (input_image_2.data_red == NULL) logging_fatal(__FILE__, __LINE__, "Could not read input image file 2");
 
-        // Read image
-        strcpy(s_in_default.InFName, filename[0]);
-        InputImage1 = image_get(filename[0]);
-        if (InputImage1.data_red == NULL) gnom_fatal(__FILE__, __LINE__, "Could not read input image file 1");
+    if (input_image_1.xsize != input_image_2.xsize)
+        logging_fatal(__FILE__, __LINE__, "Images must have the same dimensions");
+    if (input_image_1.ysize != input_image_2.ysize)
+        logging_fatal(__FILE__, __LINE__, "Images must have the same dimensions");
 
-        strcpy(s_in_default.InFName, filename[1]);
-        InputImage2 = image_get(filename[1]);
-        if (InputImage2.data_red == NULL) gnom_fatal(__FILE__, __LINE__, "Could not read input image file 2");
+    // Malloc output image
+    image_alloc(&output_image, input_image_1.xsize, input_image_1.ysize);
 
-        if (InputImage1.xsize != InputImage2.xsize)
-            gnom_fatal(__FILE__, __LINE__, "Images must have the same dimensions");
-        if (InputImage1.ysize != InputImage2.ysize)
-            gnom_fatal(__FILE__, __LINE__, "Images must have the same dimensions");
-
-        // Malloc output image
-        image_alloc(&outputImage, InputImage1.xsize, InputImage1.ysize);
-
-        // Process image
+    // Process image
 #define CLIPCHAR(color) (unsigned char)(((color)>0xFF)?0xff:(((color)<0)?0:(color)))
-        for (i = 0; i < InputImage1.xsize * InputImage1.ysize; i++)
-            outputImage.data_red[i] = CLIPCHAR(InputImage1.data_red[i] - InputImage2.data_red[i] + 2);
-        for (i = 0; i < InputImage1.xsize * InputImage1.ysize; i++)
-            outputImage.data_grn[i] = CLIPCHAR(InputImage1.data_grn[i] - InputImage2.data_grn[i] + 2);
-        for (i = 0; i < InputImage1.xsize * InputImage1.ysize; i++)
-            outputImage.data_blu[i] = CLIPCHAR(InputImage1.data_blu[i] - InputImage2.data_blu[i] + 2);
+    for (i = 0; i < input_image_1.xsize * input_image_1.ysize; i++)
+        output_image.data_red[i] = CLIPCHAR(input_image_1.data_red[i] - input_image_2.data_red[i] + 2);
+    for (i = 0; i < input_image_1.xsize * input_image_1.ysize; i++)
+        output_image.data_grn[i] = CLIPCHAR(input_image_1.data_grn[i] - input_image_2.data_grn[i] + 2);
+    for (i = 0; i < input_image_1.xsize * input_image_1.ysize; i++)
+        output_image.data_blu[i] = CLIPCHAR(input_image_1.data_blu[i] - input_image_2.data_blu[i] + 2);
 
-        // Free image
-        image_dealloc(&InputImage1);
-        image_dealloc(&InputImage2);
-    }
+    // Free image
+    image_dealloc(&input_image_1);
+    image_dealloc(&input_image_2);
 
     // Write image
-    image_put(filename[2], outputImage, 0);
-    image_dealloc(&outputImage);
+    image_put(output_filename, output_image, 0);
+    image_dealloc(&output_image);
 
-    if (DEBUG) gnom_log("Terminating normally.");
+    if (DEBUG) logging_info("Terminating normally.");
     return 0;
 }
-

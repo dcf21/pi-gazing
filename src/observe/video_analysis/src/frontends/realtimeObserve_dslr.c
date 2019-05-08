@@ -39,6 +39,7 @@
 
 #include "jpeg/jpeg.h"
 
+#include "str_constants.h"
 #include "settings.h"
 #include "settings_dslr.h"
 
@@ -146,7 +147,7 @@ int main(int argc, char *argv[]) {
     if (argc != 15) {
         sprintf(temp_err_string,
                 "ERROR: Command line syntax is:\n\n observe <UTC clock offset> <UTC start> <UTC stop> <obstoryId> <video device> <width> <height> <fps> <mask> <lat> <long> <flagGPS> <flagUpsideDown> <output filename>\n\ne.g.:\n\n observe 0 1428162067 1428165667 1 /dev/video0 720 480 24.71 mask.txt 52.2 0.12 0 1 output.h264\n");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     videoMetadata vmd;
@@ -175,7 +176,7 @@ int main(int argc, char *argv[]) {
     // Fetch the dimensions of the video stream as returned by V4L (which may differ from what we requested)
     unsigned char *mask = malloc((size_t)(vmd.width * vmd.height));
     FILE *maskfile = fopen(vmd.maskFile, "r");
-    if (!maskfile) { gnom_fatal(__FILE__, __LINE__, "mask file could not be opened"); }
+    if (!maskfile) { logging_fatal(__FILE__, __LINE__, "mask file could not be opened"); }
     fillPolygonsFromFile(maskfile, mask, vmd.width, vmd.height);
     fclose(maskfile);
 

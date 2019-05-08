@@ -35,7 +35,7 @@
 #define VIDEO_FPS    24.71 /* Empirically determined */
 #define VIDEO_UPSIDE_DOWN 0 /* If this flag is set, we assume the camera is mounted upside down. Video is flipped before analysis. */
 
-#define Nchannels ( ALLDATAMONO ? 1 : 3 ) /* Number of colour channels to process. *Much* faster to process only one */
+#define Nchannels ( GREYSCALE_IMAGING ? 1 : 3 ) /* Number of colour channels to process. *Much* faster to process only one */
 
 // This is the mean pixel brightness that we aim for in output images, applying whatever automatic gain is needed to get there
 

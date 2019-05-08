@@ -30,10 +30,7 @@
 #define OUTPUT_PATH  SRCDIR "/../../../../datadir"
 
 // Are we working with greyscale images, or three colour channels?
-#define ALLDATAMONO 1
-
-// Size of buffer used for storing filenames
-#define FNAME_BUFFER 4096
+#define GREYSCALE_IMAGING 1
 
 #endif
 

@@ -24,10 +24,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "png/image.h"
-#include "utils/error.h"
-
-#include "settings.h"
 
 #include <stdarg.h>
 #include <string.h>
@@ -39,34 +35,55 @@
 #include <libavutil/mathematics.h>
 #include <x264.h>
 
+#include "argparse/argparse.h"
+#include "png/image.h"
+#include "utils/error.h"
+#include "settings.h"
+
 #define VIDEO_FPS 25
 
-int nearestMultiple(double in, int factor) {
+int nearest_multiple(double in, int factor) {
     return (int) (round(in / factor) * factor);
 }
 
 static const char *const usage[] = {
-    "rawvid2mp4_libav [options] [[--] args]",
-    "rawvid2mp4_libav [options]",
-    NULL,
+        "rawvid2mp4_libav [options] [[--] args]",
+        "rawvid2mp4_libav [options]",
+        NULL,
 };
 
-int main(int argc, char **argv) {
+int main(int argc, const char **argv) {
     // Read commandline switches
+    char input_filename[FNAME_LENGTH] = "\0";
+    char output_filename[FNAME_LENGTH] = "\0";
 
-    if (argc != 3) {
-        sprintf(temp_err_string,
-                "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'rawvid2mp4_libav foo.raw frame.mp4'.");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+    struct argparse_option arg_options[] = {
+            OPT_HELP(),
+            OPT_GROUP("Basic options"),
+            OPT_STRING('i', "input", &input_filename, "input filename"),
+            OPT_STRING('o', "output", &output_filename, "output filename"),
+            OPT_END(),
+    };
+
+    struct argparse argparse;
+    argparse_init(&argparse, arg_options, usage, 0);
+    argparse_describe(&argparse,
+                      "\nConvert raw video files into MP4 format using libav.",
+                      "\n");
+    argc = argparse_parse(&argparse, argc, argv);
+
+    if (argc != 0) {
+        int i;
+        for (i = 0; i < argc; i++) {
+            printf("Error: unparsed argument <%s>\n", *(argv + i));
+        }
+        logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
-    char *rawFname = argv[1];
-    char *frOut = argv[2];
-
     FILE *infile;
-    if ((infile = fopen(rawFname, "rb")) == NULL) {
-        sprintf(temp_err_string, "ERROR: Cannot open output raw video file %s.\n", rawFname);
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+    if ((infile = fopen(input_filename, "rb")) == NULL) {
+        sprintf(temp_err_string, "ERROR: Cannot open output raw video file %s.\n", input_filename);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     int size, width, height, i, got_packet_ptr;
@@ -75,17 +92,17 @@ int main(int argc, char **argv) {
     i = fread(&height, sizeof(int), 1, infile);
 
     size -= 3 * sizeof(int);
-    unsigned char *vidRaw = malloc(size);
-    if (vidRaw == NULL) {
+    unsigned char *video_raw = malloc(size);
+    if (video_raw == NULL) {
         sprintf(temp_err_string, "ERROR: malloc fail");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
-    i = fread(vidRaw, 1, size, infile);
+    i = fread(video_raw, 1, size, infile);
     fclose(infile);
 
-    const int imageSize = width * height;
-    const int frameSize = width * height * 3 / 2;
-    const int nfr = size / frameSize;
+    const int image_size = width * height;
+    const int frame_size = width * height * 3 / 2;
+    const int frame_count = size / frame_size;
 
     // Init context
     av_register_all();
@@ -102,14 +119,14 @@ int main(int argc, char **argv) {
     AVFormatContext *outContainer = avformat_alloc_context();
     outContainer->oformat = av_guess_format("mp4", NULL, NULL);
     outContainer->oformat->video_codec = AV_CODEC_ID_H264;
-    snprintf(outContainer->filename, sizeof(outContainer->filename), "%s", frOut);
+    snprintf(outContainer->filename, sizeof(outContainer->filename), "%s", output_filename);
 
     codecEncode = avcodec_find_encoder(outContainer->oformat->video_codec);
-    if (!codecEncode) { gnom_fatal(__FILE__, __LINE__, "codec not found"); }
+    if (!codecEncode) { logging_fatal(__FILE__, __LINE__, "codec not found"); }
 
     AVStream *video_avstream = avformat_new_stream(outContainer, codecEncode);
-    if (!video_avstream) { gnom_fatal(__FILE__, __LINE__, "Could not alloc stream"); }
-    if (video_avstream->codec == NULL) { gnom_fatal(__FILE__, __LINE__, "AVStream codec is NULL"); }
+    if (!video_avstream) { logging_fatal(__FILE__, __LINE__, "Could not alloc stream"); }
+    if (video_avstream->codec == NULL) { logging_fatal(__FILE__, __LINE__, "AVStream codec is NULL"); }
 
     ctxEncode = video_avstream->codec;
 
@@ -137,42 +154,42 @@ int main(int argc, char **argv) {
 
     ctxEncode->width = width;
     ctxEncode->height = height;
-    ctxEncode->time_base = (AVRational) {1, nearestMultiple(VIDEO_FPS, 1)};
+    ctxEncode->time_base = (AVRational) {1, nearest_multiple(VIDEO_FPS, 1)};
     ctxEncode->pix_fmt = AV_PIX_FMT_YUV420P;
 
     AVDictionary *options = NULL;
     av_dict_set(&options, "preset", "veryfast", 0);
 
     /* open codec for encoder*/
-    if (avcodec_open2(ctxEncode, codecEncode, &options) < 0) { gnom_fatal(__FILE__, __LINE__, "could not open codec"); }
+    if (avcodec_open2(ctxEncode, codecEncode, &options) < 0) { logging_fatal(__FILE__, __LINE__, "could not open codec"); }
 
     pictureEncoded = av_frame_alloc();
-    if (!pictureEncoded) { gnom_fatal(__FILE__, __LINE__, "Could not allocate video frame"); }
+    if (!pictureEncoded) { logging_fatal(__FILE__, __LINE__, "Could not allocate video frame"); }
 
     // some formats want stream headers to be separate
     if (outContainer->oformat->flags & AVFMT_GLOBALHEADER) ctxEncode->flags |= CODEC_FLAG_GLOBAL_HEADER;
 
     if (!(ctxEncode->flags & AVFMT_NOFILE)) {
-        if (avio_open(&outContainer->pb, frOut, AVIO_FLAG_WRITE) < 0) {
-            gnom_fatal(__FILE__, __LINE__, "could not open output file");
+        if (avio_open(&outContainer->pb, output_filename, AVIO_FLAG_WRITE) < 0) {
+            logging_fatal(__FILE__, __LINE__, "could not open output file");
         }
     }
 
     avformat_write_header(outContainer, NULL);
 
     /* encode loop */
-    while (frame_in < nfr) {
+    while (frame_in < frame_count) {
         int j;
         avpicture_alloc((AVPicture *) pictureEncoded, ctxEncode->pix_fmt, ctxEncode->width, ctxEncode->height);
         for (j = 0; j < height; j++)
-            memcpy(pictureEncoded->data[0] + j * pictureEncoded->linesize[0], vidRaw + frame_in * frameSize + j * width,
+            memcpy(pictureEncoded->data[0] + j * pictureEncoded->linesize[0], video_raw + frame_in * frame_size + j * width,
                    width);
         for (j = 0; j < height / 2; j++)
             memcpy(pictureEncoded->data[1] + j * pictureEncoded->linesize[1],
-                   vidRaw + frame_in * frameSize + imageSize + j * width / 2, width / 2);
+                   video_raw + frame_in * frame_size + image_size + j * width / 2, width / 2);
         for (j = 0; j < height / 2; j++)
             memcpy(pictureEncoded->data[2] + j * pictureEncoded->linesize[2],
-                   vidRaw + frame_in * frameSize + imageSize * 5 / 4 + j * width / 2, width / 2);
+                   video_raw + frame_in * frame_size + image_size * 5 / 4 + j * width / 2, width / 2);
 
         /* encode frame */
         av_init_packet(&avpkt);
@@ -212,4 +229,3 @@ int main(int argc, char **argv) {
     av_free(pictureEncoded);
     return 0;
 }
-

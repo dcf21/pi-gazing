@@ -29,6 +29,7 @@
 #include "vidtools/color.h"
 #include "utils/error.h"
 
+#include "str_constants.h"
 #include "settings.h"
 #include "settings_webcam.h"
 
@@ -42,7 +43,7 @@ int main(int argc, char *argv[]) {
     if (argc != 2) {
         sprintf(temp_err_string,
                 "ERROR: Need to specify output filename for raw video dump on commandline, e.g. 'vidRec foo.raw'.");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     struct vdIn *videoIn;
@@ -73,7 +74,7 @@ int main(int argc, char *argv[]) {
     FILE *outfile;
     if ((outfile = fopen(avifilename, "wb")) == NULL) {
         sprintf(temp_err_string, "ERROR: Cannot open output RAW video file %s.\n", avifilename);
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     fwrite(vidRaw, 1, *(int *) vidRaw, outfile);

@@ -37,19 +37,19 @@
 
 extern char temp_err_string[];
 
-void gnom_error_setstreaminfo(int linenumber, char *filename);
+void logging_error_setstreaminfo(int linenumber, char *filename);
 
-void gnom_error(int ErrType, char *msg);
+void logging_error(int ErrType, char *msg);
 
-void gnom_fatal(char *file, int line, char *msg);
+void logging_fatal(char *file, int line, char *msg);
 
-void gnom_warning(int ErrType, char *msg);
+void logging_warning(int ErrType, char *msg);
 
-void gnom_report(char *msg);
+void logging_report(char *msg);
 
-void gnom_log(char *msg);
+void logging_info(char *msg);
 
-void dcffread(void *ptr, size_t size, size_t nmemb, FILE *stream);
+void dcf_fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
 
 #endif
 

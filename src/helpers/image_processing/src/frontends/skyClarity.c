@@ -26,34 +26,57 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#include "str_constants.h"
+#include "argparse/argparse.h"
 #include "png/image.h"
 #include "utils/asciiDouble.h"
 #include "utils/error.h"
+#include "utils/skyClarity.h"
 
 static const char *const usage[] = {
-    "skyClarity [options] [[--] args]",
-    "skyClarity [options]",
-    NULL,
+        "skyClarity [options] [[--] args]",
+        "skyClarity [options]",
+        NULL,
 };
 
-int main(int argc, char *argv[]) {
-    if (argc != 3) {
-        sprintf(temp_err_string,
-                "ERROR: Need to specify input filename and noise level on the commandline, e.g. 'skyClarity tmp.png 3.45'.");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+int main(int argc, const char *argv[]) {
+
+    char input_filename[FNAME_LENGTH] = "\0";
+    double noise_level = 0;
+
+    struct argparse_option options[] = {
+            OPT_HELP(),
+            OPT_GROUP("Basic options"),
+            OPT_STRING('i', "input", &input_filename, "input filename"),
+            OPT_FLOAT('n', "noise", &noise_level, "noise level"),
+            OPT_END(),
+    };
+
+    struct argparse argparse;
+    argparse_init(&argparse, options, usage, 0);
+    argparse_describe(&argparse,
+                      "\nCalculate the sky clarity of a PNG image.",
+                      "\n");
+    argc = argparse_parse(&argparse, argc, argv);
+
+    if (argc != 0) {
+        int i;
+        for (i = 0; i < argc; i++) {
+            printf("Error: unparsed argument <%s>\n", *(argv + i));
+        }
+        logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
-    double noiseLevel = getFloat(argv[2], NULL);
-
     // Read image
-    image_ptr InputImage;
-    InputImage = image_get(argv[1]);
-    if (InputImage.data_red == NULL) gnom_fatal(__FILE__, __LINE__, "Could not read input image file 1");
+    image_ptr input_image;
+    input_image = image_get(input_filename);
+    if (input_image.data_red == NULL) logging_fatal(__FILE__, __LINE__, "Could not read input image file 1");
 
-    double skyClarity = calculateSkyClarity(&InputImage, noiseLevel);
-    printf("%f", skyClarity);
+    double sky_clarity = calculateSkyClarity(&input_image, noise_level);
+    printf("%f", sky_clarity);
 
     // Free image
-    image_dealloc(&InputImage);
+    image_dealloc(&input_image);
     return 0;
 }

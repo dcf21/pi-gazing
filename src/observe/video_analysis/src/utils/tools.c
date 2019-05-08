@@ -31,6 +31,7 @@
 #include "utils/error.h"
 #include "utils/tools.h"
 
+#include "str_constants.h"
 #include "settings.h"
 #include "settings_webcam.h"
 
@@ -38,7 +39,7 @@
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
 void writeRawVidMetaData(videoMetadata v) {
-    char fname[FNAME_BUFFER];
+    char fname[FNAME_LENGTH];
     sprintf(fname, "%s.txt", v.filename);
     FILE *f = fopen(fname, "w");
     if (!f) return;
@@ -130,7 +131,7 @@ void snapshot(struct vdIn *videoIn, int nfr, int zero, double expComp, char *fna
     }
 
     image_deweight(&img);
-    image_put(fname, img, ALLDATAMONO);
+    image_put(fname, img, GREYSCALE_IMAGING);
     image_dealloc(&img);
 
     free(tmpi);
@@ -203,7 +204,7 @@ int dumpFrame(int width, int height, int channels, const unsigned char *buffer, 
     const int frameSize = width * height;
     if ((outfile = fopen(fName, "wb")) == NULL) {
         sprintf(temp_err_string, "ERROR: Cannot open output RAW image frame %s.\n", fName);
-        gnom_error(ERR_GENERAL, temp_err_string);
+        logging_error(ERR_GENERAL, temp_err_string);
         return 1;
     }
 
@@ -221,12 +222,12 @@ int dumpFrameFromInts(int width, int height, int channels, const int *buffer, in
     unsigned char *tmpc = malloc(frameSize * channels);
     if (!tmpc) {
         sprintf(temp_err_string, "ERROR: malloc fail in dumpFrameFromInts.");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     if ((outfile = fopen(fName, "wb")) == NULL) {
         sprintf(temp_err_string, "ERROR: Cannot open output RAW image frame %s.\n", fName);
-        gnom_error(ERR_GENERAL, temp_err_string);
+        logging_error(ERR_GENERAL, temp_err_string);
         return 1;
     }
 
@@ -270,12 +271,12 @@ int dumpFrameFromISub(int width, int height, int channels, const int *buffer, in
     unsigned char *tmpc = malloc(frameSize * channels);
     if (!tmpc) {
         sprintf(temp_err_string, "ERROR: malloc fail in dumpFrameFromInts.");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     if ((outfile = fopen(fName, "wb")) == NULL) {
         sprintf(temp_err_string, "ERROR: Cannot open output RAW image frame %s.\n", fName);
-        gnom_error(ERR_GENERAL, temp_err_string);
+        logging_error(ERR_GENERAL, temp_err_string);
         return 1;
     }
 
@@ -323,7 +324,7 @@ FILE *dumpVideoInit(int width, int height, const unsigned char *buffer1, int buf
     FILE *outfile;
     if ((outfile = fopen(fName, "wb")) == NULL) {
         sprintf(temp_err_string, "ERROR: Cannot open output RAW video file %s.\n", fName);
-        gnom_error(ERR_GENERAL, temp_err_string);
+        logging_error(ERR_GENERAL, temp_err_string);
         return NULL;
     }
 

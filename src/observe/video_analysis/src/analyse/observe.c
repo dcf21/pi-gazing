@@ -59,7 +59,7 @@ char *fNameGenerate(char *output, const char *obstoryId, double utc, char *tag, 
     if (status && (errno != EEXIST)) {
         sprintf(temp_err_string, "ERROR: Could not create directory <%s>. Returned error code %d. errno %d. %s.", path,
                 status, errno, strerror(errno));
-        gnom_log(temp_err_string);
+        logging_info(temp_err_string);
     }
 
     const int i = (int)strlen(path);
@@ -68,7 +68,7 @@ char *fNameGenerate(char *output, const char *obstoryId, double utc, char *tag, 
     if (status && (errno != EEXIST)) {
         sprintf(temp_err_string, "ERROR: Could not create directory <%s>. Returned error code %d. errno %d. %s.", path,
                 status, errno, strerror(errno));
-        gnom_log(temp_err_string);
+        logging_info(temp_err_string);
     }
 
     invJulianDay(JD, &year, &month, &day, &hour, &min, &sec, &status, output);
@@ -109,7 +109,7 @@ void writeMetaData(char *fname, char *itemTypes, ...) {
             }
             default: {
                 sprintf(temp_err_string, "ERROR: Unrecognised data type character '%c'.", itemTypes[i]);
-                gnom_fatal(__FILE__, __LINE__, temp_err_string);
+                logging_fatal(__FILE__, __LINE__, temp_err_string);
             }
         }
     }
@@ -124,16 +124,16 @@ int readFrameGroup(observeStatus *os, unsigned char *buffer, int *stack1, int *s
            os->frameSize * os->Nchannels * sizeof(int)); // Stack1 is wiped prior to each call to this function
 
     unsigned char *tmprgb;
-    if (!ALLDATAMONO) tmprgb = malloc((size_t)(os->Nchannels * os->frameSize));
+    if (!GREYSCALE_IMAGING) tmprgb = malloc((size_t)(os->Nchannels * os->frameSize));
 
     for (j = 0; j < os->TRIGGER_FRAMEGROUP; j++) {
         unsigned char *tmpc = buffer + j * os->frameSize * YUV420;
-        if (ALLDATAMONO) tmprgb = tmpc;
+        if (GREYSCALE_IMAGING) tmprgb = tmpc;
         if ((*os->fetchFrame)(os->videoHandle, tmpc, &os->utc) != 0) {
-            if (DEBUG) gnom_log("Error grabbing");
+            if (DEBUG) logging_info("Error grabbing");
             return 1;
         }
-        if (!ALLDATAMONO)
+        if (!GREYSCALE_IMAGING)
             Pyuv420torgb(tmpc, tmpc + os->frameSize, tmpc + os->frameSize * 5 / 4, tmprgb, tmprgb + os->frameSize,
                          tmprgb + os->frameSize * 2, os->width, os->height);
 #pragma omp parallel for private(i)
@@ -157,7 +157,7 @@ int readFrameGroup(observeStatus *os, unsigned char *buffer, int *stack1, int *s
             os->backgroundWorkspace[j * 256 + pixelVal]++;
         }
     }
-    if (!ALLDATAMONO) free(tmprgb);
+    if (!GREYSCALE_IMAGING) free(tmprgb);
     return 0;
 }
 
@@ -175,13 +175,13 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
     if (DEBUG) {
         sprintf(line, "Starting observing run at %s; observing run will end at %s.",
                 strStrip(friendlyTimestring(tstart), line2), strStrip(friendlyTimestring(tstop), line3));
-        gnom_log(line);
+        logging_info(line);
     }
 
     observeStatus *os = calloc(1, sizeof(observeStatus));
     if (os == NULL) {
         sprintf(temp_err_string, "ERROR: malloc fail in observe.");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
         exit(1);
     }
 
@@ -222,7 +222,7 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
                               os->Nchannels); // A stacked version of the current and preceding frame group; used to form a difference image
         if (!os->stack[i]) {
             sprintf(temp_err_string, "ERROR: malloc fail in observe.");
-            gnom_fatal(__FILE__, __LINE__, temp_err_string);
+            logging_fatal(__FILE__, __LINE__, temp_err_string);
         }
     }
 
@@ -267,7 +267,7 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
         (!os->triggerBlock_sumy) || (!os->triggerBlock_suml) || (!os->triggerBlock_redirect)
             ) {
         sprintf(temp_err_string, "ERROR: malloc fail in observe.");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     for (i = 0; i < MAX_EVENTS; i++) {
@@ -275,7 +275,7 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
         os->eventList[i].maxStack = malloc(os->frameSize * os->Nchannels * sizeof(int));
         if ((!os->eventList[i].stackedImage) || (!os->eventList[i].maxStack)) {
             sprintf(temp_err_string, "ERROR: malloc fail in observe.");
-            gnom_fatal(__FILE__, __LINE__, temp_err_string);
+            logging_fatal(__FILE__, __LINE__, temp_err_string);
         }
     }
 
@@ -307,7 +307,7 @@ int observe(void *videoHandle, const char *obstoryId, const int utcoffset, const
         if (os->runInCountdown && !--os->runInCountdown) {
             if (DEBUG) {
                 sprintf(line, "Run-in period completed.");
-                gnom_log(line);
+                logging_info(line);
             }
             (*rewindVideo)(os->videoHandle, &os->utc);
             os->timelapseUTCStart = ceil(os->utc / 60) * 60 + 0.5; // Start making timelapse video
@@ -474,12 +474,12 @@ void registerTrigger(observeStatus *os, const int blockId, const int xpos, const
         invJulianDay(JD, &year, &month, &day, &hour, &min, &sec, &status, temp_err_string);
         sprintf(temp_err_string, "Camera has triggered at (%04d/%02d/%02d %02d:%02d:%02d -- x=%d,y=%d).", year, month,
                 day, hour, min, (int) sec, xpos, ypos);
-        gnom_log(temp_err_string);
+        logging_info(temp_err_string);
     }
 
     for (i = 0; i < MAX_EVENTS; i++) if (!os->eventList[i].active) break;
     if (i >= MAX_EVENTS) {
-        gnom_log("Ignoring trigger; no event descriptors available.");
+        logging_info("Ignoring trigger; no event descriptors available.");
         return;
     } // No free event storage space
 
@@ -649,7 +649,7 @@ void registerTriggerEnds(observeStatus *os) {
                     int k = 0;
                     for (k = 0; k < MAX_EVENTS; k++) if (!os->videoOutputs[k].active) break;
                     if (k >= MAX_EVENTS) {
-                        gnom_log("Ignoring video; already writing too many video files at once.");
+                        logging_info("Ignoring video; already writing too many video files at once.");
                     } // No free event storage space
                     else {
                         sprintf(fname, "%s%s", os->eventList[i].filenameStub, ".vid");

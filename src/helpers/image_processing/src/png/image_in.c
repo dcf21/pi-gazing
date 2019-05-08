@@ -119,18 +119,18 @@ image_ptr image_get(char *filename) {
     // Initialise libpng data structures
     png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if (png_ptr == NULL) {
-        gnom_error(ERR_MEMORY, "Out of memory");
+        logging_error(ERR_MEMORY, "Out of memory");
         goto finalise;
     }
 
     info_ptr = png_create_info_struct(png_ptr);
     if (info_ptr == NULL) {
-        gnom_error(ERR_MEMORY, "Out of memory");
+        logging_error(ERR_MEMORY, "Out of memory");
         goto finalise;
     }
 
     if (setjmp(png_jmpbuf(png_ptr))) {
-        gnom_error(ERR_INTERNAL, "Unexpected error in libpng while trying to decode PNG image file");
+        logging_error(ERR_INTERNAL, "Unexpected error in libpng while trying to decode PNG image file");
         goto finalise;
     }
 
@@ -147,26 +147,26 @@ image_ptr image_get(char *filename) {
 
     if (DEBUG) {
         sprintf(temp_err_string, "Size %dx%d", width, height);
-        gnom_log(temp_err_string);
+        logging_info(temp_err_string);
     }
     if (DEBUG) {
         sprintf(temp_err_string, "Depth %d", depth);
-        gnom_log(temp_err_string);
+        logging_info(temp_err_string);
     }
 
     if (depth == 16) {
-        if (DEBUG) gnom_log("Reducing 16 bit per components to 8 bits");
+        if (DEBUG) logging_info("Reducing 16 bit per components to 8 bits");
         png_set_strip_16(png_ptr);
         depth = 8;
     }
 
     if (png_colour_type & PNG_COLOR_MASK_ALPHA) {
-        if (DEBUG) gnom_log("PNG uses transparency");
+        if (DEBUG) logging_info("PNG uses transparency");
         if (png_get_bKGD(png_ptr, info_ptr, &backgndp)) {
-            if (DEBUG) gnom_log("PNG defines a background colour");
+            if (DEBUG) logging_info("PNG defines a background colour");
             png_set_background(png_ptr, backgndp, PNG_BACKGROUND_GAMMA_FILE, 1, 1.0);
         } else {
-            if (DEBUG) gnom_log("PNG does not define a background colour");
+            if (DEBUG) logging_info("PNG does not define a background colour");
             background.red = background.green = background.blue = background.gray = 0xff; // Define background colour to be white
             png_set_background(png_ptr, &background, PNG_BACKGROUND_GAMMA_FILE, 0, 1.0);
         }
@@ -181,13 +181,13 @@ image_ptr image_get(char *filename) {
         colour = BMP_COLOUR_PALETTE;
         i = png_get_PLTE(png_ptr, info_ptr, &pngpalette, &ncols);
         if (i == 0) {
-            gnom_error(ERR_FILE, "PNG image file claims to be paletted, but no palette was found");
+            logging_error(ERR_FILE, "PNG image file claims to be paletted, but no palette was found");
             goto finalise;
         }
         pal_len = ncols;
         palette = malloc(ncols * 3);
         if (palette == NULL) {
-            gnom_error(ERR_MEMORY, "Out of memory");
+            logging_error(ERR_MEMORY, "Out of memory");
             goto finalise;
         }
         for (i = 0; i < ncols; i++) {
@@ -197,7 +197,7 @@ image_ptr image_get(char *filename) {
         }
         if (DEBUG) {
             sprintf(temp_err_string, "PNG image file contains a palette of %d colours", ncols);
-            gnom_log(temp_err_string);
+            logging_info(temp_err_string);
         }
     }
 
@@ -210,14 +210,14 @@ image_ptr image_get(char *filename) {
     // Allocate block of memory for uncompressed image
     data = malloc(row_bytes * height);
     if (data == NULL) {
-        gnom_error(ERR_MEMORY, "Out of memory");
+        logging_error(ERR_MEMORY, "Out of memory");
         goto finalise;
     }
 
     // libpng requires a separate pointer to each row of image
     row_ptrs = (png_bytep *) malloc(height * sizeof(png_bytep));
     if (row_ptrs == NULL) {
-        gnom_error(ERR_MEMORY, "Out of memory");
+        logging_error(ERR_MEMORY, "Out of memory");
         data = NULL;
         goto finalise;
     }
@@ -232,11 +232,11 @@ image_ptr image_get(char *filename) {
 
     // Deal with transparency (we can only support images with single transparent palette entries)
     if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)) {
-        if (DEBUG) gnom_log("PNG has transparency");
+        if (DEBUG) logging_info("PNG has transparency");
         png_get_tRNS(png_ptr, info_ptr, &trans_colours, &ntrans, &trans_val);
         if (DEBUG) {
             sprintf(temp_err_string, "PNG has %d transparent entries in palette", ntrans);
-            gnom_log(temp_err_string);
+            logging_info(temp_err_string);
         }
         if (png_colour_type == PNG_COLOR_TYPE_PALETTE) {
             // We can cope with just one, fully transparent, entry in palette
@@ -245,7 +245,7 @@ image_ptr image_get(char *filename) {
                 if (trans_colours[i] == 0) j++;
                 else if (trans_colours[i] != 255) j += 10;
             if (j != 1) {
-                gnom_warning(ERR_FILE,
+                logging_warning(ERR_FILE,
                              "PNG has transparency, but not in the form of a single fully colour in its palette. Such transparency is not supported.");
             } else {
                 for (i = 0; (i < ntrans) && (trans_colours[i] == 255); i++);

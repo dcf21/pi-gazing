@@ -48,7 +48,7 @@ int readConfig(char *filename, settings *feed_s, settingsIn *si, settingsIn *s_i
 
     if ((infile = fopen(filename, "r")) == NULL) {
         sprintf(temp_err_string, "Stacker could not open input file '%s'.", filename);
-        gnom_error(ERR_GENERAL, temp_err_string);
+        logging_error(ERR_GENERAL, temp_err_string);
         return 1;
     }
     file_linenumber = 0;
@@ -71,79 +71,79 @@ int readConfig(char *filename, settings *feed_s, settingsIn *si, settingsIn *s_i
             // Exposure compensation, xsize, ysize, Central RA, Central Dec, position angle, scalex, scaley
             char *cp = keyval;
             while (!isalnum(*cp) && (*cp != '/') && (*cp != '\0')) cp++;
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read exposure compensation");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read exposure compensation");
             feed_s->ExpComp = getFloat(cp, NULL);
             sprintf(temp_err_string, "ExpComp = %f", feed_s->ExpComp);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read output X pixel size");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read output X pixel size");
             feed_s->XSize = getFloat(cp, NULL);
             sprintf(temp_err_string, "XSize = %6d pixels", feed_s->XSize);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read output Y pixel size");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read output Y pixel size");
             feed_s->YSize = getFloat(cp, NULL);
             sprintf(temp_err_string, "YSize = %6d pixels", feed_s->YSize);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read central RA");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read central RA");
             feed_s->RA0 = getFloat(cp, NULL) * M_PI / 12.;
             sprintf(temp_err_string, "Central RA = %.6f hr", feed_s->RA0 / M_PI * 12.);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read central Dec");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read central Dec");
             feed_s->Dec0 = getFloat(cp, NULL) * M_PI / 180.;
             sprintf(temp_err_string, "Central Dec = %.6f deg", feed_s->Dec0 / M_PI * 180.);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read position angle");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read position angle");
             feed_s->PA = getFloat(cp, NULL) * M_PI / 180.;
             sprintf(temp_err_string, "Position Angle = %.6f deg", feed_s->PA / M_PI * 180.);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read output X angular size");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read output X angular size");
             feed_s->XScale = getFloat(cp, NULL) * M_PI / 180.;
             sprintf(temp_err_string, "XScale = %.6f deg/width", feed_s->XScale / M_PI * 180.);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read output Y angular size");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read output Y angular size");
             feed_s->YScale = getFloat(cp, NULL) * M_PI / 180.;
             sprintf(temp_err_string, "YScale = %.6f deg/height", feed_s->YScale / M_PI * 180.);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
         } else if (strcmp(key, "FLAT") == 0) {
             feed_s->mode = MODE_FLAT;
             // Exposure compensation, x size, y size, x shift, y shift, rotation
             char *cp = keyval;
             while (!isalnum(*cp) && (*cp != '/') && (*cp != '\0')) cp++;
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read exposure compensation");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read exposure compensation");
             feed_s->ExpComp = getFloat(cp, NULL);
             sprintf(temp_err_string, "ExpComp = %f", feed_s->ExpComp);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read output X pixel size");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read output X pixel size");
             feed_s->XSize = getFloat(cp, NULL);
             sprintf(temp_err_string, "XSize = %6d pixels", feed_s->XSize);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read output Y pixel size");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read output Y pixel size");
             feed_s->YSize = getFloat(cp, NULL);
             sprintf(temp_err_string, "YSize = %6d pixels", feed_s->YSize);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read x offset");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read x offset");
             feed_s->XOff = getFloat(cp, NULL);
             sprintf(temp_err_string, "XOff = %6d pixel", feed_s->XOff);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read y offset");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read y offset");
             feed_s->YOff = getFloat(cp, NULL);
             sprintf(temp_err_string, "Yoff = %6d pixel", feed_s->YOff);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read linear rotation");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read linear rotation");
             feed_s->LinearRot = getFloat(cp, NULL);
             sprintf(temp_err_string, "LinearRot = %.6f deg", feed_s->LinearRot);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
         } else if (strcmp(key, "SET") == 0) {
             int i = 0;
             char key2[1024];
@@ -151,49 +151,49 @@ int readConfig(char *filename, settings *feed_s, settingsIn *si, settingsIn *s_i
             while (isalnum(*keyval)) { key2[i++] = *(keyval++); }
             key2[i++] = '\0';
             sprintf(temp_err_string, "SET %s", key2);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
 
             if (strcmp(key2, "output") == 0) {
                 char *cp = keyval;
                 while (!isalnum(*cp) && (*cp != '/') && (*cp != '\0')) cp++;
                 getWord(feed_s->OutFName, cp, FNAME_LENGTH);
                 sprintf(temp_err_string, "Output filename = %s", feed_s->OutFName);
-                gnom_report(temp_err_string);
+                logging_report(temp_err_string);
             } else if (strcmp(key2, "barrel_a") == 0) {
                 char *cp = keyval;
                 while (!isalnum(*cp) && (*cp != '/') && (*cp != '\0')) cp++;
-                if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read barrel_a");
+                if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read barrel_a");
                 s_in_default->barrel_a = getFloat(cp, NULL);
                 sprintf(temp_err_string, "barrel_a = %.6f", s_in_default->barrel_a);
-                gnom_report(temp_err_string);
+                logging_report(temp_err_string);
             } else if (strcmp(key2, "barrel_b") == 0) {
                 char *cp = keyval;
                 while (!isalnum(*cp) && (*cp != '/') && (*cp != '\0')) cp++;
-                if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read barrel_b");
+                if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read barrel_b");
                 s_in_default->barrel_b = getFloat(cp, NULL);
                 sprintf(temp_err_string, "barrel_b = %.6f", s_in_default->barrel_b);
-                gnom_report(temp_err_string);
+                logging_report(temp_err_string);
             } else if (strcmp(key2, "barrel_c") == 0) {
                 char *cp = keyval;
                 while (!isalnum(*cp) && (*cp != '/') && (*cp != '\0')) cp++;
-                if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read barrel_c");
+                if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read barrel_c");
                 s_in_default->barrel_c = getFloat(cp, NULL);
                 sprintf(temp_err_string, "barrel_c = %.6f", s_in_default->barrel_c);
-                gnom_report(temp_err_string);
+                logging_report(temp_err_string);
             } else if (strcmp(key2, "backgroundsub") == 0) {
                 char *cp = keyval;
                 while (!isalnum(*cp) && (*cp != '/') && (*cp != '\0')) cp++;
-                if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read backgroundsub");
+                if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read backgroundsub");
                 s_in_default->backSub = getFloat(cp, NULL);
                 sprintf(temp_err_string, "backgroundsub = %d", s_in_default->backSub);
-                gnom_report(temp_err_string);
+                logging_report(temp_err_string);
             } else if (strcmp(key2, "cloudmask") == 0) {
                 char *cp = keyval;
                 while (!isalnum(*cp) && (*cp != '/') && (*cp != '\0')) cp++;
-                if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read cloudmask");
+                if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read cloudmask");
                 feed_s->cloudMask = getFloat(cp, NULL);
                 sprintf(temp_err_string, "cloudmask = %d", feed_s->cloudMask);
-                gnom_report(temp_err_string);
+                logging_report(temp_err_string);
             }
             continue;
         } else if (strcmp(key, "ADD") == 0) // This is a source image to be stacked
@@ -203,73 +203,73 @@ int readConfig(char *filename, settings *feed_s, settingsIn *si, settingsIn *s_i
             if (*cp == '\0') continue;
             feed_si = si + (*nImages);
             *feed_si = *s_in_default;
-            gnom_report("\nNew Image:");
+            logging_report("\nNew Image:");
             getWord(feed_si->InFName, cp, FNAME_LENGTH);
             sprintf(temp_err_string, "Input filename = %s", feed_si->InFName);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read image weight");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read image weight");
             feed_si->InWeight = getFloat(cp, NULL);
             sprintf(temp_err_string, "Image weight = %.6f", feed_si->InWeight);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read exposure compensation");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read exposure compensation");
             feed_si->InExpComp = getFloat(cp, NULL);
             sprintf(temp_err_string, "Exposure compensation = %.6f", feed_si->InExpComp);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read x size");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read x size");
             feed_si->InXSize = getFloat(cp, NULL);
             sprintf(temp_err_string, "XSize = %6d", feed_si->InXSize);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
-            if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read y size");
+            if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read y size");
             feed_si->InYSize = getFloat(cp, NULL);
             sprintf(temp_err_string, "YSize = %6d", feed_si->InYSize);
-            gnom_report(temp_err_string);
+            logging_report(temp_err_string);
             cp = nextWord(cp);
             if (feed_s->mode == MODE_GNOMONIC) {
                 // Filename, weight, exposure compensation, Central RA, Central Dec, position angle, scalex, scaley
-                if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read central RA");
+                if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read central RA");
                 feed_si->InRA0 = getFloat(cp, NULL) * M_PI / 12.;
                 sprintf(temp_err_string, "Central RA = %.6f hr", feed_si->InRA0 / M_PI * 12.);
-                gnom_report(temp_err_string);
+                logging_report(temp_err_string);
                 cp = nextWord(cp);
-                if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read central Dec");
+                if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read central Dec");
                 feed_si->InDec0 = getFloat(cp, NULL) * M_PI / 180.;
                 sprintf(temp_err_string, "Central Dec = %.6f deg", feed_si->InDec0 / M_PI * 180.);
-                gnom_report(temp_err_string);
+                logging_report(temp_err_string);
                 cp = nextWord(cp);
-                if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read input rotation angle");
+                if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read input rotation angle");
                 feed_si->InRotation = getFloat(cp, NULL) * M_PI / 180.;
                 sprintf(temp_err_string, "Rotation = %.6f deg", feed_si->InRotation / M_PI * 180.);
-                gnom_report(temp_err_string);
+                logging_report(temp_err_string);
                 cp = nextWord(cp);
-                if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read input X angular size");
+                if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read input X angular size");
                 feed_si->InXScale = getFloat(cp, NULL) * M_PI / 180.;
                 sprintf(temp_err_string, "XScale = %.6f deg/width", feed_si->InXScale / M_PI * 180.);
-                gnom_report(temp_err_string);
+                logging_report(temp_err_string);
                 cp = nextWord(cp);
-                if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read input Y angular size");
+                if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read input Y angular size");
                 feed_si->InYScale = getFloat(cp, NULL) * M_PI / 180.;
                 sprintf(temp_err_string, "YScale = %.6f deg/height", feed_si->InYScale / M_PI * 180.);
-                gnom_report(temp_err_string);
+                logging_report(temp_err_string);
             } else {
                 // Filename, weight, exposure compensation, x shift, y shift, rotation
-                if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read x offset");
+                if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read x offset");
                 feed_si->InXOff = getFloat(cp, NULL);
                 sprintf(temp_err_string, "X Shift = %.2f pixels", feed_si->InYOff);
-                gnom_report(temp_err_string);
+                logging_report(temp_err_string);
                 cp = nextWord(cp);
-                if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read y offset");
+                if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read y offset");
                 feed_si->InYOff = getFloat(cp, NULL);
                 sprintf(temp_err_string, "Y Shift = %.2f pixels", feed_si->InXOff);
-                gnom_report(temp_err_string);
+                logging_report(temp_err_string);
                 cp = nextWord(cp);
-                if (!validFloat(cp, NULL)) gnom_fatal(__FILE__, __LINE__, "Could not read linear rotation");
+                if (!validFloat(cp, NULL)) logging_fatal(__FILE__, __LINE__, "Could not read linear rotation");
                 feed_si->InLinearRotation = getFloat(cp, NULL) * M_PI / 180.;
                 sprintf(temp_err_string, "Rotation = %.6f deg", feed_si->InLinearRotation / M_PI * 180.);
-                gnom_report(temp_err_string);
+                logging_report(temp_err_string);
             }
             (*nImages)++;
         }

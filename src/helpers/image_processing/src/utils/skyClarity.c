@@ -39,7 +39,7 @@ double calculateSkyClarity(image_ptr *img, double noiseLevel) {
     // To be counted as a star-like source, must be this much brighter than surroundings
     const int threshold = MAX(12, noiseLevel * 4);
     const int stride = img->xsize;
-#pragma omp parallel for private(i,j)
+#pragma omp parallel for private(i, j)
     for (i = 1; i < gridsize; i++)
         for (j = 1; j < gridsize; j++) {
             const int xmin = img->xsize * j / (gridsize + 1);

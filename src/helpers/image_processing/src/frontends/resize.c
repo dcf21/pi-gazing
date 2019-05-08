@@ -30,118 +30,97 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
 
-#include "asciiDouble.h"
-#include "error.h"
+#include "argparse/argparse.h"
+
+#include "utils/asciiDouble.h"
+#include "utils/error.h"
 #include "gnomonic.h"
 #include "imageProcess.h"
-#include "image.h"
+#include "png/image.h"
 #include "readConfig.h"
 #include "settings.h"
 #include "str_constants.h"
 #include "backgroundSub.h"
 
 static const char *const usage[] = {
-    "resize [options] [[--] args]",
-    "resize [options]",
-    NULL,
+        "resize [options] [[--] args]",
+        "resize [options]",
+        NULL,
 };
 
-int main(int argc, char **argv) {
-    char help_string[LSTR_LENGTH], version_string[FNAME_LENGTH], version_string_underline[FNAME_LENGTH];
-    char *filename[3];
-    int i, j, haveFilename = 0;
+int main(int argc, const char **argv) {
+    int i, j;
     settingsIn s_in_default;
-    image_ptr outputImage;
+    image_ptr input_image;
+    image_ptr output_image;
 
     // Initialise sub-modules
-    if (DEBUG) gnom_log("Initialising image resizer.");
+    if (DEBUG) logging_info("Initialising image resize tool.");
 
     // Turn off GSL's automatic error handler
     gsl_set_error_handler_off();
 
-    // Make help and version strings
-    sprintf(version_string, "Image Resizer %s", VERSION);
+    // Scan commandline options for any switches
+    char input_filename[FNAME_LENGTH] = "\0";
+    char output_filename[FNAME_LENGTH] = "\0";
+    int new_width = 1;
 
-    sprintf(help_string, "Image Resizer %s\n\
-%s\n\
-\n\
-Usage: resize.bin <filename1> <new width> <output filename>\n\
-  -h, --help:       Display this help.\n\
-  -v, --version:    Display version number.", VERSION, strUnderline(version_string, version_string_underline));
+    // Turn off GSL's automatic error handler
+    gsl_set_error_handler_off();
 
     // Scan commandline options for any switches
-    haveFilename = 0;
-    for (i = 1; i < argc; i++) {
-        if (strlen(argv[i]) == 0) continue;
-        if (argv[i][0] != '-') {
-            if (haveFilename > 2) {
-                sprintf(temp_err_string,
-                        "resize.bin should be called with the following commandline syntax:\n\nresize.bin <filename1> <new width> <output filename>\n\nToo many filenames appear to have been supplied. Type 'resize.bin -help' for a list of available commandline options.");
-                gnom_error(ERR_GENERAL, temp_err_string);
-                return 1;
-            }
-            filename[haveFilename] = argv[i];
-            haveFilename++;
-            continue;
+    struct argparse_option options[] = {
+            OPT_HELP(),
+            OPT_GROUP("Basic options"),
+            OPT_STRING('i', "input", &input_filename, "input filename"),
+            OPT_STRING('o', "output", &output_filename, "output filename"),
+            OPT_INTEGER('w', "width", &new_width, "new width"),
+            OPT_END(),
+    };
+
+    struct argparse argparse;
+    argparse_init(&argparse, options, usage, 0);
+    argparse_describe(&argparse,
+                      "\nResize the contents of a PNG file to a new width.",
+                      "\n");
+    argc = argparse_parse(&argparse, argc, argv);
+
+    if (argc != 0) {
+        int i;
+        for (i = 0; i < argc; i++) {
+            printf("Error: unparsed argument <%s>\n", *(argv + i));
         }
-        if ((strcmp(argv[i], "-v") == 0) || (strcmp(argv[i], "-version") == 0) || (strcmp(argv[i], "--version") == 0)) {
-            gnom_report(version_string);
-            return 0;
-        } else if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "-help") == 0) ||
-                   (strcmp(argv[i], "--help") == 0)) {
-            gnom_report(help_string);
-            return 0;
-        } else {
-            sprintf(temp_err_string,
-                    "Received switch '%s' which was not recognised.\nType 'resize.bin -help' for a list of available commandline options.",
-                    argv[i]);
-            gnom_error(ERR_GENERAL, temp_err_string);
-            return 1;
+        logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
+    }
+
+    // Read image
+    strcpy(s_in_default.InFName, input_filename);
+    input_image = image_get(input_filename);
+    if (input_image.data_red == NULL) logging_fatal(__FILE__, __LINE__, "Could not read input image file");
+
+    double scaling = input_image.xsize / ((double) new_width);
+    int new_height = (int)(input_image.ysize / scaling);
+
+    // Malloc output image
+    image_alloc(&output_image, new_width, new_height);
+
+    // Process image
+    for (j = 0; j < new_height; j++)
+        for (i = 0; i < new_width; i++) {
+            int x_in = (int)(i * scaling);
+            int y_in = (int)(j * scaling);
+            output_image.data_red[j * output_image.xsize + i] = input_image.data_red[y_in * input_image.xsize + x_in];
+            output_image.data_grn[j * output_image.xsize + i] = input_image.data_grn[y_in * input_image.xsize + x_in];
+            output_image.data_blu[j * output_image.xsize + i] = input_image.data_blu[y_in * input_image.xsize + x_in];
         }
-    }
 
-    // Check that we have been provided with exactly one filename on the command line
-    if (haveFilename < 3) {
-        sprintf(temp_err_string,
-                "resize.bin should be called with the following commandline syntax:\n\nresize.bin <filename1> <new width> <output filename>\n\nToo few filenames appear to have been supplied. Type 'resize.bin -help' for a list of available commandline options.");
-        gnom_error(ERR_GENERAL, temp_err_string);
-        return 1;
-    }
-
-    {
-        image_ptr InputImage;
-
-        // Read image
-        strcpy(s_in_default.InFName, filename[0]);
-        InputImage = image_get(filename[0]);
-        if (InputImage.data_red == NULL) gnom_fatal(__FILE__, __LINE__, "Could not read input image file 1");
-
-        int new_width = (int) getFloat(filename[1], NULL);
-        double scaling = InputImage.xsize / ((double)new_width);
-        int new_height = InputImage.ysize / scaling;
-
-        // Malloc output image
-        image_alloc(&outputImage, new_width, new_height);
-
-        // Process image
-        for (j = 0; j < new_height; j++)
-            for (i = 0; i < new_width; i++) {
-                int x_in = i * scaling;
-                int y_in = j * scaling;
-                outputImage.data_red[j * outputImage.xsize + i] = InputImage.data_red[y_in * InputImage.xsize + x_in];
-                outputImage.data_grn[j * outputImage.xsize + i] = InputImage.data_grn[y_in * InputImage.xsize + x_in];
-                outputImage.data_blu[j * outputImage.xsize + i] = InputImage.data_blu[y_in * InputImage.xsize + x_in];
-            }
-
-        // Free image
-        image_dealloc(&InputImage);
-    }
+    // Free image
+    image_dealloc(&input_image);
 
     // Write image
-    image_put(filename[2], outputImage, 0);
-    image_dealloc(&outputImage);
+    image_put(output_filename, output_image, 0);
+    image_dealloc(&output_image);
 
-    if (DEBUG) gnom_log("Terminating normally.");
+    if (DEBUG) logging_info("Terminating normally.");
     return 0;
 }
-

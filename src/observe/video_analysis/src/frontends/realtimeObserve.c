@@ -38,6 +38,7 @@
 #include "utils/julianDate.h"
 #include "analyse/observe.h"
 
+#include "str_constants.h"
 #include "settings.h"
 #include "settings_webcam.h"
 
@@ -68,8 +69,8 @@ int rewindVideo(void *videoHandle, double *utc) {
 int main(int argc, const char *argv[]) {
     videoMetadata vmd;
     char mask_file[FNAME_LENGTH] = "\0";
-    char obstory[FNAME_BUFFER] = "\0";
-    char input_device[FNAME_BUFFER] = "\0";
+    char obstory[FNAME_LENGTH] = "\0";
+    char input_device[FNAME_LENGTH] = "\0";
 
     vmd.tstart = time(NULL);
     vmd.tstop = getFloat(argv[3], NULL);
@@ -115,7 +116,7 @@ int main(int argc, const char *argv[]) {
         for (i = 0; i < argc; i++) {
             printf("Error: unparsed argument <%s>\n", *(argv + i));
         }
-        gnom_fatal(__FILE__, __LINE__, "Unparsed arguments");
+        logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
     const int backgroundMapUseEveryNthStack = 1, backgroundMapUseNImages = 3600, backgroundMapReductionCycles = 32;
@@ -152,7 +153,7 @@ int main(int argc, const char *argv[]) {
 
     unsigned char *mask = malloc((size_t)(width * height));
     FILE *maskfile = fopen(vmd.maskFile, "r");
-    if (!maskfile) { gnom_fatal(__FILE__, __LINE__, "mask file could not be opened"); }
+    if (!maskfile) { logging_fatal(__FILE__, __LINE__, "mask file could not be opened"); }
     fillPolygonsFromFile(maskfile, mask, width, height);
     fclose(maskfile);
 

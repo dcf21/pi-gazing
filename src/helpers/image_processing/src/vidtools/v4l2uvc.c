@@ -374,13 +374,13 @@ static int init_v4l2(struct vdIn *vd) {
     } else if (fallback_format >= 0) {
         // The requested format is not supported but there's a fallback format
         printf("  Frame format: "FOURCC_FORMAT" ("FOURCC_FORMAT
-                       " is not supported by device)\n",
+               " is not supported by device)\n",
                FOURCC_ARGS(device_formats[0]), FOURCC_ARGS(vd->formatIn));
         vd->formatIn = device_formats[0];
     } else {
         // The requested format is not supported and no fallback format is available
         printf("ERROR: Requested frame format "FOURCC_FORMAT" is not available "
-                       "and no fallback format was found.\n", FOURCC_ARGS(vd->formatIn));
+               "and no fallback format was found.\n", FOURCC_ARGS(vd->formatIn));
         goto fatal;
     }
 
@@ -431,7 +431,7 @@ static int init_v4l2(struct vdIn *vd) {
                               (float) setfps->parm.capture.timeperframe.numerator;
         if (confirmed_fps != (float) n / (float) d) {
             printf("  Frame rate:   %g fps (requested frame rate %g fps is "
-                           "not supported by device)\n",
+                   "not supported by device)\n",
                    confirmed_fps,
                    vd->fps);
             vd->fps = confirmed_fps;
@@ -784,7 +784,7 @@ int enum_frame_intervals(int dev, __u32 pixfmt, __u32 width, __u32 height) {
             break;
         } else if (fival.type == V4L2_FRMIVAL_TYPE_STEPWISE) {
             printf("{min { %u/%u } .. max { %u/%u } / "
-                           "stepsize { %u/%u } }, ",
+                   "stepsize { %u/%u } }, ",
                    fival.stepwise.min.numerator, fival.stepwise.min.denominator,
                    fival.stepwise.max.numerator, fival.stepwise.max.denominator,
                    fival.stepwise.step.numerator, fival.stepwise.step.denominator);
@@ -818,15 +818,15 @@ int enum_frame_sizes(int dev, __u32 pixfmt) {
                 printf("  Unable to enumerate frame sizes.\n");
         } else if (fsize.type == V4L2_FRMSIZE_TYPE_CONTINUOUS) {
             printf("{ continuous: min { width = %u, height = %u } .. "
-                           "max { width = %u, height = %u } }\n",
+                   "max { width = %u, height = %u } }\n",
                    fsize.stepwise.min_width, fsize.stepwise.min_height,
                    fsize.stepwise.max_width, fsize.stepwise.max_height);
             printf("  Refusing to enumerate frame intervals.\n");
             break;
         } else if (fsize.type == V4L2_FRMSIZE_TYPE_STEPWISE) {
             printf("{ stepwise: min { width = %u, height = %u } .. "
-                           "max { width = %u, height = %u } / "
-                           "stepsize { width = %u, height = %u } }\n",
+                   "max { width = %u, height = %u } / "
+                   "stepsize { width = %u, height = %u } }\n",
                    fsize.stepwise.min_width, fsize.stepwise.min_height,
                    fsize.stepwise.max_width, fsize.stepwise.max_height,
                    fsize.stepwise.step_width, fsize.stepwise.step_height);

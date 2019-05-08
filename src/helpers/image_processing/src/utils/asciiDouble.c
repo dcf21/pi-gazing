@@ -552,8 +552,7 @@ int strWildcardTest(const char *test, const char *wildcard) {
         if (wildcard[j] == '?') {
             mineat++;
             maxeat++;
-        }
-        else { maxeat = 10000; }
+        } else { maxeat = 10000; }
         j++;
     }
 

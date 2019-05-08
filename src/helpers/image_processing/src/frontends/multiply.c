@@ -30,115 +30,89 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
 
-#include "asciiDouble.h"
-#include "error.h"
+#include "argparse/argparse.h"
+
+#include "utils/asciiDouble.h"
+#include "utils/error.h"
 #include "gnomonic.h"
 #include "imageProcess.h"
-#include "image.h"
+#include "png/image.h"
 #include "readConfig.h"
 #include "settings.h"
 #include "str_constants.h"
 #include "backgroundSub.h"
 
 static const char *const usage[] = {
-    "multiply [options] [[--] args]",
-    "multiply [options]",
-    NULL,
+        "multiply [options] [[--] args]",
+        "multiply [options]",
+        NULL,
 };
 
-int main(int argc, char **argv) {
-    char help_string[LSTR_LENGTH], version_string[FNAME_LENGTH], version_string_underline[FNAME_LENGTH];
-    char *filename[3];
-    int i, haveFilename = 0;
+int main(int argc, const char **argv) {
+    int i;
     settingsIn s_in_default;
-    image_ptr outputImage;
+    image_ptr input_image;
+    image_ptr output_image;
+
+    char input_filename[FNAME_LENGTH] = "\0";
+    char output_filename[FNAME_LENGTH] = "\0";
+    double multiplication_factor = 1;
 
     // Initialise sub-modules
-    if (DEBUG) gnom_log("Initialising image multiplier.");
+    if (DEBUG) logging_info("Initialising image multiply tool.");
 
     // Turn off GSL's automatic error handler
     gsl_set_error_handler_off();
 
-    // Make help and version strings
-    sprintf(version_string, "Image Pixel Value Multiplier %s", VERSION);
-
-    sprintf(help_string, "Image Pixel Value Multiplier %s\n\
-%s\n\
-\n\
-Usage: multiply.bin <filename1> <factor> <output filename>\n\
-  -h, --help:       Display this help.\n\
-  -v, --version:    Display version number.", VERSION, strUnderline(version_string, version_string_underline));
-
     // Scan commandline options for any switches
-    haveFilename = 0;
-    for (i = 1; i < argc; i++) {
-        if (strlen(argv[i]) == 0) continue;
-        if (argv[i][0] != '-') {
-            if (haveFilename > 2) {
-                sprintf(temp_err_string,
-                        "multiply.bin should be called with the following commandline syntax:\n\nmultiply.bin <filename1> <factor> <output filename>\n\nToo many filenames appear to have been supplied. Type 'multiply.bin -help' for a list of available commandline options.");
-                gnom_error(ERR_GENERAL, temp_err_string);
-                return 1;
-            }
-            filename[haveFilename] = argv[i];
-            haveFilename++;
-            continue;
+    struct argparse_option options[] = {
+            OPT_HELP(),
+            OPT_GROUP("Basic options"),
+            OPT_STRING('i', "input", &input_filename, "input filename"),
+            OPT_STRING('o', "output", &output_filename, "output filename"),
+            OPT_FLOAT('m', "multiply", &multiplication_factor, "multiplication factor"),
+            OPT_END(),
+    };
+
+    struct argparse argparse;
+    argparse_init(&argparse, options, usage, 0);
+    argparse_describe(&argparse,
+                      "\nMultiply the contents of a PNG file by a fixed factor.",
+                      "\n");
+    argc = argparse_parse(&argparse, argc, argv);
+
+    if (argc != 0) {
+        int i;
+        for (i = 0; i < argc; i++) {
+            printf("Error: unparsed argument <%s>\n", *(argv + i));
         }
-        if ((strcmp(argv[i], "-v") == 0) || (strcmp(argv[i], "-version") == 0) || (strcmp(argv[i], "--version") == 0)) {
-            gnom_report(version_string);
-            return 0;
-        } else if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "-help") == 0) ||
-                   (strcmp(argv[i], "--help") == 0)) {
-            gnom_report(help_string);
-            return 0;
-        } else {
-            sprintf(temp_err_string,
-                    "Received switch '%s' which was not recognised.\nType 'multiply.bin -help' for a list of available commandline options.",
-                    argv[i]);
-            gnom_error(ERR_GENERAL, temp_err_string);
-            return 1;
-        }
+        logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
-    // Check that we have been provided with exactly one filename on the command line
-    if (haveFilename < 3) {
-        sprintf(temp_err_string,
-                "multiply.bin should be called with the following commandline syntax:\n\nmultiply.bin <filename1> <factor> <output filename>\n\nToo few filenames appear to have been supplied. Type 'multiply.bin -help' for a list of available commandline options.");
-        gnom_error(ERR_GENERAL, temp_err_string);
-        return 1;
-    }
+    // Read image
+    strcpy(s_in_default.InFName, input_filename);
+    input_image = image_get(input_filename);
+    if (input_image.data_red == NULL) logging_fatal(__FILE__, __LINE__, "Could not read input image file 1");
 
-    {
-        image_ptr InputImage;
+    // Malloc output image
+    image_alloc(&output_image, input_image.xsize, input_image.ysize);
 
-        // Read image
-        strcpy(s_in_default.InFName, filename[0]);
-        InputImage = image_get(filename[0]);
-        if (InputImage.data_red == NULL) gnom_fatal(__FILE__, __LINE__, "Could not read input image file 1");
-
-        double factor = getFloat(filename[1], NULL);
-
-        // Malloc output image
-        image_alloc(&outputImage, InputImage.xsize, InputImage.ysize);
-
-        // Process image
+    // Process image
 #define CLIPCHAR(color) (unsigned char)(((color)>0xFF)?0xff:(((color)<0)?0:(color)))
-        for (i = 0; i < InputImage.xsize * InputImage.ysize; i++)
-            outputImage.data_red[i] = CLIPCHAR(InputImage.data_red[i] * factor);
-        for (i = 0; i < InputImage.xsize * InputImage.ysize; i++)
-            outputImage.data_grn[i] = CLIPCHAR(InputImage.data_grn[i] * factor);
-        for (i = 0; i < InputImage.xsize * InputImage.ysize; i++)
-            outputImage.data_blu[i] = CLIPCHAR(InputImage.data_blu[i] * factor);
+    for (i = 0; i < input_image.xsize * input_image.ysize; i++)
+        output_image.data_red[i] = CLIPCHAR(input_image.data_red[i] * multiplication_factor);
+    for (i = 0; i < input_image.xsize * input_image.ysize; i++)
+        output_image.data_grn[i] = CLIPCHAR(input_image.data_grn[i] * multiplication_factor);
+    for (i = 0; i < input_image.xsize * input_image.ysize; i++)
+        output_image.data_blu[i] = CLIPCHAR(input_image.data_blu[i] * multiplication_factor);
 
-        // Free image
-        image_dealloc(&InputImage);
-    }
+    // Free image
+    image_dealloc(&input_image);
 
     // Write image
-    image_put(filename[2], outputImage, 0);
-    image_dealloc(&outputImage);
+    image_put(output_filename, output_image, 0);
+    image_dealloc(&output_image);
 
-    if (DEBUG) gnom_log("Terminating normally.");
+    if (DEBUG) logging_info("Terminating normally.");
     return 0;
 }
-

@@ -31,6 +31,7 @@
 #include "utils/tools.h"
 #include "vidtools/color.h"
 
+#include "str_constants.h"
 #include "settings.h"
 
 static const char *const usage[] = {
@@ -137,7 +138,7 @@ static void say(const char *message, ...) {
     va_start(args, message);
     vsnprintf(str, sizeof(str) - 1, message, args);
     va_end(args);
-    if (DEBUG) gnom_log(str);
+    if (DEBUG) logging_info(str);
 }
 
 static void die(const char *message, ...) {
@@ -147,7 +148,7 @@ static void die(const char *message, ...) {
     va_start(args, message);
     vsnprintf(str, sizeof(str), message, args);
     va_end(args);
-    gnom_fatal(__FILE__, __LINE__, str);
+    logging_fatal(__FILE__, __LINE__, str);
     exit(1);
 }
 
@@ -625,13 +626,13 @@ static OMX_ERRORTYPE fill_output_buffer_done_handler(
 }
 
 int main(int argc, char **argv) {
-    char line[FNAME_BUFFER];
+    char line[FNAME_LENGTH];
 
     // Initialise video capture process
     if (argc != 14) {
         sprintf(temp_err_string,
                 "ERROR: Command line syntax is:\n\n recordH264 <UTC clock offset> <UTC start> <UTC stop> <obstoryId> <video device> <width> <height> <fps> <lat> <long> <flagGPS> <flagUpsideDown> <output filename>\n\ne.g.:\n\n recordH264 0 1428162067 1428165667 1 /dev/video0 720 480 24.71 52.2 0.12 0 1 output.h264\n");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     videoMetadata vmd;
@@ -658,11 +659,11 @@ int main(int argc, char **argv) {
 
     if (DEBUG) {
         sprintf(line, "Starting video recording run at %s.", strStrip(friendlyTimestring(vmd.tstart), temp_err_string));
-        gnom_log(line);
+        logging_info(line);
     }
     if (DEBUG) {
         sprintf(line, "Video will end at %s.", strStrip(friendlyTimestring(vmd.tstop), temp_err_string));
-        gnom_log(line);
+        logging_info(line);
     }
 
     initLut();
@@ -697,7 +698,7 @@ int main(int argc, char **argv) {
     const int frameSize = width * height;
     unsigned char *tmpc = malloc(
             frameSize * 1.5); // Temporary frame buffer for converting YUV422 data from v4l2 into YUV420
-    if (!tmpc) gnom_fatal(__FILE__, __LINE__, "Malloc fail");
+    if (!tmpc) logging_fatal(__FILE__, __LINE__, "Malloc fail");
 
     // Init context
     appctx ctx;

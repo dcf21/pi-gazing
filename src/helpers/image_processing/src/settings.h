@@ -29,7 +29,7 @@
 
 // This is the directory into which we dump output video and image files
 #define OUTPUT_PATH  SRCDIR "/../../../../datadir"
-#define ALLDATAMONO 1
+#define GREYSCALE_IMAGING 1
 
 #define MODE_FLAT     1000
 #define MODE_GNOMONIC 1001

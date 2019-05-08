@@ -18,8 +18,8 @@ extern "C" {
 struct argparse;
 struct argparse_option;
 
-typedef int argparse_callback (struct argparse *self,
-                               const struct argparse_option *option);
+typedef int argparse_callback(struct argparse *self,
+                              const struct argparse_option *option);
 
 enum argparse_flag {
     ARGPARSE_STOP_AT_NON_OPTION = 1,
@@ -27,13 +27,13 @@ enum argparse_flag {
 
 enum argparse_option_type {
     /* special */
-    ARGPARSE_OPT_END,
+            ARGPARSE_OPT_END,
     ARGPARSE_OPT_GROUP,
     /* options with no arguments */
-    ARGPARSE_OPT_BOOLEAN,
+            ARGPARSE_OPT_BOOLEAN,
     ARGPARSE_OPT_BIT,
     /* options with arguments (optional or required) */
-    ARGPARSE_OPT_INTEGER,
+            ARGPARSE_OPT_INTEGER,
     ARGPARSE_OPT_FLOAT,
     ARGPARSE_OPT_STRING,
 };
@@ -118,9 +118,12 @@ int argparse_help_cb(struct argparse *self,
 
 int argparse_init(struct argparse *self, struct argparse_option *options,
                   const char *const *usages, int flags);
+
 void argparse_describe(struct argparse *self, const char *description,
                        const char *epilog);
+
 int argparse_parse(struct argparse *self, int argc, const char **argv);
+
 void argparse_usage(struct argparse *self);
 
 #ifdef __cplusplus

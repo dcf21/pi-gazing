@@ -35,32 +35,32 @@
 #include "settings.h"
 
 static const char *const usage[] = {
-    "rawimg2png [options] [[--] args]",
-    "rawimg2png [options]",
-    NULL,
+        "rawimg2png [options] [[--] args]",
+        "rawimg2png [options]",
+        NULL,
 };
 
 int main(int argc, const char *argv[]) {
     int i;
 
-    char rawFname[FNAME_LENGTH] = "\0";
-    char fname[FNAME_LENGTH] = "\0";
-    double noise = 0;
+    char input_filename[FNAME_LENGTH] = "\0";
+    char output_filename[FNAME_LENGTH] = "\0";
+    double noise_level = 0;
 
     struct argparse_option options[] = {
-        OPT_HELP(),
-        OPT_GROUP("Basic options"),
-        OPT_STRING('i', "input", &rawFname, "input filename"),
-        OPT_STRING('o', "output", &fname, "output filename"),
-        OPT_FLOAT('n', "noise", &noise, "noise level"),
-        OPT_END(),
+            OPT_HELP(),
+            OPT_GROUP("Basic options"),
+            OPT_STRING('i', "input", &input_filename, "input filename"),
+            OPT_STRING('o', "output", &output_filename, "output filename"),
+            OPT_FLOAT('n', "noise", &noise_level, "noise level"),
+            OPT_END(),
     };
 
     struct argparse argparse;
     argparse_init(&argparse, options, usage, 0);
     argparse_describe(&argparse,
-    "\nConvert raw image files into PNG format.",
-    "\n");
+                      "\nConvert raw image files into PNG format.",
+                      "\n");
     argc = argparse_parse(&argparse, argc, argv);
 
     if (argc != 0) {
@@ -68,13 +68,13 @@ int main(int argc, const char *argv[]) {
         for (i = 0; i < argc; i++) {
             printf("Error: unparsed argument <%s>\n", *(argv + i));
         }
-        gnom_fatal(__FILE__, __LINE__, "Unparsed arguments");
+        logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
     FILE *infile;
-    if ((infile = fopen(rawFname, "rb")) == NULL) {
-        sprintf(temp_err_string, "ERROR: Cannot open input raw image file <%s>.\n", rawFname);
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+    if ((infile = fopen(input_filename, "rb")) == NULL) {
+        sprintf(temp_err_string, "ERROR: Cannot open input raw image file <%s>.\n", input_filename);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     int width, height, channels;
@@ -82,43 +82,43 @@ int main(int argc, const char *argv[]) {
     i = fread(&height, sizeof(int), 1, infile);
     i = fread(&channels, sizeof(int), 1, infile);
 
-    const int frameSize = width * height;
-    unsigned char *imgRaw = malloc(channels * frameSize);
-    if (imgRaw == NULL) {
+    const int frame_size = width * height;
+    unsigned char *image_raw = malloc(channels * frame_size);
+    if (image_raw == NULL) {
         sprintf(temp_err_string, "ERROR: malloc fail");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
-    i = fread(imgRaw, 1, channels * frameSize, infile);
+    i = fread(image_raw, 1, channels * frame_size, infile);
     fclose(infile);
 
-    image_ptr OutputImage;
-    image_alloc(&OutputImage, width, height);
+    image_ptr output_image;
+    image_alloc(&output_image, width, height);
 
     if (channels >= 3) {
-        for (i = 0; i < frameSize; i++) OutputImage.data_red[i] = imgRaw[i];
-        for (i = 0; i < frameSize; i++) OutputImage.data_grn[i] = imgRaw[i + frameSize];
-        for (i = 0; i < frameSize; i++) OutputImage.data_blu[i] = imgRaw[i + frameSize * 2];
-        for (i = 0; i < frameSize; i++) OutputImage.data_w[i] = 1;
+        for (i = 0; i < frame_size; i++) output_image.data_red[i] = image_raw[i];
+        for (i = 0; i < frame_size; i++) output_image.data_grn[i] = image_raw[i + frame_size];
+        for (i = 0; i < frame_size; i++) output_image.data_blu[i] = image_raw[i + frame_size * 2];
+        for (i = 0; i < frame_size; i++) output_image.data_w[i] = 1;
     } else {
-        for (i = 0; i < frameSize; i++) OutputImage.data_red[i] = imgRaw[i];
-        for (i = 0; i < frameSize; i++) OutputImage.data_grn[i] = imgRaw[i];
-        for (i = 0; i < frameSize; i++) OutputImage.data_blu[i] = imgRaw[i];
-        for (i = 0; i < frameSize; i++) OutputImage.data_w[i] = 1;
+        for (i = 0; i < frame_size; i++) output_image.data_red[i] = image_raw[i];
+        for (i = 0; i < frame_size; i++) output_image.data_grn[i] = image_raw[i];
+        for (i = 0; i < frame_size; i++) output_image.data_blu[i] = image_raw[i];
+        for (i = 0; i < frame_size; i++) output_image.data_w[i] = 1;
     }
 
-    char frOut[FNAME_LENGTH];
-    sprintf(frOut, "%s.png", fname);
+    char product_filename[FNAME_LENGTH];
+    sprintf(product_filename, "%s.png", output_filename);
 
-    image_put(frOut, OutputImage, (channels < 3));
+    image_put(product_filename, output_image, (channels < 3));
 
-    sprintf(frOut, "%s.txt", fname);
-    FILE *f = fopen(frOut, "w");
+    sprintf(product_filename, "%s.txt", output_filename);
+    FILE *f = fopen(product_filename, "w");
     if (f) {
-        fprintf(f, "skyClarity %.2f\n", calculateSkyClarity(&OutputImage, noise));
+        fprintf(f, "skyClarity %.2f\n", calculateSkyClarity(&output_image, noise_level));
         fclose(f);
     }
 
-    image_dealloc(&OutputImage);
-    free(imgRaw);
+    image_dealloc(&output_image);
+    free(image_raw);
     return 0;
 }

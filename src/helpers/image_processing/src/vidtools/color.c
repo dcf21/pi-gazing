@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h> 
+#include <unistd.h>
 
 #include "settings.h"
 #include "vidtools/color.h"
@@ -166,16 +166,16 @@ void Pyuv420torgb(unsigned char *Ydata, unsigned char *Udata, unsigned char *Vda
     const int stride0 = width;
     const int stride1 = width / 2;
     const int stride2 = width / 2;
-#pragma omp parallel for private(i,j)
+#pragma omp parallel for private(i, j)
     for (i = 0; i < height; i++)
         for (j = 0; j < width; j++) {
             unsigned char Y = Ydata[i * stride0 + j];
             unsigned char U = Udata[(i / 2) * stride1 + (j / 2)];
             unsigned char V = Vdata[(i / 2) * stride2 + (j / 2)];
             *(outR + i * width + j) = R_FROMYV(Y, V);
-            *(outG + i * width + j) = ALLDATAMONO ? 128 : G_FROMYUV(Y, U,
-                                                                    V); // ALLDATAMONO is a compile-time flag which saves on CPU as this loop processes a lot of data
-            *(outB + i * width + j) = ALLDATAMONO ? 128 : B_FROMYU(Y, U);
+            *(outG + i * width + j) = GREYSCALE_IMAGING ? 128 : G_FROMYUV(Y, U,
+                                                                          V); // GREYSCALE_IMAGING is a compile-time flag which saves on CPU as this loop processes a lot of data
+            *(outB + i * width + j) = GREYSCALE_IMAGING ? 128 : B_FROMYU(Y, U);
         }
 }
 
@@ -216,9 +216,9 @@ void Pyuv422to420(unsigned char *input_ptr, unsigned char *output_ptr, const uns
         int j;
         for (j = 0; j < width / 2; j++) {
             unsigned char Y = b[0];
-            unsigned char U = ALLDATAMONO ? 128 : b[1];
+            unsigned char U = GREYSCALE_IMAGING ? 128 : b[1];
             unsigned char Y1 = b[2];
-            unsigned char V = ALLDATAMONO ? 128 : b[3];
+            unsigned char V = GREYSCALE_IMAGING ? 128 : b[3];
 
             if (!upsideDown) {
                 *(outY++) = Y;

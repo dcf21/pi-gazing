@@ -44,6 +44,7 @@
 #include "utils/filledPoly.h"
 #include "vidtools/color.h"
 
+#include "str_constants.h"
 #include "settings.h"
 #include "settings_webcam.h"
 
@@ -86,7 +87,7 @@ int fetchFrame(void *ctx_void, unsigned char *tmpc, double *utc) {
 
         if (ctx->len < 0) {
             sprintf(temp_err_string, "In input file <%s>, error decoding frame %d", ctx->filename, ctx->frame);
-            gnom_error(ERR_GENERAL, temp_err_string);
+            logging_error(ERR_GENERAL, temp_err_string);
         }
 
         if (ctx->got_picture) {
@@ -115,19 +116,19 @@ int decoder_init(context *ctx) {
     printf("Decoding file <%s>\n", ctx->filename);
     ctx->avFormatPtr = avformat_alloc_context();
     if (avformat_open_input(&ctx->avFormatPtr, ctx->filename, NULL, NULL) != 0) {
-        gnom_fatal(__FILE__, __LINE__, "could not open input video");
+        logging_fatal(__FILE__, __LINE__, "could not open input video");
     }
     ctx->streamNum = av_find_best_stream(ctx->avFormatPtr, AVMEDIA_TYPE_VIDEO, -1, -1, &ctx->codec, 0);
-    if (!ctx->codec) { gnom_fatal(__FILE__, __LINE__, "codec not found"); }
+    if (!ctx->codec) { logging_fatal(__FILE__, __LINE__, "codec not found"); }
     ctx->c = avcodec_alloc_context3(ctx->codec);
-    if (avcodec_open2(ctx->c, ctx->codec, NULL) < 0) { gnom_fatal(__FILE__, __LINE__, "codec could not be opened"); }
+    if (avcodec_open2(ctx->c, ctx->codec, NULL) < 0) { logging_fatal(__FILE__, __LINE__, "codec could not be opened"); }
     ctx->picture = av_frame_alloc();
     signal(SIGINT, sigint_handler);
     ctx->frame = 0;
     fetchFrame((void *) ctx, NULL, NULL); // Get libav to pick up video size
     ctx->mask = malloc(ctx->c->width * ctx->c->height);
     FILE *maskfile = fopen(ctx->maskFile, "r");
-    if (!maskfile) { gnom_fatal(__FILE__, __LINE__, "mask file could not be opened"); }
+    if (!maskfile) { logging_fatal(__FILE__, __LINE__, "mask file could not be opened"); }
     fillPolygonsFromFile(maskfile, ctx->mask, ctx->c->width, ctx->c->height);
     fclose(maskfile);
     return 0;
@@ -183,7 +184,7 @@ int main(int argc, const char **argv) {
         for (i = 0; i < argc; i++) {
             printf("Error: unparsed argument <%s>\n", *(argv + i));
         }
-        gnom_fatal(__FILE__, __LINE__, "Unparsed arguments");
+        logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
     initLut();

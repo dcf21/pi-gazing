@@ -24,6 +24,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include "argparse/argparse.h"
 #include "png/image.h"
 #include "utils/error.h"
 #include "vidtools/color.h"
@@ -31,27 +33,44 @@
 #include "settings.h"
 
 static const char *const usage[] = {
-    "rawvid2frames [options] [[--] args]",
-    "rawvid2frames [options]",
-    NULL,
+        "rawvid2frames [options] [[--] args]",
+        "rawvid2frames [options]",
+        NULL,
 };
 
 int main(int argc, const char *argv[]) {
     int i;
 
-    if (argc != 3) {
-        sprintf(temp_err_string,
-                "ERROR: Need to specify raw video filename on commandline, followed by stub for output frames, e.g. 'rawvid2frames foo.raw frame'.");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+    char input_filename[FNAME_LENGTH] = "\0";
+    char output_filename[FNAME_LENGTH] = "\0";
+
+    struct argparse_option options[] = {
+            OPT_HELP(),
+            OPT_GROUP("Basic options"),
+            OPT_STRING('i', "input", &input_filename, "input filename"),
+            OPT_STRING('o', "output", &output_filename, "output filename"),
+            OPT_END(),
+    };
+
+    struct argparse argparse;
+    argparse_init(&argparse, options, usage, 0);
+    argparse_describe(&argparse,
+                      "\nConvert raw video files into frames in PNG format.",
+                      "\n");
+    argc = argparse_parse(&argparse, argc, argv);
+
+    if (argc != 0) {
+        int i;
+        for (i = 0; i < argc; i++) {
+            printf("Error: unparsed argument <%s>\n", *(argv + i));
+        }
+        logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
-    char *rawFname = argv[1];
-    char *frOut = argv[2];
-
     FILE *infile;
-    if ((infile = fopen(rawFname, "rb")) == NULL) {
-        sprintf(temp_err_string, "ERROR: Cannot open output raw video file %s.\n", rawFname);
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+    if ((infile = fopen(input_filename, "rb")) == NULL) {
+        sprintf(temp_err_string, "ERROR: Cannot open output raw video file %s.\n", input_filename);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     int size, width, height;
@@ -60,44 +79,44 @@ int main(int argc, const char *argv[]) {
     i = fread(&height, sizeof(int), 1, infile);
 
     size -= 3 * sizeof(int);
-    unsigned char *vidRaw = malloc(size);
-    if (vidRaw == NULL) {
+    unsigned char *video_raw = malloc(size);
+    if (video_raw == NULL) {
         sprintf(temp_err_string, "ERROR: malloc fail");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
-    i = fread(vidRaw, 1, size, infile);
+    i = fread(video_raw, 1, size, infile);
     fclose(infile);
 
-    const int frameSize = width * height * 3 / 2;
-    const int nfr = size / frameSize;
+    const int frame_size = width * height * 3 / 2;
+    const int frame_count = size / frame_size;
 
-    image_ptr OutputImage;
-    image_alloc(&OutputImage, width, height);
-    for (i=0; i<width * height; i++) OutputImage.data_w[i] = 1;
+    image_ptr output_image;
+    image_alloc(&output_image, width, height);
+    for (i = 0; i < width * height; i++) output_image.data_w[i] = 1;
 
     long l = 0;
-    unsigned char *tmprgb = malloc(frameSize * 3);
+    unsigned char *tmp_rgb = malloc(frame_size * 3);
 
-    for (i = 0; i < nfr; i++) {
+    for (i = 0; i < frame_count; i++) {
         int x, y, p = 0;
-        Pyuv420torgb(vidRaw + l, vidRaw + l + frameSize, vidRaw + l + frameSize * 5 / 4, tmprgb, tmprgb + frameSize,
-                     tmprgb + frameSize * 2, width, height);
+        Pyuv420torgb(video_raw + l, video_raw + l + frame_size, video_raw + l + frame_size * 5 / 4,
+                     tmp_rgb, tmp_rgb + frame_size,
+                     tmp_rgb + frame_size * 2, width, height);
         for (y = 0; y < height; y++)
             for (x = 0; x < width; x++) {
-                OutputImage.data_red[l] = tmprgb[p + frameSize * 0];
-                OutputImage.data_grn[l] = tmprgb[p + frameSize * 1];
-                OutputImage.data_blu[l] = tmprgb[p + frameSize * 2];
+                output_image.data_red[l] = tmp_rgb[p + frame_size * 0];
+                output_image.data_grn[l] = tmp_rgb[p + frame_size * 1];
+                output_image.data_blu[l] = tmp_rgb[p + frame_size * 2];
                 p++;
             }
-        l += frameSize * 3 / 2;
+        l += frame_size * 3 / 2;
         char fname[FNAME_LENGTH];
-        sprintf(fname, "%s%06d.png", frOut, i);
-        image_deweight(&OutputImage);
-        image_put(fname, OutputImage, ALLDATAMONO);
+        sprintf(fname, "%s%06d.png", output_filename, i);
+        image_deweight(&output_image);
+        image_put(fname, output_image, GREYSCALE_IMAGING);
     }
-    image_dealloc(&OutputImage);
-    free(vidRaw);
-    free(tmprgb);
+    image_dealloc(&output_image);
+    free(video_raw);
+    free(tmp_rgb);
     return 0;
 }
-

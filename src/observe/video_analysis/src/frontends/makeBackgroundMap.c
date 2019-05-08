@@ -34,6 +34,7 @@
 #include "vidtools/color.h"
 #include "utils/error.h"
 
+#include "str_constants.h"
 #include "settings.h"
 #include "settings_webcam.h"
 
@@ -47,8 +48,8 @@ static const char *const usage[] = {
 };
 
 int main(int argc, const char *argv[]) {
-    char line[FNAME_BUFFER];
-    char output_filename[FNAME_BUFFER];
+    char line[FNAME_LENGTH];
+    char output_filename[FNAME_LENGTH];
 
     struct argparse_option options[] = {
         OPT_HELP(),
@@ -69,7 +70,7 @@ int main(int argc, const char *argv[]) {
         for (i = 0; i < argc; i++) {
             printf("Error: unparsed argument <%s>\n", *(argv + i));
         }
-        gnom_fatal(__FILE__, __LINE__, "Unparsed arguments");
+        logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
     struct vdIn *videoIn;
@@ -81,7 +82,7 @@ int main(int argc, const char *argv[]) {
     int queryformats = 0;
     char *stub = output_filename;
 
-    char rawfname[FNAME_BUFFER], frOut[FNAME_BUFFER];
+    char rawfname[FNAME_LENGTH], frOut[FNAME_LENGTH];
     sprintf(rawfname, "%s.rgb", stub);
     sprintf(frOut, "%s.png", stub);
 
@@ -105,25 +106,25 @@ int main(int argc, const char *argv[]) {
     int tstart = time(NULL);
     if (DEBUG) {
         sprintf(line, "Commencing makeBackgroundMap at %s.", friendlyTimestring(tstart));
-        gnom_log(line);
+        logging_info(line);
     }
 
     unsigned char *tmpc = malloc(frameSize * 1.5);
     if (!tmpc) {
         sprintf(temp_err_string, "ERROR: malloc fail in makeBackgroundMap.");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
     int *tmpi = malloc(frameSize * 3 * sizeof(int));
     if (!tmpi) {
         sprintf(temp_err_string, "ERROR: malloc fail in makeBackgroundMap.");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     int *backgroundWorkspace = calloc(1, frameSize * 3 * 256 * sizeof(int));
     unsigned char *backgroundMap = calloc(1, 3 * frameSize);
     if ((!backgroundWorkspace) || (!backgroundMap)) {
         sprintf(temp_err_string, "ERROR: malloc fail in makeBackgroundMap.");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     int f, i;
@@ -175,7 +176,7 @@ int main(int argc, const char *argv[]) {
         for (i = 0; i < frameSize; i++) OutputImage.data_blu[i] = backgroundMap[i];
     }
 
-    image_put(frOut, OutputImage, ALLDATAMONO);
+    image_put(frOut, OutputImage, GREYSCALE_IMAGING);
 
     // Clean up
     free(backgroundWorkspace);
@@ -184,7 +185,7 @@ int main(int argc, const char *argv[]) {
     int tstop = time(NULL);
     if (DEBUG) {
         sprintf(line, "Finishing making background map at %s.", friendlyTimestring(tstop));
-        gnom_log(line);
+        logging_info(line);
     }
 
     return 0;

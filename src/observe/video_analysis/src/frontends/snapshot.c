@@ -32,6 +32,7 @@
 #include "vidtools/color.h"
 #include "utils/error.h"
 
+#include "str_constants.h"
 #include "settings.h"
 #include "settings_webcam.h"
 
@@ -45,10 +46,10 @@ int main(int argc, char *argv[]) {
     if ((argc != 3) && (argc != 4)) {
         sprintf(temp_err_string,
                 "ERROR: Need to specify output filename for snapshot and number of frames to stack on commandline, e.g. 'snapshot tmp.png 500'.");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
-    char line[FNAME_BUFFER];
+    char line[FNAME_LENGTH];
     int nfr = (int) getFloat(argv[2], NULL);
     if (nfr < 1) nfr = 1;
 
@@ -87,7 +88,7 @@ int main(int argc, char *argv[]) {
         FILE *infile;
         if ((infile = fopen(rawFname, "rb")) == NULL) {
             sprintf(temp_err_string, "ERROR: Cannot open background filter image %s.\n", rawFname);
-            gnom_fatal(__FILE__, __LINE__, temp_err_string);
+            logging_fatal(__FILE__, __LINE__, temp_err_string);
         }
 
         int size, backgroundwidth, backgroundheight;
@@ -98,14 +99,14 @@ int main(int argc, char *argv[]) {
             sprintf(temp_err_string,
                     "ERROR: Background subtraction image has dimensions %d x %d. But frames from webcam have dimensions %d x %d. These must match.\n",
                     backgroundwidth, backgroundheight, width, height);
-            gnom_fatal(__FILE__, __LINE__, temp_err_string);
+            logging_fatal(__FILE__, __LINE__, temp_err_string);
         }
 
         size = width * height;
         backgroundRaw = malloc(size);
         if (backgroundRaw == NULL) {
             sprintf(temp_err_string, "ERROR: malloc fail in snapshot.");
-            gnom_fatal(__FILE__, __LINE__, temp_err_string);
+            logging_fatal(__FILE__, __LINE__, temp_err_string);
         }
         tstop = fread(backgroundRaw, 1, size, infile);
         fclose(infile);
@@ -114,7 +115,7 @@ int main(int argc, char *argv[]) {
     int tstart = time(NULL);
     if (DEBUG) {
         sprintf(line, "Commencing snapshot at %s. Will stack %d frames.", friendlyTimestring(tstart), nfr);
-        gnom_log(line);
+        logging_info(line);
     }
 
     snapshot(videoIn, nfr, 0, 1, argv[1], backgroundRaw);
@@ -122,11 +123,11 @@ int main(int argc, char *argv[]) {
     tstop = time(NULL);
     if (DEBUG) {
         sprintf(line, "Finishing snapshot at %s.", friendlyTimestring(tstop));
-        gnom_log(line);
+        logging_info(line);
     }
     if (DEBUG) {
         sprintf(line, "Frame rate was %.1f fps.", (tstop - tstart) / ((double) nfr));
-        gnom_log(line);
+        logging_info(line);
     }
 
     return 0;

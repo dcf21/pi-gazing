@@ -23,22 +23,24 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <unistd.h>
+
+#include "argparse/argparse.h"
 #include "png/image.h"
 #include "utils/error.h"
-
 #include "settings.h"
 
 #define VIDEO_FPS 25
 
-int nearestMultiple(double in, int factor) {
+int nearest_multiple(double in, int factor) {
     return (int) (round(in / factor) * factor);
 }
 
 static const char *const usage[] = {
-    "rawvid2mp4_openmax [options] [[--] args]",
-    "rawvid2mp4_openmax [options]",
-    NULL,
+        "rawvid2mp4_openmax [options] [[--] args]",
+        "rawvid2mp4_openmax [options]",
+        NULL,
 };
 
 /*
@@ -135,7 +137,7 @@ static void say(const char *message, ...) {
     if (str[str_len - 1] != '\n') {
         str[str_len] = '\n';
     }
-    gnom_report(str);
+    logging_report(str);
 }
 
 static void die(const char *message, ...) {
@@ -145,7 +147,7 @@ static void die(const char *message, ...) {
     va_start(args, message);
     vsnprintf(str, sizeof(str), message, args);
     va_end(args);
-    gnom_fatal(__FILE__, __LINE__, str);
+    logging_fatal(__FILE__, __LINE__, str);
     exit(1);
 }
 
@@ -188,14 +190,14 @@ static void omx_die(OMX_ERRORTYPE error, const char *message, ...) {
 
 static void dump_frame_info(const char *message, const i420_frame_info *info) {
     say("%s frame info:\n"
-                "\tWidth:\t\t\t%d\n"
-                "\tHeight:\t\t\t%d\n"
-                "\tSize:\t\t\t%d\n"
-                "\tBuffer stride:\t\t%d\n"
-                "\tBuffer slice height:\t%d\n"
-                "\tBuffer extra padding:\t%d\n"
-                "\tPlane strides:\t\tY:%d U:%d V:%d\n"
-                "\tPlane offsets:\t\tY:%d U:%d V:%d\n",
+        "\tWidth:\t\t\t%d\n"
+        "\tHeight:\t\t\t%d\n"
+        "\tSize:\t\t\t%d\n"
+        "\tBuffer stride:\t\t%d\n"
+        "\tBuffer slice height:\t%d\n"
+        "\tBuffer extra padding:\t%d\n"
+        "\tPlane strides:\t\tY:%d U:%d V:%d\n"
+        "\tPlane offsets:\t\tY:%d U:%d V:%d\n",
         message,
         info->width, info->height, info->size, info->buf_stride, info->buf_slice_height, info->buf_extra_padding,
         info->p_stride[0], info->p_stride[1], info->p_stride[2],
@@ -404,15 +406,15 @@ static void dump_portdef(OMX_PARAM_PORTDEFINITIONTYPE *portdef) {
     switch (portdef->eDomain) {
         case OMX_PortDomainVideo:
             say("Video type:\n"
-                        "\tWidth:\t\t%d\n"
-                        "\tHeight:\t\t%d\n"
-                        "\tStride:\t\t%d\n"
-                        "\tSliceHeight:\t%d\n"
-                        "\tBitrate:\t%d\n"
-                        "\tFramerate:\t%.02f\n"
-                        "\tError hiding:\t%s\n"
-                        "\tCodec:\t\t%s\n"
-                        "\tColor:\t\t%s\n",
+                "\tWidth:\t\t%d\n"
+                "\tHeight:\t\t%d\n"
+                "\tStride:\t\t%d\n"
+                "\tSliceHeight:\t%d\n"
+                "\tBitrate:\t%d\n"
+                "\tFramerate:\t%.02f\n"
+                "\tError hiding:\t%s\n"
+                "\tCodec:\t\t%s\n"
+                "\tColor:\t\t%s\n",
                 viddef->nFrameWidth,
                 viddef->nFrameHeight,
                 viddef->nStride,
@@ -425,13 +427,13 @@ static void dump_portdef(OMX_PARAM_PORTDEFINITIONTYPE *portdef) {
             break;
         case OMX_PortDomainImage:
             say("Image type:\n"
-                        "\tWidth:\t\t%d\n"
-                        "\tHeight:\t\t%d\n"
-                        "\tStride:\t\t%d\n"
-                        "\tSliceHeight:\t%d\n"
-                        "\tError hiding:\t%s\n"
-                        "\tCodec:\t\t%s\n"
-                        "\tColor:\t\t%s\n",
+                "\tWidth:\t\t%d\n"
+                "\tHeight:\t\t%d\n"
+                "\tStride:\t\t%d\n"
+                "\tSliceHeight:\t%d\n"
+                "\tError hiding:\t%s\n"
+                "\tCodec:\t\t%s\n"
+                "\tColor:\t\t%s\n",
                 imgdef->nFrameWidth,
                 imgdef->nFrameHeight,
                 imgdef->nStride,
@@ -622,7 +624,7 @@ static OMX_ERRORTYPE fill_output_buffer_done_handler(
     return OMX_ErrorNone;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, const char **argv) {
     bcm_host_init();
 
     OMX_ERRORTYPE r;
@@ -632,20 +634,30 @@ int main(int argc, char **argv) {
     }
 
     // Read commandline switches
+    char input_filename[FNAME_LENGTH] = "\0";
+    char output_filename[FNAME_LENGTH] = "\0";
 
-    if (argc != 3) {
-        sprintf(temp_err_string,
-                "ERROR: Need to specify raw image filename on commandline, followed by output frame filename, e.g. 'rawvid2mp4_openmax foo.raw frame.mp4'.");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
-    }
+    struct argparse_option arg_options[] = {
+            OPT_HELP(),
+            OPT_GROUP("Basic options"),
+            OPT_STRING('i', "input", &input_filename, "input filename"),
+            OPT_STRING('o', "output", &output_filename, "output filename"),
+            OPT_END(),
+    };
 
-    char *rawFname = argv[1];
-    char *frOut = argv[2];
+    struct argparse argparse;
+    argparse_init(&argparse, arg_options, usage, 0);
+    argparse_describe(&argparse,
+                      "\nConvert raw video files into MP4 format using openmax hardware.",
+                      "\n");
+    argc = argparse_parse(&argparse, argc, argv);
 
-    FILE *infile;
-    if ((infile = fopen(rawFname, "rb")) == NULL) {
-        sprintf(temp_err_string, "ERROR: Cannot open output raw video file %s.\n", rawFname);
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+    if (argc != 0) {
+        int i;
+        for (i = 0; i < argc; i++) {
+            printf("Error: unparsed argument <%s>\n", *(argv + i));
+        }
+        logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
     int size, width, height, i;
@@ -654,17 +666,17 @@ int main(int argc, char **argv) {
     i = fread(&height, sizeof(int), 1, infile);
 
     size -= 3 * sizeof(int);
-    unsigned char *vidRaw = malloc(size);
-    if (vidRaw == NULL) {
+    unsigned char *video_raw = malloc(size);
+    if (video_raw == NULL) {
         sprintf(temp_err_string, "ERROR: malloc fail");
-        gnom_fatal(__FILE__, __LINE__, temp_err_string);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
-    i = fread(vidRaw, 1, size, infile);
+    i = fread(video_raw, 1, size, infile);
     fclose(infile);
 
-    const int imageSize = width * height;
-    const int frameSize = width * height * 1.5;
-    const int nfr = size / frameSize;
+    const int image_size = width * height;
+    const int frame_size = width * height * 1.5;
+    const int frame_count = size / frame_size;
 
     // Init context
     appctx ctx;
@@ -697,7 +709,7 @@ int main(int argc, char **argv) {
     }
     encoder_portdef.format.video.nFrameWidth = width;
     encoder_portdef.format.video.nFrameHeight = height;
-    encoder_portdef.format.video.xFramerate = nearestMultiple(VIDEO_FPS, 1) << 16;
+    encoder_portdef.format.video.xFramerate = nearest_multiple(VIDEO_FPS, 1) << 16;
     // Stolen from gstomxvideodec.c of gst-omx
     encoder_portdef.format.video.nStride =
             (encoder_portdef.format.video.nFrameWidth + encoder_portdef.nBufferAlignment - 1) &
@@ -780,8 +792,8 @@ int main(int argc, char **argv) {
 
     // Just use stdin for input and stdout for output
     say("Opening input and output files...");
-    FILE *fd_out = fopen(frOut, "w");
-    if (fd_out == NULL) omx_die(r, "Could not open output mp4 file <%s>.", frOut);
+    FILE *fd_out = fopen(output_filename, "w");
+    if (fd_out == NULL) omx_die(r, "Could not open output mp4 file <%s>.", output_filename);
 
     // Switch state of the components prior to starting
     // the video capture and encoding loop
@@ -809,7 +821,7 @@ int main(int argc, char **argv) {
             ctx.encoder_ppBuffer_in->nAllocLen, buf_info.size);
     }
 
-    say("Enter encode loop (%d frames), press Ctrl-C to quit...", nfr);
+    say("Enter encode loop (%d frames), press Ctrl-C to quit...", frame_count);
 
     int frame_in = 0, frame_out = 0, firstPass = 1;
     size_t input_total_read, output_written;
@@ -822,7 +834,7 @@ int main(int argc, char **argv) {
     signal(SIGTERM, signal_handler);
     signal(SIGQUIT, signal_handler);
 
-    while ((frame_in < nfr) && (!want_quit)) {
+    while ((frame_in < frame_count) && (!want_quit)) {
         // empty_input_buffer_done_handler() has marked that there's
         // a need for a buffer to be filled by us
         if (ctx.encoder_input_buffer_needed) {
@@ -830,13 +842,13 @@ int main(int argc, char **argv) {
             int line;
             for (line = 0; line < height; line++)
                 memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[0] + frame_info.buf_stride * line,
-                       vidRaw + frame_in * frameSize + width * line, width);
+                       video_raw + frame_in * frame_size + width * line, width);
             for (line = 0; line < height / 2; line++)
                 memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[1] + frame_info.buf_stride / 2 * line,
-                       vidRaw + frame_in * frameSize + imageSize + width / 2 * line, width / 2);
+                       video_raw + frame_in * frame_size + image_size + width / 2 * line, width / 2);
             for (line = 0; line < height / 2; line++)
                 memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[2] + frame_info.buf_stride / 2 * line,
-                       vidRaw + frame_in * frameSize + imageSize * 5 / 4 + width / 2 * line, width / 2);
+                       video_raw + frame_in * frame_size + image_size * 5 / 4 + width / 2 * line, width / 2);
 
             input_total_read += (frame_info.p_stride[0] * plane_span_y) + (frame_info.p_stride[1] * plane_span_uv) +
                                 (frame_info.p_stride[2] * plane_span_uv);
