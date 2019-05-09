@@ -40,7 +40,6 @@ void jpeg_alloc(jpeg_ptr *out, int x, int y) {
     for (i = 0; i < j; i++) out->data_grn[i] = 0.0;
     for (i = 0; i < j; i++) out->data_blu[i] = 0.0;
     for (i = 0; i < j; i++) out->data_w[i] = 0.0;
-    return;
 }
 
 void jpeg_dealloc(jpeg_ptr *in) {
@@ -48,7 +47,6 @@ void jpeg_dealloc(jpeg_ptr *in) {
     if (in->data_grn != NULL) free(in->data_grn);
     if (in->data_blu != NULL) free(in->data_blu);
     if (in->data_w != NULL) free(in->data_w);
-    return;
 }
 
 void jpeg_cp(jpeg_ptr *in, jpeg_ptr *out) {
@@ -57,7 +55,6 @@ void jpeg_cp(jpeg_ptr *in, jpeg_ptr *out) {
     memcpy(out->data_grn, in->data_grn, in->xsize * in->ysize * sizeof(double));
     memcpy(out->data_blu, in->data_blu, in->xsize * in->ysize * sizeof(double));
     memcpy(out->data_w, in->data_w, in->xsize * in->ysize * sizeof(double));
-    return;
 }
 
 void jpeg_deweight(jpeg_ptr *out) {
@@ -74,12 +71,11 @@ void jpeg_deweight(jpeg_ptr *out) {
         out->data_blu[i] /= out->data_w[i];
         if (!gsl_finite(out->data_blu[i])) out->data_blu[i] = 0.0;
     }
-    return;
 }
 
 /* JPEG_IN(): Read in JPEG file, and return image structure */
 
-jpeg_ptr jpeg_get(char *filename) {
+jpeg_ptr jpeg_get(const char *filename) {
     jpeg_ptr output;
     output.xsize = output.ysize = -1;
     output.data_red = output.data_grn = output.data_blu = output.data_w = NULL;

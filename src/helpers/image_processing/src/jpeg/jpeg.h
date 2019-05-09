@@ -43,10 +43,10 @@ void jpeg_cp(jpeg_ptr *in, jpeg_ptr *out);
 
 void jpeg_deweight(jpeg_ptr *out);
 
-jpeg_ptr jpeg_get(char *filename);
+jpeg_ptr jpeg_get(const char *filename);
 
 /* Functions defined in jpeg_out.c */
-int jpeg_put(char *filename, jpeg_ptr image);
+int jpeg_put(const char *filename, jpeg_ptr image);
 
 #endif
 

@@ -26,6 +26,8 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#include "argparse/argparse.h"
 #include "utils/asciiDouble.h"
 #include "vidtools/v4l2uvc.h"
 #include "utils/tools.h"
@@ -42,91 +44,109 @@ static const char *const usage[] = {
     NULL,
 };
 
-int main(int argc, char *argv[]) {
-    if ((argc != 3) && (argc != 4)) {
-        sprintf(temp_err_string,
-                "ERROR: Need to specify output filename for snapshot and number of frames to stack on commandline, e.g. 'snapshot tmp.png 500'.");
-        logging_fatal(__FILE__, __LINE__, temp_err_string);
+int main(int argc, const char *argv[]) {
+    char line[FNAME_LENGTH];
+    const char *output_filename = "\0";
+    const char *background_filename = "\0";
+    int frame_count = 50;
+
+    struct argparse_option options[] = {
+        OPT_HELP(),
+        OPT_GROUP("Basic options"),
+        OPT_STRING('o', "output", &output_filename, "output filename"),
+        OPT_STRING('f', "frames", &frame_count, "frames to stack"),
+        OPT_STRING('b', "background", &background_filename, "background to subtract"),
+        OPT_END(),
+    };
+
+    struct argparse argparse;
+    argparse_init(&argparse, options, usage, 0);
+    argparse_describe(&argparse,
+    "\nTake a snapshot image.",
+    "\n");
+    argc = argparse_parse(&argparse, argc, argv);
+
+    if (argc != 0) {
+        int i;
+        for (i = 0; i < argc; i++) {
+            printf("Error: unparsed argument <%s>\n", *(argv + i));
+        }
+        logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
-    char line[FNAME_LENGTH];
-    int nfr = (int) getFloat(argv[2], NULL);
-    if (nfr < 1) nfr = 1;
 
-    int haveBackgroundSub = (argc == 4);
-    int tstop;
-    struct vdIn *videoIn;
+    if (frame_count < 1) frame_count = 1;
 
-    const char *videodevice = VIDEO_DEV;
+    int have_background = (strlen(background_filename) > 0);
+    int utc_stop;
+    struct video_info *video_in;
+
+    const char *video_device = VIDEO_DEV;
     float fps = nearest_multiple(VIDEO_FPS, 1);       // Requested frame rate
     int format = V4L2_PIX_FMT_YUYV;
-    int grabmethod = 1;
-    int queryformats = 0;
-    char *avifilename = "tmp.raw";
+    int grab_method = 1;
+    int query_formats = 0;
 
-    videoIn = (struct vdIn *) calloc(1, sizeof(struct vdIn));
+    video_in = (struct video_info *) calloc(1, sizeof(struct video_info));
 
-    if (queryformats) {
-        check_videoIn(videoIn, (char *) videodevice);
-        free(videoIn);
+    if (query_formats) {
+        check_videoIn(video_in, (char *) video_device);
+        free(video_in);
         exit(1);
     }
 
-    if (init_videoIn(videoIn, (char *) videodevice, VIDEO_WIDTH, VIDEO_HEIGHT, fps, format, grabmethod, avifilename) <
-        0)
+    if (init_videoIn(video_in, (char *) video_device, VIDEO_WIDTH, VIDEO_HEIGHT, fps, format, grab_method) < 0)
         exit(1);
-    const int width = videoIn->width;
-    const int height = videoIn->height;
+    const int width = video_in->width;
+    const int height = video_in->height;
 
     initLut();
 
-    unsigned char *backgroundRaw = NULL;
+    unsigned char *background_raw = NULL;
 
-    if (haveBackgroundSub) {
-        char *rawFname = argv[4];
-
+    if (have_background) {
         FILE *infile;
-        if ((infile = fopen(rawFname, "rb")) == NULL) {
-            sprintf(temp_err_string, "ERROR: Cannot open background filter image %s.\n", rawFname);
+        if ((infile = fopen(background_filename, "rb")) == NULL) {
+            sprintf(temp_err_string, "ERROR: Cannot open background filter image %s.\n", background_filename);
             logging_fatal(__FILE__, __LINE__, temp_err_string);
         }
 
-        int size, backgroundwidth, backgroundheight;
-        tstop = fread(&backgroundwidth, sizeof(int), 1, infile);
-        tstop = fread(&backgroundheight, sizeof(int), 1, infile);
+        int size, background_width, background_height;
+        utc_stop = fread(&background_width, sizeof(int), 1, infile);
+        utc_stop = fread(&background_height, sizeof(int), 1, infile);
 
-        if ((backgroundwidth != width) || (backgroundheight != height)) {
+        if ((background_width != width) || (background_height != height)) {
             sprintf(temp_err_string,
                     "ERROR: Background subtraction image has dimensions %d x %d. But frames from webcam have dimensions %d x %d. These must match.\n",
-                    backgroundwidth, backgroundheight, width, height);
+                    background_width, background_height, width, height);
             logging_fatal(__FILE__, __LINE__, temp_err_string);
         }
 
         size = width * height;
-        backgroundRaw = malloc(size);
-        if (backgroundRaw == NULL) {
+        background_raw = malloc(size);
+        if (background_raw == NULL) {
             sprintf(temp_err_string, "ERROR: malloc fail in snapshot.");
             logging_fatal(__FILE__, __LINE__, temp_err_string);
         }
-        tstop = fread(backgroundRaw, 1, size, infile);
+        utc_stop = fread(background_raw, 1, size, infile);
         fclose(infile);
     }
 
-    int tstart = time(NULL);
+    int utc_start = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Commencing snapshot at %s. Will stack %d frames.", friendly_time_string(tstart), nfr);
+        sprintf(line, "Commencing snapshot at %s. Will stack %d frames.", friendly_time_string(utc_start), frame_count);
         logging_info(line);
     }
 
-    snapshot(videoIn, nfr, 0, 1, argv[1], backgroundRaw);
+    snapshot(video_in, frame_count, 0, 1, output_filename, background_raw);
 
-    tstop = time(NULL);
+    utc_stop = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Finishing snapshot at %s.", friendly_time_string(tstop));
+        sprintf(line, "Finishing snapshot at %s.", friendly_time_string(utc_stop));
         logging_info(line);
     }
     if (DEBUG) {
-        sprintf(line, "Frame rate was %.1f fps.", (tstop - tstart) / ((double) nfr));
+        sprintf(line, "Frame rate was %.1f fps.", (utc_stop - utc_start) / ((double) frame_count));
         logging_info(line);
     }
 

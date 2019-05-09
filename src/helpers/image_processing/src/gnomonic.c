@@ -33,7 +33,6 @@ void rotate_xy(double *a, double theta) {
     a[0] = a0;
     a[1] = a1;
     a[2] = a2;
-    return;
 }
 
 void rotate_xz(double *a, double theta) {
@@ -43,7 +42,6 @@ void rotate_xz(double *a, double theta) {
     a[0] = a0;
     a[1] = a1;
     a[2] = a2;
-    return;
 }
 
 void make_zenithal(double ra, double dec, double ra0, double dec0, double *za, double *az) {
@@ -63,92 +61,92 @@ void make_zenithal(double ra, double dec, double ra0, double dec0, double *za, d
 
     *za = zenith_angle;
     *az = azimuth;
-    return;
 }
 
-double AngDist(double RA0, double Dec0, double RA1, double Dec1) {
-    double x0 = cos(RA0) * cos(Dec0);
-    double y0 = sin(RA0) * cos(Dec0);
-    double z0 = sin(Dec0);
-    double x1 = cos(RA1) * cos(Dec1);
-    double y1 = sin(RA1) * cos(Dec1);
-    double z1 = sin(Dec1);
+double angular_distance(double ra0, double dec0, double ra1, double dec1) {
+    double x0 = cos(ra0) * cos(dec0);
+    double y0 = sin(ra0) * cos(dec0);
+    double z0 = sin(dec0);
+    double x1 = cos(ra1) * cos(dec1);
+    double y1 = sin(ra1) * cos(dec1);
+    double z1 = sin(dec1);
     double d = sqrt(pow(x0 - x1, 2) + pow(y0 - y1, 2) + pow(z0 - z1, 2));
     return 2 * asin(d / 2);
 }
 
-void FindMeanPosition(double *RAm, double *DECm, double RA0, double DEC0, double RA1, double DEC1, double RA2,
-                      double DEC2) {
-    double x0 = cos(RA0) * cos(DEC0);
-    double y0 = sin(RA0) * cos(DEC0);
-    double z0 = sin(DEC0);
-    double x1 = cos(RA1) * cos(DEC1);
-    double y1 = sin(RA1) * cos(DEC1);
-    double z1 = sin(DEC1);
-    double x2 = cos(RA2) * cos(DEC2);
-    double y2 = sin(RA2) * cos(DEC2);
-    double z2 = sin(DEC2);
+void find_mean_position(double *ra_out, double *dec_out,
+                        double ra0, double dec0,
+                        double ra1, double dec1,
+                        double ra2, double dec2) {
+    double x0 = cos(ra0) * cos(dec0);
+    double y0 = sin(ra0) * cos(dec0);
+    double z0 = sin(dec0);
+    double x1 = cos(ra1) * cos(dec1);
+    double y1 = sin(ra1) * cos(dec1);
+    double z1 = sin(dec1);
+    double x2 = cos(ra2) * cos(dec2);
+    double y2 = sin(ra2) * cos(dec2);
+    double z2 = sin(dec2);
     double x3 = (x0 + x1 + x2) / 3;
     double y3 = (y0 + y1 + y2) / 3;
     double z3 = (z0 + z1 + z2) / 3;
-    *DECm = asin(z3);
-    *RAm = atan2(y3, x3);
-    return;
+    *dec_out = asin(z3);
+    *ra_out = atan2(y3, x3);
 }
 
-void GnomonicProject(double RA, double Dec, double RA0, double Dec0, int SizeX, int SizeY, double ScaleX, double ScaleY,
-                     double *x, double *y, double posang, double bca, double bcb, double bcc) {
-    double dist = AngDist(RA, Dec, RA0, Dec0);
+void gnomonic_project(double ra, double dec, double ra0, double dec0, int x_size, int y_size,
+                      double x_scale, double y_scale,
+                      double *x_out, double *y_out, double pa,
+                      double barrel_a, double barrel_b, double barrel_c) {
+    double dist = angular_distance(ra, dec, ra0, dec0);
     double za, az, radius, xd, yd;
 
     if (dist > M_PI / 2) {
-        *x = -1;
-        *y = -1;
+        *x_out = -1;
+        *y_out = -1;
         return;
     }
-    make_zenithal(RA, Dec, RA0, Dec0, &za, &az);
+    make_zenithal(ra, dec, ra0, dec0, &za, &az);
     radius = tan(za);
-    az += posang;
+    az += pa;
 
     // Correction for barrel distortion
-    double r = radius / tan(ScaleY / 2);
-    double bcd = 1. - bca - bcb - bcc;
-    double R = (((bca * r + bcb) * r + bcc) * r + bcd) * r;
-    radius = R * tan(ScaleY / 2);
+    double r = radius / tan(y_scale / 2);
+    double bcd = 1. - barrel_a - barrel_b - barrel_c;
+    double R = (((barrel_a * r + barrel_b) * r + barrel_c) * r + bcd) * r;
+    radius = R * tan(y_scale / 2);
 
-    yd = radius * cos(az) * (SizeY / 2. / tan(ScaleY / 2.)) + SizeY / 2.;
-    xd = radius * -sin(az) * (SizeX / 2. / tan(ScaleX / 2.)) + SizeX / 2.;
+    yd = radius * cos(az) * (y_size / 2. / tan(y_scale / 2.)) + y_size / 2.;
+    xd = radius * -sin(az) * (x_size / 2. / tan(x_scale / 2.)) + x_size / 2.;
 
-    //if ((xd>=0)&&(xd<=SizeX)) *x=(int)xd; else *x=-1;
-    //if ((yd>=0)&&(yd<=SizeY)) *y=(int)yd; else *y=-1;
-    *x = xd;
-    *y = yd;
-    return;
+    //if ((xd>=0)&&(xd<=x_size)) *x_out=(int)xd; else *x_out=-1;
+    //if ((yd>=0)&&(yd<=y_size)) *y_out=(int)yd; else *y_out=-1;
+    *x_out = xd;
+    *y_out = yd;
 }
 
 // Includes correction for barrel distortion
-void InvGnomProject(double *RA, double *Dec, double RA0, double Dec0, int SizeX, int SizeY, double ScaleX,
-                    double ScaleY, double x, double y, double posang, double bca, double bcb, double bcc) {
-    double x2 = (x - SizeX / 2.) / (SizeX / 2. / tan(ScaleX / 2.));
-    double y2 = (y - SizeY / 2.) / (SizeY / 2. / tan(ScaleY / 2.));
+void inv_gnomonic_project(double *ra_out, double *dec_out, double ra0, double dec0, int x_size, int y_size,
+                          double x_scale, double y_scale, double x, double y, double pa,
+                          double barrel_a, double barrel_b, double barrel_c) {
+    double x2 = (x - x_size / 2.) / (x_size / 2. / tan(x_scale / 2.));
+    double y2 = (y - y_size / 2.) / (y_size / 2. / tan(y_scale / 2.));
 
     double za = atan(hypot(x2, y2));
-    double az = atan2(-x2, y2) - posang;
+    double az = atan2(-x2, y2) - pa;
 
     // Correction for barrel distortion
-    double r = za / tan(ScaleY / 2.);
-    double bcd = 1. - bca - bcb - bcc;
-    double R = (((bca * r + bcb) * r + bcc) * r + bcd) * r;
-    za = R * tan(ScaleY / 2.);
+    double r = za / tan(y_scale / 2.);
+    double bcd = 1. - barrel_a - barrel_b - barrel_c;
+    double R = (((barrel_a * r + barrel_b) * r + barrel_c) * r + bcd) * r;
+    za = R * tan(y_scale / 2.);
 
     double altitude = M_PI / 2 - za;
     double a[3] = {cos(altitude) * cos(az), cos(altitude) * sin(az), sin(altitude)};
 
-    rotate_xz(a, -(M_PI / 2) + Dec0);
-    rotate_xy(a, RA0);
+    rotate_xz(a, -(M_PI / 2) + dec0);
+    rotate_xy(a, ra0);
 
-    *RA = atan2(a[1], a[0]);
-    *Dec = asin(a[2]);
-    return;
+    *ra_out = atan2(a[1], a[0]);
+    *dec_out = asin(a[2]);
 }
-

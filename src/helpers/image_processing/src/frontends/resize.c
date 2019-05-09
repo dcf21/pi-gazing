@@ -50,7 +50,7 @@ static const char *const usage[] = {
 
 int main(int argc, const char **argv) {
     int i, j;
-    settingsIn s_in_default;
+    settings_input s_in_default;
     image_ptr input_image;
     image_ptr output_image;
 
@@ -61,8 +61,8 @@ int main(int argc, const char **argv) {
     gsl_set_error_handler_off();
 
     // Scan commandline options for any switches
-    char input_filename[FNAME_LENGTH] = "\0";
-    char output_filename[FNAME_LENGTH] = "\0";
+    const char *input_filename = "\0";
+    const char *output_filename = "\0";
     int new_width = 1;
 
     // Turn off GSL's automatic error handler
@@ -94,7 +94,7 @@ int main(int argc, const char **argv) {
     }
 
     // Read image
-    strcpy(s_in_default.InFName, input_filename);
+    strcpy(s_in_default.input_filename, input_filename);
     input_image = image_get(input_filename);
     if (input_image.data_red == NULL) logging_fatal(__FILE__, __LINE__, "Could not read input image file");
 

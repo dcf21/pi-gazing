@@ -48,13 +48,11 @@ static const char *const usage[] = {
     NULL,
 };
 
-extern char *analysisObstoryId;
-
-int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc) {
-    struct vdIn *videoIn = videoHandle;
+int fetch_frame(void *video_handle, unsigned char *tmpc, double *utc) {
+    struct video_info *videoIn = video_handle;
     int status = uvcGrab(videoIn);
     if (status) return status;
-    Pyuv422to420(videoIn->framebuffer, tmpc, videoIn->width, videoIn->height, videoIn->upsideDown);
+    Pyuv422to420(videoIn->frame_buffer, tmpc, videoIn->width, videoIn->height, videoIn->upside_down);
 
     struct timespec spec;
     clock_gettime(CLOCK_REALTIME, &spec);
@@ -62,45 +60,42 @@ int fetchFrame(void *videoHandle, unsigned char *tmpc, double *utc) {
     return 0;
 }
 
-int rewindVideo(void *videoHandle, double *utc) {
+int rewind_video(void *video_handle, double *utc) {
     return 0; // Can't rewind live video!
 }
 
 int main(int argc, const char *argv[]) {
     video_metadata vmd;
-    char mask_file[FNAME_LENGTH] = "\0";
-    char obstory[FNAME_LENGTH] = "\0";
-    char input_device[FNAME_LENGTH] = "\0";
+    const char *mask_file = "\0";
+    const char *obstory_id = "\0";
+    const char *input_device = "\0";
 
-    vmd.tstart = time(NULL);
-    vmd.tstop = getFloat(argv[3], NULL);
-    vmd.nframe = 0;
-    vmd.obstoryId = obstory;
-    vmd.videoDevice = input_device;
+    vmd.utc_start = time(NULL);
+    vmd.utc_stop = 0;
+    vmd.frame_count = 0;
     vmd.width = 720;
     vmd.height = 480;
     vmd.fps = 24.71;
-    vmd.maskFile = mask_file;
     vmd.lat = 52.2;
     vmd.lng = 0.12;
-    vmd.flagGPS = 0;
-    vmd.flagUpsideDown = 1;
+    vmd.flag_gps = 0;
+    vmd.flag_upside_down = 1;
     vmd.filename = "dummy.h264";
 
     struct argparse_option options[] = {
         OPT_HELP(),
         OPT_GROUP("Basic options"),
-        OPT_STRING('o', "obsid", &obstory, "observatory id"),
+        OPT_STRING('o', "obsid", &obstory_id, "observatory id"),
         OPT_STRING('d', "device", &input_device, "input video device, e.g. /dev/video0"),
         OPT_STRING('m', "mask", &mask_file, "mask file"),
-        OPT_FLOAT('s', "utc-stop", &vmd.tstop, "time stamp at which to end observing"),
+        OPT_FLOAT('s', "utc-stop", &vmd.utc_stop, "time stamp at which to end observing"),
         OPT_FLOAT('f', "fps", &vmd.fps, "frame count per second"),
         OPT_FLOAT('l', "latitude", &vmd.lat, "latitude of observatory"),
         OPT_FLOAT('L', "longitude", &vmd.lng, "longitude of observatory"),
         OPT_INTEGER('w', "width", &vmd.width, "frame width"),
         OPT_INTEGER('h', "height", &vmd.height, "frame height"),
-        OPT_INTEGER('g', "flag-gps", &vmd.flagGPS, "boolean flag indicating whether position determined by GPS"),
-        OPT_INTEGER('u', "flag-upside-down", &vmd.flagUpsideDown, "boolean flag indicating whether the camera is upside down"),
+        OPT_INTEGER('g', "flag-gps", &vmd.flag_gps, "boolean flag indicating whether position determined by GPS"),
+        OPT_INTEGER('u', "flag-upside-down", &vmd.flag_upside_down, "boolean flag indicating whether the camera is upside down"),
         OPT_END(),
     };
 
@@ -119,49 +114,50 @@ int main(int argc, const char *argv[]) {
         logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
-    const int backgroundMapUseEveryNthStack = 1, backgroundMapUseNImages = 3600, backgroundMapReductionCycles = 32;
+    vmd.obstory_id = obstory_id;
+    vmd.video_device = input_device;
+    vmd.mask_file = mask_file;
 
-    struct vdIn *videoIn;
+    const int background_map_use_every_nth_stack = 1, background_map_use_n_images = 3600, backgroundMapReductionCycles = 32;
 
-    const char *videodevice = vmd.videoDevice;
+    struct video_info *video_in;
+
+    const char *video_device = vmd.video_device;
     const float fps = nearest_multiple(vmd.fps, 1); // Requested frame rate
     const int format = V4L2_PIX_FMT_YUYV;
-    const int grabmethod = 1;
-    const int queryformats = 0;
-    char *avifilename = "/tmp/foo";
+    const int grab_method = 1;
+    const int query_formats = 0;
 
-    videoIn = (struct vdIn *) calloc(1, sizeof(struct vdIn));
+    video_in = (struct video_info *) calloc(1, sizeof(struct video_info));
 
-    if (queryformats) {
-        check_videoIn(videoIn, (char *) videodevice);
-        free(videoIn);
+    if (query_formats) {
+        check_videoIn(video_in, (char *) video_device);
+        free(video_in);
         exit(1);
     }
 
     initLut();
 
     // Fetch the dimensions of the video stream as returned by V4L (which may differ from what we requested)
-    if (init_videoIn(videoIn, (char *) videodevice, vmd.width, vmd.height, fps, format, grabmethod, avifilename) <
-        0)
+    if (init_videoIn(video_in, (char *) video_device, vmd.width, vmd.height, fps, format, grab_method) < 0)
         exit(1);
-    const int width = videoIn->width;
-    const int height = videoIn->height;
+    const int width = video_in->width;
+    const int height = video_in->height;
     vmd.width = width;
     vmd.height = height;
-    //write_raw_video_metadata(vmd);
-    videoIn->upsideDown = vmd.flagUpsideDown;
+    video_in->upside_down = vmd.flag_upside_down;
 
     unsigned char *mask = malloc((size_t)(width * height));
-    FILE *maskfile = fopen(vmd.maskFile, "r");
+    FILE *maskfile = fopen(vmd.mask_file, "r");
     if (!maskfile) { logging_fatal(__FILE__, __LINE__, "mask file could not be opened"); }
-    fillPolygonsFromFile(maskfile, mask, width, height);
+    fill_polygons_from_file(maskfile, mask, width, height);
     fclose(maskfile);
 
-    observe((void *) videoIn, vmd.obstoryId, vmd.tstart, vmd.tstop, width, height, vmd.fps, "live", mask,
+    observe((void *) video_in, vmd.obstory_id, vmd.utc_start, vmd.utc_stop, width, height, vmd.fps, "live", mask,
             CHANNEL_COUNT, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP,
             TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE,
-            TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, backgroundMapUseEveryNthStack, backgroundMapUseNImages,
-            backgroundMapReductionCycles, &fetchFrame, &rewindVideo);
+            TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, background_map_use_every_nth_stack, background_map_use_n_images,
+            backgroundMapReductionCycles, &fetch_frame, &rewind_video);
 
     return 0;
 }

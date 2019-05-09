@@ -53,19 +53,19 @@ static const char *const usage[] = {
 int main(int argc, const char **argv) {
     int i;
     settings s_model, *feed_s = &s_model;
-    settingsIn s_in[IMAGES_MAX], s_in_default;
+    settings_input s_in[IMAGES_MAX], s_in_default;
     int image_count = 0;
     image_ptr output_image;
 
     // Initialise sub-modules
     if (DEBUG) logging_info("Initialising stacker.");
-    defaultSettings(feed_s, &s_in_default);
+    default_settings(feed_s, &s_in_default);
 
     // Turn off GSL's automatic error handler
     gsl_set_error_handler_off();
 
     // Scan commandline options for any switches
-    char config_filename[FNAME_LENGTH] = "\0";
+    const char *config_filename = "\0";
 
     // Turn off GSL's automatic error handler
     gsl_set_error_handler_off();
@@ -97,17 +97,17 @@ int main(int argc, const char **argv) {
     if (read_config(config_filename, feed_s, s_in, &s_in_default, &image_count)) return 1;
 
     // Malloc output image
-    image_alloc(&output_image, feed_s->XSize, feed_s->YSize);
+    image_alloc(&output_image, feed_s->x_size, feed_s->y_size);
 
     // Straightforward stacking (no cloud masking)
     for (i = 0; i < image_count; i++) {
         image_ptr input_image;
 
         // Read image
-        input_image = image_get(s_in[i].InFName);
+        input_image = image_get(s_in[i].input_filename);
         if (input_image.data_red == NULL) logging_fatal(__FILE__, __LINE__, "Could not read input image file");
-        if (feed_s->cloudMask == 0)
-            backgroundSubtract(input_image, s_in + i); // Do not do background subtraction if we're doing cloud masking
+        if (feed_s->cloud_mask == 0)
+            background_subtract(input_image, s_in + i); // Do not do background subtraction if we're doing cloud masking
 
         // Process image
         StackImage(input_image, output_image, NULL, NULL, feed_s, s_in + i);
@@ -119,19 +119,19 @@ int main(int argc, const char **argv) {
     image_deweight(&output_image);
 
     // If requested, do stacking again with cloud masking
-    if (feed_s->cloudMask != 0) {
+    if (feed_s->cloud_mask != 0) {
         image_ptr cloud_mask_average = output_image;
-        image_alloc(&output_image, feed_s->XSize, feed_s->YSize);
+        image_alloc(&output_image, feed_s->x_size, feed_s->y_size);
 
         // Stacking with mask
         for (i = 0; i < image_count; i++) {
             image_ptr input_image, cloud_mask;
 
             // Read image
-            input_image = image_get(s_in[i].InFName);
+            input_image = image_get(s_in[i].input_filename);
             if (input_image.data_red == NULL) logging_fatal(__FILE__, __LINE__, "Could not read input image file");
             image_cp(&input_image, &cloud_mask);
-            backgroundSubtract(input_image, s_in + i);
+            background_subtract(input_image, s_in + i);
 
             // Process image
             StackImage(input_image, output_image, &cloud_mask_average, &cloud_mask, feed_s, s_in + i);
@@ -146,7 +146,7 @@ int main(int argc, const char **argv) {
     }
 
     // Write image
-    image_put(feed_s->OutFName, output_image, 0);
+    image_put(feed_s->output_filename, output_image, 0);
     image_dealloc(&output_image);
 
     if (DEBUG) logging_info("Terminating normally.");

@@ -40,8 +40,8 @@ static const char *const usage[] = {
 int main(int argc, const char *argv[]) {
     int i;
 
-    char input_filename[FNAME_LENGTH] = "\0";
-    char output_filename[FNAME_LENGTH] = "\0";
+    const char *input_filename = "\0";
+    const char *output_filename = "\0";
     double barrel_a = 0;
     double barrel_b = 0;
     double barrel_c = 0;

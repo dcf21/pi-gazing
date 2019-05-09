@@ -24,6 +24,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include "argparse/argparse.h"
 #include "vidtools/v4l2uvc.h"
 #include "utils/tools.h"
 #include "vidtools/color.h"
@@ -34,46 +36,62 @@
 #include "settings_webcam.h"
 
 static const char *const usage[] = {
-    "video_record [options] [[--] args]",
-    "video_record [options]",
+    "videoRecord [options] [[--] args]",
+    "videoRecord [options]",
     NULL,
 };
 
-int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        sprintf(temp_err_string,
-                "ERROR: Need to specify output filename for raw video dump on commandline, e.g. 'vidRec foo.raw'.");
-        logging_fatal(__FILE__, __LINE__, temp_err_string);
+int main(int argc, const char *argv[]) {
+    const char *output_filename = "\0";
+
+    struct argparse_option options[] = {
+        OPT_HELP(),
+        OPT_GROUP("Basic options"),
+        OPT_STRING('o', "output", &output_filename, "output filename"),
+        OPT_END(),
+    };
+
+    struct argparse argparse;
+    argparse_init(&argparse, options, usage, 0);
+    argparse_describe(&argparse,
+    "\nRecord a short video clip.",
+    "\n");
+    argc = argparse_parse(&argparse, argc, argv);
+
+    if (argc != 0) {
+        int i;
+        for (i = 0; i < argc; i++) {
+            printf("Error: unparsed argument <%s>\n", *(argv + i));
+        }
+        logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
-    struct vdIn *videoIn;
+    struct video_info *video_in;
 
     const char *videodevice = VIDEO_DEV;
     float fps = nearest_multiple(VIDEO_FPS, 1); // Requested frame rate
     int format = V4L2_PIX_FMT_YUYV;
-    int grabmethod = 1;
-    int queryformats = 0;
-    char *avifilename = argv[1];
+    int grab_method = 1;
+    int query_formats = 0;
 
-    videoIn = (struct vdIn *) calloc(1, sizeof(struct vdIn));
+    video_in = (struct video_info *) calloc(1, sizeof(struct video_info));
 
-    if (queryformats) {
-        check_videoIn(videoIn, (char *) videodevice);
-        free(videoIn);
+    if (query_formats) {
+        check_videoIn(video_in, (char *) videodevice);
+        free(video_in);
         exit(1);
     }
 
-    if (init_videoIn(videoIn, (char *) videodevice, VIDEO_WIDTH, VIDEO_HEIGHT, fps, format, grabmethod, avifilename) <
-        0)
+    if (init_videoIn(video_in, (char *) videodevice, VIDEO_WIDTH, VIDEO_HEIGHT, fps, format, grab_method) < 0)
         exit(1);
 
     initLut();
 
-    void *vidRaw = video_record(videoIn, 4);
+    void *vidRaw = video_record(video_in, 4);
 
     FILE *outfile;
-    if ((outfile = fopen(avifilename, "wb")) == NULL) {
-        sprintf(temp_err_string, "ERROR: Cannot open output RAW video file %s.\n", avifilename);
+    if ((outfile = fopen(output_filename, "wb")) == NULL) {
+        sprintf(temp_err_string, "ERROR: Cannot open output RAW video file %s.\n", output_filename);
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 

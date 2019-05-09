@@ -26,7 +26,7 @@
 
 #include "settings.h"
 
-int read_config(char *filename, settings *feed_s, settingsIn *si, settingsIn *s_in_default, int *nImages);
+int read_config(const char *filename, settings *feed_s, settings_input *si, settings_input *s_in_default, int *image_count);
 
 #endif
 

@@ -27,34 +27,34 @@
 #include <ctype.h>
 #include <math.h>
 
-#include "asciiDouble.h"
+#include "utils/asciiDouble.h"
 #include "error.h"
 #include "gnomonic.h"
-#include "image.h"
+#include "png/image.h"
 #include "settings.h"
 #include "str_constants.h"
 
-#define GRIDSIZE 8
+#define GRID_SIZE 8
 #define FRACTION 0.99
 
-void backgroundSubtract(image_ptr img, settingsIn *si) {
-    int histogram[GRIDSIZE][GRIDSIZE][3][256];
-    int mode[GRIDSIZE][GRIDSIZE][3];
+void background_subtract(image_ptr img, settings_input *si) {
+    int histogram[GRID_SIZE][GRID_SIZE][3][256];
+    int mode[GRID_SIZE][GRID_SIZE][3];
     int i, j, k, l;
 
-    if (si->backSub == 0) return;
+    if (si->background_subtract == 0) return;
 
-    for (i = 0; i < GRIDSIZE; i++)
-        for (j = 0; j < GRIDSIZE; j++)
+    for (i = 0; i < GRID_SIZE; i++)
+        for (j = 0; j < GRID_SIZE; j++)
             for (k = 0; k < 3; k++)
                 for (l = 0; l < 256; l++)histogram[i][j][k][l] = 0;
 
     for (j = 0; j < img.ysize; j++) {
         int k;
         int l = img.xsize * j;
-        int jbin = j * GRIDSIZE / img.ysize;
+        int jbin = j * GRID_SIZE / img.ysize;
         for (k = 0; k < img.xsize; k++, l++) {
-            int kbin = k * GRIDSIZE / img.xsize;
+            int kbin = k * GRID_SIZE / img.xsize;
             int level;
             level = (int) img.data_red[l];
             if (level < 0) level = 0;
@@ -71,8 +71,8 @@ void backgroundSubtract(image_ptr img, settingsIn *si) {
         }
     }
 
-    for (i = 0; i < GRIDSIZE; i++)
-        for (j = 0; j < GRIDSIZE; j++)
+    for (i = 0; i < GRID_SIZE; i++)
+        for (j = 0; j < GRID_SIZE; j++)
             for (k = 0; k < 3; k++) {
                 int mostPopular = 0;
                 int mostVotes = 0;
@@ -88,7 +88,7 @@ void backgroundSubtract(image_ptr img, settingsIn *si) {
     for (j = 0; j < img.ysize; j++) {
         int k;
         int l = img.xsize * j;
-        double jbin = j * ((double) GRIDSIZE) / img.ysize - 0.5;
+        double jbin = j * ((double) GRID_SIZE) / img.ysize - 0.5;
         int jbin0 = (int) floor(jbin);
         double jbin0w = 1 - (jbin - jbin0);
         if (jbin0 < 0) {
@@ -96,10 +96,10 @@ void backgroundSubtract(image_ptr img, settingsIn *si) {
             jbin0w = 1;
         }
         int jbin1 = jbin0 + 1;
-        if (jbin1 >= GRIDSIZE) jbin1 = GRIDSIZE - 1;
+        if (jbin1 >= GRID_SIZE) jbin1 = GRID_SIZE - 1;
         double jbin1w = 1 - jbin0w;
         for (k = 0; k < img.xsize; k++, l++) {
-            double kbin = k * ((double) GRIDSIZE) / img.xsize - 0.5;
+            double kbin = k * ((double) GRID_SIZE) / img.xsize - 0.5;
             int kbin0 = (int) floor(kbin);
             double kbin0w = 1 - (kbin - kbin0);
             if (kbin0 < 0) {
@@ -107,7 +107,7 @@ void backgroundSubtract(image_ptr img, settingsIn *si) {
                 kbin0w = 1;
             }
             int kbin1 = kbin0 + 1;
-            if (kbin1 >= GRIDSIZE) kbin1 = GRIDSIZE - 1;
+            if (kbin1 >= GRID_SIZE) kbin1 = GRID_SIZE - 1;
             double kbin1w = 1 - kbin0w;
 
             double backr = FRACTION *
@@ -120,18 +120,15 @@ void backgroundSubtract(image_ptr img, settingsIn *si) {
                            (mode[jbin0][kbin0][2] * jbin0w * kbin0w + mode[jbin0][kbin1][2] * jbin0w * kbin1w +
                             mode[jbin1][kbin0][2] * jbin1w * kbin0w + mode[jbin1][kbin1][2] * jbin1w * kbin1w);
 
-            if (si->backSub == 1) {
+            if (si->background_subtract == 1) {
                 if (img.data_red[l] > backr) img.data_red[l] -= backr; else img.data_red[l] = 0;
                 if (img.data_grn[l] > backg) img.data_grn[l] -= backg; else img.data_grn[l] = 0;
                 if (img.data_blu[l] > backb) img.data_blu[l] -= backb; else img.data_blu[l] = 0;
-            } else if (si->backSub == 2) {
+            } else if (si->background_subtract == 2) {
                 img.data_red[l] = backr;
                 img.data_grn[l] = backg;
                 img.data_blu[l] = backb;
             }
         }
     }
-
-    return;
 }
-

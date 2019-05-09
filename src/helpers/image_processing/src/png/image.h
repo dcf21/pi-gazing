@@ -52,10 +52,10 @@ void image_cp(image_ptr *in, image_ptr *out);
 
 void image_deweight(image_ptr *out);
 
-image_ptr image_get(char *filename);
+image_ptr image_get(const char *filename);
 
 /* Functions defined in image_out.c */
-int image_put(char *filename, image_ptr image, int greyscale);
+int image_put(const char *output_filename, image_ptr image, int greyscale);
 
 #endif
 

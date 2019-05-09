@@ -27,22 +27,22 @@
 #include <ctype.h>
 #include <math.h>
 
-#include "asciiDouble.h"
-#include "error.h"
+#include "utils/asciiDouble.h"
+#include "utils/error.h"
 #include "settings.h"
 #include "str_constants.h"
 
-void defaultSettings(settings *s, settingsIn *si) {
+void default_settings(settings *s, settings_input *si) {
     s->mode = MODE_FLAT;
-    s->ExpComp = si->InWeight = si->InExpComp = 1;
-    s->RA0 = s->Dec0 = s->PA = s->LinearRot = si->InRA0 = si->InDec0 = si->InRotation = si->InLinearRotation = 0;
-    s->XScale = s->YScale = si->InXScale = si->InYScale = 10 * M_PI / 180;
-    s->XSize = s->YSize = 100;
-    s->XOff = s->YOff = si->InXOff = si->InYOff = 0;
-    s->cloudMask = 0;
+    s->exposure_compensation = si->weight_in = si->exposure_compensation_in = 1;
+    s->ra0 = s->dec0 = s->pa = s->linear_rotation = si->ra0_in = si->dec0_in = si->rotation_in = si->linear_rotation_in = 0;
+    s->x_scale = s->y_scale = si->x_scale_in = si->y_scale_in = 10 * M_PI / 180;
+    s->x_size = s->y_size = 100;
+    s->x_off = s->y_off = 0;
+    si->x_off_in = si->y_off_in = 0;
+    s->cloud_mask = 0;
 
     si->barrel_a = si->barrel_b = si->barrel_c = 0;
-    si->backSub = 0;
-    return;
+    si->background_subtract = 0;
 }
 

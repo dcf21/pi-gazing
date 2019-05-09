@@ -31,7 +31,7 @@
 #include "utils/filledPoly.h"
 #include "str_constants.h"
 
-void fillPolygonsFromFile(FILE *infile, unsigned char *mask, int width, int height) {
+void fill_polygons_from_file(FILE *infile, unsigned char *mask, int width, int height) {
     char line[FNAME_LENGTH];
     int polyCorners = 0, polyX[MAX_POLY_CORNERS], polyY[MAX_POLY_CORNERS];
     int stopping = 0, filledPixels = 0;

@@ -36,20 +36,21 @@
 
 typedef struct settings {
     int mode;
-    char OutFName[FNAME_LENGTH];
-    double ExpComp, RA0, Dec0, PA, XScale, YScale, LinearRot;
-    int XSize, YSize, XOff, YOff;
-    int cloudMask;
+    char output_filename[FNAME_LENGTH];
+    double exposure_compensation, ra0, dec0, pa, x_scale, y_scale, linear_rotation;
+    int x_size, y_size, x_off, y_off;
+    int cloud_mask;
 } settings;
 
-typedef struct settingsIn {
-    char InFName[FNAME_LENGTH];
-    int InXSize, InYSize;
-    double InExpComp, InRA0, InDec0, InXScale, InYScale, InRotation, InWeight, InXOff, InYOff, InLinearRotation;
+typedef struct settings_input {
+    char input_filename[FNAME_LENGTH];
+    int x_size_in, y_size_in;
+    double exposure_compensation_in, ra0_in, dec0_in, x_scale_in, y_scale_in, rotation_in, weight_in;
+    double x_off_in, y_off_in, linear_rotation_in;
     double barrel_a, barrel_b, barrel_c;
-    int backSub;
-} settingsIn;
+    int background_subtract;
+} settings_input;
 
-void defaultSettings(settings *s, settingsIn *si);
+void default_settings(settings *s, settings_input *si);
 
 #endif

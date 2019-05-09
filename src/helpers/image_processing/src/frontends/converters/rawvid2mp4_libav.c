@@ -54,8 +54,8 @@ static const char *const usage[] = {
 
 int main(int argc, const char **argv) {
     // Read commandline switches
-    char input_filename[FNAME_LENGTH] = "\0";
-    char output_filename[FNAME_LENGTH] = "\0";
+    const char *input_filename = "\0";
+    const char *output_filename = "\0";
 
     struct argparse_option arg_options[] = {
             OPT_HELP(),

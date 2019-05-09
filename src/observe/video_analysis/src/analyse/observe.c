@@ -530,24 +530,24 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
     filename_generate(os->event_list[i].filename_stub, os->obstory_id, os->utc, "event", "triggers_raw", os->label);
     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapDifference.rgb");
     dump_frame(os->width, os->height, 1, os->trigger_rgb + 0 * os->frame_size, fname);
-    write_metadata(fname, "sddi", "obstoryId", os->obstory_id, "inputNoiseLevel", os->noise_level, "stackNoiseLevel",
+    write_metadata(fname, "sddi", "obstory_id", os->obstory_id, "inputNoiseLevel", os->noise_level, "stackNoiseLevel",
                    os->noise_level, "stackedFrames", 1);
     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapExcludedPixels.rgb");
     dump_frame(os->width, os->height, 1, os->trigger_rgb + 1 * os->frame_size, fname);
-    write_metadata(fname, "sddi", "obstoryId", os->obstory_id, "inputNoiseLevel", os->noise_level, "stackNoiseLevel",
+    write_metadata(fname, "sddi", "obstory_id", os->obstory_id, "inputNoiseLevel", os->noise_level, "stackNoiseLevel",
                    os->noise_level, "stackedFrames", 1);
     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapTrigger.rgb");
     dump_frame(os->width, os->height, 1, os->trigger_rgb + 2 * os->frame_size, fname);
-    write_metadata(fname, "sddi", "obstoryId", os->obstory_id, "inputNoiseLevel", os->noise_level, "stackNoiseLevel",
+    write_metadata(fname, "sddi", "obstory_id", os->obstory_id, "inputNoiseLevel", os->noise_level, "stackNoiseLevel",
                    os->noise_level, "stackedFrames", 1);
 
     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_triggerFrame.rgb");
     dump_frame_from_ints(os->width, os->height, os->channel_count, image1, coadded_frames, 0, NULL, fname);
-    write_metadata(fname, "sddi", "obstoryId", os->obstory_id, "inputNoiseLevel", os->noise_level, "stackNoiseLevel",
+    write_metadata(fname, "sddi", "obstory_id", os->obstory_id, "inputNoiseLevel", os->noise_level, "stackNoiseLevel",
                    os->noise_level / sqrt(coadded_frames), "stackedFrames", coadded_frames);
     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_previousFrame.rgb");
     dump_frame_from_ints(os->width, os->height, os->channel_count, image2, coadded_frames, 0, NULL, fname);
-    write_metadata(fname, "sddi", "obstoryId", os->obstory_id, "inputNoiseLevel", os->noise_level, "stackNoiseLevel",
+    write_metadata(fname, "sddi", "obstory_id", os->obstory_id, "inputNoiseLevel", os->noise_level, "stackNoiseLevel",
                    os->noise_level / sqrt(coadded_frames), "stackedFrames", coadded_frames);
     memcpy(os->event_list[i].stacked_image, image1, os->frame_size * os->channel_count * sizeof(int));
     int j;
@@ -603,13 +603,13 @@ void register_trigger_ends(observe_status *os) {
                 dump_frame_from_ints(os->width, os->height, os->channel_count, os->event_list[i].stacked_image,
                                      coAddedFrames, 0, NULL,
                                      fname);
-                write_metadata(fname, "sddi", "obstoryId", os->obstory_id, "inputNoiseLevel", os->noise_level,
+                write_metadata(fname, "sddi", "obstory_id", os->obstory_id, "inputNoiseLevel", os->noise_level,
                                "stackNoiseLevel", os->noise_level / sqrt(coAddedFrames), "stackedFrames",
                                coAddedFrames);
                 sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_maxBrightness.rgb");
                 dump_frame_from_ints(os->width, os->height, os->channel_count, os->event_list[i].max_stack,
                                      os->TRIGGER_FRAMEGROUP, 0, NULL, fname);
-                write_metadata(fname, "sddi", "obstoryId", os->obstory_id, "inputNoiseLevel", os->noise_level,
+                write_metadata(fname, "sddi", "obstory_id", os->obstory_id, "inputNoiseLevel", os->noise_level,
                                "stackNoiseLevel", os->noise_level / sqrt(coAddedFrames), "stackedFrames",
                                coAddedFrames);
 
@@ -690,7 +690,7 @@ void register_trigger_ends(observe_status *os) {
                         os->video_outputs[k].file_handle = dump_video_init(os->width, os->height, video1, video1frs,
                                                                            video2, video2frs, fname);
 
-                        write_metadata(fname, "sdsdiiis", "obstoryId", os->obstory_id, "inputNoiseLevel",
+                        write_metadata(fname, "sdsdiiis", "obstory_id", os->obstory_id, "inputNoiseLevel",
                                        os->noise_level,
                                        "path", path_json, "duration", duration,
                                        "detectionCount", os->event_list[i].detection_count,

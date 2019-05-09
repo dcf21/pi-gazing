@@ -42,7 +42,7 @@ static const char *const usage[] = {
 
 int main(int argc, const char *argv[]) {
 
-    char input_filename[FNAME_LENGTH] = "\0";
+    const char *input_filename = "\0";
     double noise_level = 0;
 
     struct argparse_option options[] = {

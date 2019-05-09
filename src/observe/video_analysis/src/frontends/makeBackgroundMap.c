@@ -38,8 +38,8 @@
 #include "settings.h"
 #include "settings_webcam.h"
 
-#define backgroundMapUseEveryNthStack     1
-#define backgroundMapUseNImages         100
+#define background_map_use_every_nth_stack     1
+#define background_map_use_n_images         100
 
 static const char *const usage[] = {
     "makeBackgroundMap [options] [[--] args]",
@@ -48,8 +48,8 @@ static const char *const usage[] = {
 };
 
 int main(int argc, const char *argv[]) {
-    char line[FNAME_LENGTH];
-    char output_filename[FNAME_LENGTH];
+    char line[FNAME_LENGTH] = "\0";
+    const char *output_filename = "\0";
 
     struct argparse_option options[] = {
         OPT_HELP(),
@@ -73,118 +73,117 @@ int main(int argc, const char *argv[]) {
         logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
-    struct vdIn *videoIn;
+    struct video_info *video_in;
 
-    const char *videodevice = VIDEO_DEV;
+    const char *video_device = VIDEO_DEV;
     float fps = nearest_multiple(VIDEO_FPS, 1);       // Requested frame rate
     int format = V4L2_PIX_FMT_YUYV;
-    int grabmethod = 1;
-    int queryformats = 0;
-    char *stub = output_filename;
+    int grab_method = 1;
+    int query_formats = 0;
+    const char *stub = output_filename;
 
-    char rawfname[FNAME_LENGTH], frOut[FNAME_LENGTH];
-    sprintf(rawfname, "%s.rgb", stub);
-    sprintf(frOut, "%s.png", stub);
+    char rgb_filename[FNAME_LENGTH], png_filename[FNAME_LENGTH];
+    sprintf(rgb_filename, "%s.rgb", stub);
+    sprintf(png_filename, "%s.png", stub);
 
-    videoIn = (struct vdIn *) calloc(1, sizeof(struct vdIn));
+    video_in = (struct video_info *) calloc(1, sizeof(struct video_info));
 
-    if (queryformats) {
-        check_videoIn(videoIn, (char *) videodevice);
-        free(videoIn);
+    if (query_formats) {
+        check_videoIn(video_in, (char *) video_device);
+        free(video_in);
         exit(1);
     }
 
-    if (init_videoIn(videoIn, (char *) videodevice, VIDEO_WIDTH, VIDEO_HEIGHT, fps, format, grabmethod, rawfname) <
-        0)
+    if (init_videoIn(video_in, (char *) video_device, VIDEO_WIDTH, VIDEO_HEIGHT, fps, format, grab_method) < 0)
         exit(1);
-    const int width = videoIn->width;
-    const int height = videoIn->height;
-    const int frameSize = width * height;
+    const int width = video_in->width;
+    const int height = video_in->height;
+    const int frame_size = width * height;
 
     initLut();
 
-    int tstart = time(NULL);
+    int utc_start = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Commencing makeBackgroundMap at %s.", friendly_time_string(tstart));
+        sprintf(line, "Commencing makeBackgroundMap at %s.", friendly_time_string(utc_start));
         logging_info(line);
     }
 
-    unsigned char *tmpc = malloc(frameSize * 1.5);
+    unsigned char *tmpc = malloc(frame_size * 1.5);
     if (!tmpc) {
         sprintf(temp_err_string, "ERROR: malloc fail in makeBackgroundMap.");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
-    int *tmpi = malloc(frameSize * 3 * sizeof(int));
-    if (!tmpi) {
+    int *tmp_int = malloc(frame_size * 3 * sizeof(int));
+    if (!tmp_int) {
         sprintf(temp_err_string, "ERROR: malloc fail in makeBackgroundMap.");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
-    int *backgroundWorkspace = calloc(1, frameSize * 3 * 256 * sizeof(int));
-    unsigned char *backgroundMap = calloc(1, 3 * frameSize);
-    if ((!backgroundWorkspace) || (!backgroundMap)) {
+    int *background_workspace = calloc(1, frame_size * 3 * 256 * sizeof(int));
+    unsigned char *background_map = calloc(1, 3 * frame_size);
+    if ((!background_workspace) || (!background_map)) {
         sprintf(temp_err_string, "ERROR: malloc fail in makeBackgroundMap.");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     int f, i;
 
-    const int totalRequiredStacks = backgroundMapUseEveryNthStack * backgroundMapUseNImages;
-    for (f = 0; f < totalRequiredStacks; f++) {
-        const int nfr = 12; // Stack 12 frames
+    const int total_required_stacks = background_map_use_every_nth_stack * background_map_use_n_images;
+    for (f = 0; f < total_required_stacks; f++) {
+        const int frame_count = 12; // Stack 12 frames
         int j;
-        memset(tmpi, 0, 3 * frameSize * sizeof(int));
+        memset(tmp_int, 0, 3 * frame_size * sizeof(int));
 
-        // Make a stack of nfr frames
-        for (j = 0; j < nfr; j++) {
-            if (uvcGrab(videoIn) < 0) {
+        // Make a stack of frame_count frames
+        for (j = 0; j < frame_count; j++) {
+            if (uvcGrab(video_in) < 0) {
                 printf("Error grabbing\n");
                 break;
             }
-            Pyuv422torgbstack(videoIn->framebuffer, tmpi, tmpi + frameSize, tmpi + frameSize * 2, videoIn->width,
-                              videoIn->height, VIDEO_UPSIDE_DOWN);
+            Pyuv422torgbstack(video_in->frame_buffer, tmp_int, tmp_int + frame_size, tmp_int + frame_size * 2,
+                    video_in->width, video_in->height, VIDEO_UPSIDE_DOWN);
         }
 
-        if ((f % backgroundMapUseEveryNthStack) != 0) continue;
+        if ((f % background_map_use_every_nth_stack) != 0) continue;
 
         // Add stacked image into background map
 #pragma omp parallel for private(j)
-        for (j = 0; j < CHANNEL_COUNT * frameSize; j++) {
+        for (j = 0; j < CHANNEL_COUNT * frame_size; j++) {
             int d;
-            int pixelVal = CLIP256(tmpi[j] / nfr);
-            backgroundWorkspace[j * 256 + pixelVal]++;
+            int pixel_value = CLIP256(tmp_int[j] / frame_count);
+            background_workspace[j * 256 + pixel_value]++;
         }
     }
 
     // Calculate background map
-    background_calculate(width, height, CHANNEL_COUNT, 0, 1, backgroundWorkspace, backgroundMap);
-    dump_frame(width, height, CHANNEL_COUNT, backgroundMap, rawfname);
+    background_calculate(width, height, CHANNEL_COUNT, 0, 1, background_workspace, background_map);
+    dump_frame(width, height, CHANNEL_COUNT, background_map, rgb_filename);
 
     // Make a PNG version for diagnostic use
-    image_ptr OutputImage;
-    image_alloc(&OutputImage, width, height);
+    image_ptr output_image;
+    image_alloc(&output_image, width, height);
 
-    for (i = 0; i < frameSize; i++) OutputImage.data_w[i] = 1;
+    for (i = 0; i < frame_size; i++) output_image.data_w[i] = 1;
 
     if (CHANNEL_COUNT >= 3) {
-        for (i = 0; i < frameSize; i++) OutputImage.data_red[i] = backgroundMap[i];
-        for (i = 0; i < frameSize; i++) OutputImage.data_grn[i] = backgroundMap[i + frameSize];
-        for (i = 0; i < frameSize; i++) OutputImage.data_blu[i] = backgroundMap[i + frameSize * 2];
+        for (i = 0; i < frame_size; i++) output_image.data_red[i] = background_map[i];
+        for (i = 0; i < frame_size; i++) output_image.data_grn[i] = background_map[i + frame_size];
+        for (i = 0; i < frame_size; i++) output_image.data_blu[i] = background_map[i + frame_size * 2];
     } else {
-        for (i = 0; i < frameSize; i++) OutputImage.data_red[i] = backgroundMap[i];
-        for (i = 0; i < frameSize; i++) OutputImage.data_grn[i] = backgroundMap[i];
-        for (i = 0; i < frameSize; i++) OutputImage.data_blu[i] = backgroundMap[i];
+        for (i = 0; i < frame_size; i++) output_image.data_red[i] = background_map[i];
+        for (i = 0; i < frame_size; i++) output_image.data_grn[i] = background_map[i];
+        for (i = 0; i < frame_size; i++) output_image.data_blu[i] = background_map[i];
     }
 
-    image_put(frOut, OutputImage, GREYSCALE_IMAGING);
+    image_put(png_filename, output_image, GREYSCALE_IMAGING);
 
     // Clean up
-    free(backgroundWorkspace);
-    free(backgroundMap);
+    free(background_workspace);
+    free(background_map);
 
-    int tstop = time(NULL);
+    int utc_stop = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Finishing making background map at %s.", friendly_time_string(tstop));
+        sprintf(line, "Finishing making background map at %s.", friendly_time_string(utc_stop));
         logging_info(line);
     }
 

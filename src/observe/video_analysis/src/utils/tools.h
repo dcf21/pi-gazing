@@ -29,10 +29,10 @@
 
 #define CLIP256(X) ( d=X , ((d<0)?0: ((d>255)?255:d) ))
 
-typedef struct videoMetadata {
-    double tstart, tstop, fps, lng, lat;
-    int width, height, flagGPS, flagUpsideDown, nframe;
-    char *obstoryId, *videoDevice, *filename, *maskFile;
+typedef struct video_metadata {
+    double utc_start, utc_stop, fps, lng, lat;
+    int width, height, flag_gps, flag_upside_down, frame_count;
+    const char *obstory_id, *video_device, *filename, *mask_file;
 } video_metadata;
 
 void write_raw_video_metadata(video_metadata v);
@@ -41,9 +41,10 @@ int nearest_multiple(double in, int factor);
 
 void frame_invert(unsigned char *buffer, int len);
 
-void *video_record(struct vdIn *video_in, double seconds);
+void *video_record(struct video_info *video_in, double seconds);
 
-void snapshot(struct vdIn *video_in, int frame_count, int zero, double exposure_compensation, char *filename, unsigned char *background_raw);
+void snapshot(struct video_info *video_in, int frame_count, int zero, double exposure_compensation,
+              const char *filename, const unsigned char *background_raw);
 
 double estimate_noise_level(int width, int height, unsigned char *buffer, int frame_count);
 

@@ -43,13 +43,13 @@ void write_raw_video_metadata(video_metadata v) {
     sprintf(fname, "%s.txt", v.filename);
     FILE *f = fopen(fname, "w");
     if (!f) return;
-    fprintf(f, "obstoryId %s\n", v.obstoryId);
-    fprintf(f, "tstart %.1f\n", v.tstart);
-    fprintf(f, "tstop %.1f\n", v.tstop);
-    fprintf(f, "nframe %d\n", v.nframe);
-    fprintf(f, "fps %.6f\n", v.nframe / (v.tstop - v.tstart));
+    fprintf(f, "obstory_id %s\n", v.obstory_id);
+    fprintf(f, "utc_start %.1f\n", v.utc_start);
+    fprintf(f, "utc_stop %.1f\n", v.utc_stop);
+    fprintf(f, "frame_count %d\n", v.frame_count);
+    fprintf(f, "fps %.6f\n", v.frame_count / (v.utc_stop - v.utc_start));
     fprintf(f, "fpsTarget %.6f\n", v.fps);
-    fprintf(f, "flagGPS %d\n", v.flagGPS);
+    fprintf(f, "flag_gps %d\n", v.flag_gps);
     fprintf(f, "lat %.6f\n", v.lat);
     fprintf(f, "lng %.6f\n", v.lng);
     fclose(f);
@@ -71,7 +71,7 @@ void frame_invert(unsigned char *buffer, int len) {
     }
 }
 
-void *video_record(struct vdIn *video_in, double seconds) {
+void *video_record(struct video_info *video_in, double seconds) {
     int i;
     const int frameSize = video_in->width * video_in->height * 3 / 2;
     const int nfr = video_in->fps * seconds;
@@ -91,15 +91,15 @@ void *video_record(struct vdIn *video_in, double seconds) {
             printf("Error grabbing\n");
             break;
         }
-        Pyuv422to420(video_in->framebuffer, ptr, video_in->width, video_in->height, VIDEO_UPSIDE_DOWN);
+        Pyuv422to420(video_in->frame_buffer, ptr, video_in->width, video_in->height, VIDEO_UPSIDE_DOWN);
         ptr += frameSize;
     }
 
     return out;
 }
 
-void snapshot(struct vdIn *video_in, int frame_count, int zero, double exposure_compensation, char *filename,
-              unsigned char *background_raw) {
+void snapshot(struct video_info *video_in, int frame_count, int zero, double exposure_compensation,
+              const char *filename, const unsigned char *background_raw) {
     int i, j;
     const int frame_size = video_in->width * video_in->height;
     int *tmp_int = calloc(3 * frame_size * sizeof(int), 1);
@@ -110,7 +110,7 @@ void snapshot(struct vdIn *video_in, int frame_count, int zero, double exposure_
             printf("Error grabbing\n");
             break;
         }
-        Pyuv422torgbstack(video_in->framebuffer, tmp_int, tmp_int + frame_size, tmp_int + 2 * frame_size,
+        Pyuv422torgbstack(video_in->frame_buffer, tmp_int, tmp_int + frame_size, tmp_int + 2 * frame_size,
                           video_in->width,
                           video_in->height, VIDEO_UPSIDE_DOWN);
     }

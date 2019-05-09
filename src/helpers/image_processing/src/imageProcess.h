@@ -29,9 +29,9 @@
 #include "image.h"
 #include "settings.h"
 
-void StackImage(image_ptr InputImage, image_ptr OutputImage, image_ptr *CloudMaskAvg, image_ptr *CloudMaskThis,
-                settings *s, settingsIn *si);
+void StackImage(image_ptr image_input, image_ptr image_output, image_ptr *cloud_mask_average, image_ptr *cloud_mask_this,
+                settings *s, settings_input *si);
 
-double ImageOffset(image_ptr InputImage, image_ptr OutputImage, settings *s, settingsIn *si);
+double image_offset(image_ptr image_input, image_ptr image_output, settings *s, settings_input *si);
 
 #endif

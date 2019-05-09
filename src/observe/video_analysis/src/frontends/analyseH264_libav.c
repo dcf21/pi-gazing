@@ -59,26 +59,23 @@ void sigint_handler(int signal) {
     exit(0);
 }
 
-#define INBUF_SIZE 200000
-
 typedef struct context {
     AVCodec *codec;
     AVCodecContext *c;
-    int frame, got_picture, len2, len, streamNum;
-    double tstart, tstop, FPS;
-    const char *filename, *maskFile;
+    int frame, got_picture, len2, len, stream_num;
+    double utc_start, utc_stop, fps;
+    const char *filename, *mask_file;
     unsigned char *mask;
     FILE *f;
     AVFrame *picture;
-    int pts, dts;
     AVPacket avpkt;
     AVFormatContext *avFormatPtr;
 } context;
 
-int fetchFrame(void *ctx_void, unsigned char *tmpc, double *utc) {
-    context *ctx = (context *) ctx_void;
+int fetch_frame(void *ctx_void, unsigned char *tmpc, double *utc) {
+    context *ctx = (context *)ctx_void;
 
-    if (utc) *utc = ctx->tstart + ctx->frame / ctx->FPS;
+    if (utc) *utc = ctx->utc_start + ctx->frame / ctx->fps;
 
     while (1) {
         av_init_packet(&ctx->avpkt);
@@ -108,8 +105,6 @@ int fetchFrame(void *ctx_void, unsigned char *tmpc, double *utc) {
         if (ctx->got_picture) return 0;
         if (!ctx->got_picture) return 1;
     }
-
-    return 1;
 }
 
 int decoder_init(context *ctx) {
@@ -118,19 +113,19 @@ int decoder_init(context *ctx) {
     if (avformat_open_input(&ctx->avFormatPtr, ctx->filename, NULL, NULL) != 0) {
         logging_fatal(__FILE__, __LINE__, "could not open input video");
     }
-    ctx->streamNum = av_find_best_stream(ctx->avFormatPtr, AVMEDIA_TYPE_VIDEO, -1, -1, &ctx->codec, 0);
+    ctx->stream_num = av_find_best_stream(ctx->avFormatPtr, AVMEDIA_TYPE_VIDEO, -1, -1, &ctx->codec, 0);
     if (!ctx->codec) { logging_fatal(__FILE__, __LINE__, "codec not found"); }
     ctx->c = avcodec_alloc_context3(ctx->codec);
     if (avcodec_open2(ctx->c, ctx->codec, NULL) < 0) { logging_fatal(__FILE__, __LINE__, "codec could not be opened"); }
     ctx->picture = av_frame_alloc();
     signal(SIGINT, sigint_handler);
     ctx->frame = 0;
-    fetchFrame((void *) ctx, NULL, NULL); // Get libav to pick up video size
+    fetch_frame((void *) ctx, NULL, NULL); // Get libav to pick up video size
     ctx->mask = malloc(ctx->c->width * ctx->c->height);
-    FILE *maskfile = fopen(ctx->maskFile, "r");
-    if (!maskfile) { logging_fatal(__FILE__, __LINE__, "mask file could not be opened"); }
-    fillPolygonsFromFile(maskfile, ctx->mask, ctx->c->width, ctx->c->height);
-    fclose(maskfile);
+    FILE *mask_file = fopen(ctx->mask_file, "r");
+    if (!mask_file) { logging_fatal(__FILE__, __LINE__, "mask file could not be opened"); }
+    fill_polygons_from_file(mask_file, ctx->mask, ctx->c->width, ctx->c->height);
+    fclose(mask_file);
     return 0;
 }
 
@@ -141,34 +136,32 @@ int decoder_shutdown(context *ctx) {
     return 0;
 }
 
-int rewindVideo(void *ctx_void, double *utc) {
+int rewind_video(void *ctx_void, double *utc) {
     context *ctx = (context *) ctx_void;
     decoder_shutdown(ctx);
     decoder_init(ctx);
-    if (utc) *utc = ctx->tstart;
+    if (utc) *utc = ctx->utc_start;
     return 0;
 }
 
 int main(int argc, const char **argv) {
     context ctx;
-    char fname[FNAME_LENGTH] = "\0";
-    char mask_file[FNAME_LENGTH] = "\0";
-    char obstory[FNAME_LENGTH] = "\0";
+    const char *fname = "\0";
+    const char *mask_file = "\0";
+    const char *obstory_id = "\0";
 
-    ctx.filename = fname;
-    ctx.tstart = 0;
-    ctx.tstop = time(NULL) + 3600 * 24;
-    ctx.FPS = 0;
-    ctx.maskFile = mask_file;
+    ctx.utc_start = 0;
+    ctx.utc_stop = time(NULL) + 3600 * 24;
+    ctx.fps = 0;
 
     struct argparse_option options[] = {
         OPT_HELP(),
         OPT_GROUP("Basic options"),
         OPT_STRING('i', "input", &fname, "input filename"),
-        OPT_STRING('o', "obsid", &obstory, "observatory id"),
+        OPT_STRING('o', "obsid", &obstory_id, "observatory id"),
         OPT_STRING('m', "mask", &mask_file, "mask file"),
-        OPT_FLOAT('t', "time-start", &ctx.tstart, "time stamp of start of video clip"),
-        OPT_FLOAT('f', "fps", &ctx.FPS, "frame count per second"),
+        OPT_FLOAT('t', "time-start", &ctx.utc_start, "time stamp of start of video clip"),
+        OPT_FLOAT('f', "fps", &ctx.fps, "frame count per second"),
         OPT_END(),
     };
 
@@ -187,19 +180,24 @@ int main(int argc, const char **argv) {
         logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
+    ctx.filename = fname;
+    ctx.mask_file = mask_file;
+
     initLut();
 
-    const int backgroundMapUseEveryNthStack = 1, backgroundMapUseNImages = 3600, backgroundMapReductionCycles = 32;
+    const int background_map_use_every_nth_stack = 1;
+    const int background_map_use_n_images = 3600;
+    const int background_map_reduction_cycles = 32;
 
     // Register all the codecs
     av_register_all();
     avcodec_register_all();
     decoder_init(&ctx);
-    observe((void *) &ctx, obstory, ctx.tstart, ctx.tstop, ctx.c->width, ctx.c->height, ctx.FPS,
+    observe((void *) &ctx, obstory_id, ctx.utc_start, ctx.utc_stop, ctx.c->width, ctx.c->height, ctx.fps,
             "nonlive", ctx.mask, CHANNEL_COUNT, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME,
             TRIGGER_FRAMEGROUP, TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT,
-            TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, backgroundMapUseEveryNthStack,
-            backgroundMapUseNImages, backgroundMapReductionCycles, &fetchFrame, &rewindVideo);
+            TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, background_map_use_every_nth_stack,
+            background_map_use_n_images, background_map_reduction_cycles, &fetch_frame, &rewind_video);
     decoder_shutdown(&ctx);
     printf("\n");
     return 0;

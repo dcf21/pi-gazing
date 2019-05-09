@@ -23,13 +23,16 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <zlib.h>
+
 #include "png/image.h"
 #include <png.h>
+#include "str_constants.h"
 
 /* IMAGE_PUT(): Turns bitmap data into a image file */
 
-int image_put(char *frOut, image_ptr image, int grayscale) {
+int image_put(const char *output_filename, image_ptr image, int grayscale) {
     int code = 0;
 
     const int width = image.xsize;
@@ -41,9 +44,9 @@ int image_put(char *frOut, image_ptr image, int grayscale) {
     png_bytep row = NULL;
 
     // Open file for writing (binary mode)
-    fp = fopen(frOut, "wb");
+    fp = fopen(output_filename, "wb");
     if (fp == NULL) {
-        fprintf(stderr, "Could not open file %s for writing\n", frOut);
+        fprintf(stderr, "Could not open file %s for writing\n", output_filename);
         code = 1;
         goto finalise;
     }
@@ -80,10 +83,12 @@ int image_put(char *frOut, image_ptr image, int grayscale) {
                  PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
     // Set title
+    char title_buffer[FNAME_LENGTH];
+    strcpy(title_buffer, output_filename);
     png_text title_text;
     title_text.compression = PNG_TEXT_COMPRESSION_NONE;
     title_text.key = "Title";
-    title_text.text = frOut;
+    title_text.text = title_buffer;
     png_set_text(png_ptr, info_ptr, &title_text, 1);
 
     png_write_info(png_ptr, info_ptr);

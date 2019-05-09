@@ -27,6 +27,6 @@
 #include "image.h"
 #include "settings.h"
 
-void backgroundSubtract(image_ptr img, settingsIn *si);
+void background_subtract(image_ptr img, settings_input *si);
 
 #endif

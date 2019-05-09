@@ -24,6 +24,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include "argparse/argparse.h"
 #include "png/image.h"
 #include "utils/error.h"
 #include "vidtools/v4l2uvc.h"
@@ -65,10 +67,10 @@ static const char *const usage[] = {
 static int want_quit = 0;
 
 // Fetch an input frame from v4l2
-int fetchFrame(struct vdIn *videoIn, unsigned char *tmpc, int upsideDown) {
+int fetchFrame(struct video_info *videoIn, unsigned char *tmpc, int upsideDown) {
     int status = uvcGrab(videoIn);
     if (status) return status;
-    Pyuv422to420(videoIn->framebuffer, tmpc, videoIn->width, videoIn->height, upsideDown);
+    Pyuv422to420(videoIn->frame_buffer, tmpc, videoIn->width, videoIn->height, upsideDown);
     return 0;
 }
 
@@ -625,33 +627,62 @@ static OMX_ERRORTYPE fill_output_buffer_done_handler(
     return OMX_ErrorNone;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, const char **argv) {
+    video_metadata vmd;
     char line[FNAME_LENGTH];
+    const char *mask_file = "\0";
+    const char *obstory_id = "\0";
+    const char *input_device = "\0";
+    const char *output_filename = "\0";
 
-    // Initialise video capture process
-    if (argc != 14) {
-        sprintf(temp_err_string,
-                "ERROR: Command line syntax is:\n\n recordH264 <UTC clock offset> <UTC start> <UTC stop> <obstoryId> <video device> <width> <height> <fps> <lat> <long> <flagGPS> <flagUpsideDown> <output filename>\n\ne.g.:\n\n recordH264 0 1428162067 1428165667 1 /dev/video0 720 480 24.71 52.2 0.12 0 1 output.h264\n");
-        logging_fatal(__FILE__, __LINE__, temp_err_string);
+    vmd.utc_start = time(NULL);
+    vmd.utc_stop = 0;
+    vmd.frame_count = 0;
+    vmd.width = 720;
+    vmd.height = 480;
+    vmd.fps = 24.71;
+    vmd.lat = 52.2;
+    vmd.lng = 0.12;
+    vmd.flag_gps = 0;
+    vmd.flag_upside_down = 1;
+
+    struct argparse_option options[] = {
+        OPT_HELP(),
+        OPT_GROUP("Basic options"),
+        OPT_STRING('o', "obsid", &obstory_id, "observatory id"),
+        OPT_STRING('x', "output", &vmd.filename, "output filename"),
+        OPT_STRING('d', "device", &input_device, "input video device, e.g. /dev/video0"),
+        OPT_STRING('m', "mask", &mask_file, "mask file"),
+        OPT_FLOAT('s', "utc-stop", &vmd.utc_stop, "time stamp at which to end observing"),
+        OPT_FLOAT('f', "fps", &vmd.fps, "frame count per second"),
+        OPT_FLOAT('l', "latitude", &vmd.lat, "latitude of observatory"),
+        OPT_FLOAT('L', "longitude", &vmd.lng, "longitude of observatory"),
+        OPT_INTEGER('w', "width", &vmd.width, "frame width"),
+        OPT_INTEGER('h', "height", &vmd.height, "frame height"),
+        OPT_INTEGER('g', "flag-gps", &vmd.flag_gps, "boolean flag indicating whether position determined by GPS"),
+        OPT_INTEGER('u', "flag-upside-down", &vmd.flag_upside_down, "boolean flag indicating whether the camera is upside down"),
+        OPT_END(),
+    };
+
+    struct argparse argparse;
+    argparse_init(&argparse, options, usage, 0);
+    argparse_describe(&argparse,
+    "\nObserve and analyse a video stream in real time.",
+    "\n");
+    argc = argparse_parse(&argparse, argc, argv);
+
+    if (argc != 0) {
+        int i;
+        for (i = 0; i < argc; i++) {
+            printf("Error: unparsed argument <%s>\n", *(argv + i));
+        }
+        logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
-    video_metadata vmd;
-
-    const double utcoffset = getFloat(argv[1], NULL);
-    UTC_OFFSET = utcoffset;
-    vmd.tstart = getFloat(argv[2], NULL);
-    vmd.tstop = getFloat(argv[3], NULL);
-    vmd.nframe = 0;
-    vmd.obstoryId = argv[4];
-    vmd.videoDevice = argv[5];
-    vmd.width = (int) getFloat(argv[6], NULL);
-    vmd.height = (int) getFloat(argv[7], NULL);
-    vmd.fps = getFloat(argv[8], NULL);
-    vmd.lat = getFloat(argv[9], NULL);
-    vmd.lng = getFloat(argv[10], NULL);
-    vmd.flagGPS = getFloat(argv[11], NULL) ? 1 : 0;
-    vmd.flagUpsideDown = getFloat(argv[12], NULL) ? 1 : 0;
-    vmd.filename = argv[13];
+    vmd.obstory_id = obstory_id;
+    vmd.video_device = input_device;
+    vmd.mask_file = mask_file;
+    vmd.filename = output_filename;
 
     // Append .h264 suffix to output filename
     char frOut[4096];
@@ -659,30 +690,29 @@ int main(int argc, char **argv) {
 
     if (DEBUG) {
         sprintf(line, "Starting video recording run at %s.",
-                str_strip(friendly_time_string(vmd.tstart), temp_err_string));
+                str_strip(friendly_time_string(vmd.utc_start), temp_err_string));
         logging_info(line);
     }
     if (DEBUG) {
-        sprintf(line, "Video will end at %s.", str_strip(friendly_time_string(vmd.tstop), temp_err_string));
+        sprintf(line, "Video will end at %s.", str_strip(friendly_time_string(vmd.utc_stop), temp_err_string));
         logging_info(line);
     }
 
     initLut();
 
-    struct vdIn *videoIn;
+    struct video_info *video_in;
 
     const float fps = nearest_multiple(vmd.fps, 1);       // Requested frame rate
     const int v4l_format = V4L2_PIX_FMT_YUYV;
-    const int grabmethod = 1;
-    char *avifilename = "/tmp/foo";
+    const int grab_method = 1;
 
-    videoIn = (struct vdIn *) calloc(1, sizeof(struct vdIn));
+    video_in = (struct video_info *) calloc(1, sizeof(struct video_info));
 
     // Fetch the dimensions of the video stream as returned by V4L (which may differ from what we requested)
-    if (init_videoIn(videoIn, vmd.videoDevice, vmd.width, vmd.height, fps, v4l_format, grabmethod, avifilename) < 0)
+    if (init_videoIn(video_in, vmd.video_device, vmd.width, vmd.height, fps, v4l_format, grab_method) < 0)
         exit(1);
-    const int width = videoIn->width;
-    const int height = videoIn->height;
+    const int width = video_in->width;
+    const int height = video_in->height;
     vmd.width = width;
     vmd.height = height;
     write_raw_video_metadata(vmd);
@@ -696,9 +726,9 @@ int main(int argc, char **argv) {
         omx_die(r, "OMX initalization failed");
     }
 
-    const int frameSize = width * height;
+    const int frame_size = width * height;
     unsigned char *tmpc = malloc(
-            frameSize * 1.5); // Temporary frame buffer for converting YUV422 data from v4l2 into YUV420
+            frame_size * 1.5); // Temporary frame buffer for converting YUV422 data from v4l2 into YUV420
     if (!tmpc) logging_fatal(__FILE__, __LINE__, "Malloc fail");
 
     // Init context
@@ -860,7 +890,7 @@ int main(int argc, char **argv) {
     while (!want_quit) {
 
         int t = time(NULL) + utcoffset;
-        if (t >= vmd.tstop) break; // Check how we're doing for time; if we've reached the time to stop, stop now!
+        if (t >= vmd.utc_stop) break; // Check how we're doing for time; if we've reached the time to stop, stop now!
 
 
         // empty_input_buffer_done_handler() has marked that there's
@@ -869,7 +899,7 @@ int main(int argc, char **argv) {
             int line;
             input_total_read = 0;
 
-            if (fetchFrame(videoIn, tmpc, vmd.flagUpsideDown)) {
+            if (fetchFrame(video_in, tmpc, vmd.flag_upside_down)) {
                 want_quit = 1;
                 break;
             }
@@ -881,11 +911,11 @@ int main(int argc, char **argv) {
 #pragma omp parallel for private(line)
             for (line = 0; line < height / 2; line++)
                 memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[1] + frame_info.buf_stride / 2 * line,
-                       tmpc + (width / 2) * line + frameSize, width / 2);
+                       tmpc + (width / 2) * line + frame_size, width / 2);
 #pragma omp parallel for private(line)
             for (line = 0; line < height / 2; line++)
                 memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[2] + frame_info.buf_stride / 2 * line,
-                       tmpc + (width / 2) * line + frameSize * 5 / 4, width / 2);
+                       tmpc + (width / 2) * line + frame_size * 5 / 4, width / 2);
 
             input_total_read += (frame_info.p_stride[0] * plane_span_y) + (frame_info.p_stride[1] * plane_span_uv) +
                                 (frame_info.p_stride[2] * plane_span_uv);
@@ -984,8 +1014,8 @@ int main(int argc, char **argv) {
         omx_die(r, "OMX de-initalization failed");
     }
 
-    vmd.nframe = frame_in;
-    vmd.tstop = time(NULL) + utcoffset;
+    vmd.frame_count = frame_in;
+    vmd.utc_stop = time(NULL) + utcoffset;
     write_raw_video_metadata(vmd);
     say("Exit!");
 

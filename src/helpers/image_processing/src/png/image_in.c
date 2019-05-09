@@ -88,7 +88,7 @@ void image_deweight(image_ptr *out) {
 
 /* JPEG_IN(): Read in JPEG file, and return image structure */
 
-image_ptr image_get(char *filename) {
+image_ptr image_get(const char *filename) {
     image_ptr output;
     output.xsize = output.ysize = -1;
     output.data_red = output.data_grn = output.data_blu = output.data_w = NULL;

@@ -24,16 +24,21 @@
 #ifndef GNOMONIC_H
 #define GNOMONIC_H 1
 
-double AngDist(double RA0, double Dec0, double RA1, double Dec1);
+double angular_distance(double ra0, double dec0, double ra1, double dec1);
 
-void FindMeanPosition(double *RAm, double *DECm, double RA0, double DEC0, double RA1, double DEC1, double RA2,
-                      double DEC2);
+void find_mean_position(double *ra_out, double *dec_out,
+                        double ra0, double dec0,
+                        double ra1, double dec1,
+                        double ra2, double dec2);
 
-void GnomonicProject(double RA, double Dec, double RA0, double Dec0, int SizeX, int SizeY, double ScaleX, double ScaleY,
-                     double *x, double *y, double posang, double bca, double bcb, double bcc);
+void gnomonic_project(double ra, double dec, double ra0, double dec0, int x_size, int y_size,
+                      double x_scale, double y_scale,
+                      double *x_out, double *y_out, double pa,
+                      double barrel_a, double barrel_b, double barrel_c);
 
-void InvGnomProject(double *RA, double *Dec, double RA0, double Dec0, int SizeX, int SizeY, double ScaleX,
-                    double ScaleY, double x, double y, double posang, double bca, double bcb, double bcc);
+void inv_gnomonic_project(double *ra_out, double *dec_out, double ra0, double dec0, int x_size, int y_size,
+                          double x_scale, double y_scale, double x, double y, double pa,
+                          double barrel_a, double barrel_b, double barrel_c);
 
 #endif
 

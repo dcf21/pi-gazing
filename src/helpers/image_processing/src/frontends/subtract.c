@@ -50,7 +50,7 @@ static const char *const usage[] = {
 
 int main(int argc, const char **argv) {
     int i;
-    settingsIn s_in_default;
+    settings_input s_in_default;
     image_ptr input_image_1, input_image_2;
     image_ptr output_image;
 
@@ -61,9 +61,9 @@ int main(int argc, const char **argv) {
     gsl_set_error_handler_off();
 
     // Scan commandline options for any switches
-    char input_filename_1[FNAME_LENGTH] = "\0";
-    char input_filename_2[FNAME_LENGTH] = "\0";
-    char output_filename[FNAME_LENGTH] = "\0";
+    const char *input_filename_1 = "\0";
+    const char *input_filename_2 = "\0";
+    const char *output_filename = "\0";
 
     // Turn off GSL's automatic error handler
     gsl_set_error_handler_off();
@@ -94,11 +94,11 @@ int main(int argc, const char **argv) {
     }
 
     // Read image
-    strcpy(s_in_default.InFName, input_filename_1);
+    strcpy(s_in_default.input_filename, input_filename_1);
     input_image_1 = image_get(input_filename_1);
     if (input_image_1.data_red == NULL) logging_fatal(__FILE__, __LINE__, "Could not read input image file 1");
 
-    strcpy(s_in_default.InFName, input_filename_2);
+    strcpy(s_in_default.input_filename, input_filename_2);
     input_image_2 = image_get(input_filename_2);
     if (input_image_2.data_red == NULL) logging_fatal(__FILE__, __LINE__, "Could not read input image file 2");
 
