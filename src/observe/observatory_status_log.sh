@@ -7,8 +7,8 @@
 #
 # * The amount of disk space available
 # * Check sums for all of the Pi Gazing source files
-# * A list of recent log messages (the most recent 1000 messages)
-# * A list of recent python errors
+# * A list of recent log messages (the most recent 100 messages)
+# * A list of recent python errors (the most recent 100 messages)
 #
 # These are returned to stdout
 
@@ -27,8 +27,8 @@ echo -e "\n\n# File check sums"
 find -type f -exec md5sum "{}" +
 
 echo -e "\n\n# Log messages"
-tail -n 1000 ../../datadir/pigazing.log
+tail -n 100 ../../datadir/pigazing.log
 
 echo -e "\n\n# Python errors"
-tail -n 1000 ../../datadir/python.log
+tail -n 100 ../../datadir/python.log
 

@@ -82,8 +82,11 @@ settings = {
     # The directory where pigazing_db stores its files
     'dbFilestore': os.path.join(data_directory, "db_filestore"),
 
-    # Flag telling us whether to hunt for meteors in real time, or record H264 video for subsequent analysis
+    # Flag specifying whether to hunt for meteors in real time, or record H264 video for subsequent analysis
     'realTime': True,
+
+    # Flag specifying whether to produce debugging output from C code
+    'debug': True,
 
     # How many seconds before/after sun is above horizon do we wait before bothering observing
     'sunMargin': 1800,  # 30 minutes

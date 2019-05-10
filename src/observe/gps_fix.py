@@ -30,24 +30,56 @@ The output from this script, if successful, is a JSON structure with the element
 See <https://pypi.org/project/gps3/>
 """
 
+import os
 import json
+import dateutil.parser
+import time
 
 from gps3 import gps3
 
 
 def fetch_gps_fix():
+    altitude = None
+    latitude = None
+    longitude = None
+    unix_time = None
+    clock_offset = None
+
     gps_socket = gps3.GPSDSocket()
     data_stream = gps3.DataStream()
-    gps_socket.connect()
-    gps_socket.watch()
-    for new_data in gps_socket:
+    gps_socket.connect(host="localhost", port=2947)
+    gps_socket.watch(devicepath="/dev/ttyUSB0")
+    while True:
+        new_data = gps_socket.next(timeout=1)
         if new_data:
             data_stream.unpack(new_data)
-            print('Altitude = ', data_stream.TPV['alt'])
-            print('Latitude = ', data_stream.TPV['lat'])
-            print('Longitude = ', data_stream.TPV['lon'])
-            print('Time = ', data_stream.TPV['time'])
+            if isinstance(data_stream.TPV['alt'], float):
+                altitude = data_stream.TPV['alt']
+            if isinstance(data_stream.TPV['lat'], float):
+                latitude = data_stream.TPV['lat']
+            if isinstance(data_stream.TPV['lon'], float):
+                longitude = data_stream.TPV['lon']
+            if isinstance(data_stream.TPV['time'], str):
+                try:
+                    dt = dateutil.parser.parse(data_stream.TPV['time'])
+                    unix_time = time.mktime(dt.timetuple())
+                    clock_offset = time.time() - unix_time
+                except ValueError:
+                    pass
+
+        # If we have a complete fix, we can quit
+        if altitude is not None and latitude is not None and longitude is not None and unix_time is not None:
+            return {
+                "time": unix_time,
+                "clock_offset": clock_offset,
+                "latitude": latitude,
+                "longitude": longitude,
+                "altitude": altitude
+            }
 
 
 if __name__ == '__main__':
+    # On Ubuntu 18.04, gpsd doesn't seem to automatically pick up USB devices
+    os.system("service gpsd stop ; killall gpsd ; gpsd /dev/ttyUSB0 -n")
+
     print(json.dumps(fetch_gps_fix()))

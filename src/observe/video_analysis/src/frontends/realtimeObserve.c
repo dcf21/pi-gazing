@@ -131,7 +131,7 @@ int main(int argc, const char *argv[]) {
     video_in = (struct video_info *) calloc(1, sizeof(struct video_info));
 
     if (query_formats) {
-        check_videoIn(video_in, (char *) video_device);
+        check_videoIn(video_in, video_device);
         free(video_in);
         exit(1);
     }
@@ -139,7 +139,7 @@ int main(int argc, const char *argv[]) {
     initLut();
 
     // Fetch the dimensions of the video stream as returned by V4L (which may differ from what we requested)
-    if (init_videoIn(video_in, (char *) video_device, vmd.width, vmd.height, fps, format, grab_method) < 0)
+    if (init_videoIn(video_in, video_device, vmd.width, vmd.height, fps, format, grab_method) < 0)
         exit(1);
     const int width = video_in->width;
     const int height = video_in->height;
