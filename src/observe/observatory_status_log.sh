@@ -1,9 +1,9 @@
 #!/bin/bash
-# observatoryStatusLog.py
+# observatory_status_log.py
 # Pi Gazing
 # Dominic Ford
 
-# This script produces a lots of system information -- for example:
+# This script produces a lots of system information, including:
 #
 # * The amount of disk space available
 # * Check sums for all of the Pi Gazing source files

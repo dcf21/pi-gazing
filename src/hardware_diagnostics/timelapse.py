@@ -73,7 +73,7 @@ while True:
     # Take exposure
     logger.info("Taking photo")
     os.system("rm -f tmp.jpg")
-    os.system("./snapshot.sh tmp.png 500")
+    os.system("./snapshot.sh --output tmp.png --frames 500")
     os.system("convert tmp.png -background black -rotate -180 tmp2.jpg")
     os.system("convert tmp2.jpg -gravity South -background Green -splice 0x26 -pointsize 16 -font Ubuntu-Bold "
               "-annotate +0+2 '{}' {}".format(time.strftime("%b %d %Y %H:%M:%S", time.gmtime(time.time())),

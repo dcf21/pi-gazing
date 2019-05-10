@@ -7,20 +7,23 @@
 #
 # We normally configure Raspberry Pis to run this script from /etc/rc.local on start up
 
-# Wait a short while before we do anything. If we're called from rc.local, mysql server may not have started yet
+# Wait a short while before we do anything. If we're called from rc.local, services like mysql server may not have
+# started yet
 sleep 10
 
-# Change into the observatoryControl directory
+# Change into the observe directory
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 cd $DIR
-source ../../virtual-env/bin/activate # Need this so that astrometry.net uses right python environment
 
-# The script loadMonitor.py runs in the background and flashes LEDs connected to the GPIO port to indicate
+# Need this so that all python tools use the right python environment
+source ../../datadir/virtualenv/bin/activate
+
+# The script load_monitor.py runs in the background and flashes LEDs connected to the GPIO port to indicate
 # system activity
-./loadMonitor.py &
+./load_monitor.py &
 
 # The script main.py actually observes the night sky. We catch any python exceptions which may occur in a log file.
-# This script should never exit, so if it does, it's broken. Back off for 5 mins and try again.
+# This script should never exit, so if it does, it's broken. Back off for 5 minutes and try again.
 
 while true
  do

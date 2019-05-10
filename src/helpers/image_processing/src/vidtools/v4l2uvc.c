@@ -60,7 +60,7 @@ static void float_to_fraction(float f, int *num, int *den) {
     *num += whole * *den;
 }
 
-int check_videoIn(struct video_info *vd, char *device) {
+int check_videoIn(struct video_info *vd, const char *device) {
     int ret;
     if (vd == NULL || device == NULL)
         return -1;
@@ -96,7 +96,8 @@ int check_videoIn(struct video_info *vd, char *device) {
     return 0;
 }
 
-int init_videoIn(struct video_info *vd, char *device, int width, int height, float fps, int format, int grab_method) {
+int init_videoIn(struct video_info *vd, const char *device,
+        int width, int height, float fps, int format, int grab_method) {
     if (vd == NULL || device == NULL)return -1;
     if (width == 0 || height == 0) return -1;
     if (grab_method < 0 || grab_method > 1) grab_method = 1;      //mmap by default;

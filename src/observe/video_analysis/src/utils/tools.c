@@ -73,26 +73,28 @@ void frame_invert(unsigned char *buffer, int len) {
 
 void *video_record(struct video_info *video_in, double seconds) {
     int i;
-    const int frameSize = video_in->width * video_in->height * 3 / 2;
-    const int nfr = video_in->fps * seconds;
-    const int blen = sizeof(int) + 2 * sizeof(int) + nfr * frameSize;
-    void *out = malloc(blen);
+    const int frame_size = video_in->width * video_in->height * 3 / 2;
+    const int frame_count = video_in->fps * seconds;
+    const int buffer_len = sizeof(int) + 2 * sizeof(int) + frame_count * frame_size;
+
+    void *out = malloc(buffer_len);
     if (!out) return out;
+
     void *ptr = out;
-    *(int *) ptr = blen;
+    *(int *) ptr = buffer_len;
     ptr += sizeof(int);
     *(int *) ptr = video_in->width;
     ptr += sizeof(int);
     *(int *) ptr = video_in->height;
     ptr += sizeof(int);
 
-    for (i = 0; i < nfr; i++) {
+    for (i = 0; i < frame_count; i++) {
         if (uvcGrab(video_in) < 0) {
             printf("Error grabbing\n");
             break;
         }
         Pyuv422to420(video_in->frame_buffer, ptr, video_in->width, video_in->height, VIDEO_UPSIDE_DOWN);
-        ptr += frameSize;
+        ptr += frame_size;
     }
 
     return out;
@@ -106,6 +108,10 @@ void snapshot(struct video_info *video_in, int frame_count, int zero, double exp
     if (!tmp_int) return;
 
     for (j = 0; j < frame_count; j++) {
+        if (j%25 == 0) {
+            printf("Fetching frame %7d / %7d\n", j, frame_count);
+        }
+
         if (uvcGrab(video_in) < 0) {
             printf("Error grabbing\n");
             break;

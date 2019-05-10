@@ -35,7 +35,7 @@ logging.basicConfig(stream=sys.stderr)
 
 # Configure and create database and server objects
 file_store_path = settings['dbFilestore']
-binary_path = settings['stackerPath']
+binary_path = settings['imageProcessorPath']
 pigazing_app = obsarchive_server.ObservationApp(file_store_path=file_store_path,
                                                 binary_path=binary_path,
                                                 db_host=installation_info['mysqlHost'],

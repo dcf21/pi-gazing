@@ -26,10 +26,6 @@
 
 #include <stdio.h>
 
-#ifndef _ASCIIDOUBLE_C
-extern int UTC_OFFSET;
-#endif
-
 double getFloat(const char *str, int *Nchars);
 
 int validFloat(const char *str, int *end);
@@ -44,7 +40,7 @@ void getWord(char *out, const char *in, int max);
 
 char *nextWord(char *in);
 
-char *friendly_time_string(int t);
+char *friendly_time_string(double t);
 
 char *str_strip(const char *in, char *out);
 

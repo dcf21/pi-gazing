@@ -1,4 +1,4 @@
-// recordH264.c
+// recordH264_openmax.c
 // Pi Gazing
 // Dominic Ford
 
@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "argparse/argparse.h"
@@ -37,8 +38,8 @@
 #include "settings.h"
 
 static const char *const usage[] = {
-    "recordH264 [options] [[--] args]",
-    "recordH264 [options]",
+    "recordH264_openmax [options] [[--] args]",
+    "recordH264_openmax [options]",
     NULL,
 };
 
@@ -67,10 +68,10 @@ static const char *const usage[] = {
 static int want_quit = 0;
 
 // Fetch an input frame from v4l2
-int fetchFrame(struct video_info *videoIn, unsigned char *tmpc, int upsideDown) {
-    int status = uvcGrab(videoIn);
+int fetchFrame(struct video_info *video_in, unsigned char *tmpc, int upside_down) {
+    int status = uvcGrab(video_in);
     if (status) return status;
-    Pyuv422to420(videoIn->frame_buffer, tmpc, videoIn->width, videoIn->height, upsideDown);
+    Pyuv422to420(video_in->frame_buffer, tmpc, video_in->width, video_in->height, upside_down);
     return 0;
 }
 
@@ -636,7 +637,7 @@ int main(int argc, const char **argv) {
     const char *output_filename = "\0";
 
     vmd.utc_start = time(NULL);
-    vmd.utc_stop = 0;
+    vmd.utc_stop = vmd.utc_start + 5;
     vmd.frame_count = 0;
     vmd.width = 720;
     vmd.height = 480;
@@ -667,7 +668,7 @@ int main(int argc, const char **argv) {
     struct argparse argparse;
     argparse_init(&argparse, options, usage, 0);
     argparse_describe(&argparse,
-    "\nObserve and analyse a video stream in real time.",
+    "\nRecord a video stream to an H264 file for future analysis.",
     "\n");
     argc = argparse_parse(&argparse, argc, argv);
 
@@ -889,7 +890,7 @@ int main(int argc, const char **argv) {
 
     while (!want_quit) {
 
-        int t = time(NULL) + utcoffset;
+        int t = time(NULL);
         if (t >= vmd.utc_stop) break; // Check how we're doing for time; if we've reached the time to stop, stop now!
 
 
@@ -904,6 +905,10 @@ int main(int argc, const char **argv) {
                 break;
             }
 
+            // Increment frame counter
+            vmd.frame_count++;
+
+            // Copy frame data into openmax buffer
 #pragma omp parallel for private(line)
             for (line = 0; line < height; line++)
                 memcpy(ctx.encoder_ppBuffer_in->pBuffer + buf_info.p_offset[0] + frame_info.buf_stride * line,
@@ -1014,8 +1019,7 @@ int main(int argc, const char **argv) {
         omx_die(r, "OMX de-initalization failed");
     }
 
-    vmd.frame_count = frame_in;
-    vmd.utc_stop = time(NULL) + utcoffset;
+    vmd.utc_stop = time(NULL);
     write_raw_video_metadata(vmd);
     say("Exit!");
 

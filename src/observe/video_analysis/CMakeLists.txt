@@ -49,6 +49,6 @@ add_executable(analyseH264_libav ${SOURCE_FILES} src/frontends/analyseH264_libav
 add_executable(makeBackgroundMap ${SOURCE_FILES} src/frontends/makeBackgroundMap.c)
 add_executable(realtimeObserve ${SOURCE_FILES} src/frontends/realtimeObserve.c)
 add_executable(realtimeObserve_dslr ${SOURCE_FILES} src/frontends/realtimeObserve_dslr.c)
-add_executable(recordH264 ${SOURCE_FILES} src/frontends/recordH264.c)
+add_executable(recordH264_libav ${SOURCE_FILES} src/frontends/recordH264_libav.c)
+add_executable(recordH264_openmax ${SOURCE_FILES} src/frontends/recordH264_openmax.c)
 add_executable(snapshot ${SOURCE_FILES} src/frontends/snapshot.c)
-add_executable(videoRecord ${SOURCE_FILES} src/frontends/videoRecord.c)

@@ -38,4 +38,4 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 logger.info(__doc__.strip())
 
-camera_on(logger=logger)
+camera_on()

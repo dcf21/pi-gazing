@@ -1,4 +1,4 @@
-// rawvid2mp4_libav.c 
+// recordH264_libav.c
 // Pi Gazing
 // Dominic Ford
 
@@ -36,40 +36,75 @@
 #include <x264.h>
 
 #include "argparse/argparse.h"
-#include "png/image.h"
+#include "vidtools/v4l2uvc.h"
+#include "utils/asciiDouble.h"
+#include "utils/tools.h"
+#include "vidtools/color.h"
 #include "utils/error.h"
+
+#include "str_constants.h"
 #include "settings.h"
+#include "settings_webcam.h"
 
 #define H264_FPS 25
 
-int nearest_multiple(double in, int factor) {
-    return (int) (round(in / factor) * factor);
+// Fetch an input frame from v4l2
+int fetchFrame(struct video_info *video_in, unsigned char *tmpc, int upside_down) {
+    int status = uvcGrab(video_in);
+    if (status) return status;
+    Pyuv422to420(video_in->frame_buffer, tmpc, video_in->width, video_in->height, upside_down);
+    return 0;
 }
 
 static const char *const usage[] = {
-        "rawvid2mp4_libav [options] [[--] args]",
-        "rawvid2mp4_libav [options]",
-        NULL,
+    "recordH264_libav [options] [[--] args]",
+    "recordH264_libav [options]",
+    NULL,
 };
 
-int main(int argc, const char **argv) {
-    // Read commandline switches
-    const char *input_filename = "\0";
+int main(int argc, const char *argv[]) {
+    video_metadata vmd;
+    char line[FNAME_LENGTH];
+    int got_packet_ptr;
+    const char *mask_file = "\0";
+    const char *obstory_id = "\0";
+    const char *input_device = "\0";
     const char *output_filename = "\0";
 
+    vmd.utc_start = time(NULL);
+    vmd.utc_stop = vmd.utc_start + 5;
+    vmd.frame_count = 0;
+    vmd.width = 720;
+    vmd.height = 480;
+    vmd.fps = 24.71;
+    vmd.lat = 52.2;
+    vmd.lng = 0.12;
+    vmd.flag_gps = 0;
+    vmd.flag_upside_down = 0;
+
     struct argparse_option arg_options[] = {
-            OPT_HELP(),
-            OPT_GROUP("Basic options"),
-            OPT_STRING('i', "input", &input_filename, "input filename"),
-            OPT_STRING('o', "output", &output_filename, "output filename"),
-            OPT_END(),
+        OPT_HELP(),
+        OPT_GROUP("Basic options"),
+        OPT_STRING('o', "obsid", &obstory_id, "observatory id"),
+        OPT_STRING('x', "output", &output_filename, "output filename"),
+        OPT_STRING('d', "device", &input_device, "input video device, e.g. /dev/video0"),
+        OPT_STRING('m', "mask", &mask_file, "mask file"),
+        OPT_FLOAT('s', "utc-stop", &vmd.utc_stop, "time stamp at which to end observing"),
+        OPT_FLOAT('f', "fps", &vmd.fps, "frame count per second"),
+        OPT_FLOAT('l', "latitude", &vmd.lat, "latitude of observatory"),
+        OPT_FLOAT('L', "longitude", &vmd.lng, "longitude of observatory"),
+        OPT_INTEGER('w', "width", &vmd.width, "frame width"),
+        OPT_INTEGER('h', "height", &vmd.height, "frame height"),
+        OPT_INTEGER('g', "flag-gps", &vmd.flag_gps, "boolean flag indicating whether position determined by GPS"),
+        OPT_INTEGER('u', "flag-upside-down", &vmd.flag_upside_down, "boolean flag indicating whether the camera is upside down"),
+        OPT_END(),
     };
 
     struct argparse argparse;
     argparse_init(&argparse, arg_options, usage, 0);
     argparse_describe(&argparse,
-                      "\nConvert raw video files into MP4 format using libav.",
-                      "\n");
+    "\nRecord a video stream to an H264 file for future analysis.",
+    "\n");
     argc = argparse_parse(&argparse, argc, argv);
 
     if (argc != 0) {
@@ -80,31 +115,51 @@ int main(int argc, const char **argv) {
         logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
-    FILE *infile;
-    if ((infile = fopen(input_filename, "rb")) == NULL) {
-        sprintf(temp_err_string, "ERROR: Cannot open output raw video file %s.\n", input_filename);
-        logging_fatal(__FILE__, __LINE__, temp_err_string);
+    vmd.obstory_id = obstory_id;
+    vmd.video_device = input_device;
+    vmd.mask_file = mask_file;
+    vmd.filename = output_filename;
+
+    // Append .h264 suffix to output filename
+    char product_filename[4096];
+    sprintf(product_filename, "%s.h264", vmd.filename);
+
+    if (DEBUG) {
+        sprintf(line, "Starting video recording run at %s.",
+                str_strip(friendly_time_string(vmd.utc_start), temp_err_string));
+        logging_info(line);
+    }
+    if (DEBUG) {
+        sprintf(line, "Video will end at %s.", str_strip(friendly_time_string(vmd.utc_stop), temp_err_string));
+        logging_info(line);
     }
 
-    int size, width, height, i, got_packet_ptr;
-    i = fread(&size, sizeof(int), 1, infile);
-    i = fread(&width, sizeof(int), 1, infile);
-    i = fread(&height, sizeof(int), 1, infile);
+    initLut();
 
-    size -= 3 * sizeof(int);
-    unsigned char *video_raw = malloc(size);
-    if (video_raw == NULL) {
-        sprintf(temp_err_string, "ERROR: malloc fail");
-        logging_fatal(__FILE__, __LINE__, temp_err_string);
-    }
-    i = fread(video_raw, 1, size, infile);
-    fclose(infile);
+    struct video_info *video_in;
+
+    const float fps = nearest_multiple(vmd.fps, 1);       // Requested frame rate
+    const int v4l_format = V4L2_PIX_FMT_YUYV;
+    const int grab_method = 1;
+
+    video_in = (struct video_info *) calloc(1, sizeof(struct video_info));
+
+    // Fetch the dimensions of the video stream as returned by V4L (which may differ from what we requested)
+    if (init_videoIn(video_in, vmd.video_device, vmd.width, vmd.height, fps, v4l_format, grab_method) < 0)
+        exit(1);
+    const int width = video_in->width;
+    const int height = video_in->height;
+    vmd.width = width;
+    vmd.height = height;
 
     const int image_size = width * height;
     const int frame_size = width * height * 3 / 2;
-    const int frame_count = size / frame_size;
 
-    // Init context
+    // Temporary frame buffer for converting YUV422 data from v4l2 into YUV420
+    unsigned char *tmpc = malloc(frame_size * 1.5);
+    if (!tmpc) logging_fatal(__FILE__, __LINE__, "Malloc fail");
+
+    // Init libav encoding context
     av_register_all();
     avcodec_register_all();
 
@@ -119,7 +174,7 @@ int main(int argc, const char **argv) {
     AVFormatContext *outContainer = avformat_alloc_context();
     outContainer->oformat = av_guess_format("mp4", NULL, NULL);
     outContainer->oformat->video_codec = AV_CODEC_ID_H264;
-    snprintf(outContainer->filename, sizeof(outContainer->filename), "%s", output_filename);
+    snprintf(outContainer->filename, sizeof(outContainer->filename), "%s", product_filename);
 
     codecEncode = avcodec_find_encoder(outContainer->oformat->video_codec);
     if (!codecEncode) { logging_fatal(__FILE__, __LINE__, "codec not found"); }
@@ -170,26 +225,46 @@ int main(int argc, const char **argv) {
     if (outContainer->oformat->flags & AVFMT_GLOBALHEADER) ctxEncode->flags |= CODEC_FLAG_GLOBAL_HEADER;
 
     if (!(ctxEncode->flags & AVFMT_NOFILE)) {
-        if (avio_open(&outContainer->pb, output_filename, AVIO_FLAG_WRITE) < 0) {
+        if (avio_open(&outContainer->pb, product_filename, AVIO_FLAG_WRITE) < 0) {
             logging_fatal(__FILE__, __LINE__, "could not open output file");
         }
     }
 
     avformat_write_header(outContainer, NULL);
 
-    /* encode loop */
-    while (frame_in < frame_count) {
-        int j;
+    // encode loop
+    while (1) {
+        int i, j;
+
+        int t = time(NULL);
+        if (t >= vmd.utc_stop) break; // Check how we're doing for time; if we've reached the time to stop, stop now!
+
+        if (fetchFrame(video_in, tmpc, vmd.flag_upside_down)) {
+            break;
+        }
+
         avpicture_alloc((AVPicture *) pictureEncoded, ctxEncode->pix_fmt, ctxEncode->width, ctxEncode->height);
-        for (j = 0; j < height; j++)
-            memcpy(pictureEncoded->data[0] + j * pictureEncoded->linesize[0], video_raw + frame_in * frame_size + j * width,
+
+        // Copy Y channel
+        for (j = 0; j < height; j++) {
+            memcpy(pictureEncoded->data[0] + j * pictureEncoded->linesize[0],
+                   tmpc + j * width,
                    width);
-        for (j = 0; j < height / 2; j++)
+        }
+
+        // Copy U channel
+        for (j = 0; j < height / 2; j++) {
             memcpy(pictureEncoded->data[1] + j * pictureEncoded->linesize[1],
-                   video_raw + frame_in * frame_size + image_size + j * width / 2, width / 2);
-        for (j = 0; j < height / 2; j++)
+                   tmpc + image_size + j * width / 2,
+                   width / 2);
+        }
+
+        // Copy V channel
+        for (j = 0; j < height / 2; j++) {
             memcpy(pictureEncoded->data[2] + j * pictureEncoded->linesize[2],
-                   video_raw + frame_in * frame_size + image_size * 5 / 4 + j * width / 2, width / 2);
+                   tmpc + image_size * 5 / 4 + j * width / 2,
+                   width / 2);
+        }
 
         /* encode frame */
         av_init_packet(&avpkt);
@@ -197,7 +272,8 @@ int main(int argc, const char **argv) {
         avpkt.size = 0;
         pictureEncoded->pts = av_rescale_q(frame_in, video_avstream->codec->time_base, video_avstream->time_base);
         i = avcodec_encode_video2(ctxEncode, &avpkt, pictureEncoded, &got_packet_ptr);
-//printf(". %d %d %d\n",got_packet_ptr,avpkt.flags,avpkt.size); if (got_packet_ptr) fwrite(avpkt.data,1,avpkt.size,tmpout);
+        // printf(". %d %d %d\n",got_packet_ptr,avpkt.flags,avpkt.size);
+        // if (got_packet_ptr) fwrite(avpkt.data,1,avpkt.size,tmpout);
         avpicture_free((AVPicture *) pictureEncoded);
         if (i) printf("error encoding frame\n");
         frame_in++;
@@ -205,23 +281,31 @@ int main(int argc, const char **argv) {
             frame_out++;
             av_write_frame(outContainer, &avpkt);
         }
-        av_free_packet(&avpkt);
+        av_packet_unref(&avpkt);
+        
+        // Increment frame counter
+        vmd.frame_count++;
     }
 
     while (1) {
+        int i;
+
         av_init_packet(&avpkt);
         avpkt.data = NULL;    // packet data will be allocated by the encoder
         avpkt.size = 0;
         i = avcodec_encode_video2(ctxEncode, &avpkt, NULL, &got_packet_ptr);
-//printf("! %d %d %d\n",got_packet_ptr,avpkt.flags,avpkt.size); if (got_packet_ptr) fwrite(avpkt.data,1,avpkt.size,tmpout);
-        //printf("encoding frame %3d (size=%5d)\n", frame_in, avpkt->size);
+        // printf("! %d %d %d\n",got_packet_ptr,avpkt.flags,avpkt.size);
+        // if (got_packet_ptr) fwrite(avpkt.data,1,avpkt.size,tmpout);
+        // printf("encoding frame %3d (size=%5d)\n", frame_in, avpkt->size);
         if (!got_packet_ptr) break;
         frame_out++;
         av_write_frame(outContainer, &avpkt);
-        av_free_packet(&avpkt);
+        av_packet_unref(&avpkt);
     }
 
-//fclose(tmpout);
+    //fclose(tmpout);
+    write_raw_video_metadata(vmd);
+    
     av_write_trailer(outContainer);
     av_freep(video_avstream);
     if (!(outContainer->oformat->flags & AVFMT_NOFILE)) avio_close(outContainer->pb);

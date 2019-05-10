@@ -35,7 +35,7 @@ pip install flask
 pip install flask-cors
 pip install flask-jsonpify
 pip install bcrypt
-pip install gpsd-py3
+pip install gps3
 
 # Install custom python libraries
 cd ${cwd}

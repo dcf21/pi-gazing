@@ -31,7 +31,7 @@ from pigazing_helpers import connect_db
 from pigazing_helpers.settings_read import installation_info
 
 
-def edit_observatory(public_id, delete=False, name=None, latitude=None, longitude=None):
+def edit_observatory(public_id, delete=False, name=None, latitude=None, longitude=None, owner=None):
     """
     Edit an observatory record, or create a new one.
 
@@ -45,6 +45,8 @@ def edit_observatory(public_id, delete=False, name=None, latitude=None, longitud
         The new latitude of the observatory
     :param longitude:
         The new longitude of the observatory
+    :param owner:
+        The user responsible for this observatory
     :return:
         None
     """
@@ -74,6 +76,9 @@ def edit_observatory(public_id, delete=False, name=None, latitude=None, longitud
     if latitude and longitude:
         conn.execute('UPDATE archive_observatories SET location=POINT(%s,%s) WHERE uid=%s;',
                      (longitude, latitude, obs_id))
+        
+    if owner:
+        conn.execute('UPDATE archive_observatories SET userId=%s WHERE uid=%s;', (owner, obs_id))
 
     # Commit changes to database
     db0.commit()
@@ -91,6 +96,10 @@ if __name__ == "__main__":
                         default=None,
                         dest='name',
                         help='The new name of the observatory')
+    parser.add_argument('--owner',
+                        default=None,
+                        dest='owner',
+                        help='The username of the owner of the observatory')
     parser.add_argument('--delete',
                         action='store_true',
                         dest='delete',
@@ -111,4 +120,5 @@ if __name__ == "__main__":
                      delete=args.delete,
                      name=args.name,
                      latitude=args.lat,
-                     longitude=args.lng)
+                     longitude=args.lng,
+                     owner=args.owner)

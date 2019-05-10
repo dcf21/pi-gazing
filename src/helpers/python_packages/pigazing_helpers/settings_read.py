@@ -71,7 +71,7 @@ settings = {
 
     # The path to compiled binary executables in the videoAnalysis directory
     'binaryPath': os.path.join(root_path, "observe/video_analysis/bin"),
-    'stackerPath': os.path.join(root_path, "helpers/image_projection/bin"),
+    'imageProcessorPath': os.path.join(root_path, "helpers/image_processing/bin"),
 
     # Flag telling us whether we're a raspberry pi or a desktop PC
     'i_am_a_rpi': os.uname()[4].startswith("arm"),
@@ -104,7 +104,7 @@ settings = {
 # Check to make sure everything is going to work
 assert os.path.exists(settings['binaryPath']), \
     "You need to compile the src/observing C code before using this script"
-assert os.path.exists(settings['stackerPath']), \
+assert os.path.exists(settings['imageProcessorPath']), \
     "You need to compile the src/image_projection C code before using this script"
 
 assert os.path.exists(settings['dataPath']), (

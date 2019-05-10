@@ -54,7 +54,7 @@ int main(int argc, const char *argv[]) {
         OPT_HELP(),
         OPT_GROUP("Basic options"),
         OPT_STRING('o', "output", &output_filename, "output filename"),
-        OPT_STRING('f', "frames", &frame_count, "frames to stack"),
+        OPT_INTEGER('f', "frames", &frame_count, "frames to stack"),
         OPT_STRING('b', "background", &background_filename, "background to subtract"),
         OPT_END(),
     };

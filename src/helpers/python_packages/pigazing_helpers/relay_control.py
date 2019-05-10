@@ -21,38 +21,39 @@
 # -------------------------------------------------
 
 import RPi.GPIO as GPIO
+import logging
 
 from .settings_read import installation_info
 
 
-def camera_on(logger):
+def camera_on():
     """
     Use the Raspberry Pi GPIO outputs to trigger the relay to turn on power to the camera.
 
-    :param logger:
-        A logger object.
+    :param logging:
+        A logging object.
     :return:
         None
     """
 
-    logger.info("Turning camera on.")
+    logging.info("Turning camera on.")
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(installation_info.local_conf['gpioPinRelay'], GPIO.OUT)
     GPIO.output(installation_info.local_conf['gpioPinRelay'], installation_info.local_conf['relayOnGPIOState'])
 
 
-def camera_off(logger):
+def camera_off():
     """
     Use the Raspberry Pi GPIO outputs to trigger the relay to turn off power to the camera.
 
-    :param logger:
-        A logger object.
+    :param logging:
+        A logging object.
     :return:
         None
     """
 
-    logger.info("Turning camera off.")
+    logging.info("Turning camera off.")
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(installation_info.local_conf['gpioPinRelay'], GPIO.OUT)

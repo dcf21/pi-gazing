@@ -78,7 +78,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     fraction_y = 0.4
 
     # Path the binary barrel-correction tool
-    barrel_correct = os.path.join(mod_settings.settings['stackerPath'], "barrel")
+    barrel_correct = os.path.join(mod_settings.settings['imageProcessorPath'], "barrel")
 
     # Calculate time span to use images from
     utc_min = utc_to_study

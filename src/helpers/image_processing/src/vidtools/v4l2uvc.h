@@ -60,9 +60,10 @@ struct video_info {
     int upside_down;
 };
 
-int check_videoIn(struct video_info *vd, char *device);
+int check_videoIn(struct video_info *vd, const char *device);
 
-int init_videoIn(struct video_info *vd, char *device, int width, int height, float fps, int format, int grab_method);
+int init_videoIn(struct video_info *vd, const char *device,
+                 int width, int height, float fps, int format, int grab_method);
 
 int uvcGrab(struct video_info *vd);
 

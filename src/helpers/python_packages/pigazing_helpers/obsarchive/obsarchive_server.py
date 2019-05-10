@@ -23,7 +23,7 @@ class ObservationApp(object):
         external server such as LigHTTPD or Apache to the application logic.
     """
 
-    def __init__(self, file_store_path, binary_path, db_host, db_user, db_password, db_name, obstory_id):
+    def __init__(self, file_store_path, db_host, db_user, db_password, db_name, obstory_id):
         """
         Create a new ObservationApp, setting up the internal DB
 
@@ -41,7 +41,6 @@ class ObservationApp(object):
             The local obstory ID
         """
         self.file_store_path = file_store_path
-        self.binary_path = binary_path
         self.db_host = db_host
         self.db_user = db_user
         self.db_password = db_password

@@ -223,20 +223,15 @@ char *nextWord(char *in) {
 
 /* friendly_time_string(): Returns pointer to time string */
 
-int UTC_OFFSET = 0;
-
-char *friendly_time_string(int t) {
+char *friendly_time_string(double t) {
     static char output[256];
 
-    time_t timenow;
-    if (!t) timenow = time(NULL) + UTC_OFFSET;
-    else timenow = (time_t) t;
+    if (!t) t = time(NULL);
 
-    const double JD = timenow / 86400.0 + 2440587.5;
+    const double JD = t / 86400.0 + 2440587.5;
     int year, month, day, hour, min, status;
     double sec;
-    inv_julian_day(JD, &year, &month, &day, &hour, &min, &sec, &status,
-                   output); // Subtract 0.5 from Julian Day as we want days to start at noon, not midnight
+    inv_julian_day(JD, &year, &month, &day, &hour, &min, &sec, &status, output);
     char *mn = get_month_name(month);
     sprintf(output, "%c%c%c %02d %04d %02d:%02d:%02d", mn[0], mn[1], mn[2], day, year, hour, min, (int) sec);
 

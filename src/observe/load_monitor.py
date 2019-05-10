@@ -29,50 +29,51 @@ import os
 import time
 import math
 
-from pigazing_helpers import settings_read
-import installation_info
-
-# Set up GPIO lines as outputs. But only if we're running on a RPi, as otherwise we don't have any lines to configure...
-if settings_read.settings['i_am_a_rpi']:
-    import RPi.GPIO as GPIO
-
-    GPIO.setwarnings(False)
-    GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(installation_info.local_conf['gpioLedA'], GPIO.OUT)
-    GPIO.setup(installation_info.local_conf['gpioLedB'], GPIO.OUT)
-    GPIO.setup(installation_info.local_conf['gpioLedC'], GPIO.OUT)
-    GPIO.output(installation_info.local_conf['gpioLedA'], True)
-    GPIO.output(installation_info.local_conf['gpioLedB'], True)
-    GPIO.output(installation_info.local_conf['gpioLedC'], True)
+from pigazing_helpers.settings_read import settings, installation_info
 
 
-# Set the two LEDs according to whether x and y are true or false
-def set_lights(x, y):
-    if settings_read.settings['i_am_a_rpi']:
-        GPIO.output(installation_info.local_conf['gpioLedA'], x)
-        GPIO.output(installation_info.local_conf['gpioLedB'], y)
-    else:
-        print("%10s %10s" % (x, y))
+def load_monitor():
+    # Set up GPIO lines as outputs. But only if we're running on a RPi, as otherwise we don't have any lines to
+    # configure...
+    if settings['i_am_a_rpi']:
+        import RPi.GPIO as GPIO
+    
+        GPIO.setwarnings(False)
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(installation_info['gpioLedA'], GPIO.OUT)
+        GPIO.setup(installation_info['gpioLedB'], GPIO.OUT)
+        GPIO.setup(installation_info['gpioLedC'], GPIO.OUT)
+        GPIO.output(installation_info['gpioLedA'], True)
+        GPIO.output(installation_info['gpioLedB'], True)
+        GPIO.output(installation_info['gpioLedC'], True)
+    
+    # Set the two LEDs according to whether x and y are true or false
+    def set_leds(x, y):
+        if settings['i_am_a_rpi']:
+            GPIO.output(installation_info['gpioLedA'], x)
+            GPIO.output(installation_info['gpioLedB'], y)
+        else:
+            print("{:10} {:10}".format(x, y))
+    
+    # This is the filename of the log file which we watch for changes
+    log_filename = os.path.join(settings['dataPath'], "pigazing.log")
+    
+    # This is the last time that we saw the log file update
+    last_log_time = 0
+    
+    # Pulse the load-indicator LED whenever load_count increases by this amount
+    load_divisor = 300
+    
+    # Main loop
+    while True:
+        load_count = float(open("/proc/stat").readline().split()[1]) / load_divisor
+        led1 = (math.floor(load_count) % 2 == 0)
+        if os.path.exists(log_filename):
+            last_log_time = os.path.getmtime(log_filename)
+        led2 = ((time.time() - last_log_time) < 10)
+        set_leds(led1, led2)
+        time.sleep(0.25)
 
 
-# This is a sum of all of the load measurements we have ever made
-loadCount = 0
-
-# This is the filename of the log file which we watch for changes
-logFilename = os.path.join(settings_read.settings['dataPath'], "pigazing.log")
-
-# This is the last time that we saw the log file update
-lastLogTime = 0
-
-# Pulse the load-indicator LED whenever loadCount increases by this amount
-loadDivisor = 300
-
-# Main loop
-while True:
-    loadCount = float(open("/proc/stat").readline().split()[1]) / loadDivisor
-    led1 = (math.floor(loadCount) % 2 == 0)
-    if os.path.exists(logFilename):
-        lastLogTime = os.path.getmtime(logFilename)
-    led2 = ((time.time() - lastLogTime) < 10)
-    set_lights(led1, led2)
-    time.sleep(0.25)
+if __name__ == "__main__":
+    load_monitor()

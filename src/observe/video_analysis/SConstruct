@@ -25,11 +25,11 @@ commonFiles = ['analyse/observe.c', 'analyse/trigger.c', 'argparse/argparse.c', 
 
 # List of all the binaries we are going to build
 # [ Requires OpenMAX , Requires libav , list of source files  , binary name ]
-targets = [[0, 0, commonFiles + ['frontends/videoRecord.c'], 'videoRecord'],
-           [0, 0, commonFiles + ['frontends/realtimeObserve.c'], 'realtimeObserve'],
+targets = [[0, 0, commonFiles + ['frontends/realtimeObserve.c'], 'realtimeObserve'],
            [0, 0, commonFiles + ['frontends/realtimeObserve_dslr.c'], 'realtimeObserve_dslr'],
            [0, 1, commonFiles + ['frontends/analyseH264_libav.c'], 'analyseH264_libav'],
-           [1, 0, commonFiles + ['frontends/recordH264.c'], 'recordH264'],
+           [1, 0, commonFiles + ['frontends/recordH264_openmax.c'], 'recordH264_openmax'],
+           [0, 1, commonFiles + ['frontends/recordH264_libav.c'], 'recordH264_libav'],
            [0, 0, commonFiles + ['frontends/snapshot.c'], 'snapshot'],
            [0, 0, commonFiles + ['frontends/makeBackgroundMap.c'], 'makeBackgroundMap'],
            ];
