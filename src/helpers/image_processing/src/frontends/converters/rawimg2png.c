@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 
 #include "argparse/argparse.h"
@@ -102,7 +103,7 @@ int main(int argc, const char *argv[]) {
     image_alloc(&output_image, width, height);
 
     if (bytes_per_pixel == 1) {
-        uint8_t image_raw = (uint8_t *)image_data_raw;
+        uint8_t *image_raw = (uint8_t *)image_data_raw;
         if (channels >= 3) {
             for (i = 0; i < frame_size; i++) output_image.data_red[i] = image_raw[i];
             for (i = 0; i < frame_size; i++) output_image.data_grn[i] = image_raw[i + frame_size];
@@ -115,7 +116,7 @@ int main(int argc, const char *argv[]) {
             for (i = 0; i < frame_size; i++) output_image.data_w[i] = weight;
         }
     } else {
-        uint16_t image_raw = (uint16_t *)image_data_raw;
+        uint16_t *image_raw = (uint16_t *)image_data_raw;
         if (channels >= 3) {
             for (i = 0; i < frame_size; i++) output_image.data_red[i] = image_raw[i];
             for (i = 0; i < frame_size; i++) output_image.data_grn[i] = image_raw[i + frame_size];
@@ -142,6 +143,6 @@ int main(int argc, const char *argv[]) {
     }
 
     image_dealloc(&output_image);
-    free(image_raw);
+    free(image_data_raw);
     return 0;
 }

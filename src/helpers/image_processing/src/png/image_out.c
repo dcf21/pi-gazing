@@ -76,10 +76,10 @@ int image_put(const char *output_filename, image_ptr image, int grayscale) {
 
     png_init_io(png_ptr, fp);
 
-    // Write header (8 bit colour depth)
+    // Write header (16 bit colour depth)
     png_set_compression_level(png_ptr, Z_BEST_COMPRESSION);
     png_set_IHDR(png_ptr, info_ptr, width, height,
-                 8, grayscale ? PNG_COLOR_TYPE_GRAY : PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+                 16, grayscale ? PNG_COLOR_TYPE_GRAY : PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
                  PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
     // Set title
@@ -93,8 +93,8 @@ int image_put(const char *output_filename, image_ptr image, int grayscale) {
 
     png_write_info(png_ptr, info_ptr);
 
-    // Allocate memory for one row (3 bytes per pixel - RGB)
-    row = (png_bytep) malloc(3 * width * sizeof(png_byte));
+    // Allocate memory for one row (6 bytes per pixel - RGB)
+    row = (png_bytep) malloc(6 * width * sizeof(png_byte));
 
     // Write image data
     int x, y;
@@ -103,9 +103,9 @@ int image_put(const char *output_filename, image_ptr image, int grayscale) {
         for (x = 0; x < width; x++) {
             if (grayscale) { row[x] = image.data_red[p]; }
             else {
-                row[x * 3 + 0] = image.data_red[p];
-                row[x * 3 + 1] = image.data_grn[p];
-                row[x * 3 + 2] = image.data_blu[p];
+                png_save_uint_16(&row[x * 6 + 0], (unsigned int) image.data_red[p]);
+                png_save_uint_16(&row[x * 6 + 2], (unsigned int) image.data_grn[p]);
+                png_save_uint_16(&row[x * 6 + 4], (unsigned int) image.data_blu[p]);
             }
             p++;
         }

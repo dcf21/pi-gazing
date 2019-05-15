@@ -88,6 +88,9 @@ settings = {
     # Flag specifying whether to produce debugging output from C code
     'debug': installation_info['debug'],
 
+    # How far below the horizon do we require the Sun to be before we start observing?
+    'sunRequiredAngleBelowHorizon': installation_info['sunRequiredAngleBelowHorizon'],
+
     # How many seconds before/after sun is above horizon do we wait before bothering observing
     'sunMargin': installation_info['sunMargin'],  # 30 minutes
 

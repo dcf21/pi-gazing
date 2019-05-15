@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <math.h>
 #include <unistd.h>
 #include "vidtools/v4l2uvc.h"
@@ -277,7 +278,7 @@ int dump_frame_from_ints(int width, int height, int channels, const int *buffer,
     fwrite(&width, 1, sizeof(int), out_file);
     fwrite(&height, 1, sizeof(int), out_file);
     fwrite(&channels, 1, sizeof(int), out_file);
-    fwrite(&bit_width, 1, sizeof(int), outfile);
+    fwrite(&bit_width, 1, sizeof(int), out_file);
     fwrite(tmp_frame, 1, frame_size * channels * sizeof(uint16_t), out_file);
     fclose(out_file);
     free(tmp_frame);

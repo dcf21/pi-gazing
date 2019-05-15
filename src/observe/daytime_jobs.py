@@ -52,6 +52,8 @@ from pigazing_helpers import settings_read
 import orientationCalc
 from mod_log import log_txt, get_utc
 
+elephant
+
 pid = os.getpid()
 db = pigazing_db.MeteorDatabase(settings_read.settings['dbFilestore'])
 

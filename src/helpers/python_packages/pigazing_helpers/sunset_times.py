@@ -59,7 +59,7 @@ def sun_pos(utc):
     ra = 12 / pi * atan2(cos(epsilon * deg) * sin(tl * deg), cos(tl * deg))  # hours
     dec = 180 / pi * asin(sin(epsilon * deg) * sin(tl * deg))  # degrees
 
-    return [ra, dec]
+    return ra, dec
 
 
 def rs_riseculmgap(decl_obj, latitude_obs, angle_below_horizon):
@@ -131,7 +131,9 @@ def rs_time_s(unix_time, ra, dec, longitude, latitude, angle_below_horizon):
         r.append([u, sidereal_time(u)])
 
     lhr = longitude / 180 * 12
-    gap = rs_riseculmgap(dec * pi / 180, latitude * pi / 180, angle_below_horizon * pi / 180)
+    gap = rs_riseculmgap(decl_obj=dec * pi / 180,
+                         latitude_obs=latitude * pi / 180,
+                         angle_below_horizon=angle_below_horizon * pi / 180)
     rcount = len(r)
 
     utc_rise = 0
@@ -160,7 +162,7 @@ def rs_time_s(unix_time, ra, dec, longitude, latitude, angle_below_horizon):
     return [utc_rise, utc_culm, utc_set]
 
 
-def sun_times(unix_time, longitude=0.12, latitude=52.2):
+def sun_times(unix_time, longitude=0.12, latitude=52.2, angle_below_horizon=-0.5):
     """
     Estimate unix times for sunrise , sun culmination and sunset.
 
@@ -170,12 +172,21 @@ def sun_times(unix_time, longitude=0.12, latitude=52.2):
         The longitude of the observer, degrees
     :param latitude:
         The latitude of the observer, degrees
+    :param angle_below_horizon:
+        How far below the horizon does the centre of this object has to be before it "sets"? (radians)
+    :type angle_below_horizon:
+        float
     :return:
         Unix times for [rising, culminating, setting]
     """
 
-    s = sun_pos(unix_time)
-    r = rs_time_s(unix_time, s[0], s[1], longitude, latitude, -0.5)
+    s = sun_pos(utc=unix_time)
+
+    r = rs_time_s(unix_time=unix_time,
+                  ra=s[0], dec=s[1],
+                  longitude=longitude, latitude=latitude,
+                  angle_below_horizon=angle_below_horizon)
+
     return r
 
 
@@ -198,7 +209,7 @@ def alt_az(ra, dec, utc, latitude, longitude):
     """
     ra *= pi / 12
     dec *= pi / 180
-    st = sidereal_time(utc) * pi / 12 + longitude * pi / 180
+    st = sidereal_time(utc=utc) * pi / 12 + longitude * pi / 180
     xyz = [sin(ra) * cos(dec),
            -sin(dec),  # y-axis = towards south pole
            cos(ra) * cos(dec)]  # z-axis = vernal equinox; RA=0
@@ -242,7 +253,7 @@ def ra_dec(alt, az, utc, latitude, longitude):
     """
     alt *= pi / 180
     az *= pi / 180
-    st = sidereal_time(utc) * pi / 12 + longitude * pi / 180
+    st = sidereal_time(utc=utc) * pi / 12 + longitude * pi / 180
     xyz3 = [sin(az) * cos(alt), sin(-alt), -cos(az) * cos(alt)]
 
     # Rotate by latitude around x-axis

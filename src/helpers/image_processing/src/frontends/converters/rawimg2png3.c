@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 
 #include "argparse/argparse.h"
@@ -122,14 +123,14 @@ int main(int argc, const char *argv[]) {
 
 
         if (bytes_per_pixel == 1) {
-            uint8_t image_raw = (uint8_t *)img_raw_data;
+            uint8_t *image_raw = (uint8_t *)img_raw_data;
 
             for (j = 0; j < frame_size; j++) out.data_red[j] = image_raw[j];
             for (j = 0; j < frame_size; j++) out.data_grn[j] = image_raw[j];
             for (j = 0; j < frame_size; j++) out.data_blu[j] = image_raw[j];
             for (i = 0; i < frame_size; i++) out.data_w[i] = weight;
         } else {
-            uint16_t image_raw = (uint16_t *)image_raw_data;
+            uint16_t *image_raw = (uint16_t *)img_raw_data;
 
             for (j = 0; j < frame_size; j++) out.data_red[j] = image_raw[j];
             for (j = 0; j < frame_size; j++) out.data_grn[j] = image_raw[j];

@@ -33,6 +33,8 @@ import mod_daytimejobs
 from pigazing_helpers import settings_read
 import installation_info
 
+elephant
+
 # Look up the username we use to add entries into the database
 user = settings_read.settings['pigazingUser']
 

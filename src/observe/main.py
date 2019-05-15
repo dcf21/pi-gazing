@@ -264,16 +264,24 @@ def observing_loop():
 
         # Decide whether we should observe, or do some day-time maintenance tasks
         logging.info("Observation controller considering what to do next.")
+
         time_now = time.time()
+
+        # How far below the horizon do we require the Sun to be before we start observing?
+        angle_below_horizon = settings['sunRequiredAngleBelowHorizon']
+
         sun_times_yesterday = sunset_times.sun_times(unix_time=time_now - 3600 * 24,
                                                      longitude=longitude,
-                                                     latitude=latitude)
+                                                     latitude=latitude,
+                                                     angle_below_horizon=angle_below_horizon)
         sun_times_today = sunset_times.sun_times(unix_time=time_now,
                                                  longitude=longitude,
-                                                 latitude=latitude)
+                                                 latitude=latitude,
+                                                 angle_below_horizon=angle_below_horizon)
         sun_times_tomorrow = sunset_times.sun_times(unix_time=time_now + 3600 * 24,
                                                     longitude=longitude,
-                                                    latitude=latitude)
+                                                    latitude=latitude,
+                                                    angle_below_horizon=angle_below_horizon)
 
         logging.info("Sunrise at {}".format(dcf_ast.date_string(sun_times_yesterday[0])))
         logging.info("Sunset  at {}".format(dcf_ast.date_string(sun_times_yesterday[2])))
@@ -298,12 +306,14 @@ It is night time. We are between yesterday's sunset and today's sunrise.
 
         # Test whether it is between yesterday's sunset and today's sunrise
         elif (time_now > sun_times_yesterday[2]) and (time_now < sun_times_today[0]):
-            next_observing_time = sun_times_yesterday[2] + sun_margin - time_now
-            if next_observing_time > 0:
+            next_observing_time = sun_times_yesterday[2] + sun_margin
+            next_observing_wait = next_observing_time - time_now
+            if next_observing_wait > 0:
                 logging.info("""
-We are between yesterday's sunset and today's sunrise, but sun has recently set. Waiting {} seconds to start observing.
-""".format(next_observing_time).strip())
-                time.sleep(next_observing_time + 2)
+We are between yesterday's sunset and today's sunrise, but sun has recently set. \
+Waiting {:.0f} seconds (until {}) to start observing.
+""".format(next_observing_wait, dcf_ast.date_string(next_observing_time)).strip())
+                time.sleep(next_observing_wait + 2)
                 continue
 
         # Test whether it is night time, since we are between today's sunrise and tomorrow's sunset
@@ -316,12 +326,14 @@ It is night time. We are between today's sunset and tomorrow's sunrise.
 
         # Test whether we between today's sunset and tomorrow's sunrise
         elif (time_now > sun_times_today[2]) and (time_now < sun_times_tomorrow[0]):
-            next_observing_time = sun_times_today[2] + sun_margin - time_now
+            next_observing_time = sun_times_today[2] + sun_margin
+            next_observing_wait = next_observing_time - time_now
             if next_observing_time > 0:
                 logging.info("""
-We are between today's sunset and tomorrow's sunrise, but sun has recently set. Waiting {} seconds to start observing.
-""".format(next_observing_time).strip())
-                time.sleep(next_observing_time + 2)
+We are between today's sunset and tomorrow's sunrise, but sun has recently set. \
+Waiting {:.0f} seconds (until {}) to start observing.
+""".format(next_observing_wait, dcf_ast.date_string(next_observing_time)).strip())
+                time.sleep(next_observing_wait + 2)
                 continue
 
         # Calculate time until the next sunset
@@ -345,7 +357,7 @@ We are between today's sunset and tomorrow's sunrise, but sun has recently set. 
             # Start observing run
             t_stop = time_now + observing_duration
             logging.info("""
-Starting observing run until {} (running for {} seconds).
+Starting observing run until {} (running for {:.0f} seconds).
 """.format(dcf_ast.date_string(t_stop), observing_duration).strip())
 
             # Flick the relay to turn the camera on
@@ -424,15 +436,15 @@ timeout {timeout} \
             continue
 
         # Estimate roughly when we're next going to be able to observe (i.e. shortly after sunset)
-        next_observing_time = seconds_till_sunset + sun_margin
+        next_observing_wait = seconds_till_sunset + sun_margin
 
         # If we've got more than an hour, it's worth doing some day time tasks
         # Do daytime tasks on a RPi only if we are doing real-time observation
-        if (next_observing_time > 3600) and (settings['realTime'] or not settings['i_am_a_rpi']):
-            t_stop = time_now + next_observing_time
+        if (next_observing_wait > 3600) and (settings['realTime'] or not settings['i_am_a_rpi']):
+            t_stop = time_now + next_observing_wait
             logging.info("""
-Starting daytime tasks until {} (running for {} seconds).
-""".format(dcf_ast.date_string(t_stop), next_observing_time))
+Starting daytime tasks until {} (running for {:.0f} seconds).
+""".format(dcf_ast.date_string(t_stop), next_observing_wait).strip())
             os.system("cd {} ; ./daytimeJobs.py {}".format(settings['pythonPath'], t_stop))
 
             # Snooze for up to 10 minutes; we may rerun daytime tasks in a while if they ended prematurely
@@ -442,13 +454,14 @@ Starting daytime tasks until {} (running for {} seconds).
                 time.sleep(snooze_duration)
 
         else:
-            if next_observing_time < 0:
-                next_observing_time = 0
-            next_observing_time += 30
+            if next_observing_wait < 0:
+                next_observing_wait = 0
+            next_observing_wait += 30
+            t_stop = time_now + next_observing_wait
             logging.info("""
-Not quite time to start observing yet, so let's sleep for {} seconds.
-""".format(next_observing_time))
-            time.sleep(next_observing_time)
+Not time to start observing yet, so sleeping until {} ({:.0f} seconds away).
+""".format(dcf_ast.date_string(t_stop), next_observing_wait).strip())
+            time.sleep(next_observing_wait)
 
         # Little snooze to prevent spinning around the loop
         snooze_duration = float(10)

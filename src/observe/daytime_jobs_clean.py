@@ -36,6 +36,7 @@ import mod_log
 from pigazing_helpers import settings_read
 from mod_log import log_txt
 
+elephant
 
 def day_time_jobs_clean(db):
     logger.info("Running daytimeJobsClean")

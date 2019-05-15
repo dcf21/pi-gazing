@@ -23,6 +23,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <gsl/gsl_math.h>
 #include "png/image.h"
@@ -101,7 +102,8 @@ image_ptr image_get(const char *filename) {
     }
 
 
-    unsigned char *data = NULL, *palette = NULL, *trans = NULL;
+    unsigned char *data = NULL, *trans = NULL;
+    uint16_t *palette = NULL;
     int pal_len = 0, width = 0, height = 0, colour = 0;
 
     int depth = 0, ncols = 0, ntrans = 0, png_colour_type = 0, i = 0, j = 0;
@@ -154,12 +156,6 @@ image_ptr image_get(const char *filename) {
         logging_info(temp_err_string);
     }
 
-    if (depth == 16) {
-        if (DEBUG) logging_info("Reducing 16 bit per components to 8 bits");
-        png_set_strip_16(png_ptr);
-        depth = 8;
-    }
-
     if (png_colour_type & PNG_COLOR_MASK_ALPHA) {
         if (DEBUG) logging_info("PNG uses transparency");
         if (png_get_bKGD(png_ptr, info_ptr, &backgndp)) {
@@ -185,7 +181,7 @@ image_ptr image_get(const char *filename) {
             goto finalise;
         }
         pal_len = ncols;
-        palette = malloc(ncols * 3);
+        palette = (uint16_t *) malloc(ncols * 3 * sizeof(uint16_t));
         if (palette == NULL) {
             logging_error(ERR_MEMORY, "Out of memory");
             goto finalise;
@@ -201,7 +197,7 @@ image_ptr image_get(const char *filename) {
         }
     }
 
-    // Update png info to reflect any requested conversions (e.g. 16 bit to 8 bit or Alpha to non-alpha
+    // Update png info to reflect any requested conversions (e.g. 16 bit to 8 bit or alpha to non-alpha)
     png_read_update_info(png_ptr, info_ptr);
 
     // Now rowbytes will reflect what we will get, not what we had originally
@@ -222,7 +218,9 @@ image_ptr image_get(const char *filename) {
         goto finalise;
     }
 
-    for (i = 0; i < height; i++) row_ptrs[i] = data + row_bytes * i;
+    for (i = 0; i < height; i++) {
+        row_ptrs[i] = data + row_bytes * i;
+    }
 
     // Get uncompressed image
     png_read_image(png_ptr, row_ptrs);
@@ -246,7 +244,7 @@ image_ptr image_get(const char *filename) {
                 else if (trans_colours[i] != 255) j += 10;
             if (j != 1) {
                 logging_warning(ERR_FILE,
-                             "PNG has transparency, but not in the form of a single fully colour in its palette. Such transparency is not supported.");
+                                "PNG has transparency, but not in the form of a single fully colour in its palette. Such transparency is not supported.");
             } else {
                 for (i = 0; (i < ntrans) && (trans_colours[i] == 255); i++);
                 trans = index;
@@ -266,17 +264,23 @@ image_ptr image_get(const char *filename) {
 
     // Put all necessary information into the output data structure
     image_alloc(&output, width, height);
-    const int frameSize = width * height;
-    for (i = 0; i < frameSize; i++) output.data_w[i] = 1;
+    const int frame_size = width * height;
+    for (i = 0; i < frame_size; i++) output.data_w[i] = 1;
 
     if (colour == BMP_COLOUR_RGB) {
-        for (i = 0; i < frameSize; i++) {
-            output.data_red[i] = data[3 * i + 0];
-            output.data_grn[i] = data[3 * i + 1];
-            output.data_blu[i] = data[3 * i + 2];
+        for (i = 0; i < frame_size; i++) {
+            if (depth == 8) {
+                output.data_red[i] = data[3 * i + 0];
+                output.data_grn[i] = data[3 * i + 1];
+                output.data_blu[i] = data[3 * i + 2];
+            } else {
+                output.data_red[i] = 256 * data[6 * i + 0] + data[6 * i + 1];
+                output.data_grn[i] = 256 * data[6 * i + 2] + data[6 * i + 3];
+                output.data_blu[i] = 256 * data[6 * i + 4] + data[6 * i + 5];
+            }
         }
     } else if (colour == BMP_COLOUR_PALETTE) {
-        for (i = 0; i < frameSize; i++) {
+        for (i = 0; i < frame_size; i++) {
             int j = data[i];
             if (j > pal_len - 1) j = pal_len - 1;
             output.data_red[i] = palette[3 * j + 0];
@@ -284,10 +288,16 @@ image_ptr image_get(const char *filename) {
             output.data_blu[i] = palette[3 * j + 2];
         }
     } else {
-        for (i = 0; i < frameSize; i++) {
-            output.data_red[i] = data[i];
-            output.data_grn[i] = data[i];
-            output.data_blu[i] = data[i];
+        for (i = 0; i < frame_size; i++) {
+            if (depth == 8) {
+                output.data_red[i] = data[i];
+                output.data_grn[i] = data[i];
+                output.data_blu[i] = data[i];
+            } else {
+                output.data_red[i] = 256 * data[2 * i] + data[2 * i + 1];
+                output.data_grn[i] = output.data_red[i];
+                output.data_blu[i] = output.data_red[i];
+            }
         }
     }
 
