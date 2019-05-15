@@ -112,7 +112,7 @@ def constellation_data(c_, logger):
     """
 
     # Add simple list of names of constellations
-    for line in open("constellation_names.dat"):
+    for line in open("data/constellation_names.dat"):
         if (len(line.strip()) > 10) and (line[0].strip() != '#'):
             words = line.split()
             shortname = words[0]
@@ -129,7 +129,7 @@ REPLACE INTO pigazing_constellations (name, abbrev, namenospaces) VALUES (%s, %s
 """, (longname1, shortname, longname2))
 
     # The file which contains all the raw data about the constellations
-    filename = "constellations.xml"
+    filename = "data/constellations.xml"
 
     # Placeholder data which we insert for the time being
     info = {"name": "XXX", "date": "XXX", "genitive": "XXX", "area": 0}
@@ -152,7 +152,7 @@ REPLACE INTO pigazing_constellations (name, abbrev, namenospaces) VALUES (%s, %s
         raise
 
     # Add central RA and Dec of each constellation
-    filename = "constellation_name_places.dat"
+    filename = "data/constellation_name_places.dat"
     c_.execute("SELECT constellationId FROM pigazing_constellations WHERE name != 'Unknown' ORDER BY name ASC;")
     ids = c_.fetchall()
     i = 0
@@ -202,7 +202,7 @@ REPLACE INTO pigazing_constellations (name, abbrev, namenospaces) VALUES (%s, %s
                  width=width, col_red=red, col_grn=grn, col_blu=blu, wrap_around=False)
 
     # Fill the outline of each constellation in turn. Set the red channel equal to the constellationId
-    filename = "constellations_eq2000.dat"
+    filename = "data/constellations_eq2000.dat"
     constellation_name_old = ""
     pt_list = []
     red = grn = blu = 0

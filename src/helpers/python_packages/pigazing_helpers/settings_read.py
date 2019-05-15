@@ -83,24 +83,24 @@ settings = {
     'dbFilestore': os.path.join(data_directory, "db_filestore"),
 
     # Flag specifying whether to hunt for meteors in real time, or record H264 video for subsequent analysis
-    'realTime': True,
+    'realTime': installation_info['realTime'],
 
     # Flag specifying whether to produce debugging output from C code
-    'debug': True,
+    'debug': installation_info['debug'],
 
     # How many seconds before/after sun is above horizon do we wait before bothering observing
-    'sunMargin': 1800,  # 30 minutes
+    'sunMargin': installation_info['sunMargin'],  # 30 minutes
 
     # When observing with non-real-time triggering, this is the maximum number of seconds of video allowed
     # in a single file
-    'videoMaxRecordTime': 7200,
+    'videoMaxRecordTime': installation_info['videoMaxRecordTime'],
 
     # Position to assume when we don't have any GPS data available
     'longitudeDefault': installation_info['longitude'],
     'latitudeDefault': installation_info['latitude'],
 
-    # Video settings. THESE SHOULD BE READ FROM THE DATABASE!
-    'videoDev': "/dev/video0",
+    # Video settings.
+    'videoDev': installation_info['videoDev'],
 
 }
 

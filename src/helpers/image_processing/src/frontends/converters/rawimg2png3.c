@@ -76,26 +76,34 @@ int main(int argc, const char *argv[]) {
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
-    int width, height, channels;
+    int width, height, channels, bit_width;
     i = fread(&width, sizeof(int), 1, infile);
     i = fread(&height, sizeof(int), 1, infile);
     i = fread(&channels, sizeof(int), 1, infile);
+    i = fread(&bit_width, sizeof(int), 1, infile);
+
     if (channels != 3) {
         sprintf(temp_err_string, "ERROR: cannot generate separate RGB PNGs from a mono PNG.");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     const int frame_size = width * height;
-    unsigned char *img_raw_r = malloc(frame_size);
-    unsigned char *img_raw_g = malloc(frame_size);
-    unsigned char *img_raw_b = malloc(frame_size);
+    const int bytes_per_pixel = bit_width / 8;
+    const double weight = (bytes_per_pixel > 1) ? 256 : 1;
+
+    unsigned char *img_raw_r = malloc(frame_size * bytes_per_pixel);
+    unsigned char *img_raw_g = malloc(frame_size * bytes_per_pixel);
+    unsigned char *img_raw_b = malloc(frame_size * bytes_per_pixel);
+
     if ((img_raw_r == NULL) || (img_raw_g == NULL) || (img_raw_b == NULL)) {
         sprintf(temp_err_string, "ERROR: malloc fail");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
-    i = fread(img_raw_r, 1, frame_size, infile);
-    i = fread(img_raw_g, 1, frame_size, infile);
-    i = fread(img_raw_b, 1, frame_size, infile);
+
+    i = fread(img_raw_r, 1, frame_size * bytes_per_pixel, infile);
+    i = fread(img_raw_g, 1, frame_size * bytes_per_pixel, infile);
+    i = fread(img_raw_b, 1, frame_size * bytes_per_pixel, infile);
+
     fclose(infile);
 
     image_ptr out;
@@ -107,14 +115,27 @@ int main(int argc, const char *argv[]) {
         int j;
         if (code) break;
 
-        unsigned char *imgRaw = NULL;
-        if (i == 0) imgRaw = img_raw_r;
-        else if (i == 1) imgRaw = img_raw_g;
-        else imgRaw = img_raw_b;
+        unsigned char *img_raw_data = NULL;
+        if (i == 0) img_raw_data = img_raw_r;
+        else if (i == 1) img_raw_data = img_raw_g;
+        else img_raw_data = img_raw_b;
 
-        for (j = 0; j < frame_size; j++) out.data_red[j] = imgRaw[j];
-        for (j = 0; j < frame_size; j++) out.data_grn[j] = imgRaw[j];
-        for (j = 0; j < frame_size; j++) out.data_blu[j] = imgRaw[j];
+
+        if (bytes_per_pixel == 1) {
+            uint8_t image_raw = (uint8_t *)img_raw_data;
+
+            for (j = 0; j < frame_size; j++) out.data_red[j] = image_raw[j];
+            for (j = 0; j < frame_size; j++) out.data_grn[j] = image_raw[j];
+            for (j = 0; j < frame_size; j++) out.data_blu[j] = image_raw[j];
+            for (i = 0; i < frame_size; i++) out.data_w[i] = weight;
+        } else {
+            uint16_t image_raw = (uint16_t *)image_raw_data;
+
+            for (j = 0; j < frame_size; j++) out.data_red[j] = image_raw[j];
+            for (j = 0; j < frame_size; j++) out.data_grn[j] = image_raw[j];
+            for (j = 0; j < frame_size; j++) out.data_blu[j] = image_raw[j];
+            for (i = 0; i < frame_size; i++) out.data_w[i] = weight;
+        }
 
         char product_filename[FNAME_LENGTH];
         sprintf(product_filename, "%s_%d.png", output_filename, i);

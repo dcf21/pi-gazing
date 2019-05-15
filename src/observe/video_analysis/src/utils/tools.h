@@ -28,6 +28,7 @@
 #include "png/image.h"
 
 #define CLIP256(X) ( d=X , ((d<0)?0: ((d>255)?255:d) ))
+#define CLIP65536(X) ( d=X , ((d<0)?0: ((d>65535)?65535:d) ))
 
 typedef struct video_metadata {
     double utc_start, utc_stop, fps, lng, lat;

@@ -97,11 +97,11 @@ argparse_getvalue(struct argparse *self, const struct argparse_option *opt,
         case ARGPARSE_OPT_FLOAT:
             errno = 0;
             if (self->optvalue) {
-                *(float *) opt->value = strtof(self->optvalue, (char **) &s);
+                *(double *) opt->value = strtof(self->optvalue, (char **) &s);
                 self->optvalue = NULL;
             } else if (self->argc > 1) {
                 self->argc--;
-                *(float *) opt->value = strtof(*++self->argv, (char **) &s);
+                *(double *) opt->value = strtof(*++self->argv, (char **) &s);
             } else {
                 argparse_error(self, opt, "requires a value", flags);
             }

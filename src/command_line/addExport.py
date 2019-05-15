@@ -26,6 +26,7 @@ This script is used to set up an observatory to export data to a remote installa
 """
 
 import argparse
+import sys
 
 from pigazing_helpers.obsarchive import obsarchive_model, obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
@@ -84,6 +85,10 @@ if __name__ == "__main__":
     parser.add_argument('--password', default=installation_info['exportPassword'],
                         dest='password', help='The password of the account on the remote server used for importing')
     args = parser.parse_args()
+
+    if args.url.strip() == "":
+        print("No export URL specified.")
+        sys.exit(0)
 
     add_export(url=args.url,
                username=args.username,

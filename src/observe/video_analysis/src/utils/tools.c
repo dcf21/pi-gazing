@@ -212,7 +212,9 @@ void background_calculate(const int width, const int height, const int channels,
 
 int dump_frame(int width, int height, int channels, const unsigned char *buffer, char *filename) {
     FILE *outfile;
-    const int frameSize = width * height;
+    const int frame_size = width * height;
+    const int bit_width = 8;
+
     if ((outfile = fopen(filename, "wb")) == NULL) {
         sprintf(temp_err_string, "ERROR: Cannot open output RAW image frame %s.\n", filename);
         logging_error(ERR_GENERAL, temp_err_string);
@@ -222,7 +224,8 @@ int dump_frame(int width, int height, int channels, const unsigned char *buffer,
     fwrite(&width, 1, sizeof(int), outfile);
     fwrite(&height, 1, sizeof(int), outfile);
     fwrite(&channels, 1, sizeof(int), outfile);
-    fwrite(buffer, 1, frameSize * channels, outfile);
+    fwrite(&bit_width, 1, sizeof(int), outfile);
+    fwrite(buffer, 1, frame_size * channels, outfile);
     fclose(outfile);
     return 0;
 }
@@ -231,8 +234,10 @@ int dump_frame_from_ints(int width, int height, int channels, const int *buffer,
                          int *gain_out, char *filename) {
     FILE *out_file;
     int frame_size = width * height;
-    unsigned char *tmpc = malloc(frame_size * channels);
-    if (!tmpc) {
+    const int bit_width = 16;
+
+    uint16_t *tmp_frame = malloc(frame_size * channels * sizeof(uint16_t));
+    if (!tmp_frame) {
         sprintf(temp_err_string, "ERROR: malloc fail in dump_frame_from_ints.");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
@@ -254,7 +259,7 @@ int dump_frame_from_ints(int width, int height, int channels, const int *buffer,
             brightness_sum += buffer[i];
             brightness_points++;
         }
-        gain = (int) (target_brightness / (brightness_sum / frame_count / brightness_points));
+        gain = (int) (target_brightness * 256 / (brightness_sum / frame_count / brightness_points));
         if (gain < 1) gain = 1;
         if (gain > 30) gain = 30;
     }
@@ -264,15 +269,18 @@ int dump_frame_from_ints(int width, int height, int channels, const int *buffer,
 
     // Renormalise image data, dividing by the number of frames which have been stacked, and multiplying by gain factor
 #pragma omp parallel for private(i, d)
-    for (i = 0; i < frame_size * channels; i++) tmpc[i] = CLIP256(buffer[i] * gain / frame_count);
+    for (i = 0; i < frame_size * channels; i++) {
+    tmp_frame[i] = CLIP65536(buffer[i] * gain / frame_count);
+    }
 
     // Write image data to raw file
     fwrite(&width, 1, sizeof(int), out_file);
     fwrite(&height, 1, sizeof(int), out_file);
     fwrite(&channels, 1, sizeof(int), out_file);
-    fwrite(tmpc, 1, frame_size * channels, out_file);
+    fwrite(&bit_width, 1, sizeof(int), outfile);
+    fwrite(tmp_frame, 1, frame_size * channels * sizeof(uint16_t), out_file);
     fclose(out_file);
-    free(tmpc);
+    free(tmp_frame);
     return 0;
 }
 
@@ -281,8 +289,10 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
                                     const unsigned char *buffer2, char *filename) {
     FILE *outfile;
     int frame_size = width * height;
-    unsigned char *tmpc = malloc(frame_size * channels);
-    if (!tmpc) {
+    const int bit_width = 16;
+
+    uint16_t *tmp_frame = malloc(frame_size * channels * sizeof(uint16_t));
+    if (!tmp_frame) {
         sprintf(temp_err_string, "ERROR: malloc fail in dump_frame_from_ints.");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
@@ -306,7 +316,7 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
             brightness_sum += level;
             brightness_points++;
         }
-        gain = (int) (target_brightness / (brightness_sum / frame_count / brightness_points));
+        gain = (int) (target_brightness * 256 / (brightness_sum / frame_count / brightness_points));
         if (gain < 1) gain = 1;
         if (gain > 30) gain = 30;
     }
@@ -316,16 +326,18 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
 
     // Renormalise image data, dividing by the number of frames which have been stacked, and multiplying by gain factor
 #pragma omp parallel for private(i, d)
-    for (i = 0; i < frame_size * channels; i++)
-        tmpc[i] = CLIP256((buffer[i] - frame_count * buffer2[i]) * gain / frame_count);
+    for (i = 0; i < frame_size * channels; i++) {
+        tmp_frame[i] = CLIP65536((buffer[i] - frame_count * buffer2[i]) * gain / frame_count);
+        }
 
     // Write image data to raw file
     fwrite(&width, 1, sizeof(int), outfile);
     fwrite(&height, 1, sizeof(int), outfile);
     fwrite(&channels, 1, sizeof(int), outfile);
-    fwrite(tmpc, 1, frame_size * channels, outfile);
+    fwrite(&bit_width, 1, sizeof(int), outfile);
+    fwrite(tmp_frame, 1, frame_size * channels * sizeof(uint16_t), outfile);
     fclose(outfile);
-    free(tmpc);
+    free(tmp_frame);
     return 0;
 }
 
@@ -352,7 +364,7 @@ FILE *dump_video_init(int width, int height, const unsigned char *buffer1, int b
 int dump_video_frame(int width, int height, const unsigned char *buffer1, int buffer1_frames,
                      const unsigned char *buffer2,
                      int buffer2_frames, FILE *out_file, int *frames_written) {
-    const size_t frameSize = (size_t) (width * height * 3 / 2);
+    const size_t frame_size = (size_t) (width * height * 3 / 2);
 
     const int totalFrames = buffer1_frames + buffer2_frames;
     const int framesToWrite = MIN(totalFrames - *frames_written, TRIGGER_FRAMEGROUP);
@@ -360,9 +372,9 @@ int dump_video_frame(int width, int height, const unsigned char *buffer1, int bu
 
     for (i = 0; i < framesToWrite; i++) {
         if (*frames_written < buffer1_frames)
-            fwrite(buffer1 + (*frames_written) * frameSize, frameSize, 1, out_file);
+            fwrite(buffer1 + (*frames_written) * frame_size, frame_size, 1, out_file);
         else
-            fwrite(buffer2 + (*frames_written - buffer1_frames) * frameSize, frameSize, 1, out_file);
+            fwrite(buffer2 + (*frames_written - buffer1_frames) * frame_size, frame_size, 1, out_file);
         (*frames_written)++;
     }
     if (*frames_written >= totalFrames) {

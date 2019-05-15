@@ -77,33 +77,56 @@ int main(int argc, const char *argv[]) {
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
-    int width, height, channels;
+    int width, height, channels, bit_width;
     i = fread(&width, sizeof(int), 1, infile);
     i = fread(&height, sizeof(int), 1, infile);
     i = fread(&channels, sizeof(int), 1, infile);
+    i = fread(&bit_width, sizeof(int), 1, infile);
 
     const int frame_size = width * height;
-    unsigned char *image_raw = malloc(channels * frame_size);
-    if (image_raw == NULL) {
+    const int bytes_per_pixel = bit_width / 8;
+    const double weight = (bytes_per_pixel > 1) ? 256 : 1;
+
+    unsigned char *image_data_raw = malloc(channels * frame_size * bytes_per_pixel);
+
+    if (image_data_raw == NULL) {
         sprintf(temp_err_string, "ERROR: malloc fail");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
-    i = fread(image_raw, 1, channels * frame_size, infile);
+
+    i = fread(image_data_raw, 1, channels * frame_size * bytes_per_pixel, infile);
+
     fclose(infile);
 
     image_ptr output_image;
     image_alloc(&output_image, width, height);
 
-    if (channels >= 3) {
-        for (i = 0; i < frame_size; i++) output_image.data_red[i] = image_raw[i];
-        for (i = 0; i < frame_size; i++) output_image.data_grn[i] = image_raw[i + frame_size];
-        for (i = 0; i < frame_size; i++) output_image.data_blu[i] = image_raw[i + frame_size * 2];
-        for (i = 0; i < frame_size; i++) output_image.data_w[i] = 1;
+    if (bytes_per_pixel == 1) {
+        uint8_t image_raw = (uint8_t *)image_data_raw;
+        if (channels >= 3) {
+            for (i = 0; i < frame_size; i++) output_image.data_red[i] = image_raw[i];
+            for (i = 0; i < frame_size; i++) output_image.data_grn[i] = image_raw[i + frame_size];
+            for (i = 0; i < frame_size; i++) output_image.data_blu[i] = image_raw[i + frame_size * 2];
+            for (i = 0; i < frame_size; i++) output_image.data_w[i] = weight;
+        } else {
+            for (i = 0; i < frame_size; i++) output_image.data_red[i] = image_raw[i];
+            for (i = 0; i < frame_size; i++) output_image.data_grn[i] = image_raw[i];
+            for (i = 0; i < frame_size; i++) output_image.data_blu[i] = image_raw[i];
+            for (i = 0; i < frame_size; i++) output_image.data_w[i] = weight;
+        }
     } else {
-        for (i = 0; i < frame_size; i++) output_image.data_red[i] = image_raw[i];
-        for (i = 0; i < frame_size; i++) output_image.data_grn[i] = image_raw[i];
-        for (i = 0; i < frame_size; i++) output_image.data_blu[i] = image_raw[i];
-        for (i = 0; i < frame_size; i++) output_image.data_w[i] = 1;
+        uint16_t image_raw = (uint16_t *)image_data_raw;
+        if (channels >= 3) {
+            for (i = 0; i < frame_size; i++) output_image.data_red[i] = image_raw[i];
+            for (i = 0; i < frame_size; i++) output_image.data_grn[i] = image_raw[i + frame_size];
+            for (i = 0; i < frame_size; i++) output_image.data_blu[i] = image_raw[i + frame_size * 2];
+            for (i = 0; i < frame_size; i++) output_image.data_w[i] = weight;
+        } else {
+            for (i = 0; i < frame_size; i++) output_image.data_red[i] = image_raw[i];
+            for (i = 0; i < frame_size; i++) output_image.data_grn[i] = image_raw[i];
+            for (i = 0; i < frame_size; i++) output_image.data_blu[i] = image_raw[i];
+            for (i = 0; i < frame_size; i++) output_image.data_w[i] = weight;
+        }
     }
 
     char product_filename[FNAME_LENGTH];
