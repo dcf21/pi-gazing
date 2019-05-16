@@ -403,7 +403,7 @@ timeout {timeout} \
          --flag-upside-down {upside_down} \
          {output_argument}
 """.format(
-                timeout=float(observing_duration + 30),
+                timeout=float(observing_duration + 300),
                 binary=binary_full_path,
                 utc_stop=float(t_stop),
                 obsid=obstory_id,
