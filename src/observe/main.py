@@ -25,13 +25,12 @@
 Observatory controller
 """
 
-import os
-import sys
+import datetime
 import json
 import logging
-import time
-import datetime
+import os
 import subprocess
+import time
 
 from pigazing_helpers import dcf_ast, sunset_times, relay_control, hardware_properties
 from pigazing_helpers.obsarchive import obsarchive_db
@@ -471,9 +470,12 @@ Not time to start observing yet, so sleeping until {} ({:.0f} seconds away).
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO,
-                        stream=sys.stdout,
                         format='[%(asctime)s] %(levelname)s:%(filename)s:%(message)s',
-                        datefmt='%d/%m/%Y %H:%M:%S')
+                        datefmt='%d/%m/%Y %H:%M:%S',
+                        handlers=[
+                            logging.FileHandler(os.path.join(settings['pythonPath'], "../datadir/pigazing.log")),
+                            logging.StreamHandler()
+                        ])
     logger = logging.getLogger(__name__)
     logger.info(__doc__.strip())
 
