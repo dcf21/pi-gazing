@@ -10,7 +10,7 @@ The first thing it does is to run `gpsFix.py` which attempts to communicate with
 
 The C program stored in videoAnalysis is run during the hours of darkness. This monitors the video stream from the camera, and records still images and video clips of moving objects. It does not do any compression on the images and videos, because CPU resources are extremely tight on a Raspberry Pi.
 
-During the daytime, the script `dayTimeJobs.py` runs. This compresses the images into PNG format, and the videos into MP4s. The exact mechanism for doing this depends on the platform the code is running on. On a standard PC, libavtools is used. On a Raspberry Pi, this would be incredibly slow, so the RPi's inbuilt video encoder is used (i.e. OpenMAX).
+During the daytime, the script `dayTimeTasks.py` runs. This compresses the images into PNG format, and the videos into MP4s. The exact mechanism for doing this depends on the platform the code is running on. On a standard PC, libavtools is used. On a Raspberry Pi, this would be incredibly slow, so the RPi's inbuilt video encoder is used (i.e. OpenMAX).
 
 Once the images have been turned into a standard format, they are imported into the observations database (using `dbImport.py`). The observatory will then run the script `orientationCalc.py`, which uses astrometry.net to attempt to automatically determine which direction the camera is pointing from the stars that are visible. Finally, the script `exportData.py` is run, which transmits observations to an external server, if one has been configured in `installation_info.py`.
 

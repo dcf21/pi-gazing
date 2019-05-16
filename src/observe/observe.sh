@@ -20,7 +20,7 @@ source ../../datadir/virtualenv/bin/activate
 
 # The script load_monitor.py runs in the background and flashes LEDs connected to the GPIO port to indicate
 # system activity
-./load_monitor.py &
+./loadMonitor.py &
 
 # The script main.py actually observes the night sky. We catch any python exceptions which may occur in a log file.
 # This script should never exit, so if it does, it's broken. Back off for 5 minutes and try again.

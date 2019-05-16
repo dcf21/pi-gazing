@@ -44,7 +44,7 @@ def get_gps_fix():
 
     # Run gpsFix.py, which returns JSON output to stdout
     # Use shell timeout command instead of python's check_output timeout argument, because the latter is unreliable
-    cmd_ = "timeout 30s " + os.path.join(settings['pythonPath'], "observe", "gps_fix.py")
+    cmd_ = "timeout 30s " + os.path.join(settings['pythonPath'], "observe", "gpsFix.py")
     try:
         gps_fix_json = subprocess.check_output(cmd_, shell=True, timeout=40)
         gps_result = json.loads(gps_fix_json)
@@ -444,7 +444,7 @@ timeout {timeout} \
             logging.info("""
 Starting daytime tasks until {} (running for {:.0f} seconds).
 """.format(dcf_ast.date_string(t_stop), next_observing_wait).strip())
-            os.system("cd {} ; ./daytimeJobs.py {}".format(settings['pythonPath'], t_stop))
+            os.system("cd {} ; ./daytimeTasks.py --stop-by {}".format(settings['pythonPath'], t_stop))
 
             # Snooze for up to 10 minutes; we may rerun daytime tasks in a while if they ended prematurely
             if time.time() < t_stop:

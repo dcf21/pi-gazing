@@ -1,6 +1,6 @@
 #!../../datadir/virtualenv/bin/python3
 # -*- coding: utf-8 -*-
-# daytime_jobs.py
+# daytimeTaskDefinitions.py
 #
 # -------------------------------------------------
 # Copyright 2015-2019 Dominic Ford
@@ -53,33 +53,36 @@ def execute_shell_command(arguments):
     if (arguments['must_quit_by'] is not None) and (time.time() > arguments['must_quit_by']):
         return
 
-    # Collect metadata associated with this file
-    input_metadata_file, input_metadata = metadata_file_to_dict(product_filename=arguments['input_file'])
+    # Loop over all the input files associated with this time stamp
+    for job in arguments['jobs']:
 
-    # Make metadata available to shell command
-    arguments['input_file_without_extension'] = os.path.splitext(arguments['input_file'])[0]
-    arguments['input_metadata'] = input_metadata
-
-    # Run the shell command
-    command = arguments['command_line'].format(**arguments)
-    # os.system(command)
-    print(command)
-
-    # Fetch list of output files we have created
-    file_products = []
-    file_metadata_products = []
-    for item in arguments['output_file_wildcards']:
-        file_products.append(glob.glob(item))
-    if input_metadata_file is not None:
-        file_metadata_products.append(input_metadata_file)
+        # Collect metadata associated with this file
+        input_metadata_file, input_metadata = metadata_file_to_dict(product_filename=job['input_file'])
+    
+        # Make metadata available to shell command
+        job['input_file_without_extension'] = os.path.splitext(job['input_file'])[0]
+        job['input_metadata'] = input_metadata
+    
+        # Run the shell command
+        command = job['command_line'].format(**job)
+        # os.system(command)
+        print(command)
+    
+        # Fetch list of output files we have created
+        file_products = []
+        file_metadata_products = []
+        for item in job['output_file_wildcards']:
+            file_products.append(glob.glob(item))
+        if input_metadata_file is not None:
+            file_metadata_products.append(input_metadata_file)
 
     # Open connection to the database
-    db = obsarchive_db.ObservationDatabase(file_store_path=arguments['settings']['dbFilestore'],
-                                           db_host=arguments['installation_info']['mysqlHost'],
-                                           db_user=arguments['installation_info']['mysqlUser'],
-                                           db_password=arguments['installation_info']['mysqlPassword'],
-                                           db_name=arguments['installation_info']['mysqlDatabase'],
-                                           obstory_id=arguments['installation_info']['observatoryId'])
+    db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                           db_host=installation_info['mysqlHost'],
+                                           db_user=installation_info['mysqlUser'],
+                                           db_password=installation_info['mysqlPassword'],
+                                           db_name=installation_info['mysqlDatabase'],
+                                           obstory_id=installation_info['observatoryId'])
 
     # Import file products into the database
     for item in file_products:
@@ -203,9 +206,38 @@ class TaskRunner:
         """
         self.must_quit_by = must_quit_by
         self.task_list = []
-        self.fetch_job_list()
 
-        logging.info("Starting job group <{}>. Running {} tasks.".format(self.__class__.__name__, len(self.task_list)))
+    def fetch_job_list_by_time_stamp(self):
+        """
+        Fetch list of input files we need to operate on, and sort them by time stamp. Files with the same time stamp
+        correspond to the same "observation" and so will be grouped together in the database.
+
+        :return:
+            None
+        """
+
+        # Fetch list of input files, and sort them by time stamp
+        jobs_by_time = {}
+        for glob_pattern in self.glob_patterns():
+            for input_file in glob.glob(os.path.join(settings['pythonPath'], "../datadir/", glob_pattern)):
+                # Properties that specify what command to run to complete this task, and what output it produces
+                job_descriptor = {
+                    'input_file': input_file,
+                    'shell_command': self.shell_command(),
+                    'output_file_wildcards': self.output_file_wildcards(input_file)
+                }
+
+                # Work out the time stamp of this job from the input file's filename
+                time_stamp = filename_to_utc(input_file)
+
+                # If we haven't had any jobs at the time stamp before, create an empty list for this time stamp
+                if time_stamp not in jobs_by_time:
+                    jobs_by_time[time_stamp] = []
+
+                # Append this job to list of others with the same time stamp
+                jobs_by_time[time_stamp].append(job_descriptor)
+
+        return jobs_by_time
 
     def fetch_job_list(self):
         """
@@ -217,23 +249,22 @@ class TaskRunner:
         :return:
             None
         """
+        # Sort list of input files by time stamp
+        jobs_by_time = self.fetch_job_list_by_time_stamp()
+
+        # Make list of all time stamps
+        time_stamps = sorted(jobs_by_time.keys())
+
+        # Sort all jobs into a list
         self.task_list = []
 
-        input_file_list = []
-        for glob_pattern in self.glob_patterns():
-            input_file_list.append(
-                glob.glob(os.path.join(settings['pythonPath'], "../datadir/", glob_pattern))
-            )
-
-        for input_file in input_file_list:
+        for time_stamp in time_stamps:
             self.task_list.append({
-                'input_file': input_file,
-                'shell_command': self.shell_command(),
-                'output_file_wildcards': self.output_file_wildcards(input_file),
-                'settings': settings,
-                'installation_info': installation_info,
+                'jobs': jobs_by_time[time_stamp],
                 'must_quit_by': self.must_quit_by
             })
+
+        logging.info("Starting job group <{}>. Running {} tasks.".format(self.__class__.__name__, len(self.task_list)))
 
     @staticmethod
     def glob_patterns():
@@ -244,7 +275,7 @@ class TaskRunner:
         :return:
             string filename wildcard
         """
-        raise NotImplementedError
+        return None
 
     def execute_tasks(self):
         """
@@ -253,6 +284,8 @@ class TaskRunner:
         :return:
             None
         """
+        self.fetch_job_list()
+
         pool = multiprocessing.Pool(processes=self.maximum_concurrency())
         pool.map(func=execute_shell_command, iterable=self.task_list)
         pool.close()
@@ -276,7 +309,7 @@ class TaskRunner:
         :return:
             string shell command, with substitution places marked using <str.format> syntax
         """
-        raise NotImplementedError
+        return None
 
     @staticmethod
     def output_file_wildcards(input_file):
@@ -290,7 +323,53 @@ class TaskRunner:
         :return:
             A list of wildcards that we need to glob to find the output products that we created
         """
-        raise NotImplementedError
+        return None
+
+
+class MergeOutputIntoSingleObservations(TaskRunner):
+    """
+    Merge the jobs in several task runners into a single task runner. This means that output from the various tasks
+    which share common time stamps will be incorporated into common observations in the database.
+    """
+    def __init__(self, sub_task_classes):
+        self.sub_task_classes = sub_task_classes
+        self.sub_tasks = None
+        super().__init__()
+        
+    def __call__(self, must_quit_by=None):
+        self.must_quit_by = must_quit_by
+
+    def fetch_job_list_by_time_stamp(self):
+        # Instantiate sub tasks
+        self.sub_tasks = []
+        for sub_task_class in self.sub_task_classes:
+            self.sub_tasks = sub_task_class(must_quit_by=self.must_quit_by)
+
+        # Fetch list of input files, and sort them by time stamp
+        jobs_by_time = None
+
+        for sub_task in self.sub_tasks:
+            # If this is the first sub task, we use it to create a new dictionary of jobs_by_time
+            if jobs_by_time is None:
+                jobs_by_time = sub_task.fetch_job_list_by_time_stamp()
+
+            # subsequently, we need to merge the contents of the dictionaries together
+            else:
+                # Fetch a list of the new jobs to be done
+                new_jobs_by_time = sub_task.fetch_job_list_by_time_stamp()
+
+                # Loop over all the time stamps of the new jobs
+                for time_stamp, new_jobs in new_jobs_by_time.items():
+
+                    # If we haven't had any jobs at the time stamp before, create an empty list for this time stamp
+                    if time_stamp not in jobs_by_time:
+                        jobs_by_time[time_stamp] = []
+
+                    # Merge this job to list of others with the same time stamp
+                    jobs_by_time[time_stamp].extend(new_jobs)
+
+        # Return combined list of jobs
+        return jobs_by_time
 
 
 class AnalyseRawVideos(TaskRunner):
@@ -334,7 +413,9 @@ class TimelapseRawImages(TaskRunner):
         return ["timelapse_img_processed/{}*.png".format(time_string)]
 
 
-task_list = [
-    AnalyseRawVideos,  # TriggerRawImages, TriggerRawVideos,
+# A list of all the tasks we need to perform, in order
+task_running_order = [
+    AnalyseRawVideos,
+    MergeOutputIntoSingleObservations(sub_task_classes=(TriggerRawImages, TriggerRawVideos)),
     TimelapseRawImages,  # SelectBestImages, DetermineLensCorrection, DeterminePointing
 ]
