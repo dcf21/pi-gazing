@@ -32,9 +32,11 @@ import os
 import subprocess
 import time
 
-from pigazing_helpers import dcf_ast, sunset_times, relay_control, hardware_properties
+from pigazing_helpers import dcf_ast, sunset_times, relay_control
 from pigazing_helpers.obsarchive import obsarchive_db
-from pigazing_helpers.settings_read import settings, installation_info
+from pigazing_helpers.settings_read import settings, installation_info, known_observatories
+
+from daytimeTaskDefinitions import check_observatory_exists
 
 
 # Spawn a separate process and run <gps_fix.py>. If we have a USB GPS dongle attached, this may tell us the time
@@ -86,10 +88,6 @@ def observing_loop():
                                            db_name=installation_info['mysqlDatabase'],
                                            obstory_id=installation_info['observatoryId'])
 
-    hw = hardware_properties.HardwareProps(
-        path=os.path.join(settings['pythonPath'], "..", "configuration_global", "camera_properties")
-    )
-
     logging.info("Observatory controller launched")
 
     # Make sure we have created the directory structure where observations live
@@ -97,73 +95,14 @@ def observing_loop():
 
     # Fetch observatory status, e.g. location, etc
     logging.info("Fetching observatory status")
-    latitude = installation_info['latitude']
-    longitude = installation_info['longitude']
+    latitude = known_observatories[obstory_id]['latitude']
+    longitude = known_observatories[obstory_id]['longitude']
     altitude = 0
     latest_position_update = 0
     flag_gps = 0
-    obstory_status = None
 
-    # If this observatory doesn't exist in the database, create it now with information from installation_info
-    if not db.has_obstory_id(obstory_id):
-        logging.info("Observatory '{}' is not set up. Using default settings.".format(obstory_id))
-
-        db.register_obstory(obstory_id=installation_info['observatoryId'],
-                            obstory_name=installation_info['observatoryName'],
-                            latitude=latitude,
-                            longitude=longitude,
-                            owner=installation_info['owner'])
-        db.register_obstory_metadata(obstory_id=obstory_id,
-                                     key="latitude",
-                                     value=latitude,
-                                     metadata_time=time.time(),
-                                     time_created=time.time(),
-                                     user_created=settings['pigazingUser'])
-        db.register_obstory_metadata(obstory_id=obstory_id,
-                                     key="longitude",
-                                     value=longitude,
-                                     metadata_time=time.time(),
-                                     time_created=time.time(),
-                                     user_created=settings['pigazingUser'])
-        db.register_obstory_metadata(obstory_id=obstory_id,
-                                     key="altitude",
-                                     value=altitude,
-                                     metadata_time=time.time(),
-                                     time_created=time.time(),
-                                     user_created=settings['pigazingUser'])
-        db.register_obstory_metadata(obstory_id=obstory_id,
-                                     key="location_source",
-                                     value="manual",
-                                     metadata_time=time.time(),
-                                     time_created=time.time(),
-                                     user_created=settings['pigazingUser'])
-
-    # Look up observatory status
-    obstory_status = db.get_obstory_status(obstory_id=obstory_id)
-
-    # If we don't have complete metadata regarding the camera, ensure we have it now
-    if ((not isinstance(obstory_status, dict)) or
-            ('camera' not in obstory_status) or
-            ('camera_width' not in obstory_status) or
-            ('camera_height' not in obstory_status) or
-            ('camera_fps' not in obstory_status) or
-            ('camera_upside_down' not in obstory_status) or
-            ('camera_type' not in obstory_status)):
-        logging.info("No camera information found for '%s'. Using a default." % obstory_id)
-        hw.update_camera(db=db, obstory_id=obstory_id, utc=time.time(), name=installation_info['defaultCamera'])
-
-    # If we don't have complete metadata regarding the lens, ensure we have it now
-    if ((not isinstance(obstory_status, dict)) or
-            ('lens' not in obstory_status) or
-            ('lens_fov' not in obstory_status) or
-            ('lens_barrel_a' not in obstory_status) or
-            ('lens_barrel_b' not in obstory_status) or
-            ('lens_barrel_c' not in obstory_status)):
-        logging.info("No lens information found for '%s'. Using a default." % obstory_id)
-        hw.update_lens(db=db, obstory_id=obstory_id, utc=time.time(), name=installation_info['defaultLens'])
-
-    # Fetch updated observatory status
-    obstory_status = db.get_obstory_status(obstory_id=obstory_id)
+    # Make sure that observatory exists in the database
+    check_observatory_exists(db_handle=db, obs_id=obstory_id)
 
     # Record the software version being used
     db.register_obstory_metadata(obstory_id=obstory_id,
@@ -172,16 +111,6 @@ def observing_loop():
                                  metadata_time=time.time(),
                                  time_created=time.time(),
                                  user_created=settings['pigazingUser'])
-
-    # If we don't have a clipping region, define one now
-    logging.info("Creating clipping region mask")
-    if "clippingRegion" not in obstory_status:
-        db.register_obstory_metadata(obstory_id=obstory_id,
-                                     key="clippingRegion",
-                                     value="[[]]",
-                                     metadata_time=0,
-                                     time_created=time.time(),
-                                     user_created=settings['pigazingUser'])
 
     # Fetch updated observatory status
     obstory_status = db.get_obstory_status(obstory_id=obstory_id)
@@ -195,22 +124,14 @@ def observing_loop():
         )
     )
 
-    # Get most recent estimate of observatory location
-    if 'latitude' in obstory_status:
-        latitude = obstory_status['latitude']
-    if 'longitude' in obstory_status:
-        longitude = obstory_status['longitude']
-    if 'altitude' in obstory_status:
-        altitude = obstory_status['altitude']
-
     # Commit updates to the database
     db.commit()
+    db.close_db()
+    del db
 
     # Start main observing loop
     while True:
-
         # Get a new MySQL connection because old one may not be connected any longer
-        del db
         db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                                db_host=installation_info['mysqlHost'],
                                                db_user=installation_info['mysqlUser'],
@@ -226,40 +147,35 @@ def observing_loop():
             altitude = gps_fix['altitude']
             flag_gps = 1
 
-        # Check whether position is already specified in database
-        obstory_status = db.get_obstory_status(obstory_id=obstory_id)
-        no_position_in_database = ('latitude' not in obstory_status) or ('longitude' not in obstory_status)
-
         # If we've not stored a GPS fix in the database within the past hour, do so now
-        if no_position_in_database or (time.time() > latest_position_update + 3600):
+        if flag_gps or (time.time() > latest_position_update + 3600):
             latest_position_update = time.time()
             db.register_obstory_metadata(obstory_id=obstory_id,
-                                         key="latitude",
+                                         key="latitude_gps",
                                          value=latitude,
                                          metadata_time=time.time(),
                                          time_created=time.time(),
                                          user_created=settings['pigazingUser'])
             db.register_obstory_metadata(obstory_id=obstory_id,
-                                         key="longitude", value=longitude,
+                                         key="longitude_gps",
+                                         value=longitude,
                                          metadata_time=time.time(),
                                          time_created=time.time(),
                                          user_created=settings['pigazingUser'])
             db.register_obstory_metadata(obstory_id=obstory_id,
-                                         key="altitude",
+                                         key="altitude_gps",
                                          value=altitude,
                                          metadata_time=time.time(),
                                          time_created=time.time(),
                                          user_created=settings['pigazingUser'])
-            db.register_obstory_metadata(obstory_id=obstory_id,
-                                         key="location_source",
-                                         value="gps" if flag_gps else "manual",
-                                         metadata_time=time.time(),
-                                         time_created=time.time(),
-                                         user_created=settings['pigazingUser'])
-            db.commit()
 
         # Fetch updated observatory status
         obstory_status = db.get_obstory_status(obstory_id=obstory_id)
+
+        # Close database handle
+        db.commit()
+        db.close_db()
+        del db
 
         # Decide whether we should observe, or do some day-time maintenance tasks
         logging.info("Observation controller considering what to do next.")

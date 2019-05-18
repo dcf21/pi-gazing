@@ -1,4 +1,4 @@
-# create-database.sql
+# createDatabase.sql
 
 # Create user account and database for archiving observations
 

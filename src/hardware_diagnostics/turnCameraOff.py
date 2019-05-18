@@ -1,6 +1,6 @@
 #!../../datadir/virtualenv/bin/python3
 # -*- coding: utf-8 -*-
-# turn_camera_off.py
+# turnCameraOff.py
 #
 # -------------------------------------------------
 # Copyright 2015-2019 Dominic Ford

@@ -40,6 +40,7 @@ typedef struct detection {
 typedef struct event {
     int active;
     int detection_count;
+    double start_time;
 
     // When testTrigger detects a meteor, this string is set to a filename stub with time stamp of the time when the
     // camera triggered

@@ -27,7 +27,7 @@
 #define _SETTINGS_H 1
 
 // This is the directory into which we dump output video and image files
-#define OUTPUT_PATH  SRCDIR "/../../../../datadir"
+#define OUTPUT_PATH  SRCDIR "/../../../../datadir/"
 
 // Are we working with greyscale images, or three colour channels?
 #define GREYSCALE_IMAGING 1

@@ -1,6 +1,6 @@
 #!../../datadir/virtualenv/bin/python3
 # -*- coding: utf-8 -*-
-# make_mysql_config.py
+# makeMysqlConfig.py
 
 import os
 from pigazing_helpers.settings_read import settings, installation_info

@@ -56,7 +56,7 @@ def list_observatories():
     # List information about each observatory
     print("{:6s} {:32s} {:32s} {:6s} {:6s} {:s}".format("ObsID", "Public ID", "Name", "Lat", "Lng", "Observations"))
     for item in obstory_ids:
-        obstory_info = db.get_obstory_from_id(item)
+        obstory_info = db.get_obstory_from_id(obstory_id=item)
 
         # Count observations
         conn.execute('SELECT COUNT(*) FROM archive_observations WHERE observatory=%s;', (obstory_info['uid'],))

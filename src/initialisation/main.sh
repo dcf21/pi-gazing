@@ -10,19 +10,19 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
     echo "1/5: Creating database and associated user in MySQL. You will need to enter your MySQL root password."
-    sudo mysql -u root -p < create_database.sql
+    sudo mysql -u root -p < createDatabase.sql
 
     echo "2/5: Creating MySQL configuration file, so that we don't have to pass passwords on the command line."
-    ./make_mysql_config.py
+    ./makeMysqlConfig.py
 
     echo "3/5: Setting up database schema."
-    sudo mysql --defaults-extra-file=../../datadir/mysql_login.cfg < database_schema.sql
+    sudo mysql --defaults-extra-file=../../datadir/mysql_login.cfg < databaseSchema.sql
 
     echo "4/5: Populating table of constellations."
-    ./populate_constellations.py
+    ./populateConstellations.py
 
     echo "5/5: Set up default exports."
-    ./default_exports.py
+    ./defaultExports.py
 else
     echo "Operation cancelled, no changes made."
 fi

@@ -1,6 +1,6 @@
 #!../../datadir/virtualenv/bin/python3
 # -*- coding: utf-8 -*-
-# deploy_raspberry_pi.py
+# deployRaspberryPi.py
 #
 # -------------------------------------------------
 # Copyright 2015-2019 Dominic Ford

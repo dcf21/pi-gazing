@@ -53,7 +53,7 @@ def add_observatory_status(metadata):
             metadata.latitude = installation_info['latitude']
         if "longitude" not in metadata:
             metadata.longitude = installation_info['longitude']
-        if "name" not in metadata:
+        if "obstory_name" not in metadata:
             metadata.obstory_name = installation_info['observatoryName']
         if "camera" not in metadata:
             metadata.camera = installation_info['defaultCamera']
@@ -76,7 +76,7 @@ def add_observatory_status(metadata):
                                      user_created=metadata.username)
 
     for item, value in metadata.iteritems():
-        if value not in ["obstory_id", "username", "utc"]:
+        if item not in ["obstory_id", "username", "utc", "latitude", "longitude", "name"]:
 
             # Offer user options to update metadata
             if item == "camera":

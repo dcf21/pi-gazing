@@ -24,6 +24,8 @@ import os
 import re
 import sys
 
+from .vendor import xmltodict
+
 # Fetch path to local installation settings
 our_path = os.path.abspath(__file__)
 root_path = re.match(r"(.*/src/)", our_path).group(1)
@@ -32,6 +34,7 @@ if not os.path.exists(os.path.join(root_path, "../configuration_local/installati
         "You must create a file <configuration_local/installation_settings.conf> with local camera settings.\n")
     sys.exit(1)
 
+# Read the local installation information from <configuration_local/installation_settings.conf>
 installation_info = {}
 for line in open(os.path.join(root_path, "../configuration_local/installation_settings.conf")):
     line = line.strip()
@@ -56,11 +59,23 @@ for line in open(os.path.join(root_path, "../configuration_local/installation_se
 
     installation_info[words[0].strip()] = value
 
+# Read the list of known observatories from <configuration_global/known_observatories.xml>
+known_observatories = {}
+path = os.path.join(root_path, "../configuration_global/known_observatories.xml")
+for observatory in xmltodict.parse(open(path, "rb"))['observatories']['observatory']:
+    obs_id = observatory['observatoryId']
+
+    # Ensure that numerical fields are stored as floats
+    for key in ('latitude', 'longitude'):
+        observatory[key] = float(observatory[key])
+
+    # Build dictionary of known observatories by ID
+    known_observatories[obs_id] = observatory
+
 # The settings below control how the observatory controller works
 data_directory = os.path.join(root_path, "../datadir")
 
 settings = {
-
     'softwareVersion': 3,
 
     # The user account user by the Pi Gazing observing code
@@ -98,13 +113,8 @@ settings = {
     # in a single file
     'videoMaxRecordTime': installation_info['videoMaxRecordTime'],
 
-    # Position to assume when we don't have any GPS data available
-    'longitudeDefault': installation_info['longitude'],
-    'latitudeDefault': installation_info['latitude'],
-
     # Video settings.
     'videoDev': installation_info['videoDev'],
-
 }
 
 # Check to make sure everything is going to work

@@ -1,4 +1,4 @@
-# database_schema.sql
+# databaseSchema.sql
 
 # Schema for database archiving observations
 

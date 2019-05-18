@@ -86,7 +86,7 @@ int main(int argc, const char *argv[]) {
 
     const int frame_size = width * height;
     const int bytes_per_pixel = bit_width / 8;
-    const double weight = (bytes_per_pixel > 1) ? 256 : 1;
+    const double weight = (bytes_per_pixel > 1) ? 1 : (1./256);
 
     unsigned char *image_data_raw = malloc(channels * frame_size * bytes_per_pixel);
 
@@ -133,6 +133,7 @@ int main(int argc, const char *argv[]) {
     char product_filename[FNAME_LENGTH];
     sprintf(product_filename, "%s.png", output_filename);
 
+    image_deweight(&output_image);
     image_put(product_filename, output_image, (channels < 3));
 
     sprintf(product_filename, "%s.txt", output_filename);

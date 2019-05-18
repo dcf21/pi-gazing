@@ -101,8 +101,9 @@ int image_put(const char *output_filename, image_ptr image, int grayscale) {
     int p = 0;
     for (y = 0; y < height; y++) {
         for (x = 0; x < width; x++) {
-            if (grayscale) { row[x] = image.data_red[p]; }
-            else {
+            if (grayscale) {
+                png_save_uint_16(&row[x * 2], (unsigned int) image.data_red[p]);
+            } else {
                 png_save_uint_16(&row[x * 6 + 0], (unsigned int) image.data_red[p]);
                 png_save_uint_16(&row[x * 6 + 2], (unsigned int) image.data_grn[p]);
                 png_save_uint_16(&row[x * 6 + 4], (unsigned int) image.data_blu[p]);

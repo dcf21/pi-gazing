@@ -85,10 +85,14 @@ def list_observatory_status(utc, obstory):
 if __name__ == "__main__":
     # Read input parameters
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--utc', dest='utc', default=time.time(),
+    parser.add_argument('--utc',
+                        dest='utc',
+                        default=time.time(),
                         type=float,
                         help="List metadata which is current at the specified unix time")
-    parser.add_argument('--observatory', dest='obstory_id', default=installation_info['observatoryId'],
+    parser.add_argument('--observatory',
+                        dest='obstory_id',
+                        default=installation_info['observatoryId'],
                         help="ID of the observatory we are to list events from")
     args = parser.parse_args()
 

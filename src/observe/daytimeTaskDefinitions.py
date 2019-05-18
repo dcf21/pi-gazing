@@ -38,7 +38,59 @@ import uuid
 from pigazing_helpers.dcf_ast import unix_from_jd, jd_from_unix, julian_day, inv_julian_day
 from pigazing_helpers.sunset_times import sun_pos, alt_az
 from pigazing_helpers.obsarchive import obsarchive_model, obsarchive_db
-from pigazing_helpers.settings_read import settings, installation_info
+from pigazing_helpers import hardware_properties
+from pigazing_helpers.settings_read import settings, installation_info, known_observatories
+
+
+def check_observatory_exists(db_handle, obs_id):
+    """
+    If an observatory doesn't exist in the database, create an entry for it with default settings based on the data
+    in <configuration_global/known_observatories.xml>.
+
+    :param db_handle:
+        Database connection handle
+    :param obs_id:
+        The ID of the observatory to create
+    :return:
+        None
+    """
+
+    # If this observatory doesn't exist in the database, create it now with information from installation_info
+    if db_handle.has_obstory_id(obs_id):
+        return
+
+    logging.info("Observatory '{}' is not set up. Using default settings.".format(obs_id))
+
+    # Make sure that observatory exists in known_observatories list
+    assert obs_id in known_observatories
+
+    db_handle.register_obstory(obstory_id=installation_info['observatoryId'],
+                               obstory_name=known_observatories[obs_id]['observatoryName'],
+                               latitude=known_observatories[obs_id]['latitude'],
+                               longitude=known_observatories[obs_id]['longitude'],
+                               owner=known_observatories[obs_id]['owner'])
+
+    hw = hardware_properties.HardwareProps(
+        path=os.path.join(settings['pythonPath'], "..", "configuration_global", "camera_properties")
+    )
+
+    # If we don't have complete metadata regarding the camera, ensure we have it now
+    hw.update_camera(db=db_handle,
+                     obstory_id=obs_id, utc=time.time(),
+                     name=known_observatories[obs_id]['defaultCamera'])
+
+    # If we don't have complete metadata regarding the lens, ensure we have it now
+    hw.update_lens(db=db_handle,
+                   obstory_id=obs_id, utc=time.time(),
+                   name=known_observatories[obs_id]['defaultLens'])
+
+    # If we don't have a clipping region, define one now
+    db_handle.register_obstory_metadata(obstory_id=obs_id,
+                                        key="clippingRegion",
+                                        value="[[]]",
+                                        metadata_time=0,
+                                        time_created=time.time(),
+                                        user_created=settings['pigazingUser'])
 
 
 def execute_shell_command(arguments):
@@ -64,18 +116,44 @@ def execute_shell_command(arguments):
     for job in arguments['job_list']:
 
         # If this job requires a clipping mask, we create that now
-        if 'mask_file' in job['command_line']:
+        if 'mask_file' in job['shell_command']:
+            # Open connection to the database
+            db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                                   db_host=installation_info['mysqlHost'],
+                                                   db_user=installation_info['mysqlUser'],
+                                                   db_password=installation_info['mysqlPassword'],
+                                                   db_name=installation_info['mysqlDatabase'],
+                                                   obstory_id=installation_info['observatoryId'])
+
+            # Fetch observatory status
+            obstory_status = db.get_obstory_status(obstory_id=arguments['obs_id'])
+
+            # Close database connection
+            db.close_db()
+            del db
+
+            # Export the clipping mask to a JSON file
             mask_file = "/tmp/mask_{}_{}.txt".format(os.getpid(), str(uuid.uuid4()))
             with open(mask_file, "w") as f:
                 f.write("\n\n".join(
                     ["\n".join([("%d %d" % p) for p in pointList])
-                     for pointList in json.loads(arguments['obstory_status']['clippingRegion'])]
-                    )
+                     for pointList in json.loads(obstory_status['clippingRegion'])]
+                )
                 )
             job['mask_file'] = mask_file
 
+        # Make settings available as string substitutions
+        job['settings'] = settings
+
+        # Make sure that output directories exist
+        for output_file_wildcard in job['output_file_wildcards']:
+            output_path = os.path.join(job['data_dir'],
+                                       os.path.split(output_file_wildcard['wildcard'])[0]
+                                       )
+            os.system("mkdir -p {}".format(output_path))
+
         # Run the shell command
-        command = job['command_line'].format(**job)
+        command = job['shell_command'].format(**job)
         # os.system(command)
         print(command)
 
@@ -86,7 +164,10 @@ def execute_shell_command(arguments):
 
         # Fetch list of output files we have created
         for output_file_wildcard in job['output_file_wildcards']:
-            for output_file in glob.glob(output_file_wildcard['wildcard']):
+            output_path = os.path.join(job['data_dir'],
+                                       output_file_wildcard['wildcard']
+                                       )
+            for output_file in glob.glob(output_path):
                 file_products.append({
                     'filename': output_file,
                     'mime_type': output_file_wildcard['mime_type'],
@@ -102,31 +183,53 @@ def execute_shell_command(arguments):
                                            obstory_id=installation_info['observatoryId'])
 
     # Import file products into the database
-    obs_obj = db.register_observation(obstory_id=arguments['obs_id'], obs_time=arguments['utc'],
-                                      obs_type=arguments['obs_type'], user_id=arguments['user_id'],
-                                      obs_meta=[])
+    obs_obj = db.register_observation(obstory_id=arguments['obs_id'],
+                                      random_id=False,
+                                      obs_time=arguments['utc'],
+                                      creation_time=time.time(),
+                                      obs_type=arguments['obs_type'],
+                                      user_id=arguments['user_id'],
+                                      obs_meta=[],
+                                      published=1, moderated=1, featured=0,
+                                      ra=-999, dec=-999,
+                                      field_width=None, field_height=None,
+                                      position_angle=None, central_constellation=None,
+                                      altitude=-999, azimuth=-999, alt_az_pa=None,
+                                      astrometry_processed=None, astrometry_processing_time=None,
+                                      astrometry_source=None)
     obs_id = obs_obj.id
 
     for output_file in file_products:
 
         # Collect metadata associated with this output file
-        product_metadata_file, product_metadata = metadata_file_to_dict(product_filename=output_file['filename'],
-                                                                        obstory_status=arguments['obstory_status'])
+        product_metadata_file, obstory_info, product_metadata = metadata_file_to_dict(
+            db_handle=db,
+            product_filename=output_file['filename']
+        )
 
         metadata_objs = metadata_to_object_list(db_handle=db,
                                                 obs_time=arguments['utc'],
                                                 obs_id=arguments['obs_id'],
-                                                user_id=arguments['user_id'],
+                                                user_id=arguments['userId'],
                                                 meta_dict=product_metadata)
 
         if product_metadata_file is not None:
             output_file['metadata_files'].append(product_metadata_file)
 
+        # The semantic types which we should make the primary images of their parent observations
+        primary_image_semantic_types = (
+            'pigazing:movingObject/maximumBrightness',
+            'pigazing:timelapse/backgroundSubtracted'
+        )
+
         db.register_file(file_path=output_file['filename'],
-                         user_id=arguments['user_id'], mime_type=output_file['mime_type'],
+                         user_id=obstory_info['userId'],
+                         mime_type=output_file['mime_type'],
                          semantic_type=product_metadata['semanticType'],
+                         primary_image=product_metadata['semanticType'] in primary_image_semantic_types,
                          file_time=arguments['utc'], file_meta=metadata_objs,
-                         observation_id=obs_id)
+                         observation_id=obs_id,
+                         random_id=False)
 
     # Close connection to the database
     db.commit()
@@ -134,27 +237,31 @@ def execute_shell_command(arguments):
     del db
 
     # Delete input and output files
-    for item in file_inputs:
-        os.unlink(item)
+    # for item in file_inputs:
+    #     os.unlink(item)
 
     # Delete output files
-    for item in file_products:
-        os.unlink(item['filename'])
-        for metadata_filename in item['metadata_files']:
-            os.unlink(metadata_filename)
+    # for item in file_products:
+    #     os.unlink(item['filename'])
+    #     for metadata_filename in item['metadata_files']:
+    #         os.unlink(metadata_filename)
 
 
-def metadata_file_to_dict(product_filename, obstory_status):
+observatory_information = {}
+
+
+def metadata_file_to_dict(db_handle, product_filename):
     """
     Make a dictionary from a text file containing the metadata associated with some file product
 
+    :param db_handle:
+        Database connection handle
     :param product_filename:
         The filename of the file product whose metadata we are to read
-    :param obstory_status:
-        The status of the observatory which made this observation
     :return:
-        The filename of the metadata file, and a dictionary of the metadata we collected
+        The filename of the metadata file, observatory info, and a dictionary of the metadata we collected
     """
+    global observatory_information
 
     # Metadata is stored in text files which sit alongside each file product
     filename_without_extension = os.path.splitext(product_filename)[0]
@@ -163,9 +270,8 @@ def metadata_file_to_dict(product_filename, obstory_status):
     # Start constructing a dictionary of the metadata in the file
     output = {}
 
-    # If the file doesn't exist, quietly return an empty dictionary
-    if not os.path.exists(metadata_filename):
-        return None, output
+    # Make sure that the metadata file exists!
+    assert os.path.exists(metadata_filename)
 
     # Read the file, line by line
     for line in open(metadata_filename):
@@ -185,20 +291,33 @@ def metadata_file_to_dict(product_filename, obstory_status):
             pass
         output[keyword] = val
 
+    # Look up information about the observatory which made this observation
+    obs_id = output['obstoryId']
+
+    # Make sure that we have information about this observatory
+    if obs_id in observatory_information:
+        obstory_info = observatory_information[obs_id]
+    else:
+        check_observatory_exists(db_handle=db_handle, obs_id=obs_id)
+        obstory_info = db_handle.get_obstory_from_id(obstory_id=obs_id)
+        observatory_information[obs_id] = obstory_info
+
     # Add further metadata about the position of the Sun
     utc = output['utc']
-    obs_id = output['obsId']
 
-    sun_pos_at_utc = sun_pos(utc)
-    sun_alt_az_at_utc = alt_az(sun_pos_at_utc[0], sun_pos_at_utc[1], output['utc'],
-                      obstory_status['latitude'], obstory_status['longitude'])
+    sun_pos_at_utc = sun_pos(utc=utc)
+    sun_alt_az_at_utc = alt_az(ra=sun_pos_at_utc[0], dec=sun_pos_at_utc[1],
+                               utc=utc,
+                               latitude=obstory_info['latitude'],
+                               longitude=obstory_info['longitude']
+                               )
     output['sunRA'] = sun_pos_at_utc[0]
     output['sunDecl'] = sun_pos_at_utc[1]
     output['sunAlt'] = sun_alt_az_at_utc[0]
     output['sunAz'] = sun_alt_az_at_utc[1]
 
     # Return the dictionary of metadata
-    return metadata_filename, output
+    return metadata_filename, obstory_info, output
 
 
 # Function for turning filenames into Unix times
@@ -246,7 +365,8 @@ def fetch_time_string_from_filename(filename):
     utc = filename_to_utc(filename)
     utc -= 12 * 3600
     [year, month, day, hour, minutes, sec] = inv_julian_day(jd_from_unix(utc))
-    return "{:04d}{:02d}{:02d}{:02d}{:02d}{:02d}".format(year, month, day, hour, minutes, sec)
+    return "{:04d}{:02d}{:02d}{:02d}{:02d}{:02d}".format(int(year), int(month), int(day),
+                                                         int(hour), int(minutes), int(sec))
 
 
 def metadata_to_object_list(db_handle, obs_time, obs_id, user_id, meta_dict):
@@ -312,43 +432,59 @@ class TaskRunner:
             None
         """
 
+        # Open connection to the database
+        db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                               db_host=installation_info['mysqlHost'],
+                                               db_user=installation_info['mysqlUser'],
+                                               db_password=installation_info['mysqlPassword'],
+                                               db_name=installation_info['mysqlDatabase'],
+                                               obstory_id=installation_info['observatoryId'])
+
+        # Path to data directory
+        data_dir = os.path.join(settings['pythonPath'], '../datadir/')
+
         # Fetch list of input files, and sort them by time stamp
         jobs_by_time = {}
         for glob_pattern in self.glob_patterns():
-            for input_file in glob.glob(os.path.join(settings['pythonPath'], "../datadir/", glob_pattern)):
+            for input_file in glob.glob(os.path.join(data_dir, glob_pattern['wildcard'])):
 
                 # Collect metadata associated with this input file
-                input_metadata_file, input_metadata = metadata_file_to_dict(product_filename=input_file,
-                                                                            obstory_status=obstory_status)
+                input_metadata_file, obstory_info, input_metadata = metadata_file_to_dict(db_handle=db,
+                                                                                          product_filename=input_file)
 
                 # Properties that specify what command to run to complete this task, and what output it produces
                 job_descriptor = {
                     'input_file': input_file,
-                    'input_file_without_extension': os.path.splitext(input_file)[0],
+                    'input_file_without_extension': os.path.splitext(os.path.split(input_file)[1])[0],
                     'input_metadata_filename': input_metadata_file,
                     'input_metadata': input_metadata,
                     'shell_command': self.shell_command(),
+                    'data_dir': data_dir,
+                    'h264_encoder': 'openmax' if settings['i_am_a_rpi'] else 'libav',
                     'output_file_wildcards': self.output_file_wildcards(input_file)
                 }
 
                 # Work out the time stamp of this job from the input file's filename
-                time_stamp_string = "{}_{}".format(fetch_time_string_from_filename(filename=input_file),
-                                                   input_metadata['obsId'])
+                time_stamp_string = "{:014.1f}_{}".format(filename_to_utc(filename=input_file),
+                                                          input_metadata['obstoryId'])
 
                 # If we haven't had any jobs at the time stamp before, create an empty list for this time stamp
                 if time_stamp_string not in jobs_by_time:
                     jobs_by_time[time_stamp_string] = {
-                        'obs_id': input_metadata['obsId'],
+                        'obs_id': input_metadata['obstoryId'],
                         'utc': input_metadata['utc'],
-                        'obs_type': insert_here,
-                        'user_id': obstory_status['owner'],
-                        'obstory_status': obstory_status,
+                        'obs_type': glob_pattern['obs_type'],
+                        'user_id': obstory_info['userId'],
                         'must_quit_by': self.must_quit_by,
                         'job_list': []
                     }
 
                 # Append this job to list of others with the same time stamp
                 jobs_by_time[time_stamp_string]['job_list'].append(job_descriptor)
+
+        # Close database connection
+        db.commit()
+        db.close_db()
 
         return jobs_by_time
 
@@ -383,7 +519,7 @@ class TaskRunner:
         :return:
             string filename wildcard
         """
-        return None
+        return []
 
     def execute_tasks(self):
         """
@@ -431,7 +567,7 @@ class TaskRunner:
         :return:
             A list of wildcards that we need to glob to find the output products that we created
         """
-        return None
+        return []
 
 
 class MergeOutputIntoSingleObservations(TaskRunner):
@@ -447,12 +583,22 @@ class MergeOutputIntoSingleObservations(TaskRunner):
 
     def __call__(self, must_quit_by=None):
         self.must_quit_by = must_quit_by
+        return self
 
     def fetch_job_list_by_time_stamp(self):
+        """
+        Build a list of jobs which need to be done, sorted by time stamp. We merge all of the jobs which need doing
+        by each of the sub tasks into a single list.
+
+        :return:
+            Dictionary of job descriptors, with time stamp strings as the dictionary key
+        """
         # Instantiate sub tasks
         self.sub_tasks = []
         for sub_task_class in self.sub_task_classes:
-            self.sub_tasks = sub_task_class(must_quit_by=self.must_quit_by)
+            self.sub_tasks.append(
+                sub_task_class(must_quit_by=self.must_quit_by)
+            )
 
         # Fetch list of input files, and sort them by time stamp
         jobs_by_time = {}
@@ -479,15 +625,20 @@ class MergeOutputIntoSingleObservations(TaskRunner):
 class AnalyseRawVideos(TaskRunner):
     @staticmethod
     def glob_patterns():
-        return ["rawvideo/*.h264"]
+        return [
+            {
+                'wildcard': 'rawvideo/*.h264',
+                'obs_type': 'pigazing:'
+            }
+        ]
 
     @staticmethod
     def shell_command():
         return """
-{settings[binaryPath]}/debug/analyseH264_libav \
+{settings[binaryPath]}/debug/analyseH264_{h264_encoder} \
          --input \"{input_file}\" \
-         --obsid \"{input_metadata[obsid]}\" \
-         --time-start {input_metadata[t_start]} \
+         --obsid \"{input_metadata[obstoryId]}\" \
+         --time-start {input_metadata[utc_start]} \
          --fps {input_metadata[fps]} \
          --mask \"{mask_file}\"
         """
@@ -500,15 +651,23 @@ class AnalyseRawVideos(TaskRunner):
 class TimelapseRawImages(TaskRunner):
     @staticmethod
     def glob_patterns():
-        return ["timelapse_raw_nonlive/*.rgb", "timelapse_raw_live/*.rgb"]
+        return [
+            {
+                'wildcard': 'analysis_products/timelapse_nonlive/*.rgb',
+                'obs_type': 'pigazing:timelapse'
+            }, {
+                'wildcard': 'analysis_products/timelapse_live/*.rgb',
+                'obs_type': 'pigazing:timelapse'
+            }
+        ]
 
     @staticmethod
     def shell_command():
         return """
 {settings[imageProcessorPath]}/debug/rawimg2png \
          --input \"{input_file}\" \
-         --output \"timelapse_img_processed/{input_file_without_extension}\" \
-         --noise {input_metadata[noiseLevel]}
+         --output \"{data_dir}/analysis_products_reduced/timelapse_img/{input_file_without_extension}\" \
+         --noise {input_metadata[stackNoiseLevel]}
          """
 
     @staticmethod
@@ -516,24 +675,32 @@ class TimelapseRawImages(TaskRunner):
         time_string = fetch_time_string_from_filename(filename=input_file)
         return [
             {
-                'wildcard': 'timelapse_img_processed/{}*.png'.format(time_string),
+                'wildcard': 'analysis_products_reduced/timelapse_img/{}*.png'.format(time_string),
                 'mime_type': 'image/png'
             }
         ]
 
 
-class TriggerRawImages(TaskRunner):
+class TriggerRawImages1(TaskRunner):
     @staticmethod
     def glob_patterns():
-        return ["triggers_raw_nonlive/*.rgb", "triggers_raw_live/*.rgb"]
+        return [
+            {
+                'wildcard': 'analysis_products/triggers_nonlive/*.rgb',
+                'obs_type': 'pigazing:movingObject'
+            }, {
+                'wildcard': 'analysis_products/triggers_live/*.rgb',
+                'obs_type': 'pigazing:movingObject'
+            }
+        ]
 
     @staticmethod
     def shell_command():
         return """
 {settings[imageProcessorPath]}/debug/rawimg2png \
          --input \"{input_file}\" \
-         --output \"triggers_img_processed/{input_file_without_extension}\" \
-         --noise {input_metadata[noiseLevel]}
+         --output \"{data_dir}/analysis_products_reduced/triggers_img1/{input_file_without_extension}\" \
+         --noise {input_metadata[stackNoiseLevel]}
          """
 
     @staticmethod
@@ -541,7 +708,72 @@ class TriggerRawImages(TaskRunner):
         time_string = fetch_time_string_from_filename(filename=input_file)
         return [
             {
-                'wildcard': 'triggers_img_processed/{}*.png'.format(time_string),
+                'wildcard': 'analysis_products_reduced/triggers_img1/{}*.png'.format(time_string),
+                'mime_type': 'image/png'
+            }
+        ]
+
+
+class TriggerRawImages2(TaskRunner):
+    @staticmethod
+    def glob_patterns():
+        return [
+            {
+                'wildcard': 'analysis_products/triggers_nonlive/*.sep',
+                'obs_type': 'pigazing:movingObject'
+            }, {
+                'wildcard': 'analysis_products/triggers_live/*.sep',
+                'obs_type': 'pigazing:movingObject'
+            }
+        ]
+
+    @staticmethod
+    def shell_command():
+        return """
+{settings[imageProcessorPath]}/debug/rawimg2png3 \
+         --input \"{input_file}\" \
+         --output \"{data_dir}/analysis_products_reduced/triggers_img2/{input_file_without_extension}\" \
+         --noise {input_metadata[stackNoiseLevel]}
+         """
+
+    @staticmethod
+    def output_file_wildcards(input_file):
+        time_string = fetch_time_string_from_filename(filename=input_file)
+        return [
+            {
+                'wildcard': 'analysis_products_reduced/triggers_img2/{}*.png'.format(time_string),
+                'mime_type': 'image/png'
+            }
+        ]
+
+
+class TriggerRawVideos(TaskRunner):
+    @staticmethod
+    def glob_patterns():
+        return [
+            {
+                'wildcard': 'analysis_products/triggers_nonlive/*.vid',
+                'obs_type': 'pigazing:movingObject'
+            }, {
+                'wildcard': 'analysis_products/triggers_live/*.vid',
+                'obs_type': 'pigazing:movingObject'
+            }
+        ]
+
+    @staticmethod
+    def shell_command():
+        return """
+{settings[imageProcessorPath]}/debug/rawvid2mp4_{h264_encoder} \
+         --input \"{input_file}\" \
+         --output \"{data_dir}/analysis_products_reduced/triggers_vid/{input_file_without_extension}\"
+         """
+
+    @staticmethod
+    def output_file_wildcards(input_file):
+        time_string = fetch_time_string_from_filename(filename=input_file)
+        return [
+            {
+                'wildcard': 'analysis_products_reduced/triggers_vid/{}*.png'.format(time_string),
                 'mime_type': 'image/png'
             }
         ]
@@ -550,6 +782,7 @@ class TriggerRawImages(TaskRunner):
 # A list of all the tasks we need to perform, in order
 task_running_order = [
     AnalyseRawVideos,
-    MergeOutputIntoSingleObservations(sub_task_classes=(TriggerRawImages, TriggerRawVideos)),
-    TimelapseRawImages,  # SelectBestImages, DetermineLensCorrection, DeterminePointing
+    MergeOutputIntoSingleObservations(sub_task_classes=(TriggerRawImages1, TriggerRawImages2, TriggerRawVideos)),
+    TimelapseRawImages,
+    # SelectBestImages, DetermineLensCorrection, DeterminePointing
 ]

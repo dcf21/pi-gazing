@@ -1,0 +1,30 @@
+<observatories>
+    <observatory>
+        <latitude>52.222</latitude>
+        <longitude>0.078</longitude>
+        <observatoryId>obs1</observatoryId>
+        <observatoryName>Test-Observatory-1</observatoryName>
+        <owner>dcf21</owner>
+        <defaultCamera>watec_902h2_supreme</defaultCamera>
+        <defaultLens>f1.6_cctv_lens</defaultLens>
+    </observatory>
+    <observatory>
+        <latitude>52.222</latitude>
+        <longitude>0.078</longitude>
+        <observatoryId>obs2</observatoryId>
+        <observatoryName>Test-Observatory-2</observatoryName>
+        <owner>dcf21</owner>
+        <defaultCamera>watec_902h2_supreme</defaultCamera>
+        <defaultLens>f1.6_cctv_lens</defaultLens>
+    </observatory>
+    <observatory>
+        <latitude>52.222</latitude>
+        <longitude>0.078</longitude>
+        <observatoryId>obs3</observatoryId>
+        <observatoryName>Test-Observatory-3</observatoryName>
+        <owner>dcf21</owner>
+        <defaultCamera>watec_902h2_supreme</defaultCamera>
+        <defaultLens>f1.6_cctv_lens</defaultLens>
+    </observatory>
+</observatories>
+

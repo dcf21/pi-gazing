@@ -1,6 +1,6 @@
 #!../../datadir/virtualenv/bin/python3
 # -*- coding: utf-8 -*-
-# populate_constellations.py
+# populateConstellations.py
 
 """
 Functions used to populate the table of constellations in the database

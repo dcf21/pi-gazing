@@ -44,7 +44,9 @@ void write_raw_video_metadata(video_metadata v) {
     sprintf(fname, "%s.txt", v.filename);
     FILE *f = fopen(fname, "w");
     if (!f) return;
-    fprintf(f, "obstory_id %s\n", v.obstory_id);
+    fprintf(f, "obstoryId %s\n", v.obstory_id);
+    fprintf(f, "utc %.1f\n", v.utc_start);
+    fprintf(f, "semanticType pigazing:");
     fprintf(f, "utc_start %.1f\n", v.utc_start);
     fprintf(f, "utc_stop %.1f\n", v.utc_stop);
     fprintf(f, "frame_count %d\n", v.frame_count);
@@ -260,13 +262,16 @@ int dump_frame_from_ints(int width, int height, int channels, const int *buffer,
             brightness_sum += buffer[i];
             brightness_points++;
         }
-        gain = (int) (target_brightness * 256 / (brightness_sum / frame_count / brightness_points));
+        gain = (int) (target_brightness / (brightness_sum / frame_count / brightness_points));
         if (gain < 1) gain = 1;
         if (gain > 30) gain = 30;
     }
 
     // Report the gain we are using as an output
     if (gain_out != NULL) *gain_out = gain;
+
+    // Producing 16-bit output, so amplify output by factor 256
+    gain *= 256;
 
     // Renormalise image data, dividing by the number of frames which have been stacked, and multiplying by gain factor
 #pragma omp parallel for private(i, d)
@@ -317,13 +322,16 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
             brightness_sum += level;
             brightness_points++;
         }
-        gain = (int) (target_brightness * 256 / (brightness_sum / frame_count / brightness_points));
+        gain = (int) (target_brightness/ (brightness_sum / frame_count / brightness_points));
         if (gain < 1) gain = 1;
         if (gain > 30) gain = 30;
     }
 
     // Report the gain we are using as an output
     if (gain_out != NULL) *gain_out = gain;
+
+    // Producing 16-bit output, so amplify output by factor 256
+    gain *= 256;
 
     // Renormalise image data, dividing by the number of frames which have been stacked, and multiplying by gain factor
 #pragma omp parallel for private(i, d)

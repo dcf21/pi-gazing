@@ -23,6 +23,8 @@
 
 // This code is based on the FFmpeg source code; (C) 2001 Fabrice Bellard; distributed under GPL version 2.1
 
+// https://libav.org/documentation/doxygen/master/decode__video_8c_source.html
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -49,98 +51,187 @@
 #include "settings_webcam.h"
 
 static const char *const usage[] = {
-    "analyseH264_libav [options] [[--] args]",
-    "analyseH264_libav [options]",
-    NULL,
+        "analyseH264_libav [options] [[--] args]",
+        "analyseH264_libav [options]",
+        NULL,
 };
 
-void sigint_handler(int signal) {
-    printf("\n");
-    exit(0);
-}
+#define INBUF_SIZE 4096
 
 typedef struct context {
-    AVCodec *codec;
+    uint8_t inbuf[INBUF_SIZE + AV_INPUT_BUFFER_PADDING_SIZE];
+    uint8_t *data;
+    int data_size;
+    const AVCodec *codec;
     AVCodecContext *c;
-    int frame, got_picture, len2, len, stream_num;
+    AVCodecParserContext *parser;
+    FILE *f;
+    AVFrame *picture;
+    AVPacket *avpkt;
+
+    int frame;
     double utc_start, utc_stop, fps;
     const char *filename, *mask_file;
     unsigned char *mask;
-    FILE *f;
-    AVFrame *picture;
-    AVPacket avpkt;
-    AVFormatContext *avFormatPtr;
 } context;
 
 int fetch_frame(void *ctx_void, unsigned char *tmpc, double *utc) {
-    context *ctx = (context *)ctx_void;
+    context *ctx = (context *) ctx_void;
 
     if (utc) *utc = ctx->utc_start + ctx->frame / ctx->fps;
 
     while (1) {
-        av_init_packet(&ctx->avpkt);
-        ctx->len = av_read_frame(ctx->avFormatPtr, &ctx->avpkt);
-        ctx->len2 = avcodec_decode_video2(ctx->c, ctx->picture, &ctx->got_picture, &ctx->avpkt);
-
-        if (ctx->len < 0) {
-            sprintf(temp_err_string, "In input file <%s>, error decoding frame %d", ctx->filename, ctx->frame);
-            logging_error(ERR_GENERAL, temp_err_string);
-        }
-
-        if (ctx->got_picture) {
-            if (tmpc) {
-                const int w = ctx->c->width;
-                const int h = ctx->c->height;
-                const int s = w * h;
-                int i;
-                for (i = 0; i < h; i++) memcpy(tmpc + +i * w, ctx->picture->data[0] + i * ctx->picture->linesize[0], w);
-                for (i = 0; i < h / 2; i++)
-                    memcpy(tmpc + s + i * w / 2, ctx->picture->data[1] + i * ctx->picture->linesize[1], w / 2);
-                for (i = 0; i < h / 2; i++)
-                    memcpy(tmpc + s * 5 / 4 + i * w / 2, ctx->picture->data[2] + i * ctx->picture->linesize[2], w / 2);
+        if (ctx->data_size == 0) {
+            if (feof(ctx->f)) {
+                sprintf(temp_err_string, "End of video file");
+                logging_error(ERR_GENERAL, temp_err_string);
+                return 1;
             }
-            ctx->frame++;
+
+            ctx->data_size = fread(ctx->inbuf, 1, INBUF_SIZE, ctx->f);
+            ctx->data = ctx->inbuf;
+        } else {
+            int ret = av_parser_parse2(ctx->parser, ctx->c,
+                                       &ctx->avpkt->data, &ctx->avpkt->size,
+                                       ctx->data, ctx->data_size,
+                                       AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
+            if (ret < 0) {
+                logging_error(ERR_GENERAL, "Error while parsing (av_parser_parse2)");
+                return 1;
+            }
+
+            ctx->data += ret;
+            ctx->data_size -= ret;
+
+            if (ctx->avpkt->size) {
+
+                int status1 = avcodec_send_packet(ctx->c, ctx->avpkt);
+
+                if (status1) {
+                    sprintf(temp_err_string,
+                            "In input file <%s>, error decoding frame %d; avcodec_send_packet returned %d.",
+                            ctx->filename, ctx->frame, status1);
+                    logging_error(ERR_GENERAL, temp_err_string);
+
+                    av_strerror(status1, temp_err_string, LSTR_LENGTH);
+                    logging_error(ERR_GENERAL, temp_err_string);
+
+                    return 1;
+                }
+
+                int status2 = avcodec_receive_frame(ctx->c, ctx->picture);
+                if (status2 == AVERROR(EAGAIN)) continue;
+
+                if (status2) {
+                    sprintf(temp_err_string,
+                            "In input file <%s>, error decoding frame %d; avcodec_receive_frame returned %d.",
+                            ctx->filename, ctx->frame, status2);
+                    logging_error(ERR_GENERAL, temp_err_string);
+
+                    av_strerror(status2, temp_err_string, LSTR_LENGTH);
+                    logging_error(ERR_GENERAL, temp_err_string);
+
+                    return 1;
+                }
+
+                if (tmpc) {
+                    const int w = ctx->c->width;
+                    const int h = ctx->c->height;
+                    const int s = w * h;
+                    int i;
+                    for (i = 0; i < h; i++)
+                        memcpy(tmpc + +i * w, ctx->picture->data[0] + i * ctx->picture->linesize[0], w);
+                    for (i = 0; i < h / 2; i++)
+                        memcpy(tmpc + s + i * w / 2, ctx->picture->data[1] + i * ctx->picture->linesize[1], w / 2);
+                    for (i = 0; i < h / 2; i++)
+                        memcpy(tmpc + s * 5 / 4 + i * w / 2, ctx->picture->data[2] + i * ctx->picture->linesize[2],
+                               w / 2);
+                }
+                ctx->frame++;
+
+                if ((ctx->frame % 100)==0) {
+                    printf("Analysing frame %d.\n", ctx->frame);
+                }
+
+                return 0;
+            }
         }
-        av_packet_unref(&ctx->avpkt);
-        if (ctx->got_picture) return 0;
-        if (!ctx->got_picture) return 1;
     }
 }
 
 int decoder_init(context *ctx) {
     printf("Decoding file <%s>\n", ctx->filename);
-    ctx->avFormatPtr = avformat_alloc_context();
-    if (avformat_open_input(&ctx->avFormatPtr, ctx->filename, NULL, NULL) != 0) {
-        logging_fatal(__FILE__, __LINE__, "could not open input video");
+
+    // Register all the codecs
+    avcodec_register_all();
+
+    // Set end of buffer to 0. This ensures that no over-reading happens for
+    // damaged streams.
+    memset(ctx->inbuf + INBUF_SIZE, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+
+    ctx->avpkt = av_packet_alloc();
+
+    // find the H264 video decoder
+    ctx->codec = avcodec_find_decoder(AV_CODEC_ID_H264);
+    if (!ctx->codec) {
+        logging_fatal(__FILE__, __LINE__, "codec not found");
     }
-    ctx->stream_num = av_find_best_stream(ctx->avFormatPtr, AVMEDIA_TYPE_VIDEO, -1, -1, &ctx->codec, 0);
-    if (!ctx->codec) { logging_fatal(__FILE__, __LINE__, "codec not found"); }
+
+    ctx->parser = av_parser_init(ctx->codec->id);
+    if (!ctx->parser) {
+        logging_fatal(__FILE__, __LINE__, "parser not found");
+    }
+
     ctx->c = avcodec_alloc_context3(ctx->codec);
-    if (avcodec_open2(ctx->c, ctx->codec, NULL) < 0) { logging_fatal(__FILE__, __LINE__, "codec could not be opened"); }
+
     ctx->picture = av_frame_alloc();
-    signal(SIGINT, sigint_handler);
+
+    if (avcodec_open2(ctx->c, ctx->codec, NULL) != 0) {
+        logging_fatal(__FILE__, __LINE__, "could not open codec");
+    }
+
+    // Open input file
+    ctx->f = fopen(ctx->filename, "rb");
     ctx->frame = 0;
-    fetch_frame((void *) ctx, NULL, NULL); // Get libav to pick up video size
-    ctx->mask = malloc(ctx->c->width * ctx->c->height);
-    FILE *mask_file = fopen(ctx->mask_file, "r");
-    if (!mask_file) { logging_fatal(__FILE__, __LINE__, "mask file could not be opened"); }
-    fill_polygons_from_file(mask_file, ctx->mask, ctx->c->width, ctx->c->height);
-    fclose(mask_file);
+    ctx->data = NULL;
+    ctx->data_size = 0;
+
     return 0;
 }
 
 int decoder_shutdown(context *ctx) {
-    avcodec_close(ctx->c);
-    av_free(ctx->c);
-    av_free(ctx->picture);
+    fclose(ctx->f);
+    av_parser_close(ctx->parser);
+    avcodec_free_context(&ctx->c);
+    av_frame_free(&ctx->picture);
+    av_packet_free(&ctx->avpkt);
     return 0;
 }
 
 int rewind_video(void *ctx_void, double *utc) {
-    context *ctx = (context *) ctx_void;
-    decoder_shutdown(ctx);
-    decoder_init(ctx);
-    if (utc) *utc = ctx->utc_start;
+    // For some reason, rewinding videos makes libav segfault
+
+    //context *ctx = (context *) ctx_void;
+    //decoder_shutdown(ctx);
+    //decoder_init(ctx);
+    //if (utc) *utc = ctx->utc_start;
+    return 0;
+}
+
+int create_observation_mask(context *ctx) {
+    // Get libav to pick up video size by fetching a frame
+    fetch_frame((void *) ctx, NULL, NULL);
+
+    ctx->mask = malloc(ctx->c->width * ctx->c->height);
+    FILE *mask_file = fopen(ctx->mask_file, "r");
+    if (!mask_file) { logging_fatal(__FILE__, __LINE__, "mask file could not be opened"); }
+
+    fill_polygons_from_file(mask_file, ctx->mask, ctx->c->width, ctx->c->height);
+    fclose(mask_file);
+
+    // Rewind video
+    rewind_video(ctx, NULL);
+
     return 0;
 }
 
@@ -155,21 +246,21 @@ int main(int argc, const char **argv) {
     ctx.fps = 0;
 
     struct argparse_option options[] = {
-        OPT_HELP(),
-        OPT_GROUP("Basic options"),
-        OPT_STRING('i', "input", &fname, "input filename"),
-        OPT_STRING('o', "obsid", &obstory_id, "observatory id"),
-        OPT_STRING('m', "mask", &mask_file, "mask file"),
-        OPT_FLOAT('t', "time-start", &ctx.utc_start, "time stamp of start of video clip"),
-        OPT_FLOAT('f', "fps", &ctx.fps, "frame count per second"),
-        OPT_END(),
+            OPT_HELP(),
+            OPT_GROUP("Basic options"),
+            OPT_STRING('i', "input", &fname, "input filename"),
+            OPT_STRING('o', "obsid", &obstory_id, "observatory id"),
+            OPT_STRING('m', "mask", &mask_file, "mask file"),
+            OPT_FLOAT('t', "time-start", &ctx.utc_start, "time stamp of start of video clip"),
+            OPT_FLOAT('f', "fps", &ctx.fps, "frame count per second"),
+            OPT_END(),
     };
 
     struct argparse argparse;
     argparse_init(&argparse, options, usage, 0);
     argparse_describe(&argparse,
-    "\nAnalyse an H264 video clip.",
-    "\n");
+                      "\nAnalyse an H264 video clip.",
+                      "\n");
     argc = argparse_parse(&argparse, argc, argv);
 
     if (argc != 0) {
@@ -189,12 +280,11 @@ int main(int argc, const char **argv) {
     const int background_map_use_n_images = 3600;
     const int background_map_reduction_cycles = 32;
 
-    // Register all the codecs
-    av_register_all();
-    avcodec_register_all();
     decoder_init(&ctx);
+    create_observation_mask(&ctx);
     observe((void *) &ctx, obstory_id, ctx.utc_start, ctx.utc_stop, ctx.c->width, ctx.c->height, ctx.fps,
-            "nonlive", ctx.mask, CHANNEL_COUNT, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME,
+            "nonlive", ctx.mask, CHANNEL_COUNT, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME,
+            TRIGGER_SUFFIX_TIME,
             TRIGGER_FRAMEGROUP, TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT,
             TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, background_map_use_every_nth_stack,
             background_map_use_n_images, background_map_reduction_cycles, &fetch_frame, &rewind_video);
@@ -202,4 +292,3 @@ int main(int argc, const char **argv) {
     printf("\n");
     return 0;
 }
-
