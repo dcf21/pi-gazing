@@ -56,7 +56,7 @@ static const char *const usage[] = {
         NULL,
 };
 
-#define INBUF_SIZE 4096
+#define INBUF_SIZE 65536
 
 typedef struct context {
     uint8_t inbuf[INBUF_SIZE + AV_INPUT_BUFFER_PADDING_SIZE];
@@ -149,8 +149,13 @@ int fetch_frame(void *ctx_void, unsigned char *tmpc, double *utc) {
                 }
                 ctx->frame++;
 
-                if ((ctx->frame % 100)==0) {
-                    printf("Analysing frame %d.\n", ctx->frame);
+                if ((ctx->frame % 1000)==0) {
+                    printf("Time point %02dh%02dm%02d (frame %d)\n",
+                           (int)(ctx->frame / ctx->fps / 3600) % 100,
+                           (int)(ctx->frame / ctx->fps / 60) % 60,
+                           (int)(ctx->frame / ctx->fps) % 60,
+                           ctx->frame
+                           );
                 }
 
                 return 0;
@@ -192,6 +197,11 @@ int decoder_init(context *ctx) {
 
     // Open input file
     ctx->f = fopen(ctx->filename, "rb");
+
+    if (ctx->f == NULL) {
+        logging_fatal(__FILE__, __LINE__, "could not open input video");
+    }
+
     ctx->frame = 0;
     ctx->data = NULL;
     ctx->data_size = 0;

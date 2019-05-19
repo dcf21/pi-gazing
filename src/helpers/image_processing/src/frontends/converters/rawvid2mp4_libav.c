@@ -157,6 +157,8 @@ int main(int argc, const char **argv) {
     ctxEncode->time_base = (AVRational) {1, nearest_multiple(H264_FPS, 1)};
     ctxEncode->pix_fmt = AV_PIX_FMT_YUV420P;
 
+    video_avstream->time_base = (AVRational) {1, nearest_multiple(H264_FPS, 1)};
+
     AVDictionary *options = NULL;
     av_dict_set(&options, "preset", "veryfast", 0);
 
@@ -196,6 +198,9 @@ int main(int argc, const char **argv) {
         avpkt.data = NULL;    // packet data will be allocated by the encoder
         avpkt.size = 0;
         pictureEncoded->pts = av_rescale_q(frame_in, video_avstream->codec->time_base, video_avstream->time_base);
+        pictureEncoded->format = ctxEncode->pix_fmt;
+        pictureEncoded->width = ctxEncode->width;
+        pictureEncoded->height = ctxEncode->height;
         i = avcodec_encode_video2(ctxEncode, &avpkt, pictureEncoded, &got_packet_ptr);
 //printf(". %d %d %d\n",got_packet_ptr,avpkt.flags,avpkt.size); if (got_packet_ptr) fwrite(avpkt.data,1,avpkt.size,tmpout);
         avpicture_free((AVPicture *) pictureEncoded);

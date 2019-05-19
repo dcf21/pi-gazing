@@ -30,6 +30,7 @@ works out the time associated with each file from its filename, and performs pre
 import glob
 import logging
 import multiprocessing
+import subprocess
 import os
 import time
 import json
@@ -154,8 +155,13 @@ def execute_shell_command(arguments):
 
         # Run the shell command
         command = job['shell_command'].format(**job)
-        # os.system(command)
-        print(command)
+        # print(command)
+        result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        errors = result.stderr.decode('utf-8').strip()
+
+        # Check for errors
+        if errors:
+            logging.error("Error processing file <{}>: <{}>".format(job['input_file'], errors))
 
         # Compile list of all the input files we have processed
         for item in (job['input_file'], job['input_metadata_filename']):
@@ -290,6 +296,11 @@ def metadata_file_to_dict(db_handle, product_filename):
         except ValueError:
             pass
         output[keyword] = val
+
+    # Make sure that essential metadata keys are defined
+    assert 'obstoryId' in output
+    assert 'utc' in output
+    assert 'semanticType' in output
 
     # Look up information about the observatory which made this observation
     obs_id = output['obstoryId']
@@ -449,8 +460,14 @@ class TaskRunner:
             for input_file in glob.glob(os.path.join(data_dir, glob_pattern['wildcard'])):
 
                 # Collect metadata associated with this input file
-                input_metadata_file, obstory_info, input_metadata = metadata_file_to_dict(db_handle=db,
-                                                                                          product_filename=input_file)
+                try:
+                    input_metadata_file, obstory_info, input_metadata = metadata_file_to_dict(
+                        db_handle=db,
+                        product_filename=input_file
+                    )
+                except AssertionError:
+                    logging.error("Invalid metadata for file <{}>".format(input_file))
+                    continue
 
                 # Properties that specify what command to run to complete this task, and what output it produces
                 job_descriptor = {
@@ -765,7 +782,7 @@ class TriggerRawVideos(TaskRunner):
         return """
 {settings[imageProcessorPath]}/debug/rawvid2mp4_{h264_encoder} \
          --input \"{input_file}\" \
-         --output \"{data_dir}/analysis_products_reduced/triggers_vid/{input_file_without_extension}\"
+         --output \"{data_dir}/analysis_products_reduced/triggers_vid/{input_file_without_extension}.mp4\"
          """
 
     @staticmethod

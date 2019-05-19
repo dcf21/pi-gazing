@@ -167,13 +167,14 @@ char *filename_generate(char *output, const char *obstory_id, double utc, char *
 
 int read_frame_group(observe_status *os, unsigned char *buffer, int *stack1, int *stack2);
 
-int observe(void *video_handle, const char *obstory_id, const int utc_start, const int utc_stop,
+int observe(void *video_handle, const char *obstory_id, const double utc_start, const double utc_stop,
             const int width, const int height, const double fps, const char *label, const unsigned char *mask,
             const int channel_count, const int STACK_COMPARISON_INTERVAL, const int TRIGGER_PREFIX_TIME,
             const int TRIGGER_SUFFIX_TIME, const int TRIGGER_FRAMEGROUP, const int TRIGGER_MAXRECORDLEN,
             const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT, const int TIMELAPSE_EXPOSURE,
             const int TIMELAPSE_INTERVAL, const int STACK_TARGET_BRIGHTNESS,
-            const int background_map_use_every_nth_stack, const int background_map_use_n_images, const int background_map_reduction_cycles,
+            const int background_map_use_every_nth_stack, const int background_map_use_n_images,
+            const int background_map_reduction_cycles,
             int (*fetch_frame)(void *, unsigned char *, double *), int (*rewind_video)(void *, double *));
 
 void register_trigger(observe_status *os, const int block_id, const int x_pos, const int y_pos, const int pixel_count,

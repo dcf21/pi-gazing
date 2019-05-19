@@ -164,7 +164,7 @@ int read_frame_group(observe_status *os, unsigned char *buffer, int *stack1, int
     return 0;
 }
 
-int observe(void *video_handle, const char *obstory_id, const int utc_start, const int utc_stop,
+int observe(void *video_handle, const char *obstory_id, const double utc_start, const double utc_stop,
             const int width, const int height, const double fps, const char *label, const unsigned char *mask,
             const int channel_count, const int STACK_COMPARISON_INTERVAL, const int TRIGGER_PREFIX_TIME,
             const int TRIGGER_SUFFIX_TIME, const int TRIGGER_FRAMEGROUP, const int TRIGGER_MAXRECORDLEN,
@@ -401,7 +401,7 @@ int observe(void *video_handle, const char *obstory_id, const int utc_start, con
                                "utc", os->timelapse_utc_start,
                                "semanticType", "pigazing:timelapse/backgroundModel",
                                "inputNoiseLevel", os->noise_level,
-                               "stackNoiseLevel", 0,
+                               "stackNoiseLevel", 1.,
                                "stackedFrames", ((int) os->background_map_use_n_images));
             }
             os->timelapse_utc_start += os->TIMELAPSE_INTERVAL;
@@ -739,7 +739,7 @@ void register_trigger_ends(observe_status *os) {
                         os->video_outputs[k].file_handle = dump_video_init(os->width, os->height, video1, video1frs,
                                                                            video2, video2frs, fname);
 
-                        write_metadata(fname, "sdsdiiis",
+                        write_metadata(fname, "sdsdsdiiis",
                                        "obstoryId", os->obstory_id,
                                        "utc", os->event_list[i].start_time,
                                        "semanticType", "pigazing:movingObject/video",
