@@ -204,7 +204,7 @@ $pageTemplate->header($pageInfo);
 if (array_key_exists('obstory', $_GET)) {
 
     // Search for results
-    $semantic_type = "pigazing:triggers/event/maxBrightness/lensCorr";
+    $semantic_type = "pigazing:movingObject/maximumBrightness";
 
     $where = ["o.obsTime BETWEEN {$tmin['utc']} AND {$tmax['utc']}"];
 
@@ -220,7 +220,7 @@ INNER JOIN archive_metadata d ON o.uid = d.observationId AND
     d.floatValue>={$duration_min} AND d.floatValue<={$duration_max}
 LEFT OUTER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
     d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:pathBezier\")
-WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"movingObject\")
+WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:movingObject/\")
     AND " . implode(' AND ', $where));
 
     $stmt = $const->db->prepare("SELECT COUNT(*) FROM ${search};");

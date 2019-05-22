@@ -61,7 +61,9 @@ class html_getargs
         $this->months = $output;
 
         // Fetch list of observatories from database
-        $stmt = $const->db->prepare("SELECT publicId,name,latitude,longitude FROM archive_observatories;");
+        $stmt = $const->db->prepare("
+SELECT publicId, name, ST_X(location) AS longitude, ST_Y(location) AS latitude FROM archive_observatories;
+");
         $stmt->execute([]);
         $results = $stmt->fetchAll();
         $this->allow_any_camera = $allow_any_camera;

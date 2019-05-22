@@ -62,13 +62,11 @@ if ($tmax['utc'] < $tmin['utc']) {
 
 // Read image options
 $flag_bgsub = false;
-$flag_lenscorr = false;
 $flag_highlights = false;
 
 if (array_key_exists("flag_bgsub", $_GET)) $flag_bgsub = true;
-if (array_key_exists("flag_lenscorr", $_GET)) $flag_lenscorr = true;
 if (array_key_exists("flag_highlights", $_GET)) $flag_highlights = true;
-if (array_key_exists("defaults", $_GET)) $flag_lenscorr = $flag_highlights = true;
+if (array_key_exists("defaults", $_GET)) $flag_highlights = true;
 
 // Read sky clarity options
 $sky_clarity_min = 0;
@@ -83,7 +81,6 @@ if (array_key_exists("clarity", $_GET) && is_numeric($_GET["clarity"])) {
 
 // Set default options for if we are not searching
 if (!array_key_exists('obstory', $_GET)) {
-    $flag_lenscorr = true;
     $flag_highlights = true;
 }
 
@@ -196,18 +193,6 @@ $pageTemplate->header($pageInfo);
                         </label>
                     </div>
                 </div>
-                <br/>
-                <div class="tooltip-holder" style="padding-top:24px; display:inline-block;">
-                    <div class="checkbox" data-toggle="tooltip" data-pos="tooltip-right"
-                         title="Automatically correct lens distortions in the images (recommended)."
-                    >
-                        <label>
-                            <input type="checkbox" name="flag_lenscorr"
-                                <?php if ($flag_lenscorr) echo 'checked="checked"'; ?> >
-                            Correct lens distortions
-                        </label>
-                    </div>
-                </div>
 
                 <div style="margin-bottom:30px;">
                     <div style="margin-top:25px;"><span class="formlabel">Sky clarity</span></div>
@@ -238,19 +223,14 @@ $pageTemplate->header($pageInfo);
 if (array_key_exists('obstory', $_GET)) {
 
     // Work out which semantic type to search for
-    if ($flag_lenscorr) {
-        if ($flag_bgsub) $semantic_type = "pigazing:timelapse/frame/bgrdSub/lensCorr";
-        else $semantic_type = "pigazing:timelapse/frame/lensCorr";
-    } else {
-        if ($flag_bgsub) $semantic_type = "pigazing:timelapse/frame/bgrdSub";
-        else $semantic_type = "pigazing:timelapse/frame";
-    }
+    if ($flag_bgsub) $semantic_type = "pigazing:timelapse/backgroundSubtracted";
+    else $semantic_type = "pigazing:timelapse";
 
     // Search for results
     $where = ["o.obsTime BETWEEN {$tmin['utc']} AND {$tmax['utc']}"];
 
     if ($flag_highlights)
-        $where[] = "d.floatValue>0.5";
+        $where[] = "o.featured";
 
     if ($sky_clarity_min > 0)
         $where[] = "d2.floatValue>{$sky_clarity_min}";
@@ -259,14 +239,12 @@ if (array_key_exists('obstory', $_GET)) {
 
     $search = ("
 archive_observations o
-INNER JOIN archive_files f ON f.observationId = o.uid AND
-    f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name=\"{$semantic_type}\")
+INNER JOIN archive_files f ON f.observationId = o.uid
+           AND f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name=\"{$semantic_type}\")
 INNER JOIN archive_observatories l ON o.observatory = l.uid
-INNER JOIN archive_metadata d ON o.uid = d.observationId AND d.fieldId=
-    (SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:highlight\")
-INNER JOIN archive_metadata d2 ON o.uid = d2.observationId AND d2.fieldId=
-    (SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:skyClarity\")
-WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"timelapse\")
+INNER JOIN archive_metadata d2 ON f.uid = d2.fileId
+           AND d2.fieldId = (SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:skyClarity\")
+WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:timelapse/\")
     AND " . implode(' AND ', $where));
 
     $stmt = $const->db->prepare("SELECT COUNT(*) FROM ${search};");
@@ -282,7 +260,8 @@ WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"timelapse\
     if ($result_count > 0) {
         $stmt = $const->db->prepare("
 SELECT f.repositoryFname, f.fileName, o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType
-FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
+FROM ${search}
+ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
         $stmt->execute([]);
         $result_list = $stmt->fetchAll();
     }
@@ -336,7 +315,6 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
             "year2={$tmax['year']}&month2={$tmax['mc']}&day2={$tmax['day']}&" .
             "hour2={$tmax['hour']}&min2={$tmax['min']}";
         if ($flag_bgsub) $self_url .= "&flag_bgsub=1";
-        if ($flag_lenscorr) $self_url .= "&flag_lenscorr=1";
         if ($flag_highlights) $self_url .= "&flag_highlights=1";
         if ($sky_clarity_min_str) $self_url .= "&clarity={$sky_clarity_min_str}";
         $pageTemplate->showPager($result_count, $pageNum, $pageSize, $self_url);

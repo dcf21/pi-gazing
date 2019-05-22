@@ -71,7 +71,7 @@ ORDER BY obsTime DESC LIMIT 1;");
 SELECT COUNT(*) FROM archive_observations o
 INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_semanticTypes s ON o.obsType = s.uid
-WHERE l.publicId=:o AND s.name=\"timelapse\"
+WHERE l.publicId=:o AND s.name=\"pigazing:timelapse/\"
 ORDER BY obsTime DESC LIMIT 1;");
         $stmt->bindParam(':o', $o, PDO::PARAM_STR, strlen($obstory));
         $stmt->execute(["o" => $obstory]);
@@ -82,7 +82,7 @@ ORDER BY obsTime DESC LIMIT 1;");
 SELECT COUNT(*) FROM archive_observations o
 INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_semanticTypes s ON o.obsType = s.uid
-WHERE l.publicId=:o AND s.name=\"movingObject\"
+WHERE l.publicId=:o AND s.name=\"pigazing:movingObject/\"
 ORDER BY obsTime DESC LIMIT 1;");
         $stmt->bindParam(':o', $o, PDO::PARAM_STR, strlen($obstory));
         $stmt->execute(["o" => $obstory]);

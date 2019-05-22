@@ -76,7 +76,7 @@ WHERE l.publicId=:o AND s.name=:k AND o.obsTime>=:x AND o.obsTime<:y LIMIT 1");
 
 foreach ($obstories as $obstory_info) {
     $obstory = $obstory_info['publicId'];
-    get_activity_history("timelapse", "observatory_activity.php");
+    get_activity_history("pigazing:timelapse/", "observatory_activity.php");
 }
 
 $pageInfo = [

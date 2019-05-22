@@ -111,7 +111,7 @@ void snapshot(struct video_info *video_in, int frame_count, int zero, double exp
     if (!tmp_int) return;
 
     for (j = 0; j < frame_count; j++) {
-        if (j%25 == 0) {
+        if (j % 25 == 0) {
             printf("Fetching frame %7d / %7d\n", j, frame_count);
         }
 
@@ -184,7 +184,9 @@ double estimate_noise_level(int width, int height, unsigned char *buffer, int fr
 }
 
 void background_calculate(const int width, const int height, const int channels, const int reduction_cycle,
-                          const int reduction_cycle_count, int *background_workspace, unsigned char *background_map) {
+                          const int reduction_cycle_count, const int *background_workspace,
+                          unsigned char **background_maps,
+                          const int background_buffer_count, const int background_buffer_current) {
     const int frame_size = width * height;
     int i;
 
@@ -196,20 +198,32 @@ void background_calculate(const int width, const int height, const int channels,
     // Find the modal value of each cell in the background grid
 #pragma omp parallel for private(i)
     for (i = i_start; i < i_stop; i++) {
-        int f, d;
+        int f, j;
         const int offset = i * 256;
-        int mode = 0, mode_samples = 0;
-        for (f = 4; f < 256; f++) {
-            const int v = 4 * background_workspace[offset + f - 4] + 8 * background_workspace[offset + f - 3] +
-                          10 * background_workspace[offset + f - 2] + 8 * background_workspace[offset + f - 1] +
-                          4 * background_workspace[offset + f - 0];
+        int mode = 2, mode_samples = 0;
+        for (f = 2; f < 254; f++) {
+            // Convolve the histogram to reduce noise
+            const int v =
+                    background_workspace[offset + f - 1] +
+                    background_workspace[offset + f] +
+                    background_workspace[offset + f + 1];
+
             if (v > mode_samples) {
                 mode = f;
                 mode_samples = v;
             }
         }
-        // This is a slight over-estimate of the background sky brightness, but images look less noisy that way.
-        background_map[i] = CLIP256(mode - 1);
+
+        // This is a slight under-estimate of the background sky brightness
+        background_maps[background_buffer_current + 1][i] = mode - 2;
+
+        // We use the lowest of several recent background maps
+        unsigned char lowest_recent_value = 255;
+        for (j = 0; j < background_buffer_count; j++) {
+            const int v = background_maps[j + 1][i];
+            if ((v > 0) && (v < lowest_recent_value)) lowest_recent_value = v;
+        }
+        background_maps[0][i] = lowest_recent_value;
     }
 }
 
@@ -276,7 +290,7 @@ int dump_frame_from_ints(int width, int height, int channels, const int *buffer,
     // Renormalise image data, dividing by the number of frames which have been stacked, and multiplying by gain factor
 #pragma omp parallel for private(i, d)
     for (i = 0; i < frame_size * channels; i++) {
-    tmp_frame[i] = CLIP65536(buffer[i] * gain / frame_count);
+        tmp_frame[i] = CLIP65536(buffer[i] * gain / frame_count);
     }
 
     // Write image data to raw file
@@ -322,7 +336,7 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
             brightness_sum += level;
             brightness_points++;
         }
-        gain = (int) (target_brightness/ (brightness_sum / frame_count / brightness_points));
+        gain = (int) (target_brightness / (brightness_sum / frame_count / brightness_points));
         if (gain < 1) gain = 1;
         if (gain > 30) gain = 30;
     }
@@ -337,7 +351,7 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
 #pragma omp parallel for private(i, d)
     for (i = 0; i < frame_size * channels; i++) {
         tmp_frame[i] = CLIP65536((buffer[i] - frame_count * buffer2[i]) * gain / frame_count);
-        }
+    }
 
     // Write image data to raw file
     fwrite(&width, 1, sizeof(int), outfile);
@@ -351,10 +365,9 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
 }
 
 
-FILE *dump_video_init(int width, int height, const unsigned char *buffer1, int buffer1_frames,
-                      const unsigned char *buffer2, int buffer2_frames, char *filename) {
-    const size_t frame_size = (size_t) (width * height * 3 / 2);
-    const int buffer_len = (int) (sizeof(int) + 2 * sizeof(int) + (buffer1_frames + buffer2_frames) * frame_size);
+FILE *dump_video_init(int width, int height, const char *filename) {
+
+    const int buffer_len = 0;
 
     FILE *outfile;
     if ((outfile = fopen(filename, "wb")) == NULL) {
@@ -370,24 +383,30 @@ FILE *dump_video_init(int width, int height, const unsigned char *buffer1, int b
 }
 
 
-int dump_video_frame(int width, int height, const unsigned char *buffer1, int buffer1_frames,
-                     const unsigned char *buffer2,
-                     int buffer2_frames, FILE *out_file, int *frames_written) {
+int dump_video_frame(int width, int height, const unsigned char *video_buffer, const int video_buffer_frames,
+                     int *write_position, int *frames_written, const int write_end_position,
+                     FILE *output) {
+    // Bytes per frame
     const size_t frame_size = (size_t) (width * height * 3 / 2);
 
-    const int totalFrames = buffer1_frames + buffer2_frames;
-    const int framesToWrite = MIN(totalFrames - *frames_written, TRIGGER_FRAMEGROUP);
-    int i;
+    // Write one frame
+    fseek(output, 3 * sizeof(int) + (*frames_written) * frame_size, SEEK_SET);
 
-    for (i = 0; i < framesToWrite; i++) {
-        if (*frames_written < buffer1_frames)
-            fwrite(buffer1 + (*frames_written) * frame_size, frame_size, 1, out_file);
-        else
-            fwrite(buffer2 + (*frames_written - buffer1_frames) * frame_size, frame_size, 1, out_file);
-        (*frames_written)++;
-    }
-    if (*frames_written >= totalFrames) {
-        fclose(out_file);
+    fwrite(video_buffer + (*write_position) * frame_size, frame_size, 1, output);
+
+    // Update frame counter
+    (*frames_written)++;
+    *write_position = ((*write_position) + 1) % video_buffer_frames;
+
+    // Update file's metadata about how many frames it contains
+    const int buffer_len = (*frames_written) * frame_size;
+    fseek(output, 0, SEEK_SET);
+    fwrite(&buffer_len, 1, sizeof(int), output);
+
+    // Have we finished
+    if (*write_position == write_end_position) {
+        // Close output file
+        fclose(output);
         return 0;
     }
     return 1;

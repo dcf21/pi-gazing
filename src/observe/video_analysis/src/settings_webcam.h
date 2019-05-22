@@ -23,8 +23,8 @@
 
 // The settings below define how the video capture and analysis works
 
-#ifndef _SETTINGS2_H
-#define _SETTINGS2_H 1
+#ifndef _SETTINGS_WEBCAM_H
+#define _SETTINGS_WEBCAM_H 1
 
 // Define the device from which to capture video, and the resolution and frame-rate we expect from it.
 // These parameters affect test bench routines such as vidRec and snapshot. Main observe process overrides these with
@@ -38,12 +38,8 @@
 // If this flag is set, we assume the camera is mounted upside down. Video is flipped before analysis.
 #define VIDEO_UPSIDE_DOWN 0
 
-// Number of colour channels to process. *Much* faster to process only one
-#define CHANNEL_COUNT ( GREYSCALE_IMAGING ? 1 : 3 )
-
 // This is the mean pixel brightness that we aim for in output images, applying whatever automatic gain is needed to
 // get there.
-
 #define STACK_TARGET_BRIGHTNESS  24
 
 // Throttle the number of triggers which are allowed
@@ -51,17 +47,22 @@
 #define TRIGGER_THROTTLE_MAXEVT  5 /* number of triggers allowed in that time */
 
 // Trigger parameters
-#define TRIGGER_MAXRECORDLEN 25  /* maximum length of video to record after trigger */
+#define VIDEO_BUFFER_LENGTH  10  /* maximum period of video to buffer in ram */
+#define TRIGGER_MAX_DURATION 25  /* maximum length of video to record after trigger */
 #define TRIGGER_PREFIX_TIME   2  /* include N seconds of video after trigger */
 #define TRIGGER_SUFFIX_TIME   3  /* include N seconds of video after trigger has gone away */
-#define TRIGGER_FRAMEGROUP    2  /* triggering is calculated on the basis of stacked groups of frames of this length */
+
+// Processing of background map
+#define BACKGROUND_MAP_FRAMES 7500 /* Produce a new background map every 5 minutes */
+#define BACKGROUND_MAP_SAMPLES 3 /* Pick the lowest sky brightness from the last 3 buffers */
+#define BACKGROUND_MAP_REDUCTION_CYCLES 64 /* Reduce the new background map over the course of N frames */
 
 // Compare stacked groups of frames that are N stacks apart; makes us more sensitive to slow-moving things
 #define STACK_COMPARISON_INTERVAL 3
 
-// Timelapse
-#define TIMELAPSE_EXPOSURE 116 /* Exposure length for timelapse photography */
-#define TIMELAPSE_INTERVAL 120 /* Interval between timelapse frames */
+// Time-lapse
+#define TIMELAPSE_EXPOSURE 116 /* Exposure length for time-lapse photography */
+#define TIMELAPSE_INTERVAL 120 /* Interval between time-lapse frames */
 
 #endif
 

@@ -53,21 +53,27 @@ inline void trigger_blocks_merge(observe_status *os, int id_old, int id_new) {
     os->trigger_block_suml[id_new] += os->trigger_block_suml[id_old];
     os->trigger_block_count[id_old] = 0;
     os->trigger_block_redirect[id_old] = id_new;
-    return;
 }
 
 static inline int
-test_pixel(observe_status *os, const int *image1, const int *image2, const int o, const int threshold) {
-    const int radius = 16; // Pixel must be brighter than test pixels this distance away
-    if (image1[o] - image2[o] >
-        threshold) // Search for pixels which have brightened by more than threshold since past image
-    {
-        int i, j, c = 0; // Make a 3x3 grid of pixels of pixels at a spacing of radius pixels. This pixel must be brighter than 6/9 of these pixels were
+test_pixel(observe_status *os,
+           const unsigned char *image1, const unsigned char *image2,
+           const int o, const int threshold) {
+    // Pixel must be brighter than test pixels this distance away
+    const int radius = 16;
+
+    // Search for pixels which have brightened by more than threshold since past image
+    if (image1[o] - image2[o] > threshold) {
+        // Make a 3x3 grid of pixels of pixels at a spacing of radius pixels.
+        // This pixel must be brighter than 6/9 of these pixels were
+        int i, j, c = 0;
         for (i = -1; i <= 1; i++)
             for (j = -1; j <= 1; j++)
                 if (image1[o] - image2[o + (j + i * os->width) * radius] > threshold)c++;
         if (c > 7) {
-            int i, j, c = 0; // Make a 3x3 grid of pixels of pixels at a spacing of radius pixels. This pixel must be brighter than 6/9 of these pixels were
+            // Make a 3x3 grid of pixels of pixels at a spacing of radius pixels.
+            // This pixel must be brighter than 6/9 of these pixels were
+            int i, j, c = 0;
             for (i = -1; i <= 1; i++)
                 for (j = -1; j <= 1; j++)
                     if (image1[o] - image1[o + (j + i * os->width) * radius] > threshold)c++;
@@ -77,23 +83,30 @@ test_pixel(observe_status *os, const int *image1, const int *image2, const int o
     return 0;
 }
 
-// Test stacked images B and A, to see if pixels have brightened in B versus A. Image arrays contain the sum of <coAddedFrames> frames.
-int check_for_triggers(observe_status *os, const int *image1, const int *image2, const int coadded_frames) {
+// Test frames B and A, to see if pixels have brightened in B versus A.
+int check_for_triggers(observe_status *os, const unsigned char *image1, const unsigned char *image2) {
     int y;
     int output = 0;
 
-    const int margin = 20; // Ignore pixels within this distance of the edge
-    const int threshold_blockSize = 7; // To trigger this number of pixels connected together must have brightened
-    const int threshold_intensity =
-            110 * os->noise_level * sqrt(coadded_frames); // Total brightness excess must be 110 standard deviations
-    const int threshold_trigger = MAX(1, 3.5 * os->noise_level *
-                                         sqrt(coadded_frames)); // Pixel must have brightened by at least N standard deviations to trigger
-    const int threshold_monitor = MAX(1, 2.0 * os->noise_level *
-                                         sqrt(coadded_frames)); // Monitor and flag pixels which brighten by this amount
-    unsigned char *trigger_r = os->trigger_rgb;
-    unsigned char *trigger_g = os->trigger_rgb + os->frame_size *
-                                                 1; // These arrays are used to produce diagnostic images when the camera triggers
-    unsigned char *trigger_b = os->trigger_rgb + os->frame_size * 2;
+    // Ignore pixels within this distance of the edge
+    const int margin = 20;
+
+    // To trigger this number of pixels connected together must have brightened
+    const int threshold_blockSize = 7;
+
+    // Total brightness excess must be 100 standard deviations
+    const int threshold_intensity = (int) (100 * os->noise_level);
+
+    // Pixel must have brightened by at least N standard deviations to trigger
+    const int threshold_trigger = MAX(1, 3.5 * os->noise_level);
+
+    // Monitor and flag pixels which brighten by this amount
+    const int threshold_monitor = MAX(1, 2.0 * os->noise_level);
+
+    // These arrays are used to produce diagnostic images when the camera triggers
+    unsigned char *trigger_r = os->trigger_map_rgb;
+    unsigned char *trigger_g = os->trigger_map_rgb + os->frame_size * 1;
+    unsigned char *trigger_b = os->trigger_map_rgb + os->frame_size * 2;
     memset(os->trigger_map, 0, os->frame_size * sizeof(int));
     os->block_count = 0;
 
@@ -109,12 +122,16 @@ int check_for_triggers(observe_status *os, const int *image1, const int *image2,
             const int o = x + y * os->width;
             trigger_map_line_sum += os->past_trigger_map[o];
             if (os->mask[o]) pixel_count_within_mask_line_sum++;
-            trigger_r[o] = CLIP256(
-                    (image1[o] - image2[o]) * 64 /
-                    threshold_trigger); // RED channel - difference between images B and A
-            trigger_g[o] = CLIP256(os->past_trigger_map[o] * 256 / (2.3 *
-                                                                    past_trigger_map_average)); // GRN channel - map of pixels which are excluded for triggering too often
+
+            // RED channel - difference between images B and A
+            trigger_r[o] = CLIP256((image1[o] - image2[o]) * 64 / threshold_trigger);
+
+            // GRN channel - map of pixels which are excluded for triggering too often
+            trigger_g[o] = CLIP256(os->past_trigger_map[o] * 256 / (2.3 * past_trigger_map_average));
+
+            // BLU channel - blank for now
             trigger_b[o] = 0;
+
             if ((os->mask[o]) && test_pixel(os, image1, image2, o, threshold_monitor)) {
                 os->past_trigger_map[o]++;
                 if (test_pixel(os, image1, image2, o,
@@ -206,9 +223,9 @@ int check_for_triggers(observe_status *os, const int *image1, const int *image2,
             const int n = os->trigger_block_count[i];
             const int x = (os->trigger_block_sumx[i] / n); // average x position of moving object
             const int y = (os->trigger_block_sumy[i] / n); // average y position of moving object
-            const int l = os->trigger_block_suml[i] / coadded_frames; // total excess brightness
+            const int l = os->trigger_block_suml[i]; // total excess brightness
             output = 1; // We have triggered!
-            register_trigger(os, i, x, y, n, l, image1, image2, coadded_frames);
+            register_trigger(os, i, x, y, n, l, image1, image2);
         }
     }
     past_trigger_map_average = past_trigger_map_average_new / pixel_count_within_mask + 1;

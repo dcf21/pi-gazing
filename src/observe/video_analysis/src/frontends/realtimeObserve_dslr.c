@@ -194,8 +194,6 @@ int main(int argc, const char *argv[]) {
     vmd.video_device = input_device;
     vmd.mask_file = mask_file;
 
-    const int background_map_use_every_nth_stack = 1, background_map_use_n_images = 120, backgroundMapReductionCycles = 1;
-
     initLut();
 
     // Fetch the dimensions of the video stream as returned by V4L (which may differ from what we requested)
@@ -206,10 +204,11 @@ int main(int argc, const char *argv[]) {
     fclose(maskfile);
 
     observe((void *) &vmd, vmd.obstory_id, vmd.utc_start, vmd.utc_stop, vmd.width, vmd.height, vmd.fps, "live",
-            mask, CHANNEL_COUNT, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP,
-            TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE,
-            TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, background_map_use_every_nth_stack, background_map_use_n_images,
-            backgroundMapReductionCycles, &fetch_frame, &rewind_video);
+            mask, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME,
+            VIDEO_BUFFER_LENGTH, TRIGGER_MAX_DURATION, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT,
+            TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS,
+            BACKGROUND_MAP_FRAMES, BACKGROUND_MAP_SAMPLES, BACKGROUND_MAP_REDUCTION_CYCLES,
+            &fetch_frame, &rewind_video);
 
     return 0;
 }

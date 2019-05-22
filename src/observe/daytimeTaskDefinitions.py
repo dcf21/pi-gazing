@@ -156,7 +156,7 @@ def execute_shell_command(arguments):
         # Run the shell command
         command = job['shell_command'].format(**job)
         # print(command)
-        result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(command, shell=True, stderr=subprocess.PIPE)
         errors = result.stderr.decode('utf-8').strip()
 
         # Check for errors
@@ -177,6 +177,7 @@ def execute_shell_command(arguments):
                 file_products.append({
                     'filename': output_file,
                     'mime_type': output_file_wildcard['mime_type'],
+                    'input_file_metadata': job['input_metadata'],
                     'metadata_files': []
                 })
 
@@ -208,15 +209,21 @@ def execute_shell_command(arguments):
     for output_file in file_products:
 
         # Collect metadata associated with this output file
-        product_metadata_file, obstory_info, product_metadata = metadata_file_to_dict(
-            db_handle=db,
-            product_filename=output_file['filename']
-        )
+        try:
+            product_metadata_file, obstory_info, product_metadata = metadata_file_to_dict(
+                db_handle=db,
+                product_filename=output_file['filename'],
+                input_metadata=output_file['input_file_metadata'],
+                required=False
+            )
+        except AssertionError:
+            logging.error("Invalid metadata for file <{}>".format(output_file['filename']))
+            continue
 
         metadata_objs = metadata_to_object_list(db_handle=db,
                                                 obs_time=arguments['utc'],
                                                 obs_id=arguments['obs_id'],
-                                                user_id=arguments['userId'],
+                                                user_id=arguments['user_id'],
                                                 meta_dict=product_metadata)
 
         if product_metadata_file is not None:
@@ -256,7 +263,7 @@ def execute_shell_command(arguments):
 observatory_information = {}
 
 
-def metadata_file_to_dict(db_handle, product_filename):
+def metadata_file_to_dict(db_handle, product_filename, required, input_metadata=None):
     """
     Make a dictionary from a text file containing the metadata associated with some file product
 
@@ -264,6 +271,14 @@ def metadata_file_to_dict(db_handle, product_filename):
         Database connection handle
     :param product_filename:
         The filename of the file product whose metadata we are to read
+    :param required:
+        Do we require that this metadata file must exist?
+    :type required:
+        bool
+    :param input_metadata:
+        Metadata that we are to merge the contents of this file into
+    :type input_metadata:
+        dict
     :return:
         The filename of the metadata file, observatory info, and a dictionary of the metadata we collected
     """
@@ -276,26 +291,31 @@ def metadata_file_to_dict(db_handle, product_filename):
     # Start constructing a dictionary of the metadata in the file
     output = {}
 
+    if input_metadata is not None:
+        output = {**input_metadata}
+
     # Make sure that the metadata file exists!
-    assert os.path.exists(metadata_filename)
+    if required:
+        assert os.path.exists(metadata_filename)
 
     # Read the file, line by line
-    for line in open(metadata_filename):
-        # Ignore blank lines and comment lines
-        if line.strip() == "":
-            continue
-        if line[0] == "#":
-            continue
-        # Each line has the format <key value>
-        words = line.split()
-        keyword = words[0]
-        val = words[1]
-        # Try to convert the value to a float, but if this isn't possible, return it as a string
-        try:
-            val = float(val)
-        except ValueError:
-            pass
-        output[keyword] = val
+    if os.path.exists(metadata_filename):
+        for line in open(metadata_filename):
+            # Ignore blank lines and comment lines
+            if line.strip() == "":
+                continue
+            if line[0] == "#":
+                continue
+            # Each line has the format <key value>
+            words = line.split()
+            keyword = words[0]
+            val = words[1]
+            # Try to convert the value to a float, but if this isn't possible, return it as a string
+            try:
+                val = float(val)
+            except ValueError:
+                pass
+            output[keyword] = val
 
     # Make sure that essential metadata keys are defined
     assert 'obstoryId' in output
@@ -463,7 +483,8 @@ class TaskRunner:
                 try:
                     input_metadata_file, obstory_info, input_metadata = metadata_file_to_dict(
                         db_handle=db,
-                        product_filename=input_file
+                        product_filename=input_file,
+                        required=True
                     )
                 except AssertionError:
                     logging.error("Invalid metadata for file <{}>".format(input_file))
@@ -638,6 +659,12 @@ class MergeOutputIntoSingleObservations(TaskRunner):
         # Return combined list of jobs
         return jobs_by_time
 
+    def output_file_wildcards(self, input_file):
+        output = []
+        for sub_task in self.sub_tasks:
+            output.extend(sub_task.output_file_wildcards(input_file))
+        return output
+
 
 class AnalyseRawVideos(TaskRunner):
     @staticmethod
@@ -671,10 +698,10 @@ class TimelapseRawImages(TaskRunner):
         return [
             {
                 'wildcard': 'analysis_products/timelapse_nonlive/*.rgb',
-                'obs_type': 'pigazing:timelapse'
+                'obs_type': 'pigazing:timelapse/'
             }, {
                 'wildcard': 'analysis_products/timelapse_live/*.rgb',
-                'obs_type': 'pigazing:timelapse'
+                'obs_type': 'pigazing:timelapse/'
             }
         ]
 
@@ -689,10 +716,10 @@ class TimelapseRawImages(TaskRunner):
 
     @staticmethod
     def output_file_wildcards(input_file):
-        time_string = fetch_time_string_from_filename(filename=input_file)
+        input_file_without_extension = os.path.splitext(os.path.split(input_file)[1])[0]
         return [
             {
-                'wildcard': 'analysis_products_reduced/timelapse_img/{}*.png'.format(time_string),
+                'wildcard': 'analysis_products_reduced/timelapse_img/{}.png'.format(input_file_without_extension),
                 'mime_type': 'image/png'
             }
         ]
@@ -704,10 +731,10 @@ class TriggerRawImages1(TaskRunner):
         return [
             {
                 'wildcard': 'analysis_products/triggers_nonlive/*.rgb',
-                'obs_type': 'pigazing:movingObject'
+                'obs_type': 'pigazing:movingObject/'
             }, {
                 'wildcard': 'analysis_products/triggers_live/*.rgb',
-                'obs_type': 'pigazing:movingObject'
+                'obs_type': 'pigazing:movingObject/'
             }
         ]
 
@@ -722,10 +749,10 @@ class TriggerRawImages1(TaskRunner):
 
     @staticmethod
     def output_file_wildcards(input_file):
-        time_string = fetch_time_string_from_filename(filename=input_file)
+        input_file_without_extension = os.path.splitext(os.path.split(input_file)[1])[0]
         return [
             {
-                'wildcard': 'analysis_products_reduced/triggers_img1/{}*.png'.format(time_string),
+                'wildcard': 'analysis_products_reduced/triggers_img1/{}.png'.format(input_file_without_extension),
                 'mime_type': 'image/png'
             }
         ]
@@ -737,10 +764,10 @@ class TriggerRawImages2(TaskRunner):
         return [
             {
                 'wildcard': 'analysis_products/triggers_nonlive/*.sep',
-                'obs_type': 'pigazing:movingObject'
+                'obs_type': 'pigazing:movingObject/'
             }, {
                 'wildcard': 'analysis_products/triggers_live/*.sep',
-                'obs_type': 'pigazing:movingObject'
+                'obs_type': 'pigazing:movingObject/'
             }
         ]
 
@@ -755,10 +782,10 @@ class TriggerRawImages2(TaskRunner):
 
     @staticmethod
     def output_file_wildcards(input_file):
-        time_string = fetch_time_string_from_filename(filename=input_file)
+        input_file_without_extension = os.path.splitext(os.path.split(input_file)[1])[0]
         return [
             {
-                'wildcard': 'analysis_products_reduced/triggers_img2/{}*.png'.format(time_string),
+                'wildcard': 'analysis_products_reduced/triggers_img2/{}_?.png'.format(input_file_without_extension),
                 'mime_type': 'image/png'
             }
         ]
@@ -770,10 +797,10 @@ class TriggerRawVideos(TaskRunner):
         return [
             {
                 'wildcard': 'analysis_products/triggers_nonlive/*.vid',
-                'obs_type': 'pigazing:movingObject'
+                'obs_type': 'pigazing:movingObject/'
             }, {
                 'wildcard': 'analysis_products/triggers_live/*.vid',
-                'obs_type': 'pigazing:movingObject'
+                'obs_type': 'pigazing:movingObject/'
             }
         ]
 
@@ -787,10 +814,10 @@ class TriggerRawVideos(TaskRunner):
 
     @staticmethod
     def output_file_wildcards(input_file):
-        time_string = fetch_time_string_from_filename(filename=input_file)
+        input_file_without_extension = os.path.splitext(os.path.split(input_file)[1])[0]
         return [
             {
-                'wildcard': 'analysis_products_reduced/triggers_vid/{}*.png'.format(time_string),
+                'wildcard': 'analysis_products_reduced/triggers_vid/{}.mp4'.format(input_file_without_extension),
                 'mime_type': 'image/png'
             }
         ]

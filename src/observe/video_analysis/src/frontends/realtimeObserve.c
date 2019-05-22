@@ -43,9 +43,9 @@
 #include "settings_webcam.h"
 
 static const char *const usage[] = {
-    "realtimeObserve [options] [[--] args]",
-    "realtimeObserve [options]",
-    NULL,
+        "realtimeObserve [options] [[--] args]",
+        "realtimeObserve [options]",
+        NULL,
 };
 
 int fetch_frame(void *video_handle, unsigned char *tmpc, double *utc) {
@@ -83,27 +83,28 @@ int main(int argc, const char *argv[]) {
     vmd.filename = "dummy.h264";
 
     struct argparse_option options[] = {
-        OPT_HELP(),
-        OPT_GROUP("Basic options"),
-        OPT_STRING('o', "obsid", &obstory_id, "observatory id"),
-        OPT_STRING('d', "device", &input_device, "input video device, e.g. /dev/video0"),
-        OPT_STRING('m', "mask", &mask_file, "mask file"),
-        OPT_FLOAT('s', "utc-stop", &vmd.utc_stop, "time stamp at which to end observing"),
-        OPT_FLOAT('f', "fps", &vmd.fps, "frame count per second"),
-        OPT_FLOAT('l', "latitude", &vmd.lat, "latitude of observatory"),
-        OPT_FLOAT('L', "longitude", &vmd.lng, "longitude of observatory"),
-        OPT_INTEGER('w', "width", &vmd.width, "frame width"),
-        OPT_INTEGER('h', "height", &vmd.height, "frame height"),
-        OPT_INTEGER('g', "flag-gps", &vmd.flag_gps, "boolean flag indicating whether position determined by GPS"),
-        OPT_INTEGER('u', "flag-upside-down", &vmd.flag_upside_down, "boolean flag indicating whether the camera is upside down"),
-        OPT_END(),
+            OPT_HELP(),
+            OPT_GROUP("Basic options"),
+            OPT_STRING('o', "obsid", &obstory_id, "observatory id"),
+            OPT_STRING('d', "device", &input_device, "input video device, e.g. /dev/video0"),
+            OPT_STRING('m', "mask", &mask_file, "mask file"),
+            OPT_FLOAT('s', "utc-stop", &vmd.utc_stop, "time stamp at which to end observing"),
+            OPT_FLOAT('f', "fps", &vmd.fps, "frame count per second"),
+            OPT_FLOAT('l', "latitude", &vmd.lat, "latitude of observatory"),
+            OPT_FLOAT('L', "longitude", &vmd.lng, "longitude of observatory"),
+            OPT_INTEGER('w', "width", &vmd.width, "frame width"),
+            OPT_INTEGER('h', "height", &vmd.height, "frame height"),
+            OPT_INTEGER('g', "flag-gps", &vmd.flag_gps, "boolean flag indicating whether position determined by GPS"),
+            OPT_INTEGER('u', "flag-upside-down", &vmd.flag_upside_down,
+                        "boolean flag indicating whether the camera is upside down"),
+            OPT_END(),
     };
 
     struct argparse argparse;
     argparse_init(&argparse, options, usage, 0);
     argparse_describe(&argparse,
-    "\nObserve and analyse a video stream in real time.",
-    "\n");
+                      "\nObserve and analyse a video stream in real time.",
+                      "\n");
     argc = argparse_parse(&argparse, argc, argv);
 
     if (argc != 0) {
@@ -117,8 +118,6 @@ int main(int argc, const char *argv[]) {
     vmd.obstory_id = obstory_id;
     vmd.video_device = input_device;
     vmd.mask_file = mask_file;
-
-    const int background_map_use_every_nth_stack = 1, background_map_use_n_images = 3600, backgroundMapReductionCycles = 32;
 
     struct video_info *video_in;
 
@@ -147,17 +146,18 @@ int main(int argc, const char *argv[]) {
     vmd.height = height;
     video_in->upside_down = vmd.flag_upside_down;
 
-    unsigned char *mask = malloc((size_t)(width * height));
+    unsigned char *mask = malloc((size_t) (width * height));
     FILE *maskfile = fopen(vmd.mask_file, "r");
     if (!maskfile) { logging_fatal(__FILE__, __LINE__, "mask file could not be opened"); }
     fill_polygons_from_file(maskfile, mask, width, height);
     fclose(maskfile);
 
     observe((void *) video_in, vmd.obstory_id, vmd.utc_start, vmd.utc_stop, width, height, vmd.fps, "live", mask,
-            CHANNEL_COUNT, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME, TRIGGER_FRAMEGROUP,
-            TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT, TIMELAPSE_EXPOSURE,
-            TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, background_map_use_every_nth_stack, background_map_use_n_images,
-            backgroundMapReductionCycles, &fetch_frame, &rewind_video);
+            STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME,
+            VIDEO_BUFFER_LENGTH, TRIGGER_MAX_DURATION, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT,
+            TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS,
+            BACKGROUND_MAP_FRAMES, BACKGROUND_MAP_SAMPLES, BACKGROUND_MAP_REDUCTION_CYCLES,
+            &fetch_frame, &rewind_video);
 
     return 0;
 }

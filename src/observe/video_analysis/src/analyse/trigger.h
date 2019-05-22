@@ -24,7 +24,7 @@
 #ifndef TRIGGER_H
 #define TRIGGER_H 1
 
-int check_for_triggers(observe_status *os, const int *image1, const int *image2, const int coadded_frames);
+int check_for_triggers(observe_status *os, const unsigned char *image1, const unsigned char *image2);
 
 #endif
 

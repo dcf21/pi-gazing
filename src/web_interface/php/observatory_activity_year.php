@@ -89,8 +89,8 @@ WHERE l.publicId=:o AND s.name=:k AND o.obsTime>=:x AND o.obsTime<:y LIMIT 1");
     }
 }
 
-get_activity_history("timelapse", " still images", "observatory_activity.php");
-get_activity_history("movingObject", " moving objects", "observatory_activity.php");
+get_activity_history("pigazing:timelapse/", " still images", "observatory_activity.php");
+get_activity_history("pigazing:movingObject/", " moving objects", "observatory_activity.php");
 
 $pageInfo = [
     "pageTitle" => "Activity history for {$obstory_name}",

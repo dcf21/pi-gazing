@@ -153,7 +153,7 @@ if __name__ == "__main__":
                         default=None,
                         dest='username',
                         help='Optionally specify a username, to filter only images by a particular user')
-    parser.add_argument('--utc-min', dest='utc_min', default=time.time() - 3600 * 24,
+    parser.add_argument('--utc-min', dest='utc_min', default=0,
                         type=float,
                         help="Only list events seen after the specified unix time")
     parser.add_argument('--utc-max', dest='utc_max', default=time.time(),

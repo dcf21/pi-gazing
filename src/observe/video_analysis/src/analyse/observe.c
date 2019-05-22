@@ -42,48 +42,52 @@
 
 #include "settings.h"
 
-#define YUV420  3/2 /* Each pixel is 1.5 bytes in YUV420 stream */
+// Each pixel is 1.5 bytes in YUV420 stream
+#define YUV420_BYTES_PER_PIXEL  3/2
 
-// Generate a filename stub with a timestamp
+// Generate a filename which starts with a time stamp string
 char *filename_generate(char *output, const char *obstory_id, double utc, char *tag, const char *dir_name,
                         const char *label) {
     char path[FNAME_LENGTH];
+
+    // Convert unix time into a Julian day number
     const double JD = utc / 86400.0 + 2440587.5;
     int year, month, day, hour, min, status;
     double sec;
-    inv_julian_day(JD - 0.5, &year, &month, &day, &hour, &min, &sec, &status,
-                   output); // Subtract 0.5 from Julian Day as we want days to start at noon, not midnight
 
+    // Make sure that the analysis products directory exists
     sprintf(path, "%s/analysis_products", OUTPUT_PATH);
     status = mkdir(path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     if (status && (errno != EEXIST)) {
-        sprintf(temp_err_string, "ERROR: Could not create directory <%s>. Returned error code %d. errno %d. %s.", path,
-                status, errno, strerror(errno));
+        sprintf(temp_err_string, "ERROR: Could not create directory <%s>. Returned error code %d. errno %d. %s.",
+                path, status, errno, strerror(errno));
         logging_info(temp_err_string);
     }
 
+    // Make sure that the subdirectory for this kind of observation exists, e.g. <timelapse_live>
     sprintf(path, "%s/analysis_products/%s_%s", OUTPUT_PATH, dir_name, label);
     status = mkdir(path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     if (status && (errno != EEXIST)) {
-        sprintf(temp_err_string, "ERROR: Could not create directory <%s>. Returned error code %d. errno %d. %s.", path,
-                status, errno, strerror(errno));
+        sprintf(temp_err_string, "ERROR: Could not create directory <%s>. Returned error code %d. errno %d. %s.",
+                path, status, errno, strerror(errno));
         logging_info(temp_err_string);
     }
 
+    // Convert unix time into a calendar date
     inv_julian_day(JD, &year, &month, &day, &hour, &min, &sec, &status, output);
     sprintf(output, "%s/%04d%02d%02d%02d%02d%02d_%s_%s", path, year, month, day, hour, min, (int) sec, obstory_id, tag);
     return output;
 }
 
-// Record metadata to accompany a file. filename must be writable.
+// Record metadata associated with each file into a text file. filename must be writable string.
 void write_metadata(char *filename, char *item_types, ...) {
-    // Change file extension to .txt
+    // Change file extension of filename to .txt
     int filename_len = (int) strlen(filename);
     int i = filename_len - 1;
     while ((i > 0) && (filename[i] != '.')) i--;
     sprintf(filename + i, ".txt");
 
-    // Write metadata
+    // Write metadata, item by item
     FILE *f = fopen(filename, "w");
     if (!f) return;
     va_list ap;
@@ -91,90 +95,91 @@ void write_metadata(char *filename, char *item_types, ...) {
     for (i = 0; item_types[i] != '\0'; i++) {
         char *x = va_arg(ap, char*);
         switch (item_types[i]) {
+            // String metadata
             case 's': {
                 char *y = va_arg(ap, char*);
                 fprintf(f, "%s %s\n", x, y);
                 break;
             }
+                // Double type metadata
             case 'd': {
                 double y = va_arg(ap, double);
                 fprintf(f, "%s %.15e\n", x, y);
                 break;
             }
+                // Int type metadata
             case 'i': {
                 int y = va_arg(ap, int);
                 fprintf(f, "%s %d\n", x, y);
                 break;
             }
+                // Metadata type characters in <item_types> must be s, d or i.
             default: {
                 sprintf(temp_err_string, "ERROR: Unrecognised data type character '%c'.", item_types[i]);
                 logging_fatal(__FILE__, __LINE__, temp_err_string);
             }
         }
     }
+    // Close metadata output file
     va_end(ap);
     fclose(f);
 }
 
-// Read enough video (1 second) to create the stacks used to test for triggers
-int read_frame_group(observe_status *os, unsigned char *buffer, int *stack1, int *stack2) {
-    int i, j;
+// Read a group of frames, and create the stacks used to test for triggers
+int read_frame(observe_status *os, unsigned char *buffer, int *stack2) {
+    int i;
 
-    // Stack1 is wiped prior to each call to this function
-    memset(stack1, 0, os->frame_size * os->channel_count * sizeof(int));
+    static unsigned char *tmp_rgb = NULL;
 
-    unsigned char *tmp_rgb;
-    if (!GREYSCALE_IMAGING) tmp_rgb = malloc((size_t) (os->channel_count * os->frame_size));
+    const int channel_count = GREYSCALE_IMAGING ? 1 : 3;
 
-    for (j = 0; j < os->TRIGGER_FRAMEGROUP; j++) {
-        unsigned char *tmpc = buffer + j * os->frame_size * YUV420;
-        if (GREYSCALE_IMAGING) tmp_rgb = tmpc;
-        if ((*os->fetch_frame)(os->video_handle, tmpc, &os->utc) != 0) {
-            if (DEBUG) logging_info("Error grabbing");
-            return 1;
-        }
-        if (!GREYSCALE_IMAGING)
-            Pyuv420torgb(tmpc, tmpc + os->frame_size, tmpc + os->frame_size * 5 / 4, tmp_rgb, tmp_rgb + os->frame_size,
-                         tmp_rgb + os->frame_size * 2, os->width, os->height);
+    // If we're doing colour imaging, we need a buffer for turning YUV data into RGB pixels
+    if ((!GREYSCALE_IMAGING) && (tmp_rgb == NULL)) {
+        tmp_rgb = malloc(channel_count * os->frame_size);
+    }
+
+    // Fetch a frame
+    if ((*os->fetch_frame)(os->video_handle, buffer, &os->utc) != 0) {
+        if (DEBUG) logging_info("Error grabbing");
+        return 1;
+    }
+
+    if (GREYSCALE_IMAGING) {
+        // If we're working in greyscale, we simply use the Y component of the YUV frame
+        tmp_rgb = buffer;
+    } else {
+        // If we're working in colour, we need to convert frame to RGB
+        Pyuv420torgb(buffer, buffer + os->frame_size, buffer + os->frame_size * 5 / 4,
+                     tmp_rgb, tmp_rgb + os->frame_size, tmp_rgb + os->frame_size * 2,
+                     os->width, os->height);
+    }
+
 #pragma omp parallel for private(i)
-        for (i = 0; i < os->frame_size * os->channel_count; i++) stack1[i] += tmp_rgb[i];
+    for (i = 0; i < os->frame_size * channel_count; i++) {
+        // Stack2 integrates frames into time lapse exposures
+        if (stack2) stack2[i] += tmp_rgb[i];
+
+        // Add the pixel values in this stack into the histogram in background_workspace
+        os->background_workspace[i * 256 + tmp_rgb[i]]++;
     }
 
-    if (stack2) {
-#pragma omp parallel for private(i)
-        for (i = 0; i < os->frame_size * os->channel_count; i++)
-            stack2[i] += stack1[i]; // Stack2 can stack output of many calls to this function
-    }
-
-    // Add the pixel values in this stack into the histogram in background_workspace
-    const int include_in_background_histograms = (
-                                                         (os->background_count %
-                                                          os->background_map_use_every_nth_stack) == 0) &&
-                                                 (os->background_count < os->background_map_use_n_images *
-                                                                         os->background_map_use_every_nth_stack);
-    if (include_in_background_histograms) {
-#pragma omp parallel for private(j)
-        for (j = 0; j < os->frame_size * os->channel_count; j++) {
-            int d;
-            int pixelVal = CLIP256(stack1[j] / os->TRIGGER_FRAMEGROUP);
-            os->background_workspace[j * 256 + pixelVal]++;
-        }
-    }
-    if (!GREYSCALE_IMAGING) free(tmp_rgb);
+    // Done
     return 0;
 }
 
 int observe(void *video_handle, const char *obstory_id, const double utc_start, const double utc_stop,
             const int width, const int height, const double fps, const char *label, const unsigned char *mask,
-            const int channel_count, const int STACK_COMPARISON_INTERVAL, const int TRIGGER_PREFIX_TIME,
-            const int TRIGGER_SUFFIX_TIME, const int TRIGGER_FRAMEGROUP, const int TRIGGER_MAXRECORDLEN,
-            const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT, const int TIMELAPSE_EXPOSURE,
-            const int TIMELAPSE_INTERVAL, const int STACK_TARGET_BRIGHTNESS,
-            const int background_map_use_every_nth_stack, const int background_map_use_n_images,
-            const int background_map_reduction_cycles,
+            const int STACK_COMPARISON_INTERVAL, const int TRIGGER_PREFIX_TIME, const int TRIGGER_SUFFIX_TIME,
+            const int VIDEO_BUFFER_LEN, const int TRIGGER_MAX_DURATION,
+            const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT,
+            const int TIMELAPSE_EXPOSURE, const int TIMELAPSE_INTERVAL, const int STACK_TARGET_BRIGHTNESS,
+            const int BACKGROUND_MAP_FRAMES, const int BACKGROUND_MAP_SAMPLES,
+            const int BACKGROUND_MAP_REDUCTION_CYCLES,
             int (*fetch_frame)(void *, unsigned char *, double *), int (*rewind_video)(void *, double *)) {
     int i;
     char line[FNAME_LENGTH], line2[FNAME_LENGTH], line3[FNAME_LENGTH];
+
+    const int channel_count = GREYSCALE_IMAGING ? 1 : 3;
 
     if (DEBUG) {
         sprintf(line, "Starting observing run at %s; observing run will end at %s.",
@@ -198,64 +203,54 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     os->fetch_frame = fetch_frame;
     os->fps = (float) fps;       // Requested frame rate
     os->frame_size = width * height;
-    os->channel_count = channel_count;
 
     os->STACK_COMPARISON_INTERVAL = STACK_COMPARISON_INTERVAL;
     os->TRIGGER_PREFIX_TIME = TRIGGER_PREFIX_TIME;
     os->TRIGGER_SUFFIX_TIME = TRIGGER_SUFFIX_TIME;
-    os->TRIGGER_FRAMEGROUP = TRIGGER_FRAMEGROUP;
-    os->TRIGGER_MAXRECORDLEN = TRIGGER_MAXRECORDLEN;
+    os->TRIGGER_MAX_DURATION = TRIGGER_MAX_DURATION;
     os->TRIGGER_THROTTLE_PERIOD = TRIGGER_THROTTLE_PERIOD;
     os->TRIGGER_THROTTLE_MAXEVT = TRIGGER_THROTTLE_MAXEVT;
     os->TIMELAPSE_EXPOSURE = TIMELAPSE_EXPOSURE;
     os->TIMELAPSE_INTERVAL = TIMELAPSE_INTERVAL;
     os->STACK_TARGET_BRIGHTNESS = STACK_TARGET_BRIGHTNESS;
 
-    os->background_map_use_every_nth_stack = background_map_use_every_nth_stack;
-    os->background_map_use_n_images = background_map_use_n_images;
-    os->background_map_reduction_cycles = background_map_reduction_cycles;
+    // Video buffer. This store the last few seconds of video in a rolling spool.
+    os->video_buffer_frames = (int) (os->fps * VIDEO_BUFFER_LEN);
+    os->bytes_per_frame = os->frame_size * YUV420_BYTES_PER_PIXEL;
+    os->video_buffer_bytes = os->video_buffer_frames * os->bytes_per_frame;
+    os->video_buffer = malloc((size_t) os->video_buffer_bytes);
 
-    // Trigger buffers. These are used to store 1 second of video for comparison with the next
-    os->buffer_group_count = (int) (os->fps * os->TRIGGER_MAXRECORDLEN / os->TRIGGER_FRAMEGROUP);
-    os->buffer_group_bytes = os->TRIGGER_FRAMEGROUP * os->frame_size * YUV420;
-    os->buffer_frame_count = os->buffer_group_count * os->TRIGGER_FRAMEGROUP;
-    os->buffer_length = os->buffer_group_count * os->buffer_group_bytes;
-    os->buffer = malloc((size_t) os->buffer_length);
-    for (i = 0; i <= os->STACK_COMPARISON_INTERVAL; i++) {
-        os->stack[i] = malloc(os->frame_size * sizeof(int) *
-                              os->channel_count); // A stacked version of the current and preceding frame group; used to form a difference image
-        if (!os->stack[i]) {
-            sprintf(temp_err_string, "ERROR: malloc fail in observe.");
-            logging_fatal(__FILE__, __LINE__, temp_err_string);
-        }
-    }
-
-    os->trigger_prefix_group_count = (int) (os->TRIGGER_PREFIX_TIME * os->fps / os->TRIGGER_FRAMEGROUP);
-    os->trigger_suffix_group_count = (int) (os->TRIGGER_SUFFIX_TIME * os->fps / os->TRIGGER_FRAMEGROUP);
+    // When we catch a trigger, we include a few frames before the object appears, and after it disappears
+    os->trigger_prefix_frame_count = (int) (os->TRIGGER_PREFIX_TIME * os->fps);
+    os->trigger_suffix_frame_count = (int) (os->TRIGGER_SUFFIX_TIME * os->fps);
 
     // Timelapse buffers
     os->utc = 0;
-    os->timelapse_utc_start = 1e40; // Store timelapse exposures at set intervals. This is UTC of next frame, but we don't start until we've done a run-in period
-    os->frames_timelapse = (int) (os->fps * os->TIMELAPSE_EXPOSURE);
-    os->stackT = malloc(os->frame_size * sizeof(int) * os->channel_count);
+    os->timelapse_utc_start = 1e40; // This is UTC of next frame, but we don't start until we've done a run-in period
+    os->frames_per_timelapse = (int) (os->fps * os->TIMELAPSE_EXPOSURE);
+    os->stack_timelapse = malloc(os->frame_size * sizeof(int) * channel_count);
 
-    // Background maps are used for background subtraction. Maps A and B are used alternately and contain the background value of each pixel.
-    // Holds the background value of each pixel, sampled over 255 stacked images
-    os->background_map = calloc(1, (size_t) (os->frame_size * os->channel_count));
+    // Background maps are used for background subtraction.
+    // Holds the background value of each pixel, sampled over a few thousand frames
+    os->background_maps = malloc((BACKGROUND_MAP_SAMPLES + 1) * sizeof(unsigned char *));
+
+    for (i = 0; i <= BACKGROUND_MAP_SAMPLES; i++) {
+        os->background_maps[i] = calloc(1, os->frame_size * channel_count);
+    }
 
     // Workspace which counts the number of times any given pixel has a particular value
-    os->background_workspace = calloc(1, (size_t) (os->frame_size * os->channel_count * 256 * sizeof(int)));
+    os->background_workspace = calloc(1, (size_t) (os->frame_size * channel_count * 256 * sizeof(int)));
 
     // Map of past triggers, used to weight against pixels that trigger too often (they're probably trees...)
     os->past_trigger_map = calloc(1, os->frame_size * sizeof(int));
 
     // Buffers used while checking for triggers, to give a visual report on why triggers occur when they do
-    os->trigger_map = calloc(1, os->frame_size *
-                                sizeof(int)); // 2D array of ints used to mark out pixels which have brightened suspiciously.
-    os->trigger_rgb = calloc(1, (size_t) (os->frame_size * 3));
+    // 2D array of ints used to mark out pixels which have brightened suspiciously.
+    os->trigger_map = calloc(1, os->frame_size * sizeof(int));
+    os->trigger_map_rgb = calloc(1, os->frame_size * 3);
 
-    os->trigger_block_count = calloc(1, MAX_TRIGGER_BLOCKS *
-                                        sizeof(int)); // Count of how many pixels are in each numbered connected block
+    // Count of how many pixels are in each numbered connected block
+    os->trigger_block_count = calloc(1, MAX_TRIGGER_BLOCKS * sizeof(int));
     os->trigger_block_top = calloc(1, MAX_TRIGGER_BLOCKS * sizeof(int));
     os->trigger_block_bot = calloc(1, MAX_TRIGGER_BLOCKS * sizeof(int));
     os->trigger_block_sumx = calloc(1, MAX_TRIGGER_BLOCKS * sizeof(int));
@@ -263,10 +258,10 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     os->trigger_block_suml = calloc(1, MAX_TRIGGER_BLOCKS * sizeof(int));
     os->trigger_block_redirect = calloc(1, MAX_TRIGGER_BLOCKS * sizeof(int));
 
-    if ((!os->buffer) ||
-        (!os->stackT) ||
-        (!os->background_map) || (!os->background_workspace) || (!os->past_trigger_map) ||
-        (!os->trigger_map) || (!os->trigger_rgb) ||
+    // Make sure malloc operations were successful
+    if ((!os->video_buffer) ||
+        (!os->stack_timelapse) || (!os->background_workspace) || (!os->past_trigger_map) ||
+        (!os->trigger_map) || (!os->trigger_map_rgb) ||
         (!os->trigger_block_count) || (!os->trigger_block_top) || (!os->trigger_block_bot) ||
         (!os->trigger_block_sumx) ||
         (!os->trigger_block_sumy) || (!os->trigger_block_suml) || (!os->trigger_block_redirect)
@@ -275,32 +270,33 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
+    // For each object that we are tracking, we compile a stacked image of its appearance,
+    // and the max value of each pixel.
     for (i = 0; i < MAX_EVENTS; i++) {
-        os->event_list[i].stacked_image = malloc(os->frame_size * os->channel_count * sizeof(int));
-        os->event_list[i].max_stack = malloc(os->frame_size * os->channel_count * sizeof(int));
+        os->event_list[i].stacked_image = malloc(os->frame_size * channel_count * sizeof(int));
+        os->event_list[i].max_stack = malloc(os->frame_size * channel_count * sizeof(int));
         if ((!os->event_list[i].stacked_image) || (!os->event_list[i].max_stack)) {
             sprintf(temp_err_string, "ERROR: malloc fail in observe.");
             logging_fatal(__FILE__, __LINE__, temp_err_string);
         }
     }
 
+    // Make sure that all event trackers are set to being inactive before a start
     for (i = 0; i < MAX_EVENTS; i++) {
-        os->video_outputs[i].active = 0;
+        os->event_list[i].active = 0;
+        os->event_list[i].video_output.active = 0;
     }
 
-    // Flag for whether we're feeding images into stackA or stackB
-    os->group_number = 0;
-
     // Count how many frames we've fed into the brightness histograms in background_workspace
-    os->background_count = 0;
+    os->background_frame_count = 0;
+    os->background_buffer_current = 0;
 
-    // Count how many frames have been stacked into the timelapse buffer (stackT)
-    os->timelapse_count = -1;
+    // Count how many frames have been stacked into the timelapse buffer (stack_timelapse)
+    os->timelapse_frame_count = -1;
     os->frame_counter = 0;
 
     // Let the camera run for a period before triggering, as it takes this long to make first background map
-    os->run_in_countdown = 8 + os->background_map_reduction_cycles + os->background_map_use_every_nth_stack *
-                                                                     os->background_map_use_n_images;
+    os->run_in_frame_countdown = 100 + BACKGROUND_MAP_FRAMES;
     os->noise_level = 128;
 
     // Trigger throttling
@@ -308,7 +304,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     os->trigger_throttle_counter = 0;
 
     // Reset trigger throttle counter after this many frame groups have been processed
-    os->trigger_throttle_period = (int) (os->TRIGGER_THROTTLE_PERIOD * 60. * os->fps / os->TRIGGER_FRAMEGROUP);
+    os->trigger_throttle_period = (int) (os->TRIGGER_THROTTLE_PERIOD * 60. * os->fps);
 
     // Processing loop
     while (1) {
@@ -316,120 +312,142 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
         if (t >= utc_stop) break; // Check how we're doing for time; if we've reached the time to stop, stop now!
 
         // Once we've done initial run-in period, rewind the tape to the beginning if we can
-        if (os->run_in_countdown && !--os->run_in_countdown) {
+        if (os->run_in_frame_countdown && !--os->run_in_frame_countdown) {
             if (DEBUG) {
                 sprintf(line, "Run-in period completed.");
                 logging_info(line);
             }
             (*rewind_video)(os->video_handle, &os->utc);
-            os->timelapse_utc_start = ceil(os->utc / 60) * 60 + 0.5; // Start making timelapse video
+
+            // Start making timelapse video
+            os->timelapse_utc_start = ceil(os->utc / os->TIMELAPSE_EXPOSURE) * os->TIMELAPSE_EXPOSURE + 0.5;
         }
 
-        // Work out where we're going to read next second of video to. Either bufferA / bufferB, or the long buffer if we're recording
-        unsigned char *buffer_pos = os->buffer + (os->frame_counter % os->buffer_group_count) * os->buffer_group_bytes;
+        // Work out where we're going to read next second of video to.
+        unsigned char *buffer_pos = (os->video_buffer +
+                                     (os->frame_counter % os->video_buffer_frames) * os->bytes_per_frame);
 
         // Once on each cycle through the video buffer, estimate the thermal noise of the camera
-        if (buffer_pos == os->buffer) os->noise_level = estimate_noise_level(os->width, os->height, os->buffer, 16);
+        if (buffer_pos == os->video_buffer) {
+            os->noise_level = estimate_noise_level(os->width, os->height, os->video_buffer, 16);
+        }
 
-        // Read the next second of video
-        int status = read_frame_group(os, buffer_pos,
-                                      os->stack[os->frame_counter % (os->STACK_COMPARISON_INTERVAL + 1)],
-                                      (os->timelapse_count >= 0) ? os->stackT : NULL);
+        // Read the next frame of input video
+        int status = read_frame(os, buffer_pos, (os->timelapse_frame_count >= 0) ? os->stack_timelapse : NULL);
         if (status) break; // We've run out of video
 
         // If we've stacked enough frames since we last made a background map, make a new background map
-        os->background_count++;
-        if (os->background_count >= os->background_map_use_n_images * os->background_map_use_every_nth_stack) {
-            const int reduction_cycle = (
-                    os->background_count - os->background_map_use_n_images * os->background_map_use_every_nth_stack);
-            background_calculate(os->width, os->height, os->channel_count, reduction_cycle,
-                                 os->background_map_reduction_cycles,
-                                 os->background_workspace, os->background_map);
-            if (reduction_cycle >= os->background_map_reduction_cycles) {
-                os->background_count = 0;
-                memset(os->background_workspace, 0, os->frame_size * os->channel_count * 256 * sizeof(int));
+        os->background_frame_count++;
+        if (os->background_frame_count >= BACKGROUND_MAP_FRAMES) {
+            const int reduction_cycle = os->background_frame_count - BACKGROUND_MAP_FRAMES;
+            background_calculate(os->width, os->height, channel_count,
+                                 reduction_cycle, BACKGROUND_MAP_REDUCTION_CYCLES,
+                                 os->background_workspace, os->background_maps,
+                                 BACKGROUND_MAP_SAMPLES, os->background_buffer_current);
+            if (reduction_cycle >= BACKGROUND_MAP_REDUCTION_CYCLES) {
+                os->background_frame_count = 0;
+                os->background_buffer_current = (os->background_buffer_current + 1) % BACKGROUND_MAP_SAMPLES;
+                memset(os->background_workspace, 0, os->frame_size * channel_count * 256 * sizeof(int));
             }
         }
 
-        // Periodically, dump a stacked timelapse exposure lasting for <secondsTimelapseBuff> seconds
-        if (os->timelapse_count >= 0) { os->timelapse_count++; }
+        // If we're making a time lapse exposure, count the frames we've put in
+        if (os->timelapse_frame_count >= 0) {
+            os->timelapse_frame_count++;
+        }
+            // Is it time to start a new time lapse exposure?
         else if (os->utc > os->timelapse_utc_start) {
-            memset(os->stackT, 0, os->frame_size * os->channel_count * sizeof(int));
-            os->timelapse_count = 0;
+            memset(os->stack_timelapse, 0, os->frame_size * channel_count * sizeof(int));
+            os->timelapse_frame_count = 0;
         }
 
-        // If timelapse exposure is finished, dump it
-        if ((os->timelapse_count >= os->frames_timelapse / os->TRIGGER_FRAMEGROUP) ||
+        // If time-lapse exposure is finished, dump it
+        if ((os->timelapse_frame_count >= os->frames_per_timelapse) ||
             (os->utc > os->timelapse_utc_start + os->TIMELAPSE_INTERVAL - 1)) {
-            const int Nframes = os->timelapse_count * os->TRIGGER_FRAMEGROUP;
+            const int frame_count = os->timelapse_frame_count;
             char fstub[FNAME_LENGTH], fname[FNAME_LENGTH];
-            int gainFactor;
+            int gain_factor;
 
+            // First dump the time-lapse image without background subtraction
             filename_generate(fstub, os->obstory_id, os->timelapse_utc_start, "frame_", "timelapse", os->label);
 
             sprintf(fname, "%s%s", fstub, "BS0.rgb");
-            dump_frame_from_ints(os->width, os->height, os->channel_count, os->stackT, Nframes,
-                                 os->STACK_TARGET_BRIGHTNESS, &gainFactor, fname);
+            dump_frame_from_ints(os->width, os->height, channel_count, os->stack_timelapse, frame_count,
+                                 os->STACK_TARGET_BRIGHTNESS, &gain_factor, fname);
+
+            // Store metadata about the time-lapse frame
             write_metadata(fname, "sdsddii",
                            "obstoryId", os->obstory_id,
                            "utc", os->timelapse_utc_start,
                            "semanticType", "pigazing:timelapse",
                            "inputNoiseLevel", os->noise_level,
-                           "stackNoiseLevel", os->noise_level / sqrt(Nframes) * gainFactor,
-                           "gainFactor", gainFactor,
-                           "stackedFrames", Nframes);
+                           "stackNoiseLevel", os->noise_level / sqrt(frame_count) * gain_factor,
+                           "gainFactor", gain_factor,
+                           "stackedFrames", frame_count);
 
+            // Dump a background-subtracted version of the time-lapse image
             sprintf(fname, "%s%s", fstub, "BS1.rgb");
-            dump_frame_from_int_subtraction(os->width, os->height, os->channel_count, os->stackT, Nframes,
-                                            os->STACK_TARGET_BRIGHTNESS, &gainFactor,
-                                            os->background_map, fname);
+            dump_frame_from_int_subtraction(os->width, os->height, channel_count, os->stack_timelapse, frame_count,
+                                            os->STACK_TARGET_BRIGHTNESS, &gain_factor,
+                                            os->background_maps[0], fname);
+
+            // Store metadata about the time-lapse frame
             write_metadata(fname, "sdsddii",
                            "obstoryId", os->obstory_id,
                            "utc", os->timelapse_utc_start,
                            "semanticType", "pigazing:timelapse/backgroundSubtracted",
                            "inputNoiseLevel", os->noise_level,
-                           "stackNoiseLevel", os->noise_level / sqrt(Nframes) * gainFactor,
-                           "gainFactor", gainFactor,
-                           "stackedFrames", Nframes);
+                           "stackNoiseLevel", os->noise_level / sqrt(frame_count) * gain_factor,
+                           "gainFactor", gain_factor,
+                           "stackedFrames", frame_count);
 
-            // Every 15 minutes, dump an image of the sky background map for diagnostic purposes
-            if (floor(fmod(os->timelapse_utc_start, 900)) == 0) {
+            // Every few minutes, dump an image of the sky background map for diagnostic purposes
+            if (floor(fmod(os->timelapse_utc_start, 1)) == 0) {
                 sprintf(fname, "%s%s", fstub, "skyBackground.rgb");
-                dump_frame(os->width, os->height, os->channel_count, os->background_map, fname);
+                dump_frame(os->width, os->height, channel_count, os->background_maps[0], fname);
                 write_metadata(fname, "sdsddi",
                                "obstoryId", os->obstory_id,
                                "utc", os->timelapse_utc_start,
                                "semanticType", "pigazing:timelapse/backgroundModel",
                                "inputNoiseLevel", os->noise_level,
                                "stackNoiseLevel", 1.,
-                               "stackedFrames", ((int) os->background_map_use_n_images));
+                               "stackedFrames", ((int) BACKGROUND_MAP_FRAMES));
             }
+
+            // Schedule the next time-lapse exposure
             os->timelapse_utc_start += os->TIMELAPSE_INTERVAL;
-            os->timelapse_count = -1;
+            os->timelapse_frame_count = -1;
         }
 
         // Update counters for trigger throttling
         os->trigger_throttle_timer++;
-        const int trigger_throttle_cycles = (int) (os->TRIGGER_THROTTLE_PERIOD * 60 * os->fps / os->TRIGGER_FRAMEGROUP);
+        const int trigger_throttle_cycles = (int) (os->TRIGGER_THROTTLE_PERIOD * 60 * os->fps);
         if (os->trigger_throttle_timer >= trigger_throttle_cycles) {
             os->trigger_throttle_timer = 0;
             os->trigger_throttle_counter = 0;
         }
 
-        // Test whether motion sensor has triggered
-        os->triggering_allowed = ((!os->run_in_countdown) &&
+        // Test whether triggering is allowed
+        os->triggering_allowed = ((!os->run_in_frame_countdown) &&
                                   (os->trigger_throttle_counter < os->TRIGGER_THROTTLE_MAXEVT));
+
+        // Close any trigger events which are no longer active
         register_trigger_ends(os);
-        int *image_new = os->stack[os->frame_counter % (os->STACK_COMPARISON_INTERVAL + 1)];
-        int *image_old = os->stack[(os->frame_counter + os->STACK_COMPARISON_INTERVAL) %
-                                   (os->STACK_COMPARISON_INTERVAL + 1)];
-        check_for_triggers(os, image_new, image_old, os->TRIGGER_FRAMEGROUP);
+
+        // Pointers to the two frames we plan to compare
+        unsigned char *image_new = buffer_pos;
+
+        unsigned char *image_old =
+                os->video_buffer +
+                (((os->frame_counter + os->video_buffer_frames - STACK_COMPARISON_INTERVAL) % os->video_buffer_frames)
+                 * os->bytes_per_frame);
+
+        // Test whether motion sensor has triggered
+        check_for_triggers(os, image_new, image_old);
 
         os->frame_counter++;
-        os->group_number = !os->group_number;
     }
 
-    for (i = 0; i <= os->STACK_COMPARISON_INTERVAL; i++) free(os->stack[i]);
     for (i = 0; i < MAX_EVENTS; i++) {
         free(os->event_list[i].stacked_image);
         free(os->event_list[i].max_stack);
@@ -440,10 +458,11 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     free(os->trigger_block_sumy);
     free(os->trigger_block_suml);
     free(os->trigger_block_redirect);
-    free(os->trigger_rgb);
-    free(os->buffer);
-    free(os->stackT);
-    free(os->background_map);
+    free(os->trigger_map_rgb);
+    free(os->video_buffer);
+    free(os->stack_timelapse);
+    for (i = 0; i < BACKGROUND_MAP_SAMPLES; i++) free(os->background_maps[i]);
+    free(os->background_maps);
     free(os->background_workspace);
     free(os->past_trigger_map);
     free(os);
@@ -452,11 +471,19 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
 
 // Register a new trigger event
 void register_trigger(observe_status *os, const int block_id, const int x_pos, const int y_pos, const int pixel_count,
-                      const int amplitude, const int *image1, const int *image2, const int coadded_frames) {
-    int i, closest_trigger = -1, closest_trigger_dist = 9999;
+                      const int amplitude, const unsigned char *image1, const unsigned char *image2) {
     if (!os->triggering_allowed) return;
 
-    // Cycle through objects we are tracking to find nearest one
+    const int trigger_maximum_movement_per_frame = 70;
+    const int minimum_detections_for_event = 2;
+    const int minimum_object_path_length = 4;
+
+    const int channel_count = GREYSCALE_IMAGING ? 1 : 3;
+
+    // Cycle through objects we are already tracking to find nearest one
+    int i;
+    int closest_trigger = -1;
+    int closest_trigger_dist = 9999;
     for (i = 0; i < MAX_EVENTS; i++)
         if (os->event_list[i].active) {
             const int N = os->event_list[i].detection_count - 1;
@@ -469,12 +496,12 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
         }
 
     // If it's relatively close, assume this detection is of that object
-    if (closest_trigger_dist < 70) {
+    if (closest_trigger_dist < trigger_maximum_movement_per_frame) {
         const int i = closest_trigger;
         const int n = os->event_list[i].detection_count - 1;
-        if (os->event_list[i].detections[n].frame_count ==
-            os->frame_counter) // Has this object already been seen in this frame?
-        {
+
+        // Has this object already been seen in this frame?
+        if (os->event_list[i].detections[n].frame_count == os->frame_counter) {
             // If so, take position of object as average position of multiple amplitude peaks
             detection *d = &os->event_list[i].detections[n];
             d->x = (d->x * d->amplitude + x_pos * amplitude) / (d->amplitude + amplitude);
@@ -491,6 +518,34 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
             d->utc = os->utc;
             d->pixel_count = pixel_count;
             d->amplitude = amplitude;
+
+            // If we've reached a threshold number of detections, we can start writing video
+            if (!os->event_list[i].video_output.active) {
+                // Detections which span the whole duration of this event so far
+                const int N0 = 0;
+                const int N2 = os->event_list[i].detection_count - 1;
+
+                // Have we had enough detections of this object to confirm it as real?
+                const int sufficient_detections = (os->event_list[i].detection_count >= minimum_detections_for_event);
+
+                // Has this object moved far enough to be a moving object, not a twinkling star?
+                double pixel_track_len = hypot(os->event_list[i].detections[N0].x - os->event_list[i].detections[N2].x,
+                                               os->event_list[i].detections[N0].y - os->event_list[i].detections[N2].y);
+
+                // Reject events that don't move much -- probably a twinkling star
+                const int sufficient_movement = (pixel_track_len >= minimum_object_path_length);
+
+                // Start writing video if this event looks plausible
+                if (sufficient_movement && sufficient_detections) {
+                    logging_info("Detection confirmed.");
+
+                    os->event_list[i].video_output.active = 1;
+                    os->event_list[i].video_output.file_handle = dump_video_init(
+                            os->width, os->height,
+                            os->event_list[i].video_output.filename);
+
+                }
+            }
         }
         return;
     }
@@ -506,7 +561,7 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
         logging_info(temp_err_string);
     }
 
-    for (i = 0; i < MAX_EVENTS; i++) if (!os->event_list[i].active) break;
+    for (i = 0; i < MAX_EVENTS; i++) if (os->event_list[i].active == 0) break;
     if (i >= MAX_EVENTS) {
         logging_info("Ignoring trigger; no event descriptors available.");
         return;
@@ -518,7 +573,7 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
         int k2 = k;
         while (os->trigger_block_redirect[k2] > 0) k2 = os->trigger_block_redirect[k2];
         if (k2 == block_id) {
-            unsigned char *triggerB = os->trigger_rgb + os->frame_size * 2;
+            unsigned char *triggerB = os->trigger_map_rgb + os->frame_size * 2;
             int j;
 #pragma omp parallel for private(j)
             for (j = 0; j < os->frame_size; j++) if (os->trigger_map[j] == k2) triggerB[j] *= 4;
@@ -529,6 +584,8 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
     os->event_list[i].active = 1;
     os->event_list[i].detection_count = 1;
     os->event_list[i].start_time = os->utc;
+
+    // Record first detection of this event
     detection *d = &os->event_list[i].detections[0];
     d->frame_count = os->frame_counter;
     d->x = x_pos;
@@ -537,12 +594,23 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
     d->pixel_count = pixel_count;
     d->amplitude = amplitude;
 
+    // Start producing output files describing this camera trigger
     char fname[FNAME_LENGTH];
-
     filename_generate(os->event_list[i].filename_stub, os->obstory_id, os->utc, "event", "triggers", os->label);
 
+    // Configuration for video file output
+    sprintf(os->event_list[i].video_output.filename, "%s%s", os->event_list[i].filename_stub, ".vid");
+    os->event_list[i].video_output.active = 0;
+    os->event_list[i].video_output.width = os->width;
+    os->event_list[i].video_output.height = os->height;
+    os->event_list[i].video_output.frames_written = 0;
+    os->event_list[i].video_output.buffer_write_position = ((os->frame_counter - os->trigger_prefix_frame_count)
+                                                            % os->video_buffer_frames);
+    os->event_list[i].video_output.buffer_end_position = -1;
+
+    // Difference image, B-A, which we get from the red channel of <os->trigger_map_rgb>, set by <check_for_triggers>
     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapDifference.rgb");
-    dump_frame(os->width, os->height, 1, os->trigger_rgb + 0 * os->frame_size, fname);
+    dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 0 * os->frame_size, fname);
     write_metadata(fname, "sdsddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[i].start_time,
@@ -551,8 +619,9 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                    "stackNoiseLevel", os->noise_level,
                    "stackedFrames", 1);
 
+    // Map of pixels which are currently excluded from triggering due to excessive variability
     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapExcludedPixels.rgb");
-    dump_frame(os->width, os->height, 1, os->trigger_rgb + 1 * os->frame_size, fname);
+    dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 1 * os->frame_size, fname);
     write_metadata(fname, "sdsddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[i].start_time,
@@ -561,126 +630,146 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                    "stackNoiseLevel", os->noise_level,
                    "stackedFrames", 1);
 
+    // Map of the pixels whose brightening caused this trigger
     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapTrigger.rgb");
-    dump_frame(os->width, os->height, 1, os->trigger_rgb + 2 * os->frame_size, fname);
+    dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 2 * os->frame_size, fname);
     write_metadata(fname, "sdsddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[i].start_time,
                    "semanticType", "pigazing:movingObject/mapTrigger",
-                   "inputNoiseLevel", os->noise_level, "stackNoiseLevel",
-                   os->noise_level, "stackedFrames", 1);
+                   "inputNoiseLevel", os->noise_level,
+                   "stackNoiseLevel", os->noise_level,
+                   "stackedFrames", 1);
 
+    // The video frame in which this trigger was first detected
     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_triggerFrame.rgb");
-    dump_frame_from_ints(os->width, os->height, os->channel_count, image1, coadded_frames, 0, NULL, fname);
+    dump_frame(os->width, os->height, channel_count, image1, fname);
     write_metadata(fname, "sdsddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[i].start_time,
                    "semanticType", "pigazing:movingObject/triggerFrame",
-                   "inputNoiseLevel", os->noise_level, "stackNoiseLevel",
-                   os->noise_level / sqrt(coadded_frames), "stackedFrames", coadded_frames);
+                   "inputNoiseLevel", os->noise_level,
+                   "stackNoiseLevel", os->noise_level,
+                   "stackedFrames", 1);
 
+    // The comparison frame which preceded the frame where the trigger was detected
     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_previousFrame.rgb");
-    dump_frame_from_ints(os->width, os->height, os->channel_count, image2, coadded_frames, 0, NULL, fname);
+    dump_frame(os->width, os->height, channel_count, image2, fname);
     write_metadata(fname, "sdsddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[i].start_time,
                    "semanticType", "pigazing:movingObject/previousFrame",
-                   "inputNoiseLevel", os->noise_level, "stackNoiseLevel",
-                   os->noise_level / sqrt(coadded_frames), "stackedFrames", coadded_frames);
+                   "inputNoiseLevel", os->noise_level,
+                   "stackNoiseLevel", os->noise_level,
+                   "stackedFrames", 1);
 
-    memcpy(os->event_list[i].stacked_image, image1, os->frame_size * os->channel_count * sizeof(int));
+    // Copy the trigger frame into the stacked version of this trigger
     int j;
 #pragma omp parallel for private(j)
-    for (j = 0; j < os->frame_size * os->channel_count; j++) os->event_list[i].max_stack[j] = image1[j];
+    for (j = 0; j < os->frame_size * channel_count; j++) {
+        os->event_list[i].stacked_image[j] = image1[j];
+        os->event_list[i].max_stack[j] = image1[j];
+    }
 }
 
 // Check through list of events we are currently tracking.
 // Weed out any which haven't been seen for a long time, or are exceeding maximum allowed recording time.
 void register_trigger_ends(observe_status *os) {
     int i;
-    int *stackbuf = os->stack[os->frame_counter % (os->STACK_COMPARISON_INTERVAL + 1)];
+    unsigned char *current_frame = (os->video_buffer +
+                                    (os->frame_counter % os->video_buffer_frames) * os->bytes_per_frame);
+
+    const int channel_count = GREYSCALE_IMAGING ? 1 : 3;
+
     for (i = 0; i < MAX_EVENTS; i++)
-        if (os->event_list[i].active) {
+        if (os->event_list[i].active == 1) {
             int j;
+
+            // Three detections which span the whole duration of this event
             const int N0 = 0;
             const int N1 = os->event_list[i].detection_count / 2;
             const int N2 = os->event_list[i].detection_count - 1;
+
+            // Create stack of the average brightness of each pixel over the duration of this event
 #pragma omp parallel for private(j)
-            for (j = 0; j < os->frame_size * os->channel_count; j++) os->event_list[i].stacked_image[j] += stackbuf[j];
+            for (j = 0; j < os->frame_size * channel_count; j++)
+                os->event_list[i].stacked_image[j] += current_frame[j];
+
+            // Create stack of the maximum brightness of each pixel over the duration of this event
 #pragma omp parallel for private(j)
-            for (j = 0; j < os->frame_size * os->channel_count; j++) {
-                const int x = stackbuf[j];
+            for (j = 0; j < os->frame_size * channel_count; j++) {
+                const int x = current_frame[j];
                 if (x > os->event_list[i].max_stack[j]) os->event_list[i].max_stack[j] = x;
             }
 
-            if ((os->event_list[i].detections[N0].frame_count <=
-                 (os->frame_counter - (os->buffer_group_count - os->trigger_prefix_group_count))) ||
-                // Event is exceeding TRIGGER_MAXRECORDLEN?
-                (os->event_list[i].detections[N2].frame_count <= (os->frame_counter -
-                                                                  os->trigger_suffix_group_count))) // ... or event hasn't been seen for TRIGGER_SUFFIXTIME?
-            {
-                os->event_list[i].active = 0;
+            // Has event exceeded TRIGGER_MAX_DURATION?
+            const int max_event_frames = os->TRIGGER_MAX_DURATION * os->fps;
+            const int event_too_long = (os->frame_counter >
+                                        os->event_list[i].detections[N0].frame_count + max_event_frames);
 
-                // If event was seen in fewer than two frames, reject it
-                if (os->event_list[i].detection_count < 2) continue;
+            // Has event disappeared?
+            const int event_disappeared = (os->frame_counter >
+                                           os->event_list[i].detections[N2].frame_count +
+                                           os->trigger_suffix_frame_count);
+
+            // Test whether this event has ended
+            if (event_too_long || event_disappeared) {
+
+                // If event was not confirmed, take no further action
+                if (!os->event_list[i].video_output.active) {
+                    logging_info("Detection not confirmed.");
+                    os->event_list[i].active = 0;
+                    continue;
+                }
+
+                // Event is now only writing video
+                os->event_list[i].active = 2;
 
                 // Work out duration of event
                 double duration = os->event_list[i].detections[N2].utc - os->event_list[i].detections[N0].utc;
-                double pixel_track_len = hypot(os->event_list[i].detections[N0].x - os->event_list[i].detections[N2].x,
-                                               os->event_list[i].detections[N0].y - os->event_list[i].detections[N2].y);
-
-                if (pixel_track_len < 4) continue; // Reject events that don't move much -- probably a twinkling star
 
                 // Update counter for trigger rate throttling
                 os->trigger_throttle_counter++;
 
                 // Dump stacked images of entire duration of event
-                int coAddedFrames =
-                        (os->frame_counter - os->event_list[i].detections[0].frame_count) * os->TRIGGER_FRAMEGROUP;
+                int coAddedFrames = (os->frame_counter - os->event_list[i].detections[0].frame_count);
                 char fname[FNAME_LENGTH], path_json[LSTR_LENGTH], path_bezier[FNAME_LENGTH];
 
+                // Time-avaraged value of each pixel over the duration of the event
                 sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_timeAverage.rgb");
-                dump_frame_from_ints(os->width, os->height, os->channel_count, os->event_list[i].stacked_image,
+                dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[i].stacked_image,
                                      coAddedFrames, 0, NULL,
                                      fname);
-                write_metadata(fname, "sdsddi",
+                write_metadata(fname, "sdsddidiii",
                                "obstoryId", os->obstory_id,
                                "utc", os->event_list[i].start_time,
                                "semanticType", "pigazing:movingObject/timeAverage",
                                "inputNoiseLevel", os->noise_level,
                                "stackNoiseLevel", os->noise_level / sqrt(coAddedFrames),
-                               "stackedFrames", coAddedFrames);
+                               "stackedFrames", coAddedFrames,
+                               "duration", duration,
+                               "detectionCount", os->event_list[i].detection_count,
+                               "amplitudeTimeIntegrated", amplitude_time_integrated,
+                               "amplitudePeak", amplitude_peak);
 
+                // Maximum brightness of each pixel over the duration of the event
                 sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_maxBrightness.rgb");
-                dump_frame_from_ints(os->width, os->height, os->channel_count, os->event_list[i].max_stack,
-                                     os->TRIGGER_FRAMEGROUP, 0, NULL, fname);
-                write_metadata(fname, "sdsddi",
+                dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[i].max_stack,
+                                     1, 0, NULL, fname);
+                write_metadata(fname, "sdsddidiii",
                                "obstoryId", os->obstory_id,
                                "utc", os->event_list[i].start_time,
                                "semanticType", "pigazing:movingObject/maximumBrightness",
                                "inputNoiseLevel", os->noise_level,
                                "stackNoiseLevel", os->noise_level / sqrt(coAddedFrames),
-                               "stackedFrames", coAddedFrames);
+                               "stackedFrames", coAddedFrames,
+                               "duration", duration,
+                               "detectionCount", os->event_list[i].detection_count,
+                               "amplitudeTimeIntegrated", amplitude_time_integrated,
+                               "amplitudePeak", amplitude_peak);
 
-                // Dump a video of the meteor from our video buffer
-                int video_frame_count =
-                        (os->frame_counter - os->event_list[i].detections[N0].frame_count +
-                         os->trigger_prefix_group_count) *
-                        os->TRIGGER_FRAMEGROUP;
-                unsigned char *bufferPos =
-                        os->buffer + (os->frame_counter % os->buffer_group_count) * os->buffer_group_bytes;
-                unsigned char *video1 = NULL;
-                int video1frs = 0;
-                unsigned char *video2 = bufferPos - video_frame_count * os->frame_size * YUV420;
-                int video2frs = video_frame_count;
-
-                // Video spans a buffer wrap-around, so need to include two chunks of video data
-                if (video2 < os->buffer) {
-                    video2frs = (bufferPos - os->buffer) / (os->frame_size * YUV420);
-                    video1frs = video_frame_count - video2frs;
-                    video1 = video2 + os->buffer_length;
-                    video2 = os->buffer;
-                }
+                // Make sure that video of this event ends at the right time
+                os->event_list[i].video_output.buffer_end_position = os->frame_counter % os->video_buffer_frames;
 
                 // Write path of event as JSON string
                 int amplitude_peak = 0, amplitude_time_integrated = 0;
@@ -696,7 +785,6 @@ void register_trigger_ends(observe_status *os) {
                         if (d->amplitude > amplitude_peak) amplitude_peak = d->amplitude;
                     }
                     sprintf(path_json + k, "]");
-                    k += strlen(path_json + k);
                 }
 
                 // Write path of event as a three-point Bezier curve
@@ -714,54 +802,38 @@ void register_trigger_ends(observe_status *os) {
                             os->event_list[i].detections[N2].y, os->event_list[i].detections[N2].utc);
                     k += strlen(path_bezier + k);
                     sprintf(path_bezier + k, "]");
-                    k += strlen(path_bezier + k);
                 }
 
-                // Start process of exporting video of this event
-                {
-                    int k = 0;
-                    for (k = 0; k < MAX_EVENTS; k++) if (!os->video_outputs[k].active) break;
-                    if (k >= MAX_EVENTS) {
-                        logging_info("Ignoring video; already writing too many video files at once.");
-                    } // No free event storage space
-                    else {
-                        sprintf(fname, "%s%s", os->event_list[i].filename_stub, ".vid");
-                        os->video_outputs[k].width = os->width;
-                        os->video_outputs[k].height = os->height;
-                        os->video_outputs[k].buffer1 = video1;
-                        os->video_outputs[k].buffer1_frames = video1frs;
-                        os->video_outputs[k].buffer2 = video2;
-                        os->video_outputs[k].buffer2_frames = video2frs;
-                        strcpy(os->video_outputs[k].fName, fname);
-                        os->video_outputs[k].frames_written = 0;
-                        os->video_outputs[k].active = 1;
-
-                        os->video_outputs[k].file_handle = dump_video_init(os->width, os->height, video1, video1frs,
-                                                                           video2, video2frs, fname);
-
-                        write_metadata(fname, "sdsdsdiiis",
-                                       "obstoryId", os->obstory_id,
-                                       "utc", os->event_list[i].start_time,
-                                       "semanticType", "pigazing:movingObject/video",
-                                       "inputNoiseLevel", os->noise_level,
-                                       "path", path_json,
-                                       "duration", duration,
-                                       "detectionCount", os->event_list[i].detection_count,
-                                       "amplitude_time_integrated", amplitude_time_integrated,
-                                       "amplitude_peak", amplitude_peak,
-                                       "path_bezier", path_bezier
-                        );
-                    }
-                }
+                // Now that we know the duration of this video, we can write metadata about the video file
+                write_metadata(os->event_list[i].video_output.filename, "sdsdsdiiis",
+                               "obstoryId", os->obstory_id,
+                               "utc", os->event_list[i].start_time,
+                               "semanticType", "pigazing:movingObject/video",
+                               "inputNoiseLevel", os->noise_level,
+                               "path", path_json,
+                               "duration", duration,
+                               "detectionCount", os->event_list[i].detection_count,
+                               "amplitudeTimeIntegrated", amplitude_time_integrated,
+                               "amplitudePeak", amplitude_peak,
+                               "pathBezier", path_bezier
+                );
             }
         }
 
     for (i = 0; i < MAX_EVENTS; i++)
-        if (os->video_outputs[i].active) {
-            os->video_outputs[i].active =
-                    dump_video_frame(os->video_outputs[i].width, os->video_outputs[i].height,
-                                     os->video_outputs[i].buffer1, os->video_outputs[i].buffer1_frames,
-                                     os->video_outputs[i].buffer2, os->video_outputs[i].buffer2_frames,
-                                     os->video_outputs[i].file_handle, &os->video_outputs[i].frames_written);
+        if (os->event_list[i].video_output.active) {
+            const int still_going = dump_video_frame(
+                    os->event_list[i].video_output.width, os->event_list[i].video_output.height,
+                    os->video_buffer, os->video_buffer_frames,
+                    &os->event_list[i].video_output.buffer_write_position,
+                    &os->event_list[i].video_output.frames_written,
+                    os->event_list[i].video_output.buffer_end_position,
+                    os->event_list[i].video_output.file_handle
+            );
+
+            if (!still_going) {
+                os->event_list[i].video_output.active = 0;
+                os->event_list[i].active = 0;
+            }
         }
 }

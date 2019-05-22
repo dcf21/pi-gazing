@@ -91,7 +91,14 @@ $pageTemplate->header($pageInfo);
                 if (!$superseded) $seenKeys[] = $key;
                 ?>
                 <tr class="<?php echo $superseded ? 'superseded' : 'active'; ?>">
-                    <td><?php echo date("d M Y - H:i", $item['time']); ?></td>
+                    <td>
+                        <?php
+                        if ($item['time'] > 0)
+                            echo date("d M Y - H:i", $item['time']);
+                        else
+                            echo "&ndash;";
+                        ?>
+                    </td>
                     <td><?php echo $key; ?></td>
                     <td><?php echo $value; ?></td>
                 </tr>

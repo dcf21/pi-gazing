@@ -38,13 +38,13 @@
 #include "settings.h"
 #include "settings_webcam.h"
 
-#define background_map_use_every_nth_stack     1
-#define background_map_use_n_images         100
+// Each pixel is 1.5 bytes in YUV420 stream
+#define YUV420_BYTES_PER_PIXEL  3/2
 
 static const char *const usage[] = {
-    "makeBackgroundMap [options] [[--] args]",
-    "makeBackgroundMap [options]",
-    NULL,
+        "makeBackgroundMap [options] [[--] args]",
+        "makeBackgroundMap [options]",
+        NULL,
 };
 
 int main(int argc, const char *argv[]) {
@@ -52,17 +52,17 @@ int main(int argc, const char *argv[]) {
     const char *output_filename = "\0";
 
     struct argparse_option options[] = {
-        OPT_HELP(),
-        OPT_GROUP("Basic options"),
-        OPT_STRING('o', "output", &output_filename, "output filename"),
-        OPT_END(),
+            OPT_HELP(),
+            OPT_GROUP("Basic options"),
+            OPT_STRING('o', "output", &output_filename, "output filename"),
+            OPT_END(),
     };
 
     struct argparse argparse;
     argparse_init(&argparse, options, usage, 0);
     argparse_describe(&argparse,
-    "\nMake a map of the sky background.",
-    "\n");
+                      "\nMake a map of the sky background.",
+                      "\n");
     argc = argparse_parse(&argparse, argc, argv);
 
     if (argc != 0) {
@@ -96,9 +96,13 @@ int main(int argc, const char *argv[]) {
 
     if (init_videoIn(video_in, (char *) video_device, VIDEO_WIDTH, VIDEO_HEIGHT, fps, format, grab_method) < 0)
         exit(1);
+
     const int width = video_in->width;
     const int height = video_in->height;
     const int frame_size = width * height;
+    const int bytes_per_frame = frame_size * YUV420_BYTES_PER_PIXEL;
+
+    const int channel_count = GREYSCALE_IMAGING ? 1 : 3;
 
     initLut();
 
@@ -108,56 +112,69 @@ int main(int argc, const char *argv[]) {
         logging_info(line);
     }
 
-    unsigned char *tmpc = malloc(frame_size * 1.5);
-    if (!tmpc) {
-        sprintf(temp_err_string, "ERROR: malloc fail in makeBackgroundMap.");
-        logging_fatal(__FILE__, __LINE__, temp_err_string);
-    }
-    int *tmp_int = malloc(frame_size * 3 * sizeof(int));
-    if (!tmp_int) {
+    unsigned char *buffer = malloc(bytes_per_frame);
+    if (!buffer) {
         sprintf(temp_err_string, "ERROR: malloc fail in makeBackgroundMap.");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
-    int *background_workspace = calloc(1, frame_size * 3 * 256 * sizeof(int));
-    unsigned char *background_map = calloc(1, 3 * frame_size);
-    if ((!background_workspace) || (!background_map)) {
+    int *background_workspace = calloc(1, frame_size * channel_count * 256 * sizeof(int));
+
+    unsigned char **background_maps = malloc((BACKGROUND_MAP_SAMPLES + 1) * sizeof(unsigned char *));
+
+    if ((!background_workspace) || (!background_maps)) {
         sprintf(temp_err_string, "ERROR: malloc fail in makeBackgroundMap.");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
+    }
+
+    for (int i = 0; i <= BACKGROUND_MAP_SAMPLES; i++) {
+        background_maps[i] = calloc(1, frame_size * channel_count);
+    }
+
+
+    // If we're doing colour imaging, we need a buffer for turning YUV data into RGB pixels
+    unsigned char *tmp_rgb = NULL;
+    if (!GREYSCALE_IMAGING) {
+        tmp_rgb = malloc(channel_count * frame_size);
     }
 
     int f, i;
 
-    const int total_required_stacks = background_map_use_every_nth_stack * background_map_use_n_images;
-    for (f = 0; f < total_required_stacks; f++) {
-        const int frame_count = 12; // Stack 12 frames
-        int j;
-        memset(tmp_int, 0, 3 * frame_size * sizeof(int));
+    for (f = 0; f < BACKGROUND_MAP_FRAMES; f++) {
 
-        // Make a stack of frame_count frames
-        for (j = 0; j < frame_count; j++) {
-            if (uvcGrab(video_in) < 0) {
-                printf("Error grabbing\n");
-                break;
-            }
-            Pyuv422torgbstack(video_in->frame_buffer, tmp_int, tmp_int + frame_size, tmp_int + frame_size * 2,
-                    video_in->width, video_in->height, VIDEO_UPSIDE_DOWN);
+        // Fetch a frame
+        if (uvcGrab(video_in) < 0) {
+            printf("Error grabbing\n");
+            break;
+        }
+        Pyuv422to420(video_in->frame_buffer, buffer, video_in->width, video_in->height, video_in->upside_down);
+
+        if (GREYSCALE_IMAGING) {
+            // If we're working in greyscale, we simply use the Y component of the YUV frame
+            tmp_rgb = buffer;
+        } else {
+            // If we're working in colour, we need to convert frame to RGB
+            Pyuv420torgb(buffer,
+                         buffer + frame_size,
+                         buffer + frame_size * 5 / 4,
+                         tmp_rgb, tmp_rgb + frame_size, tmp_rgb + frame_size * 2,
+                         width, height);
         }
 
-        if ((f % background_map_use_every_nth_stack) != 0) continue;
-
-        // Add stacked image into background map
-#pragma omp parallel for private(j)
-        for (j = 0; j < CHANNEL_COUNT * frame_size; j++) {
-            int d;
-            int pixel_value = CLIP256(tmp_int[j] / frame_count);
-            background_workspace[j * 256 + pixel_value]++;
+#pragma omp parallel for private(i)
+        for (i = 0; i < frame_size * channel_count; i++) {
+            // Add the pixel values in this stack into the histogram in background_workspace
+            background_workspace[i * 256 + tmp_rgb[i]]++;
         }
     }
 
     // Calculate background map
-    background_calculate(width, height, CHANNEL_COUNT, 0, 1, background_workspace, background_map);
-    dump_frame(width, height, CHANNEL_COUNT, background_map, rgb_filename);
+    background_calculate(width, height, channel_count, 0, 1,
+                         background_workspace, background_maps,
+                         1, 0);
+
+    // Write it to a file
+    dump_frame(width, height, channel_count, background_maps[0], rgb_filename);
 
     // Make a PNG version for diagnostic use
     image_ptr output_image;
@@ -165,21 +182,22 @@ int main(int argc, const char *argv[]) {
 
     for (i = 0; i < frame_size; i++) output_image.data_w[i] = 1;
 
-    if (CHANNEL_COUNT >= 3) {
-        for (i = 0; i < frame_size; i++) output_image.data_red[i] = background_map[i];
-        for (i = 0; i < frame_size; i++) output_image.data_grn[i] = background_map[i + frame_size];
-        for (i = 0; i < frame_size; i++) output_image.data_blu[i] = background_map[i + frame_size * 2];
+    if (channel_count >= 3) {
+        for (i = 0; i < frame_size; i++) output_image.data_red[i] = background_maps[0][i];
+        for (i = 0; i < frame_size; i++) output_image.data_grn[i] = background_maps[0][i + frame_size];
+        for (i = 0; i < frame_size; i++) output_image.data_blu[i] = background_maps[0][i + frame_size * 2];
     } else {
-        for (i = 0; i < frame_size; i++) output_image.data_red[i] = background_map[i];
-        for (i = 0; i < frame_size; i++) output_image.data_grn[i] = background_map[i];
-        for (i = 0; i < frame_size; i++) output_image.data_blu[i] = background_map[i];
+        for (i = 0; i < frame_size; i++) output_image.data_red[i] = background_maps[0][i];
+        for (i = 0; i < frame_size; i++) output_image.data_grn[i] = background_maps[0][i];
+        for (i = 0; i < frame_size; i++) output_image.data_blu[i] = background_maps[0][i];
     }
 
     image_put(png_filename, output_image, GREYSCALE_IMAGING);
 
     // Clean up
     free(background_workspace);
-    free(background_map);
+    for (i = 0; i < BACKGROUND_MAP_SAMPLES; i++) free(background_maps[i]);
+    free(background_maps);
 
     int utc_stop = time(NULL);
     if (DEBUG) {

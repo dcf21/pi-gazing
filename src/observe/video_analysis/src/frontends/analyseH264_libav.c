@@ -140,22 +140,27 @@ int fetch_frame(void *ctx_void, unsigned char *tmpc, double *utc) {
                     const int s = w * h;
                     int i;
                     for (i = 0; i < h; i++)
-                        memcpy(tmpc + +i * w, ctx->picture->data[0] + i * ctx->picture->linesize[0], w);
+                        memcpy(tmpc + +i * w,
+                               ctx->picture->data[0] + i * ctx->picture->linesize[0],
+                               w);
                     for (i = 0; i < h / 2; i++)
-                        memcpy(tmpc + s + i * w / 2, ctx->picture->data[1] + i * ctx->picture->linesize[1], w / 2);
+                        memcpy(tmpc + s + i * w / 2,
+                               ctx->picture->data[1] + i * ctx->picture->linesize[1],
+                               w / 2);
                     for (i = 0; i < h / 2; i++)
-                        memcpy(tmpc + s * 5 / 4 + i * w / 2, ctx->picture->data[2] + i * ctx->picture->linesize[2],
+                        memcpy(tmpc + s * 5 / 4 + i * w / 2,
+                               ctx->picture->data[2] + i * ctx->picture->linesize[2],
                                w / 2);
                 }
                 ctx->frame++;
 
-                if ((ctx->frame % 1000)==0) {
+                if ((ctx->frame % 1000) == 0) {
                     printf("Time point %02dh%02dm%02d (frame %d)\n",
-                           (int)(ctx->frame / ctx->fps / 3600) % 100,
-                           (int)(ctx->frame / ctx->fps / 60) % 60,
-                           (int)(ctx->frame / ctx->fps) % 60,
+                           (int) (ctx->frame / ctx->fps / 3600) % 100,
+                           (int) (ctx->frame / ctx->fps / 60) % 60,
+                           (int) (ctx->frame / ctx->fps) % 60,
                            ctx->frame
-                           );
+                    );
                 }
 
                 return 0;
@@ -286,18 +291,14 @@ int main(int argc, const char **argv) {
 
     initLut();
 
-    const int background_map_use_every_nth_stack = 1;
-    const int background_map_use_n_images = 3600;
-    const int background_map_reduction_cycles = 32;
-
     decoder_init(&ctx);
     create_observation_mask(&ctx);
     observe((void *) &ctx, obstory_id, ctx.utc_start, ctx.utc_stop, ctx.c->width, ctx.c->height, ctx.fps,
-            "nonlive", ctx.mask, CHANNEL_COUNT, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME,
-            TRIGGER_SUFFIX_TIME,
-            TRIGGER_FRAMEGROUP, TRIGGER_MAXRECORDLEN, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT,
-            TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS, background_map_use_every_nth_stack,
-            background_map_use_n_images, background_map_reduction_cycles, &fetch_frame, &rewind_video);
+            "nonlive", ctx.mask, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME,
+            VIDEO_BUFFER_LENGTH, TRIGGER_MAX_DURATION, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT,
+            TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS,
+            BACKGROUND_MAP_FRAMES, BACKGROUND_MAP_SAMPLES, BACKGROUND_MAP_REDUCTION_CYCLES,
+            &fetch_frame, &rewind_video);
     decoder_shutdown(&ctx);
     printf("\n");
     return 0;

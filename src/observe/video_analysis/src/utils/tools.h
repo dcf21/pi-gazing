@@ -50,7 +50,9 @@ void snapshot(struct video_info *video_in, int frame_count, int zero, double exp
 double estimate_noise_level(int width, int height, unsigned char *buffer, int frame_count);
 
 void background_calculate(const int width, const int height, const int channels, const int reduction_cycle,
-                          const int reduction_cycle_count, int *background_workspace, unsigned char *background_map);
+                          const int reduction_cycle_count, const int *background_workspace,
+                          unsigned char **background_maps,
+                          const int background_buffer_count, const int background_buffer_current);
 
 int dump_frame(int width, int height, int channels, const unsigned char *buffer, char *filename);
 
@@ -61,12 +63,11 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
                                     int target_brightness, int *gain_out,
                                     const unsigned char *buffer2, char *filename);
 
-FILE *dump_video_init(int width, int height, const unsigned char *buffer1, int buffer1_frames,
-                      const unsigned char *buffer2, int buffer2_frames, char *filename);
+FILE *dump_video_init(int width, int height, const char *filename);
 
-int dump_video_frame(int width, int height, const unsigned char *buffer1, int buffer1_frames,
-                     const unsigned char *buffer2,
-                     int buffer2_frames, FILE *out_file, int *frames_written);
+int dump_video_frame(int width, int height, const unsigned char *video_buffer, const int video_buffer_frames,
+                     int *write_position, int *frames_written, const int write_end_position,
+                     FILE *output);
 
 #endif
 

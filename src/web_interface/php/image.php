@@ -239,8 +239,7 @@ $pageTemplate->header($pageInfo);
             if (array_key_exists($semantic_type, $const->semanticTypes))
                 $caption = $const->semanticTypes[$semantic_type];
             else
-                continue;
-            if ($caption == null) continue;
+                $caption = [$semantic_type, ""];
             $gallery_items[] = ["fileId" => $item['repositoryFname'],
                 "filename" => $item["fileName"],
                 "caption" => $caption[0],
