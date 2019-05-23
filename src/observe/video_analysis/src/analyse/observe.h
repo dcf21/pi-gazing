@@ -66,6 +66,9 @@ typedef struct event {
     // Maximum pixel values over whole duration of event
     int *max_stack;
 
+    // Map of all pixels which trigger motion sensor over whole duration of event
+    unsigned char *max_trigger;
+
     // A list of the coordinate positions within frames where this moving object has been seen
     detection detections[MAX_DETECTIONS];
 
@@ -116,7 +119,7 @@ typedef struct observeStatus {
     int *stack_timelapse;
 
     // Background maps are used for background subtraction.
-    unsigned char **background_maps;
+    int **background_maps;
     int *background_workspace;
 
     // Map of past triggers, used to weight against pixels that trigger too often (they're probably trees...)

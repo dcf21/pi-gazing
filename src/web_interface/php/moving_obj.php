@@ -104,18 +104,18 @@ foreach ($file_list as $item) {
 
 // Get list of simultaneous detections
 $stmt = $const->db->prepare("
-SELECT m.observationId, l.name AS obstory, f.repositoryFname, f.mimeType, f.fileName,
+SELECT m.childObservation, l.name AS obstory, f.repositoryFname, f.mimeType, f.fileName,
 d2.stringValue AS path
 FROM archive_obs_group_members m
-INNER JOIN archive_observations o ON m.observationId = o.uid
-INNER JOIN archive_files f ON f.observationId=m.observationId
-    AND f.semanticType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:triggers/event/maxBrightness\")
+INNER JOIN archive_observations o ON m.childObservation = o.uid
+INNER JOIN archive_files f ON f.observationId=m.childObservation
+    AND f.semanticType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:movingObject/maximumBrightness\")
 INNER JOIN archive_observatories l ON o.observatory = l.uid
 LEFT OUTER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
     d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:pathBezier\")
 WHERE m.groupId IN
     (SELECT groupId FROM archive_obs_groups g
-     INNER JOIN archive_obs_group_members m2 ON m2.groupId=g.uid AND m2.observationId=:i);
+     INNER JOIN archive_obs_group_members m2 ON m2.groupId=g.uid AND m2.childObservation=:i);
 ");
 $stmt->bindParam(':i', $i, PDO::PARAM_INT);
 $stmt->execute(['i' => $uid]);
@@ -234,7 +234,7 @@ if (count($simultaneous_events)>0)
             if (array_key_exists($semantic_type, $const->semanticTypes))
                 $caption = $const->semanticTypes[$semantic_type];
             else
-                continue;
+                $caption = [$semantic_type, ""];
             if ($caption == null) continue;
             $gallery_items[] = ["fileId" => $item['repositoryFname'],
                 "filename" => $item["fileName"],

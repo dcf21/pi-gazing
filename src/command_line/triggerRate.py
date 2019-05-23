@@ -61,7 +61,7 @@ def list_trigger_rate(utc_min, utc_max, obstory):
         sys.exit(0)
 
     search = obsarchive_model.FileRecordSearch(obstory_ids=[obstory],
-                                               semantic_type="pigazing:timelapse/frame",
+                                               semantic_type="pigazing:timelapse",
                                                time_min=utc_min, time_max=utc_max,
                                                limit=1000000)
     files = db.search_files(search)
@@ -69,7 +69,7 @@ def list_trigger_rate(utc_min, utc_max, obstory):
     files.sort(key=lambda x: x.file_time)
 
     search = obsarchive_model.ObservationSearch(obstory_ids=[obstory],
-                                                observation_type="movingObject",
+                                                observation_type="pigazing:movingObject/",
                                                 time_min=utc_min, time_max=utc_max,
                                                 limit=1000000)
     events = db.search_observations(search)
@@ -134,7 +134,7 @@ def list_trigger_rate(utc_min, utc_max, obstory):
 if __name__ == "__main__":
     # Read input parameters
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--t-min', dest='utc_min', default=time.time() - 3600 * 24,
+    parser.add_argument('--t-min', dest='utc_min', default=0,
                         type=float,
                         help="Only list events seen after the specified unix time")
     parser.add_argument('--t-max', dest='utc_max', default=time.time(),

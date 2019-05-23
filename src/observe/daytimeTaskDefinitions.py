@@ -178,86 +178,113 @@ def execute_shell_command(arguments):
                     'filename': output_file,
                     'mime_type': output_file_wildcard['mime_type'],
                     'input_file_metadata': job['input_metadata'],
+                    'propagate_metadata': job['metadata_fields_to_propagate'],
                     'metadata_files': []
                 })
 
-    # Open connection to the database
-    db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                           db_host=installation_info['mysqlHost'],
-                                           db_user=installation_info['mysqlUser'],
-                                           db_password=installation_info['mysqlPassword'],
-                                           db_name=installation_info['mysqlDatabase'],
-                                           obstory_id=installation_info['observatoryId'])
+    # Only add anything to the database if we created some output files
+    if len(file_products) > 0:
+        # Open connection to the database
+        db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                               db_host=installation_info['mysqlHost'],
+                                               db_user=installation_info['mysqlUser'],
+                                               db_password=installation_info['mysqlPassword'],
+                                               db_name=installation_info['mysqlDatabase'],
+                                               obstory_id=installation_info['observatoryId'])
 
-    # Import file products into the database
-    obs_obj = db.register_observation(obstory_id=arguments['obs_id'],
-                                      random_id=False,
-                                      obs_time=arguments['utc'],
-                                      creation_time=time.time(),
-                                      obs_type=arguments['obs_type'],
-                                      user_id=arguments['user_id'],
-                                      obs_meta=[],
-                                      published=1, moderated=1, featured=0,
-                                      ra=-999, dec=-999,
-                                      field_width=None, field_height=None,
-                                      position_angle=None, central_constellation=None,
-                                      altitude=-999, azimuth=-999, alt_az_pa=None,
-                                      astrometry_processed=None, astrometry_processing_time=None,
-                                      astrometry_source=None)
-    obs_id = obs_obj.id
+        # Collect metadata associated with this observation
+        observation_metadata = {}
+        for output_file in file_products:
 
-    for output_file in file_products:
+            # Collect metadata associated with this output file
+            try:
+                product_metadata_file, obstory_info, product_metadata = metadata_file_to_dict(
+                    db_handle=db,
+                    product_filename=output_file['filename'],
+                    input_metadata=output_file['input_file_metadata'],
+                    required=False
+                )
+            except AssertionError:
+                logging.error("Invalid metadata for file <{}>".format(output_file['filename']))
+                continue
 
-        # Collect metadata associated with this output file
-        try:
-            product_metadata_file, obstory_info, product_metadata = metadata_file_to_dict(
-                db_handle=db,
-                product_filename=output_file['filename'],
-                input_metadata=output_file['input_file_metadata'],
-                required=False
-            )
-        except AssertionError:
-            logging.error("Invalid metadata for file <{}>".format(output_file['filename']))
-            continue
+            # Store metadata associated with this file
+            metadata_objs = metadata_to_object_list(db_handle=db,
+                                                    obs_time=arguments['utc'],
+                                                    obs_id=arguments['obs_id'],
+                                                    user_id=arguments['user_id'],
+                                                    meta_dict=product_metadata)
 
+            if product_metadata_file is not None:
+                output_file['metadata_files'].append(product_metadata_file)
+
+            output_file['product_metadata'] = product_metadata
+            output_file['metadata_objs'] = metadata_objs
+            output_file['obstory_info'] = obstory_info
+
+            # Check which fields this file propagates to its parent observation
+            for field_to_propagate in output_file['propagate_metadata']:
+                if field_to_propagate in product_metadata:
+                    observation_metadata[field_to_propagate] = product_metadata[field_to_propagate]
+
+        # Turn metadata associated with this observation into database metadata objects
         metadata_objs = metadata_to_object_list(db_handle=db,
                                                 obs_time=arguments['utc'],
                                                 obs_id=arguments['obs_id'],
                                                 user_id=arguments['user_id'],
-                                                meta_dict=product_metadata)
+                                                meta_dict=observation_metadata)
 
-        if product_metadata_file is not None:
-            output_file['metadata_files'].append(product_metadata_file)
+        # Import file products into the database
+        obs_obj = db.register_observation(obstory_id=arguments['obs_id'],
+                                          random_id=False,
+                                          obs_time=arguments['utc'],
+                                          creation_time=time.time(),
+                                          obs_type=arguments['obs_type'],
+                                          user_id=arguments['user_id'],
+                                          obs_meta=metadata_objs,
+                                          published=1, moderated=1, featured=0,
+                                          ra=-999, dec=-999,
+                                          field_width=None, field_height=None,
+                                          position_angle=None, central_constellation=None,
+                                          altitude=-999, azimuth=-999, alt_az_pa=None,
+                                          astrometry_processed=None, astrometry_processing_time=None,
+                                          astrometry_source=None)
+        obs_id = obs_obj.id
 
-        # The semantic types which we should make the primary images of their parent observations
-        primary_image_semantic_types = (
-            'pigazing:movingObject/maximumBrightness',
-            'pigazing:timelapse/backgroundSubtracted'
-        )
+        for output_file in file_products:
+            # The semantic types which we should make the primary images of their parent observations
+            primary_image_type_list = (
+                'pigazing:movingObject/maximumBrightness',
+                'pigazing:timelapse/backgroundSubtracted'
+            )
 
-        db.register_file(file_path=output_file['filename'],
-                         user_id=obstory_info['userId'],
-                         mime_type=output_file['mime_type'],
-                         semantic_type=product_metadata['semanticType'],
-                         primary_image=product_metadata['semanticType'] in primary_image_semantic_types,
-                         file_time=arguments['utc'], file_meta=metadata_objs,
-                         observation_id=obs_id,
-                         random_id=False)
+            db.register_file(file_path=output_file['filename'],
+                             user_id=output_file['obstory_info']['userId'],
+                             mime_type=output_file['mime_type'],
+                             semantic_type=output_file['product_metadata']['semanticType'],
+                             primary_image=output_file['product_metadata']['semanticType'] in primary_image_type_list,
+                             file_time=arguments['utc'],
+                             file_meta=output_file['metadata_objs'],
+                             observation_id=obs_id,
+                             random_id=False)
 
-    # Close connection to the database
-    db.commit()
-    db.close_db()
-    del db
+        # Close connection to the database
+        db.commit()
+        db.close_db()
+        del db
 
     # Delete input and output files
     # for item in file_inputs:
-    #     os.unlink(item)
+    #     if os.path.exists(item):
+    #         os.unlink(item)
 
     # Delete output files
     # for item in file_products:
-    #     os.unlink(item['filename'])
+    #     if os.path.exists(item['filename']):
+    #         os.unlink(item['filename'])
     #     for metadata_filename in item['metadata_files']:
-    #         os.unlink(metadata_filename)
+    #         if os.path.exists(metadata_filename):
+    #             os.unlink(metadata_filename)
 
 
 observatory_information = {}
@@ -496,6 +523,7 @@ class TaskRunner:
                     'input_file_without_extension': os.path.splitext(os.path.split(input_file)[1])[0],
                     'input_metadata_filename': input_metadata_file,
                     'input_metadata': input_metadata,
+                    'metadata_fields_to_propagate': self.propagate_metadata_to_observation(metadata=input_metadata),
                     'shell_command': self.shell_command(),
                     'data_dir': data_dir,
                     'h264_encoder': 'openmax' if settings['i_am_a_rpi'] else 'libav',
@@ -607,6 +635,17 @@ class TaskRunner:
         """
         return []
 
+    @staticmethod
+    def propagate_metadata_to_observation(metadata):
+        """
+        Return a list of metadata properties that we should propagate from output files into their parent observation.
+        :param metadata:
+            The metadata on this output file
+        :return:
+            A list of metadata keys to propagate to the parent observation
+        """
+        return []
+
 
 class MergeOutputIntoSingleObservations(TaskRunner):
     """
@@ -614,9 +653,15 @@ class MergeOutputIntoSingleObservations(TaskRunner):
     which share common time stamps will be incorporated into common observations in the database.
     """
 
-    def __init__(self, sub_task_classes):
+    def __init__(self, sub_task_classes, must_have_semantic_types=None):
         self.sub_task_classes = sub_task_classes
+        self.must_have_semantic_types = must_have_semantic_types
+
+        if self.must_have_semantic_types is None:
+            self.must_have_semantic_types = ()
+
         self.sub_tasks = None
+
         super().__init__()
 
     def __call__(self, must_quit_by=None):
@@ -655,6 +700,18 @@ class MergeOutputIntoSingleObservations(TaskRunner):
                 # Merge this job to list of others with the same time stamp
                 else:
                     jobs_by_time[time_stamp]['job_list'].extend(new_jobs['job_list'])
+
+        # Purge any jobs that don't have files with all the required semantic types
+        for time_stamp in list(jobs_by_time):
+            required_file_types = list(self.must_have_semantic_types)
+            for file in jobs_by_time[time_stamp]['job_list']:
+                semantic_type = file['input_metadata']['semanticType']
+                while semantic_type in required_file_types:
+                    required_file_types.remove(semantic_type)
+
+            # If a required semantic type is missing, purge this observation
+            if len(required_file_types) > 0:
+                del jobs_by_time[time_stamp]
 
         # Return combined list of jobs
         return jobs_by_time
@@ -723,6 +780,13 @@ class TimelapseRawImages(TaskRunner):
                 'mime_type': 'image/png'
             }
         ]
+
+    @staticmethod
+    def propagate_metadata_to_observation(metadata):
+        if metadata['semanticType'] == 'pigazing:timelapse/backgroundSubtracted':
+            return ['skyClarity']
+        else:
+            return []
 
 
 class TriggerRawImages1(TaskRunner):
@@ -822,11 +886,21 @@ class TriggerRawVideos(TaskRunner):
             }
         ]
 
+    @staticmethod
+    def propagate_metadata_to_observation(metadata):
+        if metadata['semanticType'] == 'pigazing:movingObject/video':
+            return ['amplitudePeak', 'amplitudeTimeIntegrated', 'detectionCount', 'duration', 'pathBezier']
+        else:
+            return []
+
 
 # A list of all the tasks we need to perform, in order
 task_running_order = [
     AnalyseRawVideos,
-    MergeOutputIntoSingleObservations(sub_task_classes=(TriggerRawImages1, TriggerRawImages2, TriggerRawVideos)),
+    MergeOutputIntoSingleObservations(
+        sub_task_classes=(TriggerRawImages1, TriggerRawImages2, TriggerRawVideos),
+        must_have_semantic_types=('pigazing:movingObject/video',)
+    ),
     TimelapseRawImages,
     # SelectBestImages, DetermineLensCorrection, DeterminePointing
 ]

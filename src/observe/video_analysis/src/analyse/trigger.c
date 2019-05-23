@@ -55,8 +55,7 @@ inline void trigger_blocks_merge(observe_status *os, int id_old, int id_new) {
     os->trigger_block_redirect[id_old] = id_new;
 }
 
-static inline int
-test_pixel(observe_status *os,
+static inline int test_pixel(observe_status *os,
            const unsigned char *image1, const unsigned char *image2,
            const int o, const int threshold) {
     // Pixel must be brighter than test pixels this distance away
@@ -94,8 +93,8 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
     // To trigger this number of pixels connected together must have brightened
     const int threshold_blockSize = 7;
 
-    // Total brightness excess must be 100 standard deviations
-    const int threshold_intensity = (int) (100 * os->noise_level);
+    // Total brightness excess must be 80 standard deviations
+    const int threshold_intensity = (int) (80 * os->noise_level);
 
     // Pixel must have brightened by at least N standard deviations to trigger
     const int threshold_trigger = MAX(1, 3.5 * os->noise_level);
@@ -129,7 +128,7 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
             // GRN channel - map of pixels which are excluded for triggering too often
             trigger_g[o] = CLIP256(os->past_trigger_map[o] * 256 / (2.3 * past_trigger_map_average));
 
-            // BLU channel - blank for now
+            // BLU channel - blank for now; will put spots where triggers happen
             trigger_b[o] = 0;
 
             if ((os->mask[o]) && test_pixel(os, image1, image2, o, threshold_monitor)) {

@@ -32,8 +32,6 @@ $getargs = new html_getargs(false);
 // Fetch list of observatories
 $obstories = $getargs->obstory_objlist;
 
-$obstory_info = observatory_info::obstory_info($obstory);
-
 // Read which year to cover
 $tmin = $getargs->readTime('year', null, null, null, null, null, $const->yearMin, $const->yearMax);
 

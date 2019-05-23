@@ -53,8 +53,8 @@
 #define TRIGGER_SUFFIX_TIME   3  /* include N seconds of video after trigger has gone away */
 
 // Processing of background map
-#define BACKGROUND_MAP_FRAMES 7500 /* Produce a new background map every 5 minutes */
-#define BACKGROUND_MAP_SAMPLES 3 /* Pick the lowest sky brightness from the last 3 buffers */
+#define BACKGROUND_MAP_FRAMES 3000 /* Produce a new background map every 2 minutes */
+#define BACKGROUND_MAP_SAMPLES 10 /* Pick the lowest sky brightness from the last 10 buffers */
 #define BACKGROUND_MAP_REDUCTION_CYCLES 64 /* Reduce the new background map over the course of N frames */
 
 // Compare stacked groups of frames that are N stacks apart; makes us more sensitive to slow-moving things

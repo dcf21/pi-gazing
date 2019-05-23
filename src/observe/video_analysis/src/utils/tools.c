@@ -185,7 +185,7 @@ double estimate_noise_level(int width, int height, unsigned char *buffer, int fr
 
 void background_calculate(const int width, const int height, const int channels, const int reduction_cycle,
                           const int reduction_cycle_count, const int *background_workspace,
-                          unsigned char **background_maps,
+                          int **background_maps,
                           const int background_buffer_count, const int background_buffer_current) {
     const int frame_size = width * height;
     int i;
@@ -195,35 +195,36 @@ void background_calculate(const int width, const int height, const int channels,
     const int i_start = i_step * reduction_cycle;
     const int i_stop = MIN(i_max, i_start + i_step);
 
-    // Find the modal value of each cell in the background grid
+    // Routine for sorting ints
+    int compare_int(const void* a, const void* b) {
+        return *((int*)a)-*((int*)b);
+    }
+
+    // Find the mean value of each cell in the background grid
 #pragma omp parallel for private(i)
     for (i = i_start; i < i_stop; i++) {
         int f, j;
         const int offset = i * 256;
-        int mode = 2, mode_samples = 0;
-        for (f = 2; f < 254; f++) {
-            // Convolve the histogram to reduce noise
-            const int v =
-                    background_workspace[offset + f - 1] +
-                    background_workspace[offset + f] +
-                    background_workspace[offset + f + 1];
-
-            if (v > mode_samples) {
-                mode = f;
-                mode_samples = v;
-            }
+        int sum_x = 0, samples = 0;
+        for (f = 0; f < 256; f++) {
+            sum_x += f * 256 * background_workspace[offset + f];
+            samples += background_workspace[offset + f];
         }
 
-        // This is a slight under-estimate of the background sky brightness
-        background_maps[background_buffer_current + 1][i] = mode - 2;
+        // This is a slight under-estimate of the 16-bit background sky brightness
+        int mean_brightness = (sum_x / samples) - 2*256;
+        if (mean_brightness < 0) mean_brightness = 0;
+        background_maps[background_buffer_current + 1][i] = mean_brightness;
 
-        // We use the lowest of several recent background maps
-        unsigned char lowest_recent_value = 255;
+        // We use the second-lowest of several recent background maps
+        // (stars can have black fringes, so the lowest background map may be bad)
+        int sorted_values[background_buffer_count];
         for (j = 0; j < background_buffer_count; j++) {
-            const int v = background_maps[j + 1][i];
-            if ((v > 0) && (v < lowest_recent_value)) lowest_recent_value = v;
+            int v = background_maps[j + 1][i];
+            sorted_values[j] = (v>0) ? v : mean_brightness;
         }
-        background_maps[0][i] = lowest_recent_value;
+        qsort(sorted_values, background_buffer_count, sizeof(int), compare_int);
+        background_maps[0][i] = sorted_values[1];
     }
 }
 
@@ -248,7 +249,7 @@ int dump_frame(int width, int height, int channels, const unsigned char *buffer,
 }
 
 int dump_frame_from_ints(int width, int height, int channels, const int *buffer, int frame_count, int target_brightness,
-                         int *gain_out, char *filename) {
+                         double *gain_out, char *filename) {
     FILE *out_file;
     int frame_size = width * height;
     const int bit_width = 16;
@@ -268,7 +269,7 @@ int dump_frame_from_ints(int width, int height, int channels, const int *buffer,
     int i, d;
 
     // Work out what gain to apply to the image
-    int gain = 1;
+    double gain = 1;
     if (target_brightness > 0) {
         double brightness_sum = 32;
         int brightness_points = 1;
@@ -276,7 +277,7 @@ int dump_frame_from_ints(int width, int height, int channels, const int *buffer,
             brightness_sum += buffer[i];
             brightness_points++;
         }
-        gain = (int) (target_brightness / (brightness_sum / frame_count / brightness_points));
+        gain = target_brightness / (brightness_sum / frame_count / brightness_points);
         if (gain < 1) gain = 1;
         if (gain > 30) gain = 30;
     }
@@ -284,13 +285,10 @@ int dump_frame_from_ints(int width, int height, int channels, const int *buffer,
     // Report the gain we are using as an output
     if (gain_out != NULL) *gain_out = gain;
 
-    // Producing 16-bit output, so amplify output by factor 256
-    gain *= 256;
-
     // Renormalise image data, dividing by the number of frames which have been stacked, and multiplying by gain factor
 #pragma omp parallel for private(i, d)
     for (i = 0; i < frame_size * channels; i++) {
-        tmp_frame[i] = CLIP65536(buffer[i] * gain / frame_count);
+        tmp_frame[i] = CLIP65536(buffer[i] * 256 * gain / frame_count);
     }
 
     // Write image data to raw file
@@ -305,8 +303,8 @@ int dump_frame_from_ints(int width, int height, int channels, const int *buffer,
 }
 
 int dump_frame_from_int_subtraction(int width, int height, int channels, const int *buffer, int frame_count,
-                                    int target_brightness, int *gain_out,
-                                    const unsigned char *buffer2, char *filename) {
+                                    int target_brightness, double *gain_out,
+                                    const int *buffer2, char *filename) {
     FILE *outfile;
     int frame_size = width * height;
     const int bit_width = 16;
@@ -326,17 +324,17 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
     int i, d;
 
     // Work out what gain to apply to the image
-    int gain = 1;
+    double gain = 1;
     if (target_brightness > 0) {
         double brightness_sum = 32;
         int brightness_points = 1;
         for (i = 0; i < frame_size; i += 199) {
-            int level = buffer[i] - frame_count * buffer2[i];
+            double level = buffer[i] - frame_count * buffer2[i] / 256.;
             if (level < 0) level = 0;
             brightness_sum += level;
             brightness_points++;
         }
-        gain = (int) (target_brightness / (brightness_sum / frame_count / brightness_points));
+        gain = target_brightness / (brightness_sum / frame_count / brightness_points);
         if (gain < 1) gain = 1;
         if (gain > 30) gain = 30;
     }
@@ -344,13 +342,11 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
     // Report the gain we are using as an output
     if (gain_out != NULL) *gain_out = gain;
 
-    // Producing 16-bit output, so amplify output by factor 256
-    gain *= 256;
-
     // Renormalise image data, dividing by the number of frames which have been stacked, and multiplying by gain factor
-#pragma omp parallel for private(i, d)
+    // Producing 16-bit output, so amplify output by factor 256
+    #pragma omp parallel for private(i, d)
     for (i = 0; i < frame_size * channels; i++) {
-        tmp_frame[i] = CLIP65536((buffer[i] - frame_count * buffer2[i]) * gain / frame_count);
+        tmp_frame[i] = CLIP65536((buffer[i] * 256 - frame_count * buffer2[i]) * gain / frame_count);
     }
 
     // Write image data to raw file

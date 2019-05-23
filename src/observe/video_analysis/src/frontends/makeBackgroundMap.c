@@ -120,7 +120,7 @@ int main(int argc, const char *argv[]) {
 
     int *background_workspace = calloc(1, frame_size * channel_count * 256 * sizeof(int));
 
-    unsigned char **background_maps = malloc((BACKGROUND_MAP_SAMPLES + 1) * sizeof(unsigned char *));
+    int **background_maps = malloc((BACKGROUND_MAP_SAMPLES + 1) * sizeof(int *));
 
     if ((!background_workspace) || (!background_maps)) {
         sprintf(temp_err_string, "ERROR: malloc fail in makeBackgroundMap.");
@@ -128,7 +128,7 @@ int main(int argc, const char *argv[]) {
     }
 
     for (int i = 0; i <= BACKGROUND_MAP_SAMPLES; i++) {
-        background_maps[i] = calloc(1, frame_size * channel_count);
+        background_maps[i] = (int *)calloc(sizeof(int), frame_size * channel_count);
     }
 
 
@@ -174,7 +174,7 @@ int main(int argc, const char *argv[]) {
                          1, 0);
 
     // Write it to a file
-    dump_frame(width, height, channel_count, background_maps[0], rgb_filename);
+    dump_frame_from_ints(width, height, channel_count, background_maps[0], 256, 0, NULL, rgb_filename);
 
     // Make a PNG version for diagnostic use
     image_ptr output_image;

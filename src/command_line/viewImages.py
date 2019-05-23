@@ -23,7 +23,12 @@
 
 """
 Use qiv (the quick image viewer; needs to be installed) to display the still (time-lapse) images recorded by an
-observatory between specified start and end times
+observatory between specified start and end times. For example:
+
+./viewImages.py --img-type "pigazing:timelapse/backgroundSubtracted"
+./viewImages.py --img-type "pigazing:timelapse"
+./viewImages.py --img-type "pigazing:timelapse/backgroundModel"
+
 """
 
 import argparse
@@ -75,7 +80,8 @@ def view_images(utc_min, utc_max, obstory, img_type, stride):
         if not (count % stride == 0):
             continue
         [year, month, day, h, m, s] = dcf_ast.inv_julian_day(dcf_ast.jd_from_unix(file_item.file_time))
-        fn = "img___{:04d}_{:02d}_{:02d}___{:02d}_{:02d}_{:02d}___{:08d}.png".format(year, month, day, h, m, s, count)
+        fn = "img___{:04d}_{:02d}_{:02d}___{:02d}_{:02d}_{:02d}___{:08d}.png".format(year, month, day,
+                                                                                     h, m, int(s), count)
         os.system("ln -s %s %s/%s" % (db.file_path_for_id(file_item.id), tmp, fn))
         command_line += " {}".format(os.path.join(tmp, fn))
 
@@ -88,7 +94,7 @@ def view_images(utc_min, utc_max, obstory, img_type, stride):
 if __name__ == "__main__":
     # Read input parameters
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--t-min', dest='utc_min', default=time.time() - 3600 * 24,
+    parser.add_argument('--t-min', dest='utc_min', default=0,
                         type=float,
                         help="Only list events seen after the specified unix time")
     parser.add_argument('--t-max', dest='utc_max', default=time.time(),
@@ -96,7 +102,7 @@ if __name__ == "__main__":
                         help="Only list events seen before the specified unix time")
     parser.add_argument('--observatory', dest='obstory_id', default=installation_info['observatoryId'],
                         help="ID of the observatory we are to list events from")
-    parser.add_argument('--img-type', dest='img_type', default="pigazing:timelapse/frame/bgrdSub",
+    parser.add_argument('--img-type', dest='img_type', default="pigazing:timelapse/backgroundSubtracted",
                         help="The type of image to list")
     parser.add_argument('--stride', dest='stride', default=1, type=int,
                         help="Only show every nth item, to reduce output")

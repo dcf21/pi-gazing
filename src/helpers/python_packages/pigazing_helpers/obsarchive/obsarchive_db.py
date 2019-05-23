@@ -614,7 +614,11 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_files WHERE repositoryF
                                        'o.obsTime, s.name AS obsType, o.publicId, o.uid, o.creationTime, '
                                        'o.published, o.moderated, o.featured, ST_X(o.position) AS ra, '
                                        'ST_Y(o.position) AS decl, o.fieldWidth, o.fieldHeight, o.positionAngle, '
-                                       'o.centralConstellation, o.astrometryProcessed',
+                                       'o.centralConstellation, '
+                                       'ST_X(o.altAz) AS altitude, ST_Y(o.altAz) AS azimuth, o.altAzPositionAngle, '
+                                       'o.astrometryProcessed, o.astrometryProcessingTime, '
+                                       '(SELECT abbrev FROM pigazing_sources WHERE sourceId=o.astrometrySource) '
+                                       '    AS astrometrySource ',
                                skip=search.skip,
                                limit=search.limit,
                                order='o.obsTime DESC')

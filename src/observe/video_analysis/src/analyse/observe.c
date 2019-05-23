@@ -232,10 +232,10 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
 
     // Background maps are used for background subtraction.
     // Holds the background value of each pixel, sampled over a few thousand frames
-    os->background_maps = malloc((BACKGROUND_MAP_SAMPLES + 1) * sizeof(unsigned char *));
+    os->background_maps = malloc((BACKGROUND_MAP_SAMPLES + 1) * sizeof(int *));
 
     for (i = 0; i <= BACKGROUND_MAP_SAMPLES; i++) {
-        os->background_maps[i] = calloc(1, os->frame_size * channel_count);
+        os->background_maps[i] = (int *) calloc(sizeof(int), os->frame_size * channel_count);
     }
 
     // Workspace which counts the number of times any given pixel has a particular value
@@ -275,7 +275,10 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     for (i = 0; i < MAX_EVENTS; i++) {
         os->event_list[i].stacked_image = malloc(os->frame_size * channel_count * sizeof(int));
         os->event_list[i].max_stack = malloc(os->frame_size * channel_count * sizeof(int));
-        if ((!os->event_list[i].stacked_image) || (!os->event_list[i].max_stack)) {
+        os->event_list[i].max_trigger = malloc(os->frame_size);
+
+        if ((!os->event_list[i].stacked_image) ||
+            (!os->event_list[i].max_stack) || (!os->event_list[i].max_trigger)) {
             sprintf(temp_err_string, "ERROR: malloc fail in observe.");
             logging_fatal(__FILE__, __LINE__, temp_err_string);
         }
@@ -366,7 +369,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
             (os->utc > os->timelapse_utc_start + os->TIMELAPSE_INTERVAL - 1)) {
             const int frame_count = os->timelapse_frame_count;
             char fstub[FNAME_LENGTH], fname[FNAME_LENGTH];
-            int gain_factor;
+            double gain_factor;
 
             // First dump the time-lapse image without background subtraction
             filename_generate(fstub, os->obstory_id, os->timelapse_utc_start, "frame_", "timelapse", os->label);
@@ -376,7 +379,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
                                  os->STACK_TARGET_BRIGHTNESS, &gain_factor, fname);
 
             // Store metadata about the time-lapse frame
-            write_metadata(fname, "sdsddii",
+            write_metadata(fname, "sdsdddi",
                            "obstoryId", os->obstory_id,
                            "utc", os->timelapse_utc_start,
                            "semanticType", "pigazing:timelapse",
@@ -392,7 +395,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
                                             os->background_maps[0], fname);
 
             // Store metadata about the time-lapse frame
-            write_metadata(fname, "sdsddii",
+            write_metadata(fname, "sdsdddi",
                            "obstoryId", os->obstory_id,
                            "utc", os->timelapse_utc_start,
                            "semanticType", "pigazing:timelapse/backgroundSubtracted",
@@ -404,13 +407,14 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
             // Every few minutes, dump an image of the sky background map for diagnostic purposes
             if (floor(fmod(os->timelapse_utc_start, 1)) == 0) {
                 sprintf(fname, "%s%s", fstub, "skyBackground.rgb");
-                dump_frame(os->width, os->height, channel_count, os->background_maps[0], fname);
+                dump_frame_from_ints(os->width, os->height, channel_count, os->background_maps[0],
+                                     256, 0, NULL, fname);
                 write_metadata(fname, "sdsddi",
                                "obstoryId", os->obstory_id,
                                "utc", os->timelapse_utc_start,
                                "semanticType", "pigazing:timelapse/backgroundModel",
                                "inputNoiseLevel", os->noise_level,
-                               "stackNoiseLevel", 1.,
+                               "stackNoiseLevel", os->noise_level / sqrt(BACKGROUND_MAP_FRAMES),
                                "stackedFrames", ((int) BACKGROUND_MAP_FRAMES));
             }
 
@@ -451,6 +455,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     for (i = 0; i < MAX_EVENTS; i++) {
         free(os->event_list[i].stacked_image);
         free(os->event_list[i].max_stack);
+        free(os->event_list[i].max_trigger);
     }
     free(os->trigger_map);
     free(os->trigger_block_count);
@@ -479,6 +484,19 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
     const int minimum_object_path_length = 4;
 
     const int channel_count = GREYSCALE_IMAGING ? 1 : 3;
+
+    // Colour in block of pixels which have triggered in schematic trigger map
+    int k;
+    for (k = 1; k <= os->block_count; k++) {
+        int k2 = k;
+        while (os->trigger_block_redirect[k2] > 0) k2 = os->trigger_block_redirect[k2];
+        if (k2 == block_id) {
+            unsigned char *triggerB = os->trigger_map_rgb + os->frame_size * 2;
+            int j;
+#pragma omp parallel for private(j)
+            for (j = 0; j < os->frame_size; j++) if (os->trigger_map[j] == k2) triggerB[j] *= 4;
+        }
+    }
 
     // Cycle through objects we are already tracking to find nearest one
     int i;
@@ -566,19 +584,6 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
         logging_info("Ignoring trigger; no event descriptors available.");
         return;
     } // No free event storage space
-
-    // Colour in block of pixels which have triggered in schematic trigger map
-    int k;
-    for (k = 1; k <= os->block_count; k++) {
-        int k2 = k;
-        while (os->trigger_block_redirect[k2] > 0) k2 = os->trigger_block_redirect[k2];
-        if (k2 == block_id) {
-            unsigned char *triggerB = os->trigger_map_rgb + os->frame_size * 2;
-            int j;
-#pragma omp parallel for private(j)
-            for (j = 0; j < os->frame_size; j++) if (os->trigger_map[j] == k2) triggerB[j] *= 4;
-        }
-    }
 
     // Register event in events table
     os->event_list[i].active = 1;
@@ -670,6 +675,11 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
         os->event_list[i].stacked_image[j] = image1[j];
         os->event_list[i].max_stack[j] = image1[j];
     }
+
+#pragma omp parallel for private(j)
+    for (j = 0; j < os->frame_size; j++) {
+        os->event_list[i].max_trigger[j] = os->trigger_map_rgb[2 * os->frame_size + j];
+    }
 }
 
 // Check through list of events we are currently tracking.
@@ -695,15 +705,22 @@ void register_trigger_ends(observe_status *os) {
             for (j = 0; j < os->frame_size * channel_count; j++)
                 os->event_list[i].stacked_image[j] += current_frame[j];
 
-            // Create stack of the maximum brightness of each pixel over the duration of this event
+            // Create record of the maximum brightness of each pixel over the duration of this event
 #pragma omp parallel for private(j)
             for (j = 0; j < os->frame_size * channel_count; j++) {
                 const int x = current_frame[j];
                 if (x > os->event_list[i].max_stack[j]) os->event_list[i].max_stack[j] = x;
             }
 
+            // Create record of all pixels which trigger the motion sensor over the duration of this event
+#pragma omp parallel for private(j)
+            for (j = 0; j < os->frame_size; j++) {
+                const unsigned char x = os->trigger_map_rgb[2 * os->frame_size + j];
+                if (x > os->event_list[i].max_trigger[j]) os->event_list[i].max_trigger[j] = x;
+            }
+
             // Has event exceeded TRIGGER_MAX_DURATION?
-            const int max_event_frames = os->TRIGGER_MAX_DURATION * os->fps;
+            const int max_event_frames = (int)(os->TRIGGER_MAX_DURATION * os->fps);
             const int event_too_long = (os->frame_counter >
                                         os->event_list[i].detections[N0].frame_count + max_event_frames);
 
@@ -731,15 +748,30 @@ void register_trigger_ends(observe_status *os) {
                 // Update counter for trigger rate throttling
                 os->trigger_throttle_counter++;
 
+                // Write path of event as JSON string
+                char fname[FNAME_LENGTH], path_json[LSTR_LENGTH], path_bezier[FNAME_LENGTH];
+                int amplitude_peak = 0, amplitude_time_integrated = 0;
+                {
+                    int j = 0, k = 0;
+                    sprintf(path_json + k, "[");
+                    k += strlen(path_json + k);
+                    for (j = 0; j < os->event_list[i].detection_count; j++) {
+                        const detection *d = &os->event_list[i].detections[j];
+                        sprintf(path_json + k, "%s[%d,%d,%d,%.3f]", j ? "," : "", d->x, d->y, d->amplitude, d->utc);
+                        k += strlen(path_json + k);
+                        amplitude_time_integrated += d->amplitude;
+                        if (d->amplitude > amplitude_peak) amplitude_peak = d->amplitude;
+                    }
+                    sprintf(path_json + k, "]");
+                }
+
                 // Dump stacked images of entire duration of event
                 int coAddedFrames = (os->frame_counter - os->event_list[i].detections[0].frame_count);
-                char fname[FNAME_LENGTH], path_json[LSTR_LENGTH], path_bezier[FNAME_LENGTH];
 
-                // Time-avaraged value of each pixel over the duration of the event
+                // Time-averaged value of each pixel over the duration of the event
                 sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_timeAverage.rgb");
                 dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[i].stacked_image,
-                                     coAddedFrames, 0, NULL,
-                                     fname);
+                                     coAddedFrames, 0, NULL, fname);
                 write_metadata(fname, "sdsddidiii",
                                "obstoryId", os->obstory_id,
                                "utc", os->event_list[i].start_time,
@@ -768,24 +800,23 @@ void register_trigger_ends(observe_status *os) {
                                "amplitudeTimeIntegrated", amplitude_time_integrated,
                                "amplitudePeak", amplitude_peak);
 
+                // Map of all pixels which triggered motion sensor over the duration of the event
+                sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_allTriggers.rgb");
+                dump_frame(os->width, os->height, 1, os->event_list[i].max_trigger, fname);
+                write_metadata(fname, "sdsddidiii",
+                               "obstoryId", os->obstory_id,
+                               "utc", os->event_list[i].start_time,
+                               "semanticType", "pigazing:movingObject/allTriggers",
+                               "inputNoiseLevel", os->noise_level,
+                               "stackNoiseLevel", 1.,
+                               "stackedFrames", coAddedFrames,
+                               "duration", duration,
+                               "detectionCount", os->event_list[i].detection_count,
+                               "amplitudeTimeIntegrated", amplitude_time_integrated,
+                               "amplitudePeak", amplitude_peak);
+
                 // Make sure that video of this event ends at the right time
                 os->event_list[i].video_output.buffer_end_position = os->frame_counter % os->video_buffer_frames;
-
-                // Write path of event as JSON string
-                int amplitude_peak = 0, amplitude_time_integrated = 0;
-                {
-                    int j = 0, k = 0;
-                    sprintf(path_json + k, "[");
-                    k += strlen(path_json + k);
-                    for (j = 0; j < os->event_list[i].detection_count; j++) {
-                        const detection *d = &os->event_list[i].detections[j];
-                        sprintf(path_json + k, "%s[%d,%d,%d,%.3f]", j ? "," : "", d->x, d->y, d->amplitude, d->utc);
-                        k += strlen(path_json + k);
-                        amplitude_time_integrated += d->amplitude;
-                        if (d->amplitude > amplitude_peak) amplitude_peak = d->amplitude;
-                    }
-                    sprintf(path_json + k, "]");
-                }
 
                 // Write path of event as a three-point Bezier curve
                 {

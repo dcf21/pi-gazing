@@ -51,17 +51,17 @@ double estimate_noise_level(int width, int height, unsigned char *buffer, int fr
 
 void background_calculate(const int width, const int height, const int channels, const int reduction_cycle,
                           const int reduction_cycle_count, const int *background_workspace,
-                          unsigned char **background_maps,
+                          int **background_maps,
                           const int background_buffer_count, const int background_buffer_current);
 
 int dump_frame(int width, int height, int channels, const unsigned char *buffer, char *filename);
 
 int dump_frame_from_ints(int width, int height, int channels, const int *buffer, int frame_count, int target_brightness,
-                         int *gain_out, char *filename);
+                         double *gain_out, char *filename);
 
 int dump_frame_from_int_subtraction(int width, int height, int channels, const int *buffer, int frame_count,
-                                    int target_brightness, int *gain_out,
-                                    const unsigned char *buffer2, char *filename);
+                                    int target_brightness, double *gain_out,
+                                    const int *buffer2, char *filename);
 
 FILE *dump_video_init(int width, int height, const char *filename);
 

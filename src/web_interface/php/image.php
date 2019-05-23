@@ -240,6 +240,7 @@ $pageTemplate->header($pageInfo);
                 $caption = $const->semanticTypes[$semantic_type];
             else
                 $caption = [$semantic_type, ""];
+            if ($caption == null) continue;
             $gallery_items[] = ["fileId" => $item['repositoryFname'],
                 "filename" => $item["fileName"],
                 "caption" => $caption[0],
