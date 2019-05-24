@@ -379,7 +379,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
                                  os->STACK_TARGET_BRIGHTNESS, &gain_factor, fname);
 
             // Store metadata about the time-lapse frame
-            write_metadata(fname, "sdsdddddi",
+            write_metadata(fname, "sdsiidddi",
                            "obstoryId", os->obstory_id,
                            "utc", os->timelapse_utc_start,
                            "semanticType", "pigazing:timelapse",
@@ -397,7 +397,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
                                             os->background_maps[0], fname);
 
             // Store metadata about the time-lapse frame
-            write_metadata(fname, "sdsdddddi",
+            write_metadata(fname, "sdsiidddi",
                            "obstoryId", os->obstory_id,
                            "utc", os->timelapse_utc_start,
                            "semanticType", "pigazing:timelapse/backgroundSubtracted",
@@ -413,7 +413,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
                 sprintf(fname, "%s%s", fstub, "skyBackground.rgb");
                 dump_frame_from_ints(os->width, os->height, channel_count, os->background_maps[0],
                                      256, 0, NULL, fname);
-                write_metadata(fname, "sdsddddi",
+                write_metadata(fname, "sdsiiddi",
                                "obstoryId", os->obstory_id,
                                "utc", os->timelapse_utc_start,
                                "semanticType", "pigazing:timelapse/backgroundModel",
@@ -630,7 +630,7 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
     // Difference image, B-A, which we get from the red channel of <os->trigger_map_rgb>, set by <check_for_triggers>
     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapDifference.rgb");
     dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 0 * os->frame_size, fname);
-    write_metadata(fname, "sdsddddi",
+    write_metadata(fname, "sdsiiddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[i].start_time,
                    "semanticType", "pigazing:movingObject/mapDifference",
@@ -643,7 +643,7 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
     // Map of pixels which are currently excluded from triggering due to excessive variability
     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapExcludedPixels.rgb");
     dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 1 * os->frame_size, fname);
-    write_metadata(fname, "sdsddddi",
+    write_metadata(fname, "sdsiiddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[i].start_time,
                    "semanticType", "pigazing:movingObject/mapExcludedPixels",
@@ -656,7 +656,7 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
     // Map of the pixels whose brightening caused this trigger
     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapTrigger.rgb");
     dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 2 * os->frame_size, fname);
-    write_metadata(fname, "sdsddddi",
+    write_metadata(fname, "sdsiiddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[i].start_time,
                    "semanticType", "pigazing:movingObject/mapTrigger",
@@ -669,7 +669,7 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
     // The video frame in which this trigger was first detected
     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_triggerFrame.rgb");
     dump_frame(os->width, os->height, channel_count, image1, fname);
-    write_metadata(fname, "sdsddddi",
+    write_metadata(fname, "sdsiiddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[i].start_time,
                    "semanticType", "pigazing:movingObject/triggerFrame",
@@ -682,7 +682,7 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
     // The comparison frame which preceded the frame where the trigger was detected
     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_previousFrame.rgb");
     dump_frame(os->width, os->height, channel_count, image2, fname);
-    write_metadata(fname, "sdsddddi",
+    write_metadata(fname, "sdsiiddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[i].start_time,
                    "semanticType", "pigazing:movingObject/previousFrame",
@@ -789,7 +789,7 @@ void register_trigger_ends(observe_status *os) {
                 sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_timeAverage.rgb");
                 dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[i].stacked_image,
                                      coAddedFrames, 0, NULL, fname);
-                write_metadata(fname, "sdsddddidiii",
+                write_metadata(fname, "sdsiiddidiii",
                                "obstoryId", os->obstory_id,
                                "utc", os->event_list[i].start_time,
                                "semanticType", "pigazing:movingObject/timeAverage",
@@ -807,7 +807,7 @@ void register_trigger_ends(observe_status *os) {
                 sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_maxBrightness.rgb");
                 dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[i].max_stack,
                                      1, 0, NULL, fname);
-                write_metadata(fname, "sdsddddidiii",
+                write_metadata(fname, "sdsiiddidiii",
                                "obstoryId", os->obstory_id,
                                "utc", os->event_list[i].start_time,
                                "semanticType", "pigazing:movingObject/maximumBrightness",
@@ -824,7 +824,7 @@ void register_trigger_ends(observe_status *os) {
                 // Map of all pixels which triggered motion sensor over the duration of the event
                 sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_allTriggers.rgb");
                 dump_frame(os->width, os->height, 1, os->event_list[i].max_trigger, fname);
-                write_metadata(fname, "sdsddddidiii",
+                write_metadata(fname, "sdsiiddidiii",
                                "obstoryId", os->obstory_id,
                                "utc", os->event_list[i].start_time,
                                "semanticType", "pigazing:movingObject/allTriggers",
@@ -859,7 +859,7 @@ void register_trigger_ends(observe_status *os) {
                 }
 
                 // Now that we know the duration of this video, we can write metadata about the video file
-                write_metadata(os->event_list[i].video_output.filename, "sdsdddsdiiiis",
+                write_metadata(os->event_list[i].video_output.filename, "sdsiidsdiiiis",
                                "obstoryId", os->obstory_id,
                                "utc", os->event_list[i].start_time,
                                "semanticType", "pigazing:movingObject/video",
