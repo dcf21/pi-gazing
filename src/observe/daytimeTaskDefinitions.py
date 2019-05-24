@@ -35,12 +35,17 @@ import os
 import time
 import json
 import uuid
+import numpy
+
+from math import floor, ceil
 
 from pigazing_helpers.dcf_ast import unix_from_jd, jd_from_unix, julian_day, inv_julian_day
 from pigazing_helpers.sunset_times import sun_pos, alt_az
 from pigazing_helpers.obsarchive import obsarchive_model, obsarchive_db
 from pigazing_helpers import hardware_properties
 from pigazing_helpers.settings_read import settings, installation_info, known_observatories
+
+observatories_seen = {}
 
 
 def check_observatory_exists(db_handle, obs_id):
@@ -65,7 +70,7 @@ def check_observatory_exists(db_handle, obs_id):
     # Make sure that observatory exists in known_observatories list
     assert obs_id in known_observatories
 
-    db_handle.register_obstory(obstory_id=installation_info['observatoryId'],
+    db_handle.register_obstory(obstory_id=obs_id,
                                obstory_name=known_observatories[obs_id]['observatoryName'],
                                latitude=known_observatories[obs_id]['latitude'],
                                longitude=known_observatories[obs_id]['longitude'],
@@ -77,12 +82,14 @@ def check_observatory_exists(db_handle, obs_id):
 
     # If we don't have complete metadata regarding the camera, ensure we have it now
     hw.update_camera(db=db_handle,
-                     obstory_id=obs_id, utc=time.time(),
+                     obstory_id=obs_id,
+                     utc=time.time(),
                      name=known_observatories[obs_id]['defaultCamera'])
 
     # If we don't have complete metadata regarding the lens, ensure we have it now
     hw.update_lens(db=db_handle,
-                   obstory_id=obs_id, utc=time.time(),
+                   obstory_id=obs_id,
+                   utc=time.time(),
                    name=known_observatories[obs_id]['defaultLens'])
 
     # If we don't have a clipping region, define one now
@@ -490,6 +497,8 @@ class TaskRunner:
             None
         """
 
+        global observatories_seen
+
         # Open connection to the database
         db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                                db_host=installation_info['mysqlHost'],
@@ -531,14 +540,16 @@ class TaskRunner:
                 }
 
                 # Work out the time stamp of this job from the input file's filename
+                obstory_id = input_metadata['obstoryId']
+                utc = input_metadata['utc']
                 time_stamp_string = "{:014.1f}_{}".format(filename_to_utc(filename=input_file),
-                                                          input_metadata['obstoryId'])
+                                                          obstory_id)
 
                 # If we haven't had any jobs at the time stamp before, create an empty list for this time stamp
                 if time_stamp_string not in jobs_by_time:
                     jobs_by_time[time_stamp_string] = {
-                        'obs_id': input_metadata['obstoryId'],
-                        'utc': input_metadata['utc'],
+                        'obs_id': obstory_id,
+                        'utc': utc,
                         'obs_type': glob_pattern['obs_type'],
                         'user_id': obstory_info['userId'],
                         'must_quit_by': self.must_quit_by,
@@ -547,6 +558,18 @@ class TaskRunner:
 
                 # Append this job to list of others with the same time stamp
                 jobs_by_time[time_stamp_string]['job_list'].append(job_descriptor)
+
+                # Record that we've seen this observatory at this time
+                if obstory_id not in observatories_seen:
+                    observatories_seen[obstory_id] = {
+                        'utc_min': utc,
+                        'utc_max': utc
+                    }
+
+                if utc < observatories_seen[obstory_id]['utc_min']:
+                    observatories_seen[obstory_id]['utc_min'] = utc
+                if utc > observatories_seen[obstory_id]['utc_max']:
+                    observatories_seen[obstory_id]['utc_max'] = utc
 
         # Close database connection
         db.commit()
@@ -882,16 +905,76 @@ class TriggerRawVideos(TaskRunner):
         return [
             {
                 'wildcard': 'analysis_products_reduced/triggers_vid/{}.mp4'.format(input_file_without_extension),
-                'mime_type': 'image/png'
+                'mime_type': 'video/mp4'
             }
         ]
 
     @staticmethod
     def propagate_metadata_to_observation(metadata):
         if metadata['semanticType'] == 'pigazing:movingObject/video':
-            return ['amplitudePeak', 'amplitudeTimeIntegrated', 'detectionCount', 'duration', 'pathBezier']
+            return [
+                'amplitudePeak', 'amplitudeTimeIntegrated', 'detectionCount', 'detectionSignificance', 'duration',
+                'height', 'pathBezier', 'width'
+            ]
         else:
             return []
+
+
+class SelectBestImages(TaskRunner):
+    def fetch_job_list_by_time_stamp(self):
+        return {0: True}
+
+    def execute_tasks(self):
+        global observatories_seen
+
+        # This makes sure that we have a valid task list
+        self.fetch_job_list()
+
+        # Open connection to the database
+        db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                               db_host=installation_info['mysqlHost'],
+                                               db_user=installation_info['mysqlUser'],
+                                               db_password=installation_info['mysqlPassword'],
+                                               db_name=installation_info['mysqlDatabase'],
+                                               obstory_id=installation_info['observatoryId'])
+
+        # Select best images for each observatory in turn
+        for obstory_id in observatories_seen:
+            utc_start = floor(observatories_seen[obstory_id]['utc_min'] / 3600) * 3600
+            utc_end = ceil(observatories_seen[obstory_id]['utc_max'] / 3600) * 3600 + 1
+
+            # Remove featured flag from any time-lapse images that are already highlighted
+            db.con.execute("""
+UPDATE archive_observations SET featured=0
+WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
+      AND obsType=(SELECT uid FROM archive_semanticTypes WHERE name='pigazing:timelapse/')
+      AND obsTime BETWEEN %s AND %s;
+""", (obstory_id, utc_start, utc_end))
+
+            # Loop over each hour within the time period for which we have new observations
+            for hour in numpy.arange(utc_start, utc_end, 3600):
+
+                # Select the time-lapse image with the best sky clarity within each hour
+                db.con.execute("""
+SELECT o.uid
+FROM archive_files f
+INNER JOIN archive_observations o ON f.observationId = o.uid
+INNER JOIN archive_metadata m ON f.uid = m.fileId AND
+           m.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey='pigazing:skyClarity')
+WHERE o.observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
+      AND obsType=(SELECT uid FROM archive_semanticTypes WHERE name='pigazing:timelapse/')
+      AND obsTime BETWEEN %s AND %s
+ORDER BY m.floatValue DESC LIMIT 1;
+""", (obstory_id, hour, hour + 3600))
+
+                # Feature that image
+                for item in db.con.fetchall():
+                    db.con.execute("UPDATE archive_observations SET featured=1 WHERE uid=%s;", (item['uid'],))
+
+        # Close connection to the database
+        db.commit()
+        db.close_db()
+        del db
 
 
 # A list of all the tasks we need to perform, in order
@@ -902,5 +985,6 @@ task_running_order = [
         must_have_semantic_types=('pigazing:movingObject/video',)
     ),
     TimelapseRawImages,
-    # SelectBestImages, DetermineLensCorrection, DeterminePointing
+    SelectBestImages,
+    # DetermineLensCorrection, DeterminePointing
 ]

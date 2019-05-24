@@ -46,7 +46,7 @@ if (array_key_exists("page", $_GET) && is_numeric($_GET["page"])) $pageNum = $_G
 
 // Read which time range to cover
 $t2 = time();
-$t1 = $t2 - 3600 * 24 * 5;
+$t1 = $t2 - 3600 * 24 * 365;
 $tmin = $getargs->readTime('year1', 'month1', 'day1', 'hour1', 'min1', null, $const->yearMin, $const->yearMax, $t1);
 $tmax = $getargs->readTime('year2', 'month2', 'day2', 'hour2', 'min2', null, $const->yearMin, $const->yearMax, $t2);
 

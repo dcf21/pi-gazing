@@ -121,7 +121,7 @@ ORDER BY creationTime DESC LIMIT 20;
             continue
 
         # Print observation information
-        sys.stdout.write("{:6d} {:32s} {:32s} {:16s} ".format(obs['uid'], obs['userId'], obs['place'],
+        sys.stdout.write("{:6d} {:32s} {:32s} {:17s} ".format(obs['uid'], obs['userId'], obs['place'],
                                                               date_string(obs['creationTime'])))
 
         where = ["observationId=%s"]

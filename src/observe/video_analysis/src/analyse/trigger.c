@@ -56,8 +56,8 @@ inline void trigger_blocks_merge(observe_status *os, int id_old, int id_new) {
 }
 
 static inline int test_pixel(observe_status *os,
-           const unsigned char *image1, const unsigned char *image2,
-           const int o, const int threshold) {
+                             const unsigned char *image1, const unsigned char *image2,
+                             const int o, const int threshold) {
     // Pixel must be brighter than test pixels this distance away
     const int radius = 16;
 
@@ -93,8 +93,8 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
     // To trigger this number of pixels connected together must have brightened
     const int threshold_blockSize = 7;
 
-    // Total brightness excess must be 80 standard deviations
-    const int threshold_intensity = (int) (80 * os->noise_level);
+    // Total brightness excess must be 50 standard deviations
+    const int threshold_intensity = (int) (50 * os->noise_level);
 
     // Pixel must have brightened by at least N standard deviations to trigger
     const int threshold_trigger = MAX(1, 3.5 * os->noise_level);

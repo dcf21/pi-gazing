@@ -95,7 +95,7 @@ GalleryMarkers.prototype.setPositions = function (bezierIndex, animate) {
         var object_xpos = path[bezierIndex][0];
         var object_ypos = path[bezierIndex][1];
         var raw_width = 720;
-        var raw_height = 480;
+        var raw_height = 576;
         var crosshair_x = image_xsize * object_xpos / raw_width - 15;
         var crosshair_y = image_ysize * object_ypos / raw_height - 15;
         if (animate_this) {

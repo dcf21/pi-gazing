@@ -212,19 +212,20 @@ void background_calculate(const int width, const int height, const int channels,
         }
 
         // This is a slight under-estimate of the 16-bit background sky brightness
-        int mean_brightness = (sum_x / samples) - 2*256;
+        int mean_brightness = (sum_x / samples) - 3*256;
         if (mean_brightness < 0) mean_brightness = 0;
         background_maps[background_buffer_current + 1][i] = mean_brightness;
 
-        // We use the second-lowest of several recent background maps
-        // (stars can have black fringes, so the lowest background map may be bad)
+        // We use the third-lowest of several recent background maps
+        // * Stars can have black fringes, so the lowest background map may be bad
+        // * When we switch in computing a new background map, the same pixel can be bad in two consecutive maps
         int sorted_values[background_buffer_count];
         for (j = 0; j < background_buffer_count; j++) {
             int v = background_maps[j + 1][i];
             sorted_values[j] = (v>0) ? v : mean_brightness;
         }
         qsort(sorted_values, background_buffer_count, sizeof(int), compare_int);
-        background_maps[0][i] = sorted_values[1];
+        background_maps[0][i] = sorted_values[2];
     }
 }
 

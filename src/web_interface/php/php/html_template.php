@@ -198,6 +198,7 @@ __HTML__;
 
 
             <script src="<?php echo $server; ?>vendor/jquery/dist/jquery.min.js" type="text/javascript"></script>
+            <script src="<?php echo $server; ?>vendor/tether/dist/js/tether.min.js"></script>
             <script src="<?php echo $server; ?>vendor/jquery-ui/jquery-ui.min.js" type="text/javascript"></script>
             <link rel="stylesheet" type="text/css"
                   href="<?php echo $server; ?>vendor/jquery-ui/themes/ui-darkness/jquery-ui.min.css"/>
