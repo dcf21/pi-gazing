@@ -51,7 +51,7 @@ def list_observatory_status(utc_min, utc_max, obstory):
               format(obstory))
         sys.exit(0)
 
-    title = "Observatory <{}>".format(args.obstory_id)
+    title = "Observatory <{}>".format(obstory)
     print("\n\n{}\n{}".format(title, "-" * len(title)))
 
     search = mp.ObservatoryMetadataSearch(obstory_ids=[obstory], time_min=utc_min, time_max=utc_max)
@@ -63,12 +63,19 @@ def list_observatory_status(utc_min, utc_max, obstory):
                                                                             dcf_ast.date_string(utc_max)))
 
     # Check which items remain current
+    refreshed = False
     data.reverse()
     keys_seen = []
     for item in data:
-        if item.key not in keys_seen:
+        # The magic metadata keyword "pigazing:refresh" causes all older metadata to be superseded
+        if item.key == "pigazing:refresh" and not refreshed:
+            item.still_current = True
+            refreshed = True
+        # If we don't have a later metadata update for the same keyword, then this metadata remains current
+        elif item.key not in keys_seen and not refreshed:
             item.still_current = True
             keys_seen.append(item.key)
+        # This metadata item has been superseded
         else:
             item.still_current = False
     data.reverse()
@@ -86,7 +93,7 @@ def list_observatory_status(utc_min, utc_max, obstory):
 if __name__ == "__main__":
     # Read input parameters
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--t-min', dest='utc_min', default=time.time() - 3600 * 24,
+    parser.add_argument('--t-min', dest='utc_min', default=0,
                         type=float,
                         help="Only list metadata updates after the specified unix time")
     parser.add_argument('--t-max', dest='utc_max', default=time.time(),

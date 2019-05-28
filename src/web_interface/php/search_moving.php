@@ -160,8 +160,8 @@ $pageTemplate->header($pageInfo);
 
                 <div style="margin-top:25px;"><span class="formlabel">Duration of appearance</span></div>
                 <div class="tooltip-holder"><span
-                        data-toggle="tooltip" data-pos="tooltip-above"
-                        title="Search for objects visible for longer than this period. Set to around 5 sec to see only planes and satellites."
+                            data-toggle="tooltip" data-pos="tooltip-above"
+                            title="Search for objects visible for longer than this period. Set to around 5 sec to see only planes and satellites."
                     >
                         <span class="formlabel2">Minimum</span>
                     <input class="form-control-dcf form-inline-number"
@@ -173,8 +173,8 @@ $pageTemplate->header($pageInfo);
                 </span></div>
 
                 <div class="tooltip-holder"><span
-                        data-toggle="tooltip" data-pos="tooltip-below"
-                        title="Search for objects visible for less than this period. Set to around 5 sec to filter out planes and satellites, which are visible for long periods."
+                            data-toggle="tooltip" data-pos="tooltip-below"
+                            title="Search for objects visible for less than this period. Set to around 5 sec to filter out planes and satellites, which are visible for long periods."
                     >
                         <span class="formlabel2">Maximum</span>
                     <input class="form-control-dcf form-inline-number"
@@ -220,6 +220,10 @@ INNER JOIN archive_metadata d ON o.uid = d.observationId AND
     d.floatValue>={$duration_min} AND d.floatValue<={$duration_max}
 LEFT OUTER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
     d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:pathBezier\")
+LEFT OUTER JOIN archive_metadata d3 ON o.uid = d3.observationId AND
+    d3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:width\")
+LEFT OUTER JOIN archive_metadata d4 ON o.uid = d4.observationId AND
+    d4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:height\")
 WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:movingObject/\")
     AND " . implode(' AND ', $where));
 
@@ -237,7 +241,7 @@ WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:m
         $stmt = $const->db->prepare("
 SELECT f.repositoryFname, f.fileName, o.publicId AS observationId,
 o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType,
-d2.stringValue AS path
+d2.stringValue AS path, d3.floatValue AS width, d4.floatValue AS height
 FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
         $stmt->execute([]);
         $result_list = $stmt->fetchAll();
@@ -245,13 +249,17 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
 
     $gallery_items = [];
     foreach ($result_list as $item) {
-        $gallery_items[] = ["fileId" => $item['repositoryFname'],
-            "filename" => $item["fileName"],
+        $gallery_items[] = [
+            "fileId" => $item['repositoryFname'],
+            "filename" => $item['fileName'],
             "caption" => $item['obstoryName'] . "<br/>" . date("d M Y \\a\\t H:i", $item['obsTime']),
             "hover" => null,
-            "path" => $item["path"],
+            "path" => $item['path'],
+            "image_width" => $item['width'],
+            "image_height" => $item['height'],
             "linkId" => $item['observationId'],
-            "mimeType" => $item['mimeType']];
+            "mimeType" => $item['mimeType']
+        ];
     }
 
     // Display result counter
@@ -265,13 +273,13 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
                 in the form above and re-running the query.
             </p>
         </div>
-        <?php
+    <?php
     elseif ($result_count == count($result_list)):
         ?>
         <div class="alert alert-success">
             <p>Showing all <?php echo $result_count; ?> results.</p>
         </div>
-        <?php
+    <?php
     else:
         ?>
         <div class="alert alert-success">
@@ -280,7 +288,7 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
                 of <?php echo $result_count; ?>.
             </p>
         </div>
-        <?php
+    <?php
     endif;
 
     // Display results

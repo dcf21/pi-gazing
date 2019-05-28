@@ -508,7 +508,11 @@ __HTML__;
                 <?php
                 foreach ($result_list as $item):
                     $path_attribute = "";
-                    if (array_key_exists("path", $item)) $path_attribute = "data-path=\"{$item['path']}\"";
+                    if (array_key_exists("path", $item)) {
+                        $path_attribute = "data-path=\"{$item['path']}\" ";
+                        $path_attribute .= "data-width=\"{$item['image_width']}\" ";
+                        $path_attribute .= "data-height=\"{$item['image_height']}\" ";
+                    }
                     ?>
                     <div class="col-md-3 gallery_item">
                         <a href="<?php echo $url_stub . $item['linkId']; ?>">

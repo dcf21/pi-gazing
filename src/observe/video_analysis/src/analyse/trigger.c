@@ -94,7 +94,7 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
     const int threshold_blockSize = 7;
 
     // Total brightness excess must be 50 standard deviations
-    const int threshold_intensity = (int) (50 * os->noise_level);
+    const int threshold_intensity = (int) (os->TRIGGER_MIN_SIGNIFICANCE * os->noise_level);
 
     // Pixel must have brightened by at least N standard deviations to trigger
     const int threshold_trigger = MAX(1, 3.5 * os->noise_level);

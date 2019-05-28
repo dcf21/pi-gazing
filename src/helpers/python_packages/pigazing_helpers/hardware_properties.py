@@ -41,8 +41,8 @@ class Camera:
         self.camera_type = camera_type
 
     def __str__(self):
-        print("Camera(%s,%s,%s,%s,%s,%s)" % (
-            self.name, self.width, self.height, self.fps, self.upside_down, self.camera_type))
+        print("Camera({},{},{},{},{},{})".format(self.name, self.width, self.height,
+                                                 self.fps, self.upside_down, self.camera_type))
 
 
 class Lens:
@@ -51,15 +51,12 @@ class Lens:
     associated with this particularly lens.
     """
 
-    def __init__(self, name, fov, barrel_a, barrel_b, barrel_c):
+    def __init__(self, name, fov):
         self.name = name
         self.fov = fov
-        self.barrel_a = barrel_a
-        self.barrel_b = barrel_b
-        self.barrel_c = barrel_c
 
     def __str__(self):
-        print("Lens(%s,%s,%s,%s,%s)" % (self.name, self.fov, self.barrel_a, self.barrel_b, self.barrel_c))
+        print("Lens({},{})".format(self.name, self.fov))
 
 
 class HardwareProps:
@@ -77,15 +74,15 @@ class HardwareProps:
 
         self.camera_data = {}
         for d in camera_xml:
-            self.camera_data[d['name']] = Camera(d['name'], int(d['width']), int(d['height']), float(d['fps']),
-                                                 int(d['upside_down']), d['type'])
+            self.camera_data[d['name']] = Camera(name=d['name'], width=int(d['width']), height=int(d['height']),
+                                                 fps=float(d['fps']), upside_down=int(d['upside_down']),
+                                                 camera_type=d['type'])
 
         lens_xml = xmltodict.parse(open(lenses_data_path, "rb"))['lenses']['lens']
 
         self.lens_data = {}
         for d in lens_xml:
-            self.lens_data[d['name']] = Lens(d['name'], float(d['fov']), float(d['barrel_a']), float(d['barrel_b']),
-                                             float(d['barrel_c']))
+            self.lens_data[d['name']] = Lens(name=d['name'], fov=float(d['fov']))
 
     def update_camera(self, db, obstory_id, utc, name):
         """
@@ -153,15 +150,3 @@ class HardwareProps:
                                      metadata_time=utc, user_created=user)
         db.register_obstory_metadata(obstory_id=obstory_id,
                                      key="lens_fov", value=x.fov, metadata_time=utc, user_created=user)
-
-        db.register_obstory_metadata(obstory_id=obstory_id,
-                                     key="lens_barrel_a", value=x.barrel_a,
-                                     metadata_time=utc, user_created=user)
-
-        db.register_obstory_metadata(obstory_id=obstory_id,
-                                     key="lens_barrel_b", value=x.barrel_b,
-                                     metadata_time=utc, user_created=user)
-
-        db.register_obstory_metadata(obstory_id=obstory_id,
-                                     key="lens_barrel_c", value=x.barrel_c,
-                                     metadata_time=utc, user_created=user)

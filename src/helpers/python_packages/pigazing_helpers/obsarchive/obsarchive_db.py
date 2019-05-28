@@ -195,10 +195,13 @@ VALUES
         obstory = self.get_obstory_from_id(obstory_id)
         item_id = mp.get_hash(metadata_time, obstory['publicId'], key)
 
-        # If new value equals old value, no point re-entering it!
-        previous_value = self.lookup_obstory_metadata(key, metadata_time, obstory_id)
+        # If new value equals old value, no point re-entering it
+        previous_value, previous_time = self.lookup_obstory_metadata(key=key, time=metadata_time, obstory_id=obstory_id)
         if previous_value == value:
-            return None
+            if key != "refresh":
+                return None
+            if metadata_time == previous_time:
+                return None
 
         self.import_obstory_metadata(obstory_id=obstory_id, key=key, value=value, metadata_time=metadata_time,
                                      time_created=time_created, user_created=user_created, item_id=item_id)
@@ -234,22 +237,42 @@ VALUES
             obstory_id = self.obstory_id
 
         output = {}
+        
+        # See when this observatory was last serviced. Do not report any metadata set before this time.
+        last_serviced = 0
+        self.con.execute("""
+SELECT time FROM archive_metadata
+WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
+      AND fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey='pigazing:refresh')
+ORDER BY time DESC LIMIT 1
+""", (obstory_id,))
+        results = self.con.fetchall()
+        if len(results) > 0:
+            last_serviced = results[0]['time']
 
+        # Loop over each known metadata field in turn, and see when it was most recently set
         self.con.execute('SELECT uid,metaKey FROM archive_metadataFields;')
         for item in self.con.fetchall():
             self.con.execute("""
 SELECT floatValue, stringValue FROM archive_metadata
-WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s) AND fieldId=%s AND time<%s
+WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s) AND fieldId=%s
+      AND time BETWEEN %s AND %s
 ORDER BY time DESC LIMIT 1
-""", (obstory_id, item['uid'], time))
+""", (obstory_id, item['uid'], last_serviced, time))
             results = self.con.fetchall()
+            
+            # See if this metadata field has ever been set for this observatory
             if len(results) > 0:
                 result = results[0]
+                
+                # If so, return it as a floating-point value if possible, otherwise as a string
                 if result['stringValue'] is None:
                     value = result['floatValue']
                 else:
                     value = result['stringValue']
                 output[item['metaKey']] = value
+                
+        # Return dictionary of results
         return output
 
     def lookup_obstory_metadata(self, key, time=None, obstory_id=None):
@@ -261,21 +284,21 @@ ORDER BY time DESC LIMIT 1
         self.con.execute('SELECT uid FROM archive_metadataFields WHERE metaKey=%s;', (key,))
         results = self.con.fetchall()
         if len(results) < 1:
-            return None
+            return None, None
         self.con.execute("""
-SELECT floatValue, stringValue FROM archive_metadata
+SELECT floatValue, stringValue, time FROM archive_metadata
 WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s) AND fieldId=%s AND time<%s
 ORDER BY time DESC LIMIT 1
 """, (obstory_id, results[0]['uid'], time))
         results = self.con.fetchall()
         if len(results) < 1:
-            return None
+            return None, None
         result = results[0]
         if result['stringValue'] is None:
             value = result['floatValue']
         else:
             value = result['stringValue']
-        return value
+        return value, result['time']
 
     # Functions relating to metadata keys
     def get_metadata_key_id(self, metakey):

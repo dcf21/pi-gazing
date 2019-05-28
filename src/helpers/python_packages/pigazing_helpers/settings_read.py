@@ -62,7 +62,12 @@ for line in open(os.path.join(root_path, "../configuration_local/installation_se
 # Read the list of known observatories from <configuration_global/known_observatories.xml>
 known_observatories = {}
 path = os.path.join(root_path, "../configuration_global/known_observatories.xml")
-for observatory in xmltodict.parse(open(path, "rb"))['observatories']['observatory']:
+
+observatories = xmltodict.parse(open(path, "rb"))['observatories']['observatory']
+if not type(observatories) in (list, tuple):
+    observatories = [observatories]
+
+for observatory in observatories:
     obs_id = observatory['observatoryId']
 
     # Ensure that numerical fields are stored as floats

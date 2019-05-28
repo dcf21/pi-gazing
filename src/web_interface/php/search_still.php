@@ -61,12 +61,12 @@ if ($tmax['utc'] < $tmin['utc']) {
 }
 
 // Read image options
-$flag_bgsub = false;
-$flag_highlights = false;
+$flag_bgsub = 0;
+$flag_highlights = 0;
 
-if (array_key_exists("flag_bgsub", $_GET)) $flag_bgsub = true;
-if (array_key_exists("flag_highlights", $_GET)) $flag_highlights = true;
-if (array_key_exists("defaults", $_GET)) $flag_highlights = true;
+if (array_key_exists("flag_bgsub", $_GET)) $flag_bgsub = 1;
+if (array_key_exists("flag_highlights", $_GET)) $flag_highlights = 1;
+if (array_key_exists("defaults", $_GET)) $flag_highlights = 1;
 
 // Read sky clarity options
 $sky_clarity_min = 0;
@@ -81,7 +81,7 @@ if (array_key_exists("clarity", $_GET) && is_numeric($_GET["clarity"])) {
 
 // Set default options for if we are not searching
 if (!array_key_exists('obstory', $_GET)) {
-    $flag_highlights = true;
+    $flag_highlights = 1;
 }
 
 $pageTemplate->header($pageInfo);
@@ -306,7 +306,7 @@ ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
     endif;
 
     // Display results
-    $pageTemplate->imageGallery($gallery_items, "/image.php?id=", false);
+    $pageTemplate->imageGallery($gallery_items,"/image.php?highlights={$flag_highlights}&id=",false);
 
     // Display pager
     if (count($result_list) < $result_count) {

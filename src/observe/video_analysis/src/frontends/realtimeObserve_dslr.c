@@ -197,7 +197,7 @@ int main(int argc, const char *argv[]) {
     initLut();
 
     // Fetch the dimensions of the video stream as returned by V4L (which may differ from what we requested)
-    unsigned char *mask = malloc((size_t)(vmd.width * vmd.height));
+    unsigned char *mask = malloc(vmd.width * vmd.height);
     FILE *maskfile = fopen(vmd.mask_file, "r");
     if (!maskfile) { logging_fatal(__FILE__, __LINE__, "mask file could not be opened"); }
     fill_polygons_from_file(maskfile, mask, vmd.width, vmd.height);
@@ -205,6 +205,8 @@ int main(int argc, const char *argv[]) {
 
     observe((void *) &vmd, vmd.obstory_id, vmd.utc_start, vmd.utc_stop, vmd.width, vmd.height, vmd.fps, "live",
             mask, STACK_COMPARISON_INTERVAL, TRIGGER_PREFIX_TIME, TRIGGER_SUFFIX_TIME,
+            TRIGGER_SUFFIX_TIME_INITIAL, TRIGGER_MIN_DETECTIONS, TRIGGER_MIN_PATH_LENGTH,
+            TRIGGER_MAX_MOVEMENT_PER_FRAME, TRIGGER_MIN_SIGNIFICANCE, TRIGGER_MIN_SIGNIFICANCE_INITIAL,
             VIDEO_BUFFER_LENGTH, TRIGGER_MAX_DURATION, TRIGGER_THROTTLE_PERIOD, TRIGGER_THROTTLE_MAXEVT,
             TIMELAPSE_EXPOSURE, TIMELAPSE_INTERVAL, STACK_TARGET_BRIGHTNESS,
             BACKGROUND_MAP_FRAMES, BACKGROUND_MAP_SAMPLES, BACKGROUND_MAP_REDUCTION_CYCLES,

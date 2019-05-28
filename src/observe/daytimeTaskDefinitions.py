@@ -48,57 +48,73 @@ from pigazing_helpers.settings_read import settings, installation_info, known_ob
 observatories_seen = {}
 
 
-def check_observatory_exists(db_handle, obs_id):
+def check_observatory_exists(db_handle, obs_id=installation_info['observatoryId'], utc=0):
     """
-    If an observatory doesn't exist in the database, create an entry for it with default settings based on the data
-    in <configuration_global/known_observatories.xml>.
+    If an observatory doesn't exist in the database, with all metadata fields set at the unix time <time>, create an
+    entry for it with default settings based on the data in <configuration_global/known_observatories.xml>.
 
     :param db_handle:
         Database connection handle
     :param obs_id:
         The ID of the observatory to create
+    :param utc:
+        The unix time stamp at which the observatory must be set up, with all required metadata fields present.
     :return:
         None
     """
 
     # If this observatory doesn't exist in the database, create it now with information from installation_info
-    if db_handle.has_obstory_id(obs_id):
-        return
+    if not db_handle.has_obstory_id(obs_id):
+        logging.info("Observatory '{}' is not set up. Using default settings.".format(obs_id))
 
-    logging.info("Observatory '{}' is not set up. Using default settings.".format(obs_id))
+        # Make sure that observatory exists in known_observatories list
+        assert obs_id in known_observatories
 
-    # Make sure that observatory exists in known_observatories list
-    assert obs_id in known_observatories
+        db_handle.register_obstory(obstory_id=obs_id,
+                                   obstory_name=known_observatories[obs_id]['observatoryName'],
+                                   latitude=known_observatories[obs_id]['latitude'],
+                                   longitude=known_observatories[obs_id]['longitude'],
+                                   owner=known_observatories[obs_id]['owner'])
 
-    db_handle.register_obstory(obstory_id=obs_id,
-                               obstory_name=known_observatories[obs_id]['observatoryName'],
-                               latitude=known_observatories[obs_id]['latitude'],
-                               longitude=known_observatories[obs_id]['longitude'],
-                               owner=known_observatories[obs_id]['owner'])
+    # Look up what metadata fields are set for this observatory
+    metadata = db_handle.get_obstory_status(obstory_id=obs_id, time=utc)
 
+    # Instantiate database of all the hardware we have specifications for
     hw = hardware_properties.HardwareProps(
         path=os.path.join(settings['pythonPath'], "..", "configuration_global", "camera_properties")
     )
 
+    # If we don't have a specified software version, ensure we have it now
+    if ('softwareVersion' not in metadata) or (metadata['softwareVersion'] != settings['softwareVersion']):
+        db_handle.register_obstory_metadata(obstory_id=obs_id,
+                                            key="softwareVersion",
+                                            value=settings['softwareVersion'],
+                                            metadata_time=utc,
+                                            time_created=time.time(),
+                                            user_created=settings['pigazingUser'])
+
     # If we don't have complete metadata regarding the camera, ensure we have it now
-    hw.update_camera(db=db_handle,
-                     obstory_id=obs_id,
-                     utc=time.time(),
-                     name=known_observatories[obs_id]['defaultCamera'])
+    if 'camera' not in metadata:
+        hw.update_camera(db=db_handle,
+                         obstory_id=obs_id,
+                         utc=utc,
+                         name=known_observatories[obs_id]['defaultCamera'])
 
     # If we don't have complete metadata regarding the lens, ensure we have it now
-    hw.update_lens(db=db_handle,
-                   obstory_id=obs_id,
-                   utc=time.time(),
-                   name=known_observatories[obs_id]['defaultLens'])
+    if 'lens' not in metadata:
+        hw.update_lens(db=db_handle,
+                       obstory_id=obs_id,
+                       utc=utc,
+                       name=known_observatories[obs_id]['defaultLens'])
 
     # If we don't have a clipping region, define one now
-    db_handle.register_obstory_metadata(obstory_id=obs_id,
-                                        key="clippingRegion",
-                                        value="[[]]",
-                                        metadata_time=0,
-                                        time_created=time.time(),
-                                        user_created=settings['pigazingUser'])
+    if 'clippingRegion' not in metadata:
+        db_handle.register_obstory_metadata(obstory_id=obs_id,
+                                            key="clippingRegion",
+                                            value="[[]]",
+                                            metadata_time=utc,
+                                            time_created=time.time(),
+                                            user_created=settings['pigazingUser'])
 
 
 def execute_shell_command(arguments):
@@ -363,9 +379,18 @@ def metadata_file_to_dict(db_handle, product_filename, required, input_metadata=
     if obs_id in observatory_information:
         obstory_info = observatory_information[obs_id]
     else:
-        check_observatory_exists(db_handle=db_handle, obs_id=obs_id)
+        check_observatory_exists(db_handle=db_handle, obs_id=obs_id, utc=output['utc'])
         obstory_info = db_handle.get_obstory_from_id(obstory_id=obs_id)
         observatory_information[obs_id] = obstory_info
+
+    # If the magic metadata key "refresh" is set, them we mark in the database that the observatory has been serviced.
+    if 'refresh' in output and output['refresh']:
+        db_handle.register_obstory_metadata(obstory_id=obs_id,
+                                            key="refresh",
+                                            value=1,
+                                            metadata_time=output['utc'],
+                                            time_created=time.time(),
+                                            user_created=settings['pigazingUser'])
 
     # Add further metadata about the position of the Sun
     utc = output['utc']
@@ -513,7 +538,7 @@ class TaskRunner:
         # Fetch list of input files, and sort them by time stamp
         jobs_by_time = {}
         for glob_pattern in self.glob_patterns():
-            for input_file in glob.glob(os.path.join(data_dir, glob_pattern['wildcard'])):
+            for input_file in sorted(glob.glob(os.path.join(data_dir, glob_pattern['wildcard']))):
 
                 # Collect metadata associated with this input file
                 try:
@@ -751,7 +776,7 @@ class AnalyseRawVideos(TaskRunner):
     def glob_patterns():
         return [
             {
-                'wildcard': 'rawvideo/*.h264',
+                'wildcard': 'raw_video/*.h264',
                 'obs_type': 'pigazing:'
             }
         ]
@@ -927,6 +952,9 @@ class SelectBestImages(TaskRunner):
     def execute_tasks(self):
         global observatories_seen
 
+        # We should select the best image from every N seconds of observing
+        period = 1800
+
         # This makes sure that we have a valid task list
         self.fetch_job_list()
 
@@ -940,8 +968,8 @@ class SelectBestImages(TaskRunner):
 
         # Select best images for each observatory in turn
         for obstory_id in observatories_seen:
-            utc_start = floor(observatories_seen[obstory_id]['utc_min'] / 3600) * 3600
-            utc_end = ceil(observatories_seen[obstory_id]['utc_max'] / 3600) * 3600 + 1
+            utc_start = floor(observatories_seen[obstory_id]['utc_min'] / period) * period
+            utc_end = ceil(observatories_seen[obstory_id]['utc_max'] / period) * period
 
             # Remove featured flag from any time-lapse images that are already highlighted
             db.con.execute("""
@@ -949,10 +977,10 @@ UPDATE archive_observations SET featured=0
 WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
       AND obsType=(SELECT uid FROM archive_semanticTypes WHERE name='pigazing:timelapse/')
       AND obsTime BETWEEN %s AND %s;
-""", (obstory_id, utc_start, utc_end))
+""", (obstory_id, utc_start - 1, utc_end + 1))
 
             # Loop over each hour within the time period for which we have new observations
-            for hour in numpy.arange(utc_start, utc_end, 3600):
+            for hour in numpy.arange(utc_start, utc_end - 1, period):
 
                 # Select the time-lapse image with the best sky clarity within each hour
                 db.con.execute("""
@@ -965,7 +993,7 @@ WHERE o.observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
       AND obsType=(SELECT uid FROM archive_semanticTypes WHERE name='pigazing:timelapse/')
       AND obsTime BETWEEN %s AND %s
 ORDER BY m.floatValue DESC LIMIT 1;
-""", (obstory_id, hour, hour + 3600))
+""", (obstory_id, hour, hour + period))
 
                 # Feature that image
                 for item in db.con.fetchall():

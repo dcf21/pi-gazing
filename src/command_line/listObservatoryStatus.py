@@ -51,35 +51,14 @@ def list_observatory_status(utc, obstory):
               format(obstory))
         sys.exit(0)
 
-    title = "Observatory <{}>".format(args.obstory_id)
+    title = "Observatory <{}>".format(obstory)
     print("\n\n{}\n{}".format(title, "-" * len(title)))
 
-    search = mp.ObservatoryMetadataSearch(obstory_ids=[obstory], time_max=utc)
-    data = db.search_obstory_metadata(search)
-    data = data['items']
-    data.sort(key=lambda x: x.time)
-    print("  * {:d} matching metadata items in time up to {}".format(len(data),
-                                                                     dcf_ast.date_string(utc)))
-
-    # Check which items remain current
-    data.reverse()
-    keys_seen = []
-    for item in data:
-        if item.key not in keys_seen:
-            item.still_current = True
-            keys_seen.append(item.key)
-        else:
-            item.still_current = False
-    data.reverse()
+    metadata = db.get_obstory_status(obstory_id=obstory, time=utc)
 
     # Display list of items
-    for item in data:
-        if item.still_current:
-            current_flag = "+"
-        else:
-            current_flag = " "
-        print("  * {} [ID {}] {} -- {:16s} = {}".format(current_flag, item.id, dcf_ast.date_string(item.time),
-                                                        item.key, item.value))
+    for item_key, item_value in metadata.items():
+        print("  * {:16s} = {}".format(item_key, item_value))
 
 
 if __name__ == "__main__":

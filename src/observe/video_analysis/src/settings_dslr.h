@@ -51,6 +51,15 @@
 #define TRIGGER_PREFIX_TIME   16  /* include N seconds of video after trigger */
 #define TRIGGER_SUFFIX_TIME   16  /* include N seconds of video after trigger has gone away */
 
+#define TRIGGER_SUFFIX_TIME_INITIAL 16 /* An object which has only been seen in one frame must recur within this time */
+
+#define TRIGGER_MIN_DETECTIONS  2 /* The minimum number of frames in which a moving object must be detected */
+#define TRIGGER_MIN_PATH_LENGTH 4 /* The minimum number of pixels that the moving object must move across the frame */
+#define TRIGGER_MAX_MOVEMENT_PER_FRAME 70 /* The maximum distance a moving object may move from one frame to next */
+
+#define TRIGGER_MIN_SIGNIFICANCE 40 /* The number of standard deviations above the noise level for a moving object */
+#define TRIGGER_MIN_SIGNIFICANCE_INITIAL 50 /* As above, but specifically for the initial detection of an object */
+
 // Processing of background map
 #define BACKGROUND_MAP_FRAMES 7500 /* Produce a new background map every 5 minutes */
 #define BACKGROUND_MAP_SAMPLES 3 /* Pick the lowest sky brightness from the last 3 buffers */

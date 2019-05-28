@@ -81,17 +81,7 @@ def get_gps_fix():
 def observing_loop():
     obstory_id = installation_info['observatoryId']
 
-    db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                           db_host=installation_info['mysqlHost'],
-                                           db_user=installation_info['mysqlUser'],
-                                           db_password=installation_info['mysqlPassword'],
-                                           db_name=installation_info['mysqlDatabase'],
-                                           obstory_id=installation_info['observatoryId'])
-
     logging.info("Observatory controller launched")
-
-    # Make sure we have created the directory structure where observations live
-    os.system("mkdir -p {}/rawvideo".format(settings['dataPath']))
 
     # Fetch observatory status, e.g. location, etc
     logging.info("Fetching observatory status")
@@ -102,32 +92,6 @@ def observing_loop():
     flag_gps = 0
 
     # Make sure that observatory exists in the database
-    check_observatory_exists(db_handle=db, obs_id=obstory_id)
-
-    # Record the software version being used
-    db.register_obstory_metadata(obstory_id=obstory_id,
-                                 key="softwareVersion",
-                                 value=settings['softwareVersion'],
-                                 metadata_time=time.time(),
-                                 time_created=time.time(),
-                                 user_created=settings['pigazingUser'])
-
-    # Fetch updated observatory status
-    obstory_status = db.get_obstory_status(obstory_id=obstory_id)
-
-    # Create clipping region mask file
-    mask_file = "/tmp/triggermask_%d.txt" % os.getpid()
-    open(mask_file, "w").write(
-        "\n\n".join(
-            ["\n".join([("%d %d" % tuple(p)) for p in point_list])
-             for point_list in json.loads(obstory_status["clippingRegion"])]
-        )
-    )
-
-    # Commit updates to the database
-    db.commit()
-    db.close_db()
-    del db
 
     # Start main observing loop
     while True:
@@ -146,36 +110,6 @@ def observing_loop():
             longitude = gps_fix['longitude']
             altitude = gps_fix['altitude']
             flag_gps = 1
-
-        # If we've not stored a GPS fix in the database within the past hour, do so now
-        if flag_gps or (time.time() > latest_position_update + 3600):
-            latest_position_update = time.time()
-            db.register_obstory_metadata(obstory_id=obstory_id,
-                                         key="latitude_gps",
-                                         value=latitude,
-                                         metadata_time=time.time(),
-                                         time_created=time.time(),
-                                         user_created=settings['pigazingUser'])
-            db.register_obstory_metadata(obstory_id=obstory_id,
-                                         key="longitude_gps",
-                                         value=longitude,
-                                         metadata_time=time.time(),
-                                         time_created=time.time(),
-                                         user_created=settings['pigazingUser'])
-            db.register_obstory_metadata(obstory_id=obstory_id,
-                                         key="altitude_gps",
-                                         value=altitude,
-                                         metadata_time=time.time(),
-                                         time_created=time.time(),
-                                         user_created=settings['pigazingUser'])
-
-        # Fetch updated observatory status
-        obstory_status = db.get_obstory_status(obstory_id=obstory_id)
-
-        # Close database handle
-        db.commit()
-        db.close_db()
-        del db
 
         # Decide whether we should observe, or do some day-time maintenance tasks
         logging.info("Observation controller considering what to do next.")
@@ -228,6 +162,9 @@ It is night time. We are between yesterday's sunset and today's sunrise.
 We are between yesterday's sunset and today's sunrise, but sun has recently set. \
 Waiting {:.0f} seconds (until {}) to start observing.
 """.format(next_observing_wait, dcf_ast.date_string(next_observing_time)).strip())
+                db.commit()
+                db.close_db()
+                del db
                 time.sleep(next_observing_wait + 2)
                 continue
 
@@ -248,6 +185,9 @@ It is night time. We are between today's sunset and tomorrow's sunrise.
 We are between today's sunset and tomorrow's sunrise, but sun has recently set. \
 Waiting {:.0f} seconds (until {}) to start observing.
 """.format(next_observing_wait, dcf_ast.date_string(next_observing_time)).strip())
+                db.commit()
+                db.close_db()
+                del db
                 time.sleep(next_observing_wait + 2)
                 continue
 
@@ -261,6 +201,48 @@ Waiting {:.0f} seconds (until {}) to start observing.
         # If sunset was well in the past, and sunrise is well in the future, we should observe!
         minimum_time_worth_observing = 600
         if is_night_time and (seconds_till_sunrise > (sun_margin + minimum_time_worth_observing)):
+            
+            # Check that observatory exists
+            check_observatory_exists(db_handle=db, obs_id=obstory_id, utc=time.time())
+        
+            # Fetch updated observatory status
+            obstory_status = db.get_obstory_status(obstory_id=obstory_id)
+
+            # If we've not stored a GPS fix in the database within the past six hours, do so now
+            if flag_gps or (time.time() > latest_position_update + 6 * 3600):
+                latest_position_update = time.time()
+                db.register_obstory_metadata(obstory_id=obstory_id,
+                                             key="latitude_gps",
+                                             value=latitude,
+                                             metadata_time=time.time(),
+                                             time_created=time.time(),
+                                             user_created=settings['pigazingUser'])
+                db.register_obstory_metadata(obstory_id=obstory_id,
+                                             key="longitude_gps",
+                                             value=longitude,
+                                             metadata_time=time.time(),
+                                             time_created=time.time(),
+                                             user_created=settings['pigazingUser'])
+                db.register_obstory_metadata(obstory_id=obstory_id,
+                                             key="altitude_gps",
+                                             value=altitude,
+                                             metadata_time=time.time(),
+                                             time_created=time.time(),
+                                             user_created=settings['pigazingUser'])
+        
+            # Create clipping region mask file
+            mask_file = "/tmp/triggermask_%d.txt" % os.getpid()
+            open(mask_file, "w").write(
+                "\n\n".join(
+                    ["\n".join([("%d %d" % tuple(p)) for p in point_list])
+                     for point_list in json.loads(obstory_status["clippingRegion"])]
+                )
+            )
+        
+            # Commit updates to the database
+            db.commit()
+            db.close_db()
+            del db
 
             # Calculate how long to observe for
             observing_duration = seconds_till_sunrise - sun_margin
@@ -292,8 +274,8 @@ Starting observing run until {} (running for {:.0f} seconds).
                 else:
                     binary = "realtimeObserve"
             else:
-                output_argument = """ --output \"{}/rawvideo/{}_{}\" """.format(settings['dataPath'],
-                                                                                time_key, obstory_id)
+                output_argument = """ --output \"{}/raw_video/{}_{}\" """.format(settings['dataPath'],
+                                                                                 time_key, obstory_id)
                 if settings['i_am_a_rpi']:
                     binary = "recordH264_openmax"
                 else:
@@ -342,13 +324,20 @@ timeout {timeout} \
             time.sleep(2)
             logging.info("Camera has been turned off.")
 
-            # Snooze for up to 10 minutes; we may rerun daytime tasks in a while if they ended prematurely
+            # Snooze for up to 10 minutes; we may rerun observing tasks in a while if they ended prematurely
             if time.time() < t_stop:
                 snooze_duration = float(min(t_stop - time.time(), 600))
                 logging.info("Snoozing for {:.0f} seconds".format(snooze_duration))
                 time.sleep(snooze_duration)
 
             continue
+
+        # It is day time, so consider running day time tasks
+            
+        # First, commit updates to the database
+        db.commit()
+        db.close_db()
+        del db
 
         # Estimate roughly when we're next going to be able to observe (i.e. shortly after sunset)
         next_observing_wait = seconds_till_sunset + sun_margin

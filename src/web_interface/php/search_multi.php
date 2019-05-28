@@ -199,13 +199,13 @@ FROM ${search} ORDER BY g.time DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
                 in the form above and re-running the query.
             </p>
         </div>
-        <?php
+    <?php
     elseif ($result_count == count($result_list)):
         ?>
         <div class="alert alert-success">
             <p>Showing all <?php echo $result_count; ?> results.</p>
         </div>
-        <?php
+    <?php
     else:
         ?>
         <div class="alert alert-success">
@@ -214,7 +214,7 @@ FROM ${search} ORDER BY g.time DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
                 of <?php echo $result_count; ?>.
             </p>
         </div>
-        <?php
+    <?php
     endif;
 
     // Display results
@@ -228,6 +228,10 @@ INNER JOIN archive_files f ON f.observationId = o.uid
 INNER JOIN archive_observatories l ON o.observatory = l.uid
 LEFT OUTER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
     d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:pathBezier\")
+LEFT OUTER JOIN archive_metadata d3 ON o.uid = d3.observationId AND
+    d3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:width\")
+LEFT OUTER JOIN archive_metadata d4 ON o.uid = d4.observationId AND
+    d4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:height\")
 WHERE f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:triggers/event/maxBrightness/lensCorr\")
    AND o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"movingObject\")
    AND gm.groupId = {$grp['uid']}");
@@ -235,7 +239,7 @@ WHERE f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name=\"pigazin
         $stmt = $const->db->prepare("
 SELECT f.repositoryFname, f.fileName, o.publicId AS observationId,
 o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType,
-d2.stringValue AS path
+d2.stringValue AS path, d3.floatValue AS width, d4.floatValue AS height
 FROM ${search} ORDER BY obstoryId;");
         $stmt->execute([]);
         $obs_list = $stmt->fetchAll();
@@ -249,6 +253,8 @@ FROM ${search} ORDER BY obstoryId;");
                 "caption" => $obs['obstoryName'],
                 "hover" => null,
                 "path" => $obs['path'],
+                "image_width" => $obs['width'],
+                "image_height" => $obs['height'],
                 "linkId" => $obs['observationId'],
                 "mimeType" => $obs['mimeType']];
         }

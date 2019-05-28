@@ -2,24 +2,15 @@
  <lens>
   <name>null</name>
   <fov>0</fov>
-  <barrel_a>0</barrel_a>
-  <barrel_b>0</barrel_b>
-  <barrel_c>0</barrel_c>
  </lens>
  <lens>
   <name>f1.6_cctv_lens</name>
   <comment>Lens in use on test camera</comment>
   <fov>65</fov>
-  <barrel_a>0</barrel_a>
-  <barrel_b>0</barrel_b>
-  <barrel_c>0</barrel_c>
  </lens>
  <lens>
   <name>eos1000d</name>
   <comment>Canon 1000D DSLR kit lens</comment>
   <fov>53</fov>
-  <barrel_a>0.01262</barrel_a>
-  <barrel_b>-0.03922</barrel_b>
-  <barrel_c>0.00259</barrel_c>
  </lens>
 </lenses>

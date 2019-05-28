@@ -79,8 +79,16 @@ typedef struct event {
 typedef struct observeStatus {
     // Trigger settings
     int STACK_COMPARISON_INTERVAL;
-    int TRIGGER_PREFIX_TIME;
-    int TRIGGER_SUFFIX_TIME;
+    double TRIGGER_PREFIX_TIME;
+    double TRIGGER_SUFFIX_TIME;
+
+    double TRIGGER_SUFFIX_TIME_INITIAL;
+    int TRIGGER_MIN_DETECTIONS;
+    double TRIGGER_MIN_PATH_LENGTH;
+    double TRIGGER_MAX_MOVEMENT_PER_FRAME;
+    double TRIGGER_MIN_SIGNIFICANCE;
+    double TRIGGER_MIN_SIGNIFICANCE_INITIAL;
+
     int TRIGGER_MAX_DURATION;
     int TRIGGER_THROTTLE_PERIOD;
     int TRIGGER_THROTTLE_MAXEVT;
@@ -112,6 +120,7 @@ typedef struct observeStatus {
 
     int trigger_prefix_frame_count;
     int trigger_suffix_frame_count;
+    int trigger_suffix_initial_frame_count;
 
     // Timelapse buffers
     double timelapse_utc_start;
@@ -146,7 +155,6 @@ typedef struct observeStatus {
     int run_in_frame_countdown;
 
     // Reset trigger throttle counter after this many frame groups have been processed
-    int trigger_throttle_period;
     int trigger_throttle_timer;
     int trigger_throttle_counter;
 
@@ -161,6 +169,9 @@ int read_frame(observe_status *os, unsigned char *buffer, int *stack2);
 int observe(void *video_handle, const char *obstory_id, const double utc_start, const double utc_stop,
             const int width, const int height, const double fps, const char *label, const unsigned char *mask,
             const int STACK_COMPARISON_INTERVAL, const int TRIGGER_PREFIX_TIME, const int TRIGGER_SUFFIX_TIME,
+            const double TRIGGER_SUFFIX_TIME_INITIAL, const int TRIGGER_MIN_DETECTIONS,
+            const double TRIGGER_MIN_PATH_LENGTH, const double TRIGGER_MAX_MOVEMENT_PER_FRAME,
+            const double TRIGGER_MIN_SIGNIFICANCE, const double TRIGGER_MIN_SIGNIFICANCE_INITIAL,
             const int VIDEO_BUFFER_LEN, const int TRIGGER_MAX_DURATION,
             const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT,
             const int TIMELAPSE_EXPOSURE, const int TIMELAPSE_INTERVAL, const int STACK_TARGET_BRIGHTNESS,

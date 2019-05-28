@@ -37,7 +37,7 @@ if (array_key_exists("id", $_GET)) $id = $_GET["id"];
 $stmt = $const->db->prepare("
 SELECT f.uid,f.repositoryFname,f.observationId,f.mimeType,f.fileName,s.name AS semanticType
 FROM archive_files f
-INNER JOIN archive_semanticTypes s ON f.semanticType=s.uid
+INNER JOIN archive_semanticTypes s ON f.semanticType = s.uid
 WHERE repositoryFname=:i;");
 $stmt->bindParam(':i', $i, PDO::PARAM_STR, strlen($id));
 $stmt->execute(['i' => $id]);
@@ -74,6 +74,32 @@ $file_url = "/api/files/content/{$result['repositoryFname']}/{$result['fileName'
 
 // Does user have permission to set metadata on this item?
 $allow_item_to_be_featured = (($mime_type == "image/png") && in_array("voter", $user->roles));
+
+// Find previous and next images of the same type, from the same observatory
+$related = [];
+
+$flag_highlights = 0;
+$search_highlights = "";
+
+if (array_key_exists("highlights", $_GET) && $_GET["highlights"]) {
+    $flag_highlights = 1;
+    $search_highlights = "AND o.featured ";
+}
+
+foreach ([["prev", "<", "DESC"], ["next", ">", "ASC"]] as $sort) {
+    $stmt = $const->db->prepare("
+SELECT f.repositoryFname AS uid
+FROM archive_files f
+INNER JOIN archive_observations o on f.observationId = o.uid
+INNER JOIN archive_semanticTypes s ON f.semanticType = s.uid
+WHERE s.name=:s AND o.observatory=:o AND o.obsTime {$sort[1]} :t {$search_highlights}
+ORDER BY o.obsTime {$sort[2]} LIMIT 1;");
+    $stmt->bindParam(':s', $s, PDO::PARAM_STR, strlen($result['semanticType']));
+    $stmt->bindParam(':t', $t, PDO::PARAM_STR, 32);
+    $stmt->bindParam(':o', $o, PDO::PARAM_INT);
+    $stmt->execute(['o' => $observation['observatory'], 't' => $observation['obsTime'], 's' => $result['semanticType']]);
+    $related[$sort[0]] = $stmt->fetchAll();
+}
 
 // Set categorisation of image based on get data
 if ($allow_item_to_be_featured && array_key_exists("update", $_GET)) {
@@ -135,6 +161,29 @@ $pageInfo = [
 $pageTemplate->header($pageInfo);
 
 ?>
+
+<table style="width:100%; margin:4px 0;">
+    <tr>
+        <?php if ($related['prev']): ?>
+            <td style="text-align:left;">
+                <form method="get" action="<?php echo $const->server; ?>image.php">
+                    <input type="hidden" name="id" value="<?php echo $related['prev'][0]['uid']; ?>"/>
+                    <input type="hidden" name="highlights" value="<?php echo $flag_highlights; ?>"/>
+                    <input class="btn btn-sm btn-success" type="submit" value="Previous"/>
+                </form>
+            </td>
+        <?php endif; ?>
+        <?php if ($related['next']): ?>
+            <td style="text-align:right;">
+                <form method="get" action="<?php echo $const->server; ?>image.php">
+                    <input type="hidden" name="id" value="<?php echo $related['next'][0]['uid']; ?>"/>
+                    <input type="hidden" name="highlights" value="<?php echo $flag_highlights; ?>"/>
+                    <input class="btn btn-sm btn-success" type="submit" value="Next"/>
+                </form>
+            </td>
+        <?php endif; ?>
+    </tr>
+</table>
 
     <div class="row">
         <div class="col-md-8">
@@ -241,7 +290,8 @@ $pageTemplate->header($pageInfo);
             else
                 $caption = [$semantic_type, ""];
             if ($caption == null) continue;
-            $gallery_items[] = ["fileId" => $item['repositoryFname'],
+            $gallery_items[] = [
+                "fileId" => $item['repositoryFname'],
                 "filename" => $item["fileName"],
                 "caption" => $caption[0],
                 "hover" => $caption[1],
@@ -271,7 +321,9 @@ $pageTemplate->header($pageInfo);
             $value = $item['stringValue'] ? $item['stringValue'] : sprintf("%.2f", $item['floatValue']);
             ?>
             <tr class="active">
-                <td><?php echo $key; ?></td>
+                <td style="vertical-align:top;white-space:nowrap;" title="<?php echo $item['metaKey']; ?>">
+                    <?php echo $key; ?>
+                </td>
                 <td><?php echo $value; ?></td>
             </tr>
         <?php endforeach; ?>

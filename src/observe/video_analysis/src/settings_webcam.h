@@ -47,10 +47,20 @@
 #define TRIGGER_THROTTLE_MAXEVT  5 /* number of triggers allowed in that time */
 
 // Trigger parameters
-#define VIDEO_BUFFER_LENGTH  10  /* maximum period of video to buffer in ram */
-#define TRIGGER_MAX_DURATION 25  /* maximum length of video to record after trigger */
-#define TRIGGER_PREFIX_TIME   2  /* include N seconds of video after trigger */
-#define TRIGGER_SUFFIX_TIME   3  /* include N seconds of video after trigger has gone away */
+#define VIDEO_BUFFER_LENGTH   10  /* maximum period of video to buffer in ram */
+#define TRIGGER_MAX_DURATION 120  /* maximum length of video to record after trigger */
+#define TRIGGER_PREFIX_TIME    2  /* include N seconds of video after trigger */
+#define TRIGGER_SUFFIX_TIME    4  /* include N seconds of video after trigger has gone away */
+
+#define TRIGGER_SUFFIX_TIME_INITIAL  0.25 /* An object which has only been seen once must recur within this time */
+
+#define TRIGGER_MIN_DETECTIONS  2 /* The minimum number of frames in which a moving object must be detected */
+#define TRIGGER_MIN_PATH_LENGTH 4 /* The minimum number of pixels that the moving object must move across the frame */
+#define TRIGGER_MAX_MOVEMENT_PER_FRAME 70 /* The maximum distance a moving object may move from one frame to next */
+
+#define TRIGGER_MIN_SIGNIFICANCE 40 /* The number of standard deviations above the noise level for a moving object */
+#define TRIGGER_MIN_SIGNIFICANCE_INITIAL 50 /* As above, but specifically for the initial detection of an object */
+
 
 // Processing of background map
 #define BACKGROUND_MAP_FRAMES 3000 /* Produce a new background map every 2 minutes */
@@ -58,7 +68,7 @@
 #define BACKGROUND_MAP_REDUCTION_CYCLES 64 /* Reduce the new background map over the course of N frames */
 
 // Compare stacked groups of frames that are N stacks apart; makes us more sensitive to slow-moving things
-#define STACK_COMPARISON_INTERVAL 3
+#define STACK_COMPARISON_INTERVAL 4
 
 // Time-lapse
 #define TIMELAPSE_EXPOSURE 116 /* Exposure length for time-lapse photography */

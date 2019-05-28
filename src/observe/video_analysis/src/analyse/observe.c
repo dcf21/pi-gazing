@@ -170,6 +170,9 @@ int read_frame(observe_status *os, unsigned char *buffer, int *stack2) {
 int observe(void *video_handle, const char *obstory_id, const double utc_start, const double utc_stop,
             const int width, const int height, const double fps, const char *label, const unsigned char *mask,
             const int STACK_COMPARISON_INTERVAL, const int TRIGGER_PREFIX_TIME, const int TRIGGER_SUFFIX_TIME,
+            const double TRIGGER_SUFFIX_TIME_INITIAL, const int TRIGGER_MIN_DETECTIONS,
+            const double TRIGGER_MIN_PATH_LENGTH, const double TRIGGER_MAX_MOVEMENT_PER_FRAME,
+            const double TRIGGER_MIN_SIGNIFICANCE, const double TRIGGER_MIN_SIGNIFICANCE_INITIAL,
             const int VIDEO_BUFFER_LEN, const int TRIGGER_MAX_DURATION,
             const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT,
             const int TIMELAPSE_EXPOSURE, const int TIMELAPSE_INTERVAL, const int STACK_TARGET_BRIGHTNESS,
@@ -207,6 +210,13 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     os->STACK_COMPARISON_INTERVAL = STACK_COMPARISON_INTERVAL;
     os->TRIGGER_PREFIX_TIME = TRIGGER_PREFIX_TIME;
     os->TRIGGER_SUFFIX_TIME = TRIGGER_SUFFIX_TIME;
+
+    os->TRIGGER_SUFFIX_TIME_INITIAL = TRIGGER_SUFFIX_TIME_INITIAL;
+    os->TRIGGER_MIN_DETECTIONS = TRIGGER_MIN_DETECTIONS;
+    os->TRIGGER_MIN_PATH_LENGTH = TRIGGER_MIN_PATH_LENGTH;
+    os->TRIGGER_MAX_MOVEMENT_PER_FRAME = TRIGGER_MAX_MOVEMENT_PER_FRAME;
+    os->TRIGGER_MIN_SIGNIFICANCE = TRIGGER_MIN_SIGNIFICANCE;
+    os->TRIGGER_MIN_SIGNIFICANCE_INITIAL = TRIGGER_MIN_SIGNIFICANCE_INITIAL;
     os->TRIGGER_MAX_DURATION = TRIGGER_MAX_DURATION;
     os->TRIGGER_THROTTLE_PERIOD = TRIGGER_THROTTLE_PERIOD;
     os->TRIGGER_THROTTLE_MAXEVT = TRIGGER_THROTTLE_MAXEVT;
@@ -223,6 +233,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     // When we catch a trigger, we include a few frames before the object appears, and after it disappears
     os->trigger_prefix_frame_count = (int) (os->TRIGGER_PREFIX_TIME * os->fps);
     os->trigger_suffix_frame_count = (int) (os->TRIGGER_SUFFIX_TIME * os->fps);
+    os->trigger_suffix_initial_frame_count = (int) (os->TRIGGER_SUFFIX_TIME_INITIAL * os->fps);
 
     // Timelapse buffers
     os->utc = 0;
@@ -305,9 +316,6 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     // Trigger throttling
     os->trigger_throttle_timer = 0;
     os->trigger_throttle_counter = 0;
-
-    // Reset trigger throttle counter after this many frame groups have been processed
-    os->trigger_throttle_period = (int) (os->TRIGGER_THROTTLE_PERIOD * 60. * os->fps);
 
     // Processing loop
     while (1) {
@@ -449,7 +457,8 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
 
         unsigned char *image_old =
                 os->video_buffer +
-                (((os->frame_counter + os->video_buffer_frames - STACK_COMPARISON_INTERVAL) % os->video_buffer_frames)
+                (((os->frame_counter + os->video_buffer_frames - os->STACK_COMPARISON_INTERVAL)
+                  % os->video_buffer_frames)
                  * os->bytes_per_frame);
 
         // Test whether motion sensor has triggered
@@ -485,11 +494,36 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                       const int amplitude, const unsigned char *image1, const unsigned char *image2) {
     if (!os->triggering_allowed) return;
 
-    const int trigger_maximum_movement_per_frame = 70;
-    const int minimum_detections_for_event = 2;
-    const int minimum_object_path_length = 4;
+    const double significance = amplitude / os->noise_level;
+
+    const int trigger_maximum_movement_per_frame = os->TRIGGER_MAX_MOVEMENT_PER_FRAME;
+    const int minimum_detections_for_event = os->TRIGGER_MIN_DETECTIONS;
+    const int minimum_object_path_length = os->TRIGGER_MIN_PATH_LENGTH;
 
     const int channel_count = GREYSCALE_IMAGING ? 1 : 3;
+
+    // Cycle through objects we are already tracking to find nearest one
+    int i;
+    int closest_trigger = -1;
+    int closest_trigger_dist = 9999;
+    for (i = 0; i < MAX_EVENTS; i++)
+        if (os->event_list[i].active) {
+            const int N = os->event_list[i].detection_count - 1;
+            const int dist = (int) hypot(x_pos - os->event_list[i].detections[N].x,
+                                         y_pos - os->event_list[i].detections[N].y);
+            if (dist < closest_trigger_dist) {
+                closest_trigger_dist = dist;
+                closest_trigger = i;
+            }
+        }
+
+    // If it's relatively close, assume this detection is of that object
+    const int repeat_detection = (closest_trigger_dist < trigger_maximum_movement_per_frame);
+
+    // Check that this detection meets minimum significance threshold
+    if (significance < (repeat_detection ? os->TRIGGER_MIN_SIGNIFICANCE : os->TRIGGER_MIN_SIGNIFICANCE_INITIAL)) {
+        return;
+    }
 
     // Colour in block of pixels which have triggered in schematic trigger map
     int k;
@@ -511,23 +545,8 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
         }
     }
 
-    // Cycle through objects we are already tracking to find nearest one
-    int i;
-    int closest_trigger = -1;
-    int closest_trigger_dist = 9999;
-    for (i = 0; i < MAX_EVENTS; i++)
-        if (os->event_list[i].active) {
-            const int N = os->event_list[i].detection_count - 1;
-            const int dist = (int) hypot(x_pos - os->event_list[i].detections[N].x,
-                                         y_pos - os->event_list[i].detections[N].y);
-            if (dist < closest_trigger_dist) {
-                closest_trigger_dist = dist;
-                closest_trigger = i;
-            }
-        }
-
-    // If it's relatively close, assume this detection is of that object
-    if (closest_trigger_dist < trigger_maximum_movement_per_frame) {
+    // If this is a repeat detection, then update that object's event structure to include the new detection
+    if (repeat_detection) {
         const int i = closest_trigger;
         const int n = os->event_list[i].detection_count - 1;
 
@@ -742,9 +761,12 @@ void register_trigger_ends(observe_status *os) {
                                         os->event_list[i].detections[N0].frame_count + max_event_frames);
 
             // Has event disappeared?
+            const int suffix_frames = (os->event_list[i].detection_count > 1)
+                                      ? os->trigger_suffix_frame_count
+                                      : os->trigger_suffix_initial_frame_count;
             const int event_disappeared = (os->frame_counter >
                                            os->event_list[i].detections[N2].frame_count +
-                                           os->trigger_suffix_frame_count);
+                                           suffix_frames);
 
             // Test whether this event has ended
             if (event_too_long || event_disappeared) {
@@ -859,7 +881,7 @@ void register_trigger_ends(observe_status *os) {
                 }
 
                 // Now that we know the duration of this video, we can write metadata about the video file
-                write_metadata(os->event_list[i].video_output.filename, "sdsiidsdiiiis",
+                write_metadata(os->event_list[i].video_output.filename, "sdsiidsdidiis",
                                "obstoryId", os->obstory_id,
                                "utc", os->event_list[i].start_time,
                                "semanticType", "pigazing:movingObject/video",
@@ -869,7 +891,7 @@ void register_trigger_ends(observe_status *os) {
                                "path", path_json,
                                "duration", duration,
                                "detectionCount", os->event_list[i].detection_count,
-                               "detectionSignificance", os->event_list[i].detections[0].amplitude,
+                               "detectionSignificance", amplitude_peak / os->noise_level,
                                "amplitudeTimeIntegrated", amplitude_time_integrated,
                                "amplitudePeak", amplitude_peak,
                                "pathBezier", path_bezier

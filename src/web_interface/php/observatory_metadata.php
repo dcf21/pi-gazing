@@ -99,7 +99,9 @@ $pageTemplate->header($pageInfo);
                             echo "&ndash;";
                         ?>
                     </td>
-                    <td><?php echo $key; ?></td>
+                    <td style="vertical-align:top;white-space:nowrap;" title="<?php echo $item['metaKey']; ?>">
+                        <?php echo $key; ?>
+                    </td>
                     <td><?php echo $value; ?></td>
                 </tr>
             <?php endforeach; ?>

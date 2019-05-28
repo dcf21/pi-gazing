@@ -113,6 +113,10 @@ INNER JOIN archive_files f ON f.observationId=m.childObservation
 INNER JOIN archive_observatories l ON o.observatory = l.uid
 LEFT OUTER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
     d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:pathBezier\")
+LEFT OUTER JOIN archive_metadata d3 ON o.uid = d3.observationId AND
+    d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:width\")
+LEFT OUTER JOIN archive_metadata d4 ON o.uid = d4.observationId AND
+    d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:height\")
 WHERE m.groupId IN
     (SELECT groupId FROM archive_obs_groups g
      INNER JOIN archive_obs_group_members m2 ON m2.groupId=g.uid AND m2.childObservation=:i);
@@ -198,22 +202,24 @@ if (array_key_exists("pigazing:triggers/event", $files_by_type)):
 <?php endif; ?>
 
 <?php
-if (count($simultaneous_events)>0)
-{
+if (count($simultaneous_events) > 0) {
     ?>
     <h3>Other possible detections of the same object</h3>
     <?php
 
     $gallery_items = [];
-    foreach ($simultaneous_events as $item)
-    {
-        $gallery_items[] = ["fileId" => $item['repositoryFname'],
+    foreach ($simultaneous_events as $item) {
+        $gallery_items[] = [
+            "fileId" => $item['repositoryFname'],
             "filename" => $item["fileName"],
             "caption" => $item["obstory"],
             "hover" => null,
             "path" => $item['path'],
+            "image_width" => $item['width'],
+            "image_height" => $item['height'],
             "linkId" => $item['repositoryFname'],
-            "mimeType" => $item['mimeType']];
+            "mimeType" => $item['mimeType']
+        ];
     }
     $pageTemplate->imageGallery($gallery_items, "/image.php?id=", true);
 
@@ -236,11 +242,14 @@ if (count($simultaneous_events)>0)
             else
                 $caption = [$semantic_type, ""];
             if ($caption == null) continue;
-            $gallery_items[] = ["fileId" => $item['repositoryFname'],
+            $gallery_items[] = [
+                    "fileId" => $item['repositoryFname'],
                 "filename" => $item["fileName"],
                 "caption" => $caption[0],
                 "hover" => $caption[1],
                 "path" => $metadata_by_key['pigazing:pathBezier'],
+                "image_width" => $metadata_by_key['pigazing:width'],
+                "image_height" => $metadata_by_key['pigazing:height'],
                 "linkId" => $item['repositoryFname'],
                 "mimeType" => $item['mimeType']];
         }
@@ -267,7 +276,9 @@ if (count($simultaneous_events)>0)
             $value = $item['stringValue'] ? $item['stringValue'] : sprintf("%.2f", $item['floatValue']);
             ?>
             <tr class="active">
-                <td style="vertical-align:top;white-space:nowrap;"><?php echo $key; ?></td>
+                <td style="vertical-align:top;white-space:nowrap;" title="<?php echo $item['metaKey']; ?>">
+                    <?php echo $key; ?>
+                </td>
                 <td><?php echo $value; ?></td>
             </tr>
         <?php endforeach; ?>
