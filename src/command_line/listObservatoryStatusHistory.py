@@ -68,7 +68,7 @@ def list_observatory_status(utc_min, utc_max, obstory):
     keys_seen = []
     for item in data:
         # The magic metadata keyword "pigazing:refresh" causes all older metadata to be superseded
-        if item.key == "pigazing:refresh" and not refreshed:
+        if item.key == "refresh" and not refreshed:
             item.still_current = True
             refreshed = True
         # If we don't have a later metadata update for the same keyword, then this metadata remains current

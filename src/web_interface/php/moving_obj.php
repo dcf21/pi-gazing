@@ -57,6 +57,27 @@ $obstory = $stmt->fetch();
 // Does user have permission to set metadata on this item?
 $allow_item_to_be_featured = in_array("voter", $user->roles);
 
+// Find previous and next images of the same type, from the same observatory
+$related = [];
+
+foreach ([["prev", "<", "DESC"], ["next", ">", "ASC"]] as $sort) {
+    $stmt = $const->db->prepare("
+SELECT o.publicId AS uid
+FROM archive_observations o
+INNER JOIN archive_semanticTypes s ON o.obsType = s.uid
+WHERE s.name=:s AND o.observatory=:o AND o.obsTime {$sort[1]} :t
+ORDER BY o.obsTime {$sort[2]} LIMIT 1;");
+    $stmt->bindParam(':s', $s, PDO::PARAM_STR, strlen($observation['semanticType']));
+    $stmt->bindParam(':t', $t, PDO::PARAM_STR, 32);
+    $stmt->bindParam(':o', $o, PDO::PARAM_INT);
+    $stmt->execute([
+            'o' => $observation['observatory'],
+        't' => $observation['obsTime'],
+        's' => $observation['semanticType']
+    ]);
+    $related[$sort[0]] = $stmt->fetchAll();
+}
+
 // Set categorisation of image based on get data
 if ($allow_item_to_be_featured && array_key_exists("update", $_GET)) {
     if (array_key_exists("category", $_GET)) {
@@ -142,9 +163,31 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
+<table style="width:100%; margin:4px 0;">
+    <tr>
+        <?php if ($related['prev']): ?>
+            <td style="text-align:left;">
+                <form method="get" action="<?php echo $const->server; ?>moving_obj.php">
+                    <input type="hidden" name="id" value="<?php echo $related['prev'][0]['uid']; ?>"/>
+                    <input class="btn btn-sm btn-success" type="submit" value="Previous"/>
+                </form>
+            </td>
+        <?php endif; ?>
+        <?php if ($related['next']): ?>
+            <td style="text-align:right;">
+                <form method="get" action="<?php echo $const->server; ?>moving_obj.php">
+                    <input type="hidden" name="id" value="<?php echo $related['next'][0]['uid']; ?>"/>
+                    <input class="btn btn-sm btn-success" type="submit" value="Next"/>
+                </form>
+            </td>
+        <?php endif; ?>
+    </tr>
+</table>
+
 <?php
-if (array_key_exists("pigazing:triggers/event", $files_by_type)):
-    $video = $files_by_type["pigazing:triggers/event"];
+
+if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
+    $video = $files_by_type["pigazing:movingObject/video"];
     $file_url = "/api/files/content/{$video['repositoryFname']}/{$video['fileName']}";
     ?>
 

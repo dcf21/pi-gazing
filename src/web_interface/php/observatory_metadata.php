@@ -89,7 +89,17 @@ $pageTemplate->header($pageInfo);
                 $value = $item['stringValue'] ? $item['stringValue'] : sprintf("%.2f", $item['floatValue']);
                 $superseded = in_array($key, $seenKeys);
                 if (!$superseded) $seenKeys[] = $key;
+
+                if ($item['metaKey'] == "refresh"):
                 ?>
+                <tr>
+                    <td colspan="3" style="text-align:center; font-style: italic;">
+                        &ndash;
+                        Observatory serviced <?php echo date("d M Y - H:i", $item['time']); ?>
+                        &ndash;
+                    </td>
+                </tr>
+                <?php else: ?>
                 <tr class="<?php echo $superseded ? 'superseded' : 'active'; ?>">
                     <td>
                         <?php
@@ -104,6 +114,7 @@ $pageTemplate->header($pageInfo);
                     </td>
                     <td><?php echo $value; ?></td>
                 </tr>
+                <?php endif; ?>
             <?php endforeach; ?>
         </table>
     </div>

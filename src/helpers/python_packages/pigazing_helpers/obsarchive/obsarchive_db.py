@@ -243,7 +243,7 @@ VALUES
         self.con.execute("""
 SELECT time FROM archive_metadata
 WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
-      AND fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey='pigazing:refresh')
+      AND fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey='refresh')
 ORDER BY time DESC LIMIT 1
 """, (obstory_id,))
         results = self.con.fetchall()
@@ -281,15 +281,28 @@ ORDER BY time DESC LIMIT 1
         if obstory_id is None:
             obstory_id = self.obstory_id
 
+        # See when this observatory was last serviced. Do not report any metadata set before this time.
+        last_serviced = 0
+        self.con.execute("""
+SELECT time FROM archive_metadata
+WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
+      AND fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey='refresh')
+ORDER BY time DESC LIMIT 1
+""", (obstory_id,))
+        results = self.con.fetchall()
+        if len(results) > 0:
+            last_serviced = results[0]['time']
+
         self.con.execute('SELECT uid FROM archive_metadataFields WHERE metaKey=%s;', (key,))
         results = self.con.fetchall()
         if len(results) < 1:
             return None, None
         self.con.execute("""
 SELECT floatValue, stringValue, time FROM archive_metadata
-WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s) AND fieldId=%s AND time<%s
+WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s) AND fieldId=%s
+      AND time BETWEEN %s AND %s
 ORDER BY time DESC LIMIT 1
-""", (obstory_id, results[0]['uid'], time))
+""", (obstory_id, results[0]['uid'], last_serviced, time))
         results = self.con.fetchall()
         if len(results) < 1:
             return None, None

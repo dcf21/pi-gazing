@@ -881,7 +881,7 @@ void register_trigger_ends(observe_status *os) {
                 }
 
                 // Now that we know the duration of this video, we can write metadata about the video file
-                write_metadata(os->event_list[i].video_output.filename, "sdsiidsdidiis",
+                write_metadata(os->event_list[i].video_output.filename, "sdsiidsdidiisddd",
                                "obstoryId", os->obstory_id,
                                "utc", os->event_list[i].start_time,
                                "semanticType", "pigazing:movingObject/video",
@@ -894,7 +894,10 @@ void register_trigger_ends(observe_status *os) {
                                "detectionSignificance", amplitude_peak / os->noise_level,
                                "amplitudeTimeIntegrated", amplitude_time_integrated,
                                "amplitudePeak", amplitude_peak,
-                               "pathBezier", path_bezier
+                               "pathBezier", path_bezier,
+                               "videoStart", os->event_list[i].start_time - os->TRIGGER_PREFIX_TIME,
+                               "videoFPS", os->fps,
+                               "videoDuration", os->utc - (os->event_list[i].start_time - os->TRIGGER_PREFIX_TIME)
                 );
             }
         }
