@@ -191,10 +191,18 @@ $pageTemplate->header($pageInfo);
                 <?php if ($mime_type == "image/png"): ?>
                     <img class="gallery_still_img" alt="" title="" src="<?php echo $file_url; ?>"/>
                 <?php elseif ($mime_type == "video/mp4"): ?>
-                    <video class="gallery_still_img" controls>
-                        <source src="<?php echo $file_url; ?>" type="video/mp4"/>
-                        Your browser does not support the video tag.
-                    </video>
+                    <div style="position:relative" class="video_marker_overlay"
+                         data-path='<?php echo $metadata_by_key['pigazing:path']; ?>'
+                         data-width='<?php echo $metadata_by_key['pigazing:width']; ?>'
+                         data-height='<?php echo $metadata_by_key['pigazing:height']; ?>'
+                         data-start='<?php echo $metadata_by_key['pigazing:videoStart']; ?>'
+                    >
+                        <img class="video_path_marker" alt="" title="" src="/img/crosshair.gif"/>
+                        <video class="gallery_still_img" controls>
+                            <source src="<?php echo $file_url; ?>" type="video/mp4"/>
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
                 <?php else: ?>
                     <div class="gallery_still_img scrolling_text_container">
                         <?php
@@ -206,6 +214,12 @@ $pageTemplate->header($pageInfo);
             </div>
         </div>
         <div class="col-md-4">
+            <?php if ($mime_type == "video/mp4"): ?>
+            <h5>Video controls</h5>
+            <label>
+                <input type="checkbox" checked="" class="video_marker" /> Show position marker
+            </label>
+            <?php endif; ?>
             <h5>Observation type</h5>
             <p><?php echo $const->semanticTypes[$observation['semanticType']][1]; ?></p>
             <h5>Observatory</h5>

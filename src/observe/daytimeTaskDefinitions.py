@@ -150,7 +150,8 @@ def execute_shell_command(arguments):
                                                    obstory_id=installation_info['observatoryId'])
 
             # Fetch observatory status
-            obstory_status = db.get_obstory_status(obstory_id=arguments['obs_id'])
+            obstory_status = db.get_obstory_status(obstory_id=arguments['obs_id'],
+                                                   time=arguments['utc'])
 
             # Close database connection
             db.close_db()
@@ -388,9 +389,12 @@ def metadata_file_to_dict(db_handle, product_filename, required, input_metadata=
         db_handle.register_obstory_metadata(obstory_id=obs_id,
                                             key="refresh",
                                             value=1,
-                                            metadata_time=output['utc'],
+                                            metadata_time=output['utc'] - 1,
                                             time_created=time.time(),
                                             user_created=settings['pigazingUser'])
+
+        # Recheck that all required metadata us set at the time of this observation
+        check_observatory_exists(db_handle=db_handle, obs_id=obs_id, utc=output['utc'])
 
     # Add further metadata about the position of the Sun
     utc = output['utc']
@@ -939,7 +943,7 @@ class TriggerRawVideos(TaskRunner):
         if metadata['semanticType'] == 'pigazing:movingObject/video':
             return [
                 'amplitudePeak', 'amplitudeTimeIntegrated', 'detectionCount', 'detectionSignificance', 'duration',
-                'height', 'pathBezier', 'width'
+                'height', 'pathBezier', 'videoDuration', 'videoFPS', 'videoStart', 'width'
             ]
         else:
             return []

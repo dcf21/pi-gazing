@@ -244,8 +244,9 @@ VALUES
 SELECT time FROM archive_metadata
 WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
       AND fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey='refresh')
+      AND time <= %s
 ORDER BY time DESC LIMIT 1
-""", (obstory_id,))
+""", (obstory_id, time))
         results = self.con.fetchall()
         if len(results) > 0:
             last_serviced = results[0]['time']
@@ -287,8 +288,9 @@ ORDER BY time DESC LIMIT 1
 SELECT time FROM archive_metadata
 WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
       AND fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey='refresh')
+      AND time <= %s
 ORDER BY time DESC LIMIT 1
-""", (obstory_id,))
+""", (obstory_id, time))
         results = self.con.fetchall()
         if len(results) > 0:
             last_serviced = results[0]['time']
