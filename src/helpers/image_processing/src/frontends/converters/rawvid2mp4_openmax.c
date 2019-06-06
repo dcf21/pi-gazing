@@ -660,6 +660,12 @@ int main(int argc, const char **argv) {
         logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
+    FILE *infile;
+    if ((infile = fopen(input_filename, "rb")) == NULL) {
+        sprintf(temp_err_string, "ERROR: Cannot open output raw video file %s.\n", input_filename);
+        logging_fatal(__FILE__, __LINE__, temp_err_string);
+    }
+
     int size, width, height, i;
     i = fread(&size, sizeof(int), 1, infile);
     i = fread(&width, sizeof(int), 1, infile);
