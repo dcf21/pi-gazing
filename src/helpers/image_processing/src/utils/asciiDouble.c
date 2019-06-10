@@ -32,12 +32,12 @@
 
 #include "utils/julianDate.h"
 
-//! getFloat - Extract a floating point number from a string
+//! get_float - Extract a floating point number from a string
 //! \param [in] str The input string
 //! \param [out] Nchars Return the number of characters occupied by the float returned (optional)
 //! \return The floating point value extracted
 
-double getFloat(const char *str, int *Nchars) {
+double get_float(const char *str, int *Nchars) {
     double accumulator = 0;
     int decimals = 0;
     unsigned char past_decimal_point = 0;
@@ -70,7 +70,7 @@ double getFloat(const char *str, int *Nchars) {
     if (negative == 1) accumulator *= -1;                         /* Deals with negatives */
 
     if ((str[pos] == 'e') || (str[pos] == 'E'))
-        accumulator *= pow(10.0, getFloat(str + pos + 1, &pos2)); /* Deals with exponents */
+        accumulator *= pow(10.0, get_float(str + pos + 1, &pos2)); /* Deals with exponents */
 
     if (pos2 > 0) pos += (1 + pos2); // Add on characters taken up by exponent, including one for the 'e' character.
     if (pos == 0) pos = -1; // Alert the user that this was a blank string!
@@ -78,12 +78,12 @@ double getFloat(const char *str, int *Nchars) {
     return (accumulator);
 }
 
-//! validFloat - See whether candidate string is a valid float
+//! valid_float - See whether candidate string is a valid float
 //! \param [in] str The input string
 //! \param [out] end The number of characters occupied by the floating point value (optional)
 //! \return Boolean flag indicating whether a valid floating-point value was found.
 
-int validFloat(const char *str, int *end) {
+int valid_float(const char *str, int *end) {
     unsigned char past_decimal_point = 0, had_number = 0, expvalid = 1;
     int pos = 0;
     int pos2 = 0;
@@ -103,7 +103,7 @@ int validFloat(const char *str, int *end) {
 
     if ((str[pos] == 'e') || (str[pos] == 'E')) /* Deals with exponents */
     {
-        expvalid = validFloat(str + pos + 1, &pos2);
+        expvalid = valid_float(str + pos + 1, &pos2);
         pos += pos2 + 1;
     }
 
@@ -117,14 +117,14 @@ int validFloat(const char *str, int *end) {
     return 1;
 }
 
-//! numericDisplay - Render a string-representation of a double in either %f or %e formats
+//! numeric_display - Render a string-representation of a double in either %f or %e formats
 //! \param in The floating point value to render
 //! \param N Choose one of four internal static char buffers to hold the result (N=0...3)
 //! \param SigFig The number of significant figures to display
 //! \param latex Boolean flag indicating whether we should produce LaTeX output (true) or human-readable output (false)
 //! \return String-representation, contained in a static char buffer which may be overwritten by subsequent calls
 
-char *numericDisplay(double in, int N, int SigFig, int latex) {
+char *numeric_display(double in, int N, int SigFig, int latex) {
     static char format[16], outputA[128], outputB[128], outputC[128], outputD[128];
     double x, AccLevel;
     char *output;
@@ -190,12 +190,12 @@ char *numericDisplay(double in, int N, int SigFig, int latex) {
     return output;
 }
 
-//! dblEqual - Test whether two floating-point values are approximately equal, to within one part in 10^7
+//! double_equal - Test whether two floating-point values are approximately equal, to within one part in 10^7
 //! \param a First value
 //! \param b Second value
 //! \return Boolean flag indicating equality
 
-unsigned char dblEqual(double a, double b) {
+unsigned char double_equal(double a, double b) {
     if ((fabs(a) < 1e-100) && (fabs(b) < 1e-100)) return 1;
     if ((fabs(a - b) < fabs(1e-7 * a)) && (fabs(a - b) < fabs(1e-7 * b))) return 1;
     return 0;
@@ -221,12 +221,12 @@ void file_readline(FILE *file, char *output, int MaxLength) {
     *(outputscan++) = '\0';
 }
 
-//! getWord - Returns the first word from <in>, terminated by any whitespace. Returns a maximum of <max> characters.
+//! get_word - Returns the first word from <in>, terminated by any whitespace. Returns a maximum of <max> characters.
 //! \param out The character buffer into which to write the extracted word. Always null terminated.
 //! \param in The input character stream
 //! \param max The maximum number of characters to write to out, including null termination.
 
-void getWord(char *out, const char *in, int max) {
+void get_word(char *out, const char *in, int max) {
     int count = 0;
     while ((*in <= ' ') && (*in > '\0')) in++; /*!< Fastforward over preceding whitespace */
     while (((*in > ' ') || (*in < '\0')) && (count < (max - 1))) {
@@ -236,11 +236,11 @@ void getWord(char *out, const char *in, int max) {
     *out = '\0'; /*!< Terminate output */
 }
 
-//! nextWord - Fast forward a character pointer over one word, and return pointer to next word.
+//! next_word - Fast forward a character pointer over one word, and return pointer to next word.
 //! \param in The pointer to the character array we are to advance by one word
 //! \return The pointer to the first non-whitespace character of the second word in the input string
 
-char *nextWord(char *in) {
+char *next_word(char *in) {
     while ((*in <= ' ') && (*in > '\0')) in++; /*!< Fast-forward over preceding whitespace */
     while ((*in > ' ') || (*in < '\0')) in++; /*!< Fast-forward over one word */
     while ((*in <= ' ') && (*in > '\0')) in++; /*!< Fast-forward over whitespace before next word */
@@ -296,7 +296,6 @@ char *str_upper(const char *in, char *out) {
     return out;
 }
 
-
 //! str_lower - Copy to lower-case version of a string into a new character buffer
 //! \param [in] in The input string to be converted to lower-case
 //! \param [out] out The character buffer into which to write the lower-case version
@@ -310,7 +309,6 @@ char *str_lower(const char *in, char *out) {
     *scan = '\0';
     return out;
 }
-
 
 //! str_underline - Write a string of -s which is long enough to underline a string
 //! \param [in] in The input string to be underlined
@@ -462,24 +460,24 @@ int str_cmp_no_case(const char *a, const char *b) {
     }
 }
 
-//! readConfig_FetchKey - Read a line of a configuration file, in the format <key=value>. Extract the key and copy it
+//! readConfig_fetchKey - Read a line of a configuration file, in the format <key=value>. Extract the key and copy it
 //! into the character buffer <out>.
 //! \param [in] line The input line of the configuration file
 //! \param [out] out The character buffer into which to write the key
 
-void readConfig_FetchKey(char *line, char *out) {
+void readConfig_fetchKey(char *line, char *out) {
     char *scan = out;
     while ((*line != '\0') && ((*(scan) = *(line++)) != '=')) scan++;
     *scan = '\0';
     str_strip(out, out);
 }
 
-//! readConfig_FetchValue - Read a line of a configuration file, in the format <key=value>. Extract the value and copy
+//! readConfig_fetchValue - Read a line of a configuration file, in the format <key=value>. Extract the value and copy
 //! it into the character buffer <out>.
 //! \param [in] line The input line of the configuration file
 //! \param [out] out The character buffer into which to write the value
 
-void readConfig_FetchValue(char *line, char *out) {
+void readConfig_fetchValue(char *line, char *out) {
     char *scan = out;
     while ((*line != '\0') && (*(line++) != '='));
     while (*line != '\0') *(scan++) = *(line++);

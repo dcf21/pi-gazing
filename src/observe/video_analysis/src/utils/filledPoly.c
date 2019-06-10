@@ -49,9 +49,9 @@ void fill_polygons_from_file(FILE *infile, unsigned char *mask, int width, int h
         if (line[0] == '#') continue;
 
         char *cp = line;
-        polyX[polyCorners] = getFloat(cp, NULL);
-        cp = nextWord(cp);
-        polyY[polyCorners] = getFloat(cp, NULL);
+        polyX[polyCorners] = get_float(cp, NULL);
+        cp = next_word(cp);
+        polyY[polyCorners] = get_float(cp, NULL);
         polyCorners++;
         continue;
 

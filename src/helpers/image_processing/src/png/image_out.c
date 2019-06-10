@@ -126,5 +126,4 @@ int image_put(const char *output_filename, image_ptr image, int grayscale) {
     if (row != NULL) free(row);
 
     return code;
-
 }
