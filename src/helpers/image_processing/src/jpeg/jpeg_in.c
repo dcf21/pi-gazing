@@ -27,6 +27,11 @@
 #include "jpeg.h"
 #include <jpeglib.h>
 
+//! jpeg_alloc - allocate an jpeg_ptr structure to hold an image of dimensions (x, y)
+//! \param [out] out The jpeg_ptr structure to populate
+//! \param [in] x The horizontal size of the image
+//! \param [in] y The vertical size of the image
+
 void jpeg_alloc(jpeg_ptr *out, int x, int y) {
     int i, j = x * y;
 
@@ -42,12 +47,19 @@ void jpeg_alloc(jpeg_ptr *out, int x, int y) {
     for (i = 0; i < j; i++) out->data_w[i] = 0.0;
 }
 
+//! jpeg_dealloc - free the storage associated with an jpeg_ptr structure
+//! \param [in] in The jpeg_ptr structure to free
+
 void jpeg_dealloc(jpeg_ptr *in) {
     if (in->data_red != NULL) free(in->data_red);
     if (in->data_grn != NULL) free(in->data_grn);
     if (in->data_blu != NULL) free(in->data_blu);
     if (in->data_w != NULL) free(in->data_w);
 }
+
+//! jpeg_cp - copy the image contained within an jpeg_ptr structure
+//! \param [in] in The image to copy
+//! \param [out] out The jpeg_ptr structure to populate with the copied image
 
 void jpeg_cp(jpeg_ptr *in, jpeg_ptr *out) {
     jpeg_alloc(out, in->xsize, in->ysize);
@@ -56,6 +68,11 @@ void jpeg_cp(jpeg_ptr *in, jpeg_ptr *out) {
     memcpy(out->data_blu, in->data_blu, in->xsize * in->ysize * sizeof(double));
     memcpy(out->data_w, in->data_w, in->xsize * in->ysize * sizeof(double));
 }
+
+//! jpeg_deweight - Divide the pixel data in an image by the weight field. This is useful if N images have been
+//! co-added into the pixel data, and the <data_w> structure member contains the number of images which have been
+//! added together. The resulting image is then properly normalised.
+//! \param out The image to deweight
 
 void jpeg_deweight(jpeg_ptr *out) {
     int i, j = out->xsize * out->ysize;
@@ -73,7 +90,9 @@ void jpeg_deweight(jpeg_ptr *out) {
     }
 }
 
-/* JPEG_IN(): Read in JPEG file, and return image structure */
+//! jpeg_get - Read a JPEG image from disk and convert it into an jpeg_ptr structure
+//! \param [in] filename The filename of the JPEG image to read
+//! \return jpeg_ptr structure containing the pixel data
 
 jpeg_ptr jpeg_get(const char *filename) {
     jpeg_ptr output;

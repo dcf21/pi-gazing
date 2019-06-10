@@ -37,6 +37,11 @@
 #define BMP_COLOUR_GREY    1003
 #define BMP_COLOUR_RGB     1004
 
+//! image_alloc - allocate an image_ptr structure to hold an image of dimensions (x, y)
+//! \param [out] out The image_ptr structure to populate
+//! \param [in] x The horizontal size of the image
+//! \param [in] y The vertical size of the image
+
 void image_alloc(image_ptr *out, int x, int y) {
     int i, j = x * y;
 
@@ -50,16 +55,21 @@ void image_alloc(image_ptr *out, int x, int y) {
     for (i = 0; i < j; i++) out->data_grn[i] = 0.0;
     for (i = 0; i < j; i++) out->data_blu[i] = 0.0;
     for (i = 0; i < j; i++) out->data_w[i] = 0.0;
-    return;
 }
+
+//! image_dealloc - free the storage associated with an image_ptr structure
+//! \param [in] in The image_ptr structure to free
 
 void image_dealloc(image_ptr *in) {
     if (in->data_red != NULL) free(in->data_red);
     if (in->data_grn != NULL) free(in->data_grn);
     if (in->data_blu != NULL) free(in->data_blu);
     if (in->data_w != NULL) free(in->data_w);
-    return;
 }
+
+//! image_cp - copy the image contained within an image_ptr structure
+//! \param [in] in The image to copy
+//! \param [out] out The image_ptr structure to populate with the copied image
 
 void image_cp(image_ptr *in, image_ptr *out) {
     image_alloc(out, in->xsize, in->ysize);
@@ -67,8 +77,12 @@ void image_cp(image_ptr *in, image_ptr *out) {
     memcpy(out->data_grn, in->data_grn, in->xsize * in->ysize * sizeof(double));
     memcpy(out->data_blu, in->data_blu, in->xsize * in->ysize * sizeof(double));
     memcpy(out->data_w, in->data_w, in->xsize * in->ysize * sizeof(double));
-    return;
 }
+
+//! image_deweight - Divide the pixel data in an image by the weight field. This is useful if N images have been
+//! co-added into the pixel data, and the <data_w> structure member contains the number of images which have been
+//! added together. The resulting image is then properly normalised.
+//! \param out The image to deweight
 
 void image_deweight(image_ptr *out) {
     int i, j = out->xsize * out->ysize;
@@ -84,16 +98,19 @@ void image_deweight(image_ptr *out) {
         out->data_blu[i] /= out->data_w[i];
         if (!gsl_finite(out->data_blu[i])) out->data_blu[i] = 0.0;
     }
-    return;
 }
 
-/* JPEG_IN(): Read in JPEG file, and return image structure */
+//! image_get - Read a PNG image from disk and convert it into an image_ptr structure
+//! \param [in] filename The filename of the PNG image to read
+//! \return image_ptr structure containing the pixel data
 
 image_ptr image_get(const char *filename) {
+    // Output structure to hold the image that we're about to read
     image_ptr output;
     output.xsize = output.ysize = -1;
     output.data_red = output.data_grn = output.data_blu = output.data_w = NULL;
 
+    // Open the PNG image file
     FILE *infile;
 
     if ((infile = fopen(filename, "rb")) == NULL) {
@@ -101,7 +118,7 @@ image_ptr image_get(const char *filename) {
         return output;
     }
 
-
+    // Read the contents of the image using libpng
     unsigned char *data = NULL, *trans = NULL;
     uint16_t *palette = NULL;
     int pal_len = 0, width = 0, height = 0, colour = 0;

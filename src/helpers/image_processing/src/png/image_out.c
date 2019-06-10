@@ -30,7 +30,11 @@
 #include <png.h>
 #include "str_constants.h"
 
-/* IMAGE_PUT(): Turns bitmap data into a image file */
+//! image_put - Save an image from an image_ptr to a 16-bit PNG file
+//! \param [in] output_filename The filename of the PNG file we are to write
+//! \param [in] image The image_ptr structure containing the pixel data that we are to write
+//! \param [in] grayscale Boolean flag indicating whether this image is greyscale (true) or full RGB (false)
+//! \return Zero on success
 
 int image_put(const char *output_filename, image_ptr image, int grayscale) {
     int code = 0;

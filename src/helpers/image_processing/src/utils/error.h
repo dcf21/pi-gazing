@@ -26,6 +26,7 @@
 #ifndef ERROR_H
 #define ERROR_H 1
 
+// Define the available error types
 #define ERR_INTERNAL 100
 #define ERR_GENERAL  101
 #define ERR_SYNTAX   102
@@ -36,6 +37,8 @@
 #define ERR_PREFORMED 107
 
 extern char temp_err_string[];
+
+// Functions used for reporting errors and warnings
 
 void logging_error_setstreaminfo(int linenumber, char *filename);
 
@@ -48,8 +51,6 @@ void logging_warning(int ErrType, char *msg);
 void logging_report(char *msg);
 
 void logging_info(char *msg);
-
-void dcf_fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
 
 #endif
 

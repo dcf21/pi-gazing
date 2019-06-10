@@ -35,6 +35,10 @@ static char temp_string_a[LSTR_LENGTH], temp_string_b[LSTR_LENGTH], temp_string_
 static char temp_string_d[LSTR_LENGTH], temp_string_e[LSTR_LENGTH];
 char temp_err_string[LSTR_LENGTH];
 
+//! logging_error - Log an error message
+//! \param [in] ErrType The type of error message. Should be one of the constants whose names start ERR_...
+//! \param msg The error message
+
 void logging_error(int ErrType, char *msg) {
     int i = 0;
 
@@ -73,8 +77,11 @@ void logging_error(int ErrType, char *msg) {
     if (DEBUG) { logging_info(temp_string_b); }
     sprintf(temp_string_c, "%s\n", temp_string_b);
     fputs(temp_string_c, stderr);
-    return;
 }
+
+//! logging_fatal - Log a fatal error message, and exit with status 1
+//! \param [in] ErrType The type of error message. Should be one of the constants whose names start ERR_...
+//! \param msg The error message
 
 void logging_fatal(char *file, int line, char *msg) {
     char introline[FNAME_LENGTH];
@@ -84,6 +91,10 @@ void logging_fatal(char *file, int line, char *msg) {
     if (DEBUG) logging_info("Terminating with error condition 1.");
     exit(1);
 }
+
+//! logging_warning - Log a warning message
+//! \param [in] ErrType The type of warning message. Should be one of the constants whose names start ERR_...
+//! \param msg The warning message
 
 void logging_warning(int ErrType, char *msg) {
     int i = 0;
@@ -123,8 +134,10 @@ void logging_warning(int ErrType, char *msg) {
     if (DEBUG) { logging_info(temp_string_b); }
     sprintf(temp_string_c, "%s\n", temp_string_b);
     fputs(temp_string_c, stderr);
-    return;
 }
+
+//! logging_report - Log a report message
+//! \param msg The report message
 
 void logging_report(char *msg) {
     if (msg != temp_string_a) strcpy(temp_string_a, msg);
@@ -134,8 +147,10 @@ void logging_report(char *msg) {
     }
     sprintf(temp_string_c, "%s\n", temp_string_a);
     fputs(temp_string_c, stdout);
-    return;
 }
+
+//! logging_info - Log an information message
+//! \param msg The information message
 
 void logging_info(char *msg) {
     static FILE *logfile = NULL;
@@ -156,11 +171,4 @@ void logging_info(char *msg) {
     fprintf(logfile, "[%s c ] %s\n", str_strip(friendly_time_string(0), linebuffer), temp_string_d);
     fflush(logfile);
     latch = 0;
-    return;
 }
-
-void dcf_fread(void *ptr, size_t size, size_t nmemb, FILE *stream) {
-    if (fread(ptr, size, nmemb, stream) != nmemb) logging_fatal(__FILE__, __LINE__, "file read fail");
-    return;
-}
-

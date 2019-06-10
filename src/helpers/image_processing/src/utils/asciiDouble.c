@@ -32,7 +32,10 @@
 
 #include "utils/julianDate.h"
 
-/* getFloat(): This gets a float from a string */
+//! getFloat - Extract a floating point number from a string
+//! \param [in] str The input string
+//! \param [out] Nchars Return the number of characters occupied by the float returned (optional)
+//! \return The floating point value extracted
 
 double getFloat(const char *str, int *Nchars) {
     double accumulator = 0;
@@ -75,7 +78,10 @@ double getFloat(const char *str, int *Nchars) {
     return (accumulator);
 }
 
-/* validFloat(): Sees whether candidate string is a valid float */
+//! validFloat - See whether candidate string is a valid float
+//! \param [in] str The input string
+//! \param [out] end The number of characters occupied by the floating point value (optional)
+//! \return Boolean flag indicating whether a valid floating-point value was found.
 
 int validFloat(const char *str, int *end) {
     unsigned char past_decimal_point = 0, had_number = 0, expvalid = 1;
@@ -111,7 +117,12 @@ int validFloat(const char *str, int *end) {
     return 1;
 }
 
-/* numericDisplay(): Displays a double in either %f or %e formats */
+//! numericDisplay - Render a string-representation of a double in either %f or %e formats
+//! \param in The floating point value to render
+//! \param N Choose one of four internal static char buffers to hold the result (N=0...3)
+//! \param SigFig The number of significant figures to display
+//! \param latex Boolean flag indicating whether we should produce LaTeX output (true) or human-readable output (false)
+//! \return String-representation, contained in a static char buffer which may be overwritten by subsequent calls
 
 char *numericDisplay(double in, int N, int SigFig, int latex) {
     static char format[16], outputA[128], outputB[128], outputC[128], outputD[128];
@@ -179,13 +190,23 @@ char *numericDisplay(double in, int N, int SigFig, int latex) {
     return output;
 }
 
+//! dblEqual - Test whether two floating-point values are approximately equal, to within one part in 10^7
+//! \param a First value
+//! \param b Second value
+//! \return Boolean flag indicating equality
+
 unsigned char dblEqual(double a, double b) {
     if ((fabs(a) < 1e-100) && (fabs(b) < 1e-100)) return 1;
     if ((fabs(a - b) < fabs(1e-7 * a)) && (fabs(a - b) < fabs(1e-7 * b))) return 1;
     return 0;
 }
 
-/* file_readline(): This remarkably useful function forwards a file to the next newline */
+//! file_readline - Read a line from a file into a character buffer, up until the next newline character. A maximum
+//! of MaxLength characters are read. The output character buffer is always null-terminated. The file handle is
+//! fast-forwarded to the next newline, or by MaxLength characters, whichever happens sooner.
+//! \param file The file handle to read from
+//! \param output The character buffer into which to write the characters read
+//! \param MaxLength The maximum number of characters to write to output, including null termination
 
 void file_readline(FILE *file, char *output, int MaxLength) {
     char c = '\x07';
@@ -200,28 +221,36 @@ void file_readline(FILE *file, char *output, int MaxLength) {
     *(outputscan++) = '\0';
 }
 
-/* getWord(): This returns the first word (terminated by any whitespace). Maximum <max> characters. */
+//! getWord - Returns the first word from <in>, terminated by any whitespace. Returns a maximum of <max> characters.
+//! \param out The character buffer into which to write the extracted word. Always null terminated.
+//! \param in The input character stream
+//! \param max The maximum number of characters to write to out, including null termination.
 
 void getWord(char *out, const char *in, int max) {
     int count = 0;
-    while ((*in <= ' ') && (*in > '\0')) in++; /* Fastforward over preceeding whitespace */
+    while ((*in <= ' ') && (*in > '\0')) in++; /*!< Fastforward over preceding whitespace */
     while (((*in > ' ') || (*in < '\0')) && (count < (max - 1))) {
         *(out++) = *(in++);
         count++;
     }
-    *out = '\0'; /* Terminate output */
+    *out = '\0'; /*!< Terminate output */
 }
 
-/* nextWord(): Fast forward over word, and return pointer to next word */
+//! nextWord - Fast forward a character pointer over one word, and return pointer to next word.
+//! \param in The pointer to the character array we are to advance by one word
+//! \return The pointer to the first non-whitespace character of the second word in the input string
 
 char *nextWord(char *in) {
-    while ((*in <= ' ') && (*in > '\0')) in++; /* Fastforward over preceeding whitespace */
-    while ((*in > ' ') || (*in < '\0')) in++; /* Fastforward over one word */
-    while ((*in <= ' ') && (*in > '\0')) in++; /* Fastforward over whitespace before next word */
-    return (in); /* Return pointer to next word */
+    while ((*in <= ' ') && (*in > '\0')) in++; /*!< Fast-forward over preceding whitespace */
+    while ((*in > ' ') || (*in < '\0')) in++; /*!< Fast-forward over one word */
+    while ((*in <= ' ') && (*in > '\0')) in++; /*!< Fast-forward over whitespace before next word */
+    return in; /*!< Return pointer to next word */
 }
 
-/* friendly_time_string(): Returns pointer to time string */
+//! friendly_time_string - Return pointer to time string in standard format, stored in a static string buffer which will
+//! by overwritten by subsequent function calls.
+//! \param t The unix time stamp to represent. If zero, then the current time is represented.
+//! \return A time string
 
 char *friendly_time_string(double t) {
     static char output[256];
@@ -238,7 +267,10 @@ char *friendly_time_string(double t) {
     return output;
 }
 
-/* str_strip(): Strip whitespace from both ends of a string */
+//! str_strip - Strip whitespace from both ends of a string and copy to a new character array
+//! \param [in] in The input string to strip
+//! \param [out] out Character buffer into which to write the stripped string
+//! \return Pointer to <out>
 
 char *str_strip(const char *in, char *out) {
     char *scan = out;
@@ -250,9 +282,12 @@ char *str_strip(const char *in, char *out) {
     return out;
 }
 
-/* strUpper(): Capitalise a string */
+//! str_upper - Copy to capitalised version of a string into a new character buffer
+//! \param [in] in The input string to be capitalised
+//! \param [out] out The character buffer into which to write the capitalised version
+//! \return Pointer to <out>
 
-char *strUpper(const char *in, char *out) {
+char *str_upper(const char *in, char *out) {
     char *scan = out;
     while (*in != '\0')
         if ((*in >= 'a') && (*in <= 'z')) *scan++ = *in++ + 'A' - 'a';
@@ -261,9 +296,13 @@ char *strUpper(const char *in, char *out) {
     return out;
 }
 
-/* strLower(): Lowercase a string */
 
-char *strLower(const char *in, char *out) {
+//! str_lower - Copy to lower-case version of a string into a new character buffer
+//! \param [in] in The input string to be converted to lower-case
+//! \param [out] out The character buffer into which to write the lower-case version
+//! \return Pointer to <out>
+
+char *str_lower(const char *in, char *out) {
     char *scan = out;
     while (*in != '\0')
         if ((*in >= 'A') && (*in <= 'Z')) *scan++ = *in++ + 'a' - 'A';
@@ -272,9 +311,13 @@ char *strLower(const char *in, char *out) {
     return out;
 }
 
-/* strUnderline(): Underline a string */
 
-char *strUnderline(const char *in, char *out) {
+//! str_underline - Write a string of -s which is long enough to underline a string
+//! \param [in] in The input string to be underlined
+//! \param [out] out The character buffer into which to write the -s to underline <in>
+//! \return Pointer to <out>
+
+char *str_underline(const char *in, char *out) {
     char *scan = out;
     while (*in != '\0') {
         if ((*in >= ' ') || (*in < '\0')) *scan++ = '-';
@@ -284,32 +327,14 @@ char *strUnderline(const char *in, char *out) {
     return out;
 }
 
-/* strRemoveCompleteLine(): Removes a single complete line from a text buffer, if there is one */
+//! str_slice - Take a slice out of a string and copy it into a new character buffer
+//! \param [in] in The input string to take a slice from
+//! \param [out] out A character buffer into which to write the slice
+//! \param [in] start The first character to copy into a slice
+//! \param [in] end The character after the last one to copy into the slice
+//! \return Pointer to <out>
 
-char *strRemoveCompleteLine(char *in, char *out) {
-    char *scan, *scan2, *scanout;
-    scan = scan2 = in;
-    scanout = out;
-    while ((*scan != '\0') && (*scan != '\n')) scan++; // Find first carriage-return in text buffer
-    if (*scan != '\0')
-        while (scan2 < scan)
-            *scanout++ = *scan2++; // If one is found, copy up to this point into temporary string processing buffer
-    *scanout = '\0';
-    str_strip(out, out); // Strip it, and then this is what we will return
-
-    if (*scan != '\0') // If we've taken a line out of the buffer, delete it from buffer
-    {
-        scan2 = in;
-        while (*scan == '\n') scan++; // Forward over carriage return
-        while (*scan != '\0') *scan2++ = *scan++;
-        *scan2 = '\0';
-    }
-    return out;
-}
-
-/* strSlice(): Take a slice out of a string */
-
-char *strSlice(const char *in, char *out, int start, int end) {
+char *str_slice(const char *in, char *out, int start, int end) {
     char *scan = out;
     int pos = 0;
     while ((pos < start) && (in[pos] != '\0')) pos++;
@@ -318,63 +343,26 @@ char *strSlice(const char *in, char *out, int start, int end) {
     return out;
 }
 
-/* strCommaSeparatedListScan(): Split up a comma-separated list into individual values */
+//! str_comma_separated_list_scan - Extract the next item from a comma-separated list, and copy it to <out>
+//! \param inscan A pointer to the input string. This is advanced to point to the character after the next comma.
+//! \param out Character buffer into which to copy a stripped version of the next comma-separated value
+//! \return Pointer to <out>
 
-char *strCommaSeparatedListScan(char **inscan, char *out) {
+char *str_comma_separated_list_scan(char **inscan, char *out) {
     char *outscan = out;
     while ((**inscan != '\0') && (**inscan != ',')) *(outscan++) = *((*inscan)++);
-    if (**inscan == ',') (*inscan)++; // Fastforward over comma character
+    if (**inscan == ',') (*inscan)++; // Fast-forward over comma character
     *outscan = '\0';
     str_strip(out, out);
     return out;
 }
 
-/* strAutocomplete(): Test whether a candidate string matches the beginning of test string, and is a least N characters long */
+//! str_word_wrap - Word wrap a piece of text to a certain width and copy it into a new character buffer
+//! \param [in] in The input text
+//! \param [out] out The character buffer into which to write the word-wrapped output
+//! \param width The width of the column into which to fit the text
 
-int StrAutocomplete(const char *candidate, const char *test, int Nmin) {
-    int i, j;
-
-    if ((candidate == NULL) || (test == NULL)) return -1;
-
-    for (j = 0; ((candidate[j] > '\0') &&
-                 (candidate[j] <= ' ')); j++); // Fastforward over whitespace at beginning of candidate
-
-    for (i = 0; 1; i++, j++)
-        if (test[i] != '\0') {
-            if (toupper(test[i]) != toupper(candidate[j])) // Candidate string has deviated from test string
-            {
-                if (i < Nmin) return -1; // We've not passed enough characters yet
-
-                if (candidate[j] <= ' ') // Word teminated with space...
-                {
-                    return j;
-                } else if ((isalnum(candidate[j]) == 0) && (candidate[j] != '_')) // Word teminated with punctuation...
-                {
-                    // Alphanumeric test strings can be terminated by punctuation; others must have spaces after them
-                    for (i = 0; test[i] != '\0'; i++)
-                        if ((test[i] > ' ') && (isalnum(test[i]) == 0) && (test[i] != '_'))return -1;
-                    return j;
-                } else // Word terminated with more letters
-                { return -1; }
-            }
-        } else { // We've hit the end of the test string
-            if (candidate[j] <= ' ') // Word teminated with space...
-            {
-                return j;
-            } else if ((isalnum(candidate[j]) == 0) && (candidate[j] != '_')) // Word teminated with punctuation...
-            {
-                // Alphanumeric test strings can be terminated by punctuation; others must have spaces after them
-                for (i = 0; test[i] != '\0'; i++)
-                    if ((test[i] > ' ') && (isalnum(test[i]) == 0) && (test[i] != '_'))return -1;
-                return j;
-            } else // Word terminated with more letters
-            { return -1; }
-        }
-}
-
-/* strWordWrap(): Word wrap a piece of text to a certain width */
-
-void strWordWrap(const char *in, char *out, int width) {
+void str_word_wrap(const char *in, char *out, int width) {
     int WhiteSpace = 1;
     int LastSpace = -1;
     int LineStart = 0;
@@ -446,58 +434,14 @@ void strWordWrap(const char *in, char *out, int width) {
         out[j++] = in[i];
     }
     out[j] = '\0';
-    return;
 }
 
-/* strBracketMatch(): Find a closing bracket to match an opening bracket, and optionally return a list of all comma positions */
-/*                    'in' should point to the opening bracket character for which we are looking for the closing partner */
+//! str_cmp_no_case - A case-insensitive version of the standard strcmp() function
+//! \param a First string
+//! \param b Second string
+//! \return Comparison between strings
 
-void strBracketMatch(const char *in, int *CommaPositions, int *Nargs, int *ClosingBracketPos, int MaxCommaPoses) {
-    int BracketLevel = 0;
-    int inpos = 0;
-    int commapos = 0;
-    char QuoteType = '\0';
-
-    for (; in[inpos] != '\0'; inpos++) {
-        if (QuoteType != '\0') // Do not pay attention to brackets inside quoted strings
-        {
-            if ((in[inpos] == QuoteType) && (in[inpos - 1] != '\\')) QuoteType = '\0';
-            continue;
-        } else if ((in[inpos] == '\'') || (in[inpos] == '\"')) QuoteType = in[inpos]; // Entering a quoted string
-        else if (in[inpos] == '(')  // Entering a nested level of brackets
-        {
-            BracketLevel += 1;
-            if (BracketLevel == 1)
-                if ((CommaPositions != NULL) && ((MaxCommaPoses < 0) || (commapos < MaxCommaPoses)))
-                    *(CommaPositions + (commapos++)) = inpos; // Put ( on comma list
-        } else if (in[inpos] == ')')  // Leaving a nested level of brackets
-        {
-            BracketLevel -= 1;
-            if (BracketLevel == 0) break;
-        } else if ((in[inpos] == ',') && (BracketLevel == 1)) // Found a new comma-separated item
-        {
-            if ((CommaPositions != NULL) && ((MaxCommaPoses < 0) || (commapos < MaxCommaPoses)))
-                *(CommaPositions + (commapos++)) = inpos; // Put , on comma list
-        }
-    }
-
-    if (in[inpos] == '\0') {
-        if (Nargs != NULL) *Nargs = -1;
-        if (ClosingBracketPos != NULL) *ClosingBracketPos = -1;
-        return;
-    } else {
-        if ((CommaPositions != NULL) && ((MaxCommaPoses < 0) || (commapos < MaxCommaPoses)))
-            *(CommaPositions + (commapos++)) = inpos; // Put ) on comma list
-        if (Nargs != NULL)
-            *Nargs = commapos - 1; // There are N+1 arguments between N commas, but we've also counted ( and ).
-        if (ClosingBracketPos != NULL) *ClosingBracketPos = inpos;
-        return;
-    }
-}
-
-/* StrCmpNoCase(): A case-insensitive version of the standard strcmp() function */
-
-int StrCmpNoCase(const char *a, const char *b) {
+int str_cmp_no_case(const char *a, const char *b) {
     char aU, bU;
     while (1) {
         if ((*a == '\0') && (*b == '\0')) return 0;
@@ -518,55 +462,22 @@ int StrCmpNoCase(const char *a, const char *b) {
     }
 }
 
-/* strEscapify(): Inserts escape characters into strings before quote characters */
-
-char *strEscapify(const char *in, char *out) {
-    const char *scanin = in;
-    char *scanout = out;
-    *scanout++ = '\"';
-    while (*scanin != '\0') {
-        if ((*scanin == '\'') || (*scanin == '\"') || (*scanin == '\\')) *(scanout++) = '\\';
-        *(scanout++) = *(scanin++);
-    }
-    *scanout++ = '\"';
-    *scanout++ = '\0';
-    return out;
-}
-
-/* strWildcardTest(): Test whether test string matches wildcard string */
-
-int strWildcardTest(const char *test, const char *wildcard) {
-    int i = 0, j, k, mineat = 0, maxeat = 0;
-
-    while ((wildcard[i] != '\0') && (wildcard[i] != '?') && (wildcard[i] != '*'))
-        if (test[i] != wildcard[i]) { return 0; } else { i++; }
-    if (wildcard[i] == '\0') return (test[i] == '\0');
-
-    j = i;
-    while ((wildcard[j] == '?') || (wildcard[j] == '*')) {
-        if (wildcard[j] == '?') {
-            mineat++;
-            maxeat++;
-        } else { maxeat = 10000; }
-        j++;
-    }
-
-    for (k = 0; k < mineat; k++) if (test[i++] == '\0') return 0;
-
-    for (k = 0; k < maxeat - mineat; k++) {
-        if (strWildcardTest(test + i, wildcard + j)) return 1;
-        if (test[i++] == '\0') return 0;
-    }
-    return 0;
-}
+//! readConfig_FetchKey - Read a line of a configuration file, in the format <key=value>. Extract the key and copy it
+//! into the character buffer <out>.
+//! \param [in] line The input line of the configuration file
+//! \param [out] out The character buffer into which to write the key
 
 void readConfig_FetchKey(char *line, char *out) {
     char *scan = out;
     while ((*line != '\0') && ((*(scan) = *(line++)) != '=')) scan++;
     *scan = '\0';
     str_strip(out, out);
-    return;
 }
+
+//! readConfig_FetchValue - Read a line of a configuration file, in the format <key=value>. Extract the value and copy
+//! it into the character buffer <out>.
+//! \param [in] line The input line of the configuration file
+//! \param [out] out The character buffer into which to write the value
 
 void readConfig_FetchValue(char *line, char *out) {
     char *scan = out;
@@ -574,6 +485,5 @@ void readConfig_FetchValue(char *line, char *out) {
     while (*line != '\0') *(scan++) = *(line++);
     *scan = '\0';
     str_strip(out, out);
-    return;
 }
 

@@ -44,21 +44,21 @@ char *friendly_time_string(double t);
 
 char *str_strip(const char *in, char *out);
 
-char *strUpper(const char *in, char *out);
+char *str_upper(const char *in, char *out);
 
-char *strLower(const char *in, char *out);
+char *str_lower(const char *in, char *out);
 
-char *strUnderline(const char *in, char *out);
+char *str_underline(const char *in, char *out);
 
 char *strRemoveCompleteLine(char *in, char *out);
 
-char *strSlice(const char *in, char *out, int start, int end);
+char *str_slice(const char *in, char *out, int start, int end);
 
-char *strCommaSeparatedListScan(char **inscan, char *out);
+char *str_comma_separated_list_scan(char **inscan, char *out);
 
 int strAutocomplete(const char *candidate, char *test, int Nmin);
 
-void strWordWrap(const char *in, char *out, int width);
+void str_word_wrap(const char *in, char *out, int width);
 
 void strBracketMatch(const char *in, int *CommaPositions, int *Nargs, int *ClosingBracketPos, int MaxCommaPoses);
 
