@@ -21,6 +21,9 @@
 // along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
+// For diagnostic purposes, observe the night sky for a few minutes, and produce a model of the sky background, with
+// stars removed.
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,6 +49,12 @@ static const char *const usage[] = {
         "makeBackgroundMap [options]",
         NULL,
 };
+
+//! For diagnostic purposes, observe the night sky for a few minutes, and produce a model of the sky background, with
+//! stars removed.
+//! \param argc Command-line arguments
+//! \param argv Command-line arguments
+//! \return None
 
 int main(int argc, const char *argv[]) {
     char line[FNAME_LENGTH] = "\0";

@@ -39,6 +39,9 @@
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
+//! write_raw_video_metadata - Write a text-based metadata file to accompany a raw video file on disk
+//! \param v Data structure containing metadata about the video file
+
 void write_raw_video_metadata(video_metadata v) {
     char fname[FNAME_LENGTH];
     sprintf(fname, "%s.txt", v.filename);
@@ -58,9 +61,18 @@ void write_raw_video_metadata(video_metadata v) {
     fclose(f);
 }
 
+//! nearest_multiple - Round the number <in> to the nearest multiple of the number <factor>
+//! \param in Input number
+//! \param factor Round to the nearest multiple of this number
+//! \return Nearest multiple
+
 int nearest_multiple(double in, int factor) {
     return (int) (round(in / factor) * factor);
 }
+
+//! frame_invert - Turn a single-channel video frame upside down, in place
+//! \param buffer A character array of <len> pixels
+//! \param len The number of pixels to invert
 
 void frame_invert(unsigned char *buffer, int len) {
     int i;
@@ -73,6 +85,11 @@ void frame_invert(unsigned char *buffer, int len) {
         buffer[j] = tmp;
     }
 }
+
+//! video_record - Record a period of raw video into a buffer
+//! \param video_in Descriptor of the video frame to capture from
+//! \param seconds The number of seconds of video to record
+//! \return A buffer containing the recorded video
 
 void *video_record(struct video_info *video_in, double seconds) {
     int i;
@@ -102,6 +119,14 @@ void *video_record(struct video_info *video_in, double seconds) {
 
     return out;
 }
+
+//! snapshot - Take a long-exposure image from an input video stream, by averaging many frames, and save to PNG
+//! \param video_in Descriptor of the video frame to capture from
+//! \param frame_count The number of video frames to average
+//! \param zero Zero point to subtract from the input frames
+//! \param exposure_compensation Multiplicative exposure compensation to apply to output image
+//! \param filename The filename for the output image file (16-bit PNG file)
+//! \param background_raw Optional character array containing the sky background to subtract from exposure
 
 void snapshot(struct video_info *video_in, int frame_count, int zero, double exposure_compensation,
               const char *filename, const unsigned char *background_raw) {
@@ -153,6 +178,14 @@ void snapshot(struct video_info *video_in, int frame_count, int zero, double exp
     free(tmp_int);
 }
 
+//! estimate_noise_level - Estimate the noise level in an average pixel, by looking at the scatter in the values of
+//! brightnesses of pixels in consecutive video frames.
+//! \param width The width of the frames in the video buffer <buffer>
+//! \param height The height of the frames in the video buffer <buffer>
+//! \param buffer Buffer containing YUV colour video frames
+//! \param frame_count The number of frames from which to estimate the noise level
+//! \return The noise level
+
 double estimate_noise_level(int width, int height, unsigned char *buffer, int frame_count) {
     const int frame_size = width * height;
     const int frame_stride = 3 * frame_size / 2;
@@ -182,6 +215,33 @@ double estimate_noise_level(int width, int height, unsigned char *buffer, int fr
     free(sum_y2);
     return sd_sum / study_pixel_count; // Average standard deviation of the studied pixels
 }
+
+//! background_calculate - Estimate the sky background, using histograms of the past brightness of each pixel over the
+//! last few minutes of observations. The sky brightness is taken as the mean brightness over those frames, which we
+//! write into background_maps[background_buffer_current + 1].
+//!
+//! Because stars passing through pixels can skew their brightnesses to be anomalously bright for a minute or two, the
+//! mean is a poor estimator of the true sky brightness. So, we hold a rolling buffer of the past
+//! <background_buffer_count> background maps, held in the arrays background_maps[1...background_buffer_count]
+//!
+//! For each pixel, we take the lowest of these background estimates, and use that to create a master background map
+//! which we store in background_maps[0], and which is relatively immune to stars brightening pixels for the few
+//! minutes.
+//!
+//! All in all, this is a time-consuming task, and when doing real-time processing, we don't have time to process all
+//! the pixels in one go. We process in pixels in <reduction_cycle_count> calls, of which this is number
+//! <reduction_cycle>.
+//!
+//! \param width The width of the video frames
+//! \param height The height of the video frames
+//! \param channels The number of colour channels in use (1 for greyscale; 3 for RGB)
+//! \param reduction_cycle When work is divided between multiple calls to this function, this is the number of the call
+//! \param reduction_cycle_count The number of times this function will be called, to break up the work
+//! \param background_workspace The workspace which contains the histograms of the recent brightnesses of pixels
+//! \param background_maps The recent models of the sky background, to which we contribute
+//!                        background_maps[background_buffer_current + 1]
+//! \param background_buffer_count The number of background models we store in the rolling buffer in <background_maps>.
+//! \param background_buffer_current The number of the background model we are currently writing
 
 void background_calculate(const int width, const int height, const int channels, const int reduction_cycle,
                           const int reduction_cycle_count, const int *background_workspace,
@@ -229,6 +289,14 @@ void background_calculate(const int width, const int height, const int channels,
     }
 }
 
+//! dump_frame - Dump a single raw video frame to an 8-bit file
+//! \param width The width of the frame
+//! \param height The height of the frame
+//! \param channels The number of colour channels to dump
+//! \param buffer Array of unsigned chars representing each RGB channel in turn, size (channels * width * height)
+//! \param filename The filename of the raw file we are to generate
+//! \return Zero on success
+
 int dump_frame(int width, int height, int channels, const unsigned char *buffer, char *filename) {
     FILE *outfile;
     const int frame_size = width * height;
@@ -248,6 +316,17 @@ int dump_frame(int width, int height, int channels, const unsigned char *buffer,
     fclose(outfile);
     return 0;
 }
+
+//! dump_frame_from_ints - Dump a single raw video frame to a 16-bit file, from an array of ints
+//! \param width The width of the frame
+//! \param height The height of the frame
+//! \param channels The number of colour channels to dump
+//! \param buffer Array of ints representing each RGB channel in turn, size (channels * width * height)
+//! \param frame_count The number of frames which have been co-added in <buffer>. We divide the pixels by this value.
+//! \param target_brightness If non-zero, we attempt to renormalise the image to this mean brightness
+//! \param gain_out If non-NULL, write the gain which was applied to the image.
+//! \param filename The filename of the raw file we are to generate
+//! \return Zero on success
 
 int dump_frame_from_ints(int width, int height, int channels, const int *buffer, int frame_count, int target_brightness,
                          double *gain_out, char *filename) {
@@ -302,6 +381,19 @@ int dump_frame_from_ints(int width, int height, int channels, const int *buffer,
     free(tmp_frame);
     return 0;
 }
+
+//! dump_frame_from_int_subtraction - Dump a single raw video frame to a 16-bit file, from an array of ints. We
+//! subtract the int values in buffer2 from those in buffer, which is useful for sky subtraction.
+//! \param width The width of the frame
+//! \param height The height of the frame
+//! \param channels The number of colour channels to dump
+//! \param buffer Array of ints representing each RGB channel in turn, size (channels * width * height)
+//! \param frame_count The number of frames which have been co-added in <buffer>. We divide the pixels by this value.
+//! \param target_brightness If non-zero, we attempt to renormalise the image to this mean brightness
+//! \param gain_out If non-NULL, write the gain which was applied to the image.
+//! \param buffer2 Array of ints which we subtract from the ints in buffer
+//! \param filename The filename of the raw file we are to generate
+//! \return Zero on success
 
 int dump_frame_from_int_subtraction(int width, int height, int channels, const int *buffer, int frame_count,
                                     int target_brightness, double *gain_out,
@@ -361,6 +453,11 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
     return 0;
 }
 
+//! dump_video_init - Open a file handle for writing a raw video to disk. Use <dump_video_frame> to write frames.
+//! \param width The width of the new video
+//! \param height The height of the new video
+//! \param filename The filename for the new video file
+//! \return File handle
 
 FILE *dump_video_init(int width, int height, const char *filename) {
 
@@ -379,6 +476,16 @@ FILE *dump_video_init(int width, int height, const char *filename) {
     return outfile;
 }
 
+//! dump_video_frame - Write a single video frame to a raw video file
+//! \param width The width of the new video
+//! \param height The height of the new video
+//! \param video_buffer The video buffer, containing YUV video, from which we should write a frame
+//! \param video_buffer_frames The size of the video buffer (number of frames)
+//! \param write_position The frame number within <video_buffer> that we should write. We advance this by one.
+//! \param frames_written The number of frames written to the raw video file so far. We advance this by one.
+//! \param write_end_position Finish writing the video file if write_position == write_end_position
+//! \param output The file handle to the raw video file
+//! \return Boolean flag indicating whether the raw video file is still open
 
 int dump_video_frame(int width, int height, const unsigned char *video_buffer, const int video_buffer_frames,
                      int *write_position, int *frames_written, const int write_end_position,

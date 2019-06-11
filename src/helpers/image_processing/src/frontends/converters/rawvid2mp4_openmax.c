@@ -21,6 +21,12 @@
 // along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
+// Convert a raw video file into a compressed MP4 file, using openmax (hardware encoding; Raspberry Pi only).
+
+// Due to the tight constraints on data processing when analysing video in real time, we dump video to disk in
+// uncompressed format. This converter is used to turn the raw video into a compressed MP4 file that video players
+// will accept.
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>

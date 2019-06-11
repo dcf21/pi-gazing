@@ -21,13 +21,14 @@
 // along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
-// The settings below define how the video capture and analysis works
+// The settings below define how the video capture and analysis works, when we are observing with a DSLR driven
+// using gphoto2
 
 #ifndef _SETTINGS_DSLR_H
 #define _SETTINGS_DSLR_H 1
 
 // Define the device from which to capture video, and the resolution and frame-rate we expect from it.
-// These parameters affect test bench routines such as vidRec and snapshot. Main observe process overrides these with
+// These parameters affect diagnostic routines such as snapshot. Main observe process overrides these with
 // data passed on the command line
 
 #define VIDEO_WIDTH  800

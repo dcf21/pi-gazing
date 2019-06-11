@@ -21,6 +21,8 @@
 // along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
+// Record a single long-exposure image, by averaging together a large number of webcam frames.
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,6 +45,11 @@ static const char *const usage[] = {
     "snapshot [options]",
     NULL,
 };
+
+//! Record a single long-exposure image, by averaging together a large number of webcam frames.
+//! \param argc Command-line arguments
+//! \param argv Command-line arguments
+//! \return None
 
 int main(int argc, const char *argv[]) {
     char line[FNAME_LENGTH];

@@ -38,6 +38,15 @@
 #include "str_constants.h"
 #include "backgroundSub.h"
 
+//! StackImage - Add an image to a stack, including shifting the new image into alignment with the stacked image
+//! \param image_input The image to add to the stack
+//! \param image_output The stacked image we are to add this image to
+//! \param cloud_mask_average The background from an average of previous images.
+//! \param cloud_mask_this The sky background in this particular image. If much brighter than the average, throw this
+//! pixel out as cloud
+//! \param s settings pertaining to the input image
+//! \param si settings pertaining globally to this fitting run
+
 void StackImage(image_ptr image_input, image_ptr image_output, image_ptr *cloud_mask_average,
         image_ptr *cloud_mask_this, settings *s, settings_input *si) {
     int j;

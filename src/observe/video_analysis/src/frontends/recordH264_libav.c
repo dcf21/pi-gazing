@@ -21,6 +21,8 @@
 // along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
+// Record a video stream from a webcam to an H264 video file for later analysis, using libav (software encoding).
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -61,6 +63,11 @@ static const char *const usage[] = {
     "recordH264_libav [options]",
     NULL,
 };
+
+//! Record a video stream from a webcam to an H264 video file for later analysis, using libav (software encoding).
+//! \param argc Command-line arguments
+//! \param argv Command-line arguments
+//! \return None
 
 int main(int argc, const char *argv[]) {
     video_metadata vmd;

@@ -21,6 +21,8 @@
 // along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
+// Record a video stream from a webcam to an H264 video file for later analysis, using openmax (hardware encoding).
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -627,6 +629,12 @@ static OMX_ERRORTYPE fill_output_buffer_done_handler(
     vcos_semaphore_post(&ctx->handler_lock);
     return OMX_ErrorNone;
 }
+
+
+//! Record a video stream from a webcam to an H264 video file for later analysis, using openmax (hardware encoding).
+//! \param argc Command-line arguments
+//! \param argv Command-line arguments
+//! \return None
 
 int main(int argc, const char **argv) {
     video_metadata vmd;

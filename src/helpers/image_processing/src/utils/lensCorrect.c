@@ -27,6 +27,16 @@
 
 #include "png/image.h"
 
+//! lens_correct - Create a new version of the image pointed to by <image_in>, with radial barrel distortion corrected.
+//! The radial distortion is assumed by be expressible as:
+//! r_new = A r^4 + B r^3 + C r^2 + D r,
+//! where D=(1-A-B-C-D), which ensures the far edges of the image remain at fixed distance from the centre
+//! \param image_in The input image
+//! \param barrel_a Parameter A
+//! \param barrel_b Parameter B
+//! \param barrel_c Parameter C
+//! \return A pointer to an image with barrel-correction applied
+
 image_ptr lens_correct(image_ptr *image_in, double barrel_a, double barrel_b, double barrel_c) {
     const int width = image_in->xsize;
     const int height = image_in->ysize;

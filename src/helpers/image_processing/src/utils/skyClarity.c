@@ -30,6 +30,12 @@
 
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
+//! calculate_sky_clarity - Calculate a measure of the sky clarity within an image of the night sky, by estimating
+//! the number of stars visible.
+//! \param [in] image The image from which to estimate the sky clarity
+//! \param [in] noise_level The random noise level in an average pixel of the image
+//! \return A sky clarity metric
+
 double calculate_sky_clarity(image_ptr *image, double noise_level) {
     int x, y, score = 0;
     const int search_distance = 4;

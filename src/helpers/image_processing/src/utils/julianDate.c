@@ -31,16 +31,26 @@
 
 // Routines for looking up the dates when the transition between the Julian calendar and the Gregorian calendar occurred
 
+//! switch_over_calendar_date - Return the calendar date when the Julian calendar was replaced with the Gregorian
+//! calendar
+//! \param [out] lastJulian - The last day of the Julian calendar, expressed as yyyymmdd
+//! \param [out] firstGregorian - The first day of the Gregorian calendar, expressed as yyyymmdd
+
 void switch_over_calendar_date(double *lastJulian, double *firstGregorian) {
     *lastJulian = 17520902.0;
     *firstGregorian = 17520914.0; // British
 }
 
+//! The Julian day number when the Julian calendar was replaced with the Gregorian
+//! \return Julian day number
+
 double switch_over_jd() {
     return 2361222.0; // British
 }
 
-// Functions for looking up the names of the Nth calendar month and the Nth day of the week
+//! get_month_name - Get the name of month number i, where 1 is January and 12 is December
+//! \param [in] i - Month number
+//! \return Month name
 
 char *get_month_name(int i) {
     switch (i) {
@@ -73,6 +83,10 @@ char *get_month_name(int i) {
     }
 }
 
+//! get_week_day_name - Get the name of the ith day of the week, where 0 is Monday and 6 is Sunday
+//! \param [in] i - Number of the day of the week
+//! \return Name of the day
+
 char *get_week_day_name(int i) {
     switch (i) {
         case 0:
@@ -94,7 +108,16 @@ char *get_week_day_name(int i) {
     }
 }
 
-// Routines for converting between Julian Day numbers and Calendar Dates in Gregorian and Julian calendars
+//! julian_day - Convert a calendar date into a Julian day number
+//! \param [in] year The calendar year
+//! \param [in] month The calendar month
+//! \param [in] day The day of the month
+//! \param [in] hour The hour of the day
+//! \param [in] min The minutes within the hour
+//! \param [in] sec The seconds within the minute
+//! \param [out] status Zero on success; One on failure
+//! \param [out] err_text Error message (if status is non-zero)
+//! \return Julian day number
 
 double julian_day(int year, int month, int day, int hour, int min, int sec, int *status, char *err_text) {
     double jd, day_fraction, last_julian, first_gregorian, required_date;
@@ -154,6 +177,17 @@ double julian_day(int year, int month, int day, int hour, int min, int sec, int 
 
     return jd + day_fraction;
 }
+
+//! inv_julian_day - Convert a julian day number into a calendar date
+//! \param [in] jd Julian day number
+//! \param [out] year The calendar year
+//! \param [out] month The calendar month
+//! \param [out] day The day of the month
+//! \param [out] hour The hour of the day
+//! \param [out] min The minutes within the hour
+//! \param [out] sec The seconds within the minute
+//! \param [out] status Zero on success; One on failure
+//! \param [out] err_text Error message (if status is non-zero)
 
 void inv_julian_day(double jd, int *year, int *month, int *day, int *hour, int *min, double *sec, int *status,
                     char *err_text) {

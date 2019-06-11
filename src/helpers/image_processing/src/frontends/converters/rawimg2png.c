@@ -21,6 +21,12 @@
 // along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
+// Convert a raw image into PNG format.
+
+// Due to the tight constraints on data processing when analysing video in real time, we dump images to disk in
+// uncompressed format. This converter is called during the day time to convert the raw image data into a compressed
+// PNG file.
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -40,6 +46,14 @@ static const char *const usage[] = {
         "rawimg2png [options]",
         NULL,
 };
+
+//! Convert a raw image into PNG format.
+//! Due to the tight constraints on data processing when analysing video in real time, we dump images to disk in
+//! uncompressed format. This converter is called during the day time to convert the raw image data into a compressed
+//! PNG file.
+//! \param argc Command-line arguments
+//! \param argv Command-line arguments
+//! \return None
 
 int main(int argc, const char *argv[]) {
     int i;

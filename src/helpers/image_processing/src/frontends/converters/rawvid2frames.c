@@ -21,6 +21,11 @@
 // along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
+// Convert a raw video file into a sequence of frames in PNG format.
+
+// Due to the tight constraints on data processing when analysing video in real time, we dump video to disk in
+// uncompressed format. This converter is used for diagnostic purposes to view video frames as PNG files.
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -37,6 +42,13 @@ static const char *const usage[] = {
         "rawvid2frames [options]",
         NULL,
 };
+
+//! Convert a raw video file into a sequence of frames in PNG format.
+//! Due to the tight constraints on data processing when analysing video in real time, we dump video to disk in
+//! uncompressed format. This converter is used for diagnostic purposes to view video frames as PNG files.
+//! \param argc Command-line arguments
+//! \param argv Command-line arguments
+//! \return None
 
 int main(int argc, const char *argv[]) {
     int i;

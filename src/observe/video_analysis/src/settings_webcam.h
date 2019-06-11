@@ -21,7 +21,7 @@
 // along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
-// The settings below define how the video capture and analysis works
+// The settings below define how the video capture and analysis works, when we are recording video from a webcam
 
 #ifndef _SETTINGS_WEBCAM_H
 #define _SETTINGS_WEBCAM_H 1

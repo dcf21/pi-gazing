@@ -21,6 +21,9 @@
 // along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
+// Pass the contents of a pre-recorded H264 video file through the analysis code to search for moving objects and to
+// create long-exposure time-lapse images
+
 // This code is based on the FFmpeg source code; (C) 2001 Fabrice Bellard; distributed under GPL version 2.1
 
 // https://libav.org/documentation/doxygen/master/decode__video_8c_source.html
@@ -249,6 +252,12 @@ int create_observation_mask(context *ctx) {
 
     return 0;
 }
+
+//! Pass the contents of a pre-recorded H264 video file through the analysis code to search for moving objects and to
+//! create long-exposure time-lapse images
+//! \param argc Command-line arguments
+//! \param argv Command-line arguments
+//! \return None
 
 int main(int argc, const char **argv) {
     context ctx;

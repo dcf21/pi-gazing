@@ -26,6 +26,10 @@
 #include <gsl/gsl_math.h>
 #include "gnomonic.h"
 
+//! rotate_xy - Rotate a three-component vector about the z axis
+//! \param a Vector to rotate in place
+//! \param theta The angle to rotate around the z axis (radians)
+
 void rotate_xy(double *a, double theta) {
     double a0 = a[0] * cos(theta) + a[1] * -sin(theta);
     double a1 = a[0] * sin(theta) + a[1] * cos(theta);
@@ -35,6 +39,10 @@ void rotate_xy(double *a, double theta) {
     a[2] = a2;
 }
 
+//! rotate_xz - Rotate a three-component vector about the y axis
+//! \param a Vector to rotate in place
+//! \param theta The angle to rotate around the y axis (radians)
+
 void rotate_xz(double *a, double theta) {
     double a0 = a[0] * cos(theta) + a[2] * -sin(theta);
     double a1 = a[1];
@@ -43,6 +51,14 @@ void rotate_xz(double *a, double theta) {
     a[1] = a1;
     a[2] = a2;
 }
+
+//! make_zenithal - Convert a position on the sky into alt/az coordinates
+//! \param [in] ra The right ascension of the point to convert (radians)
+//! \param [in] dec The declination of the point to convert (radians)
+//! \param [in] ra0 The right ascension of the zenith (radians)
+//! \param [in] dec0 The declination of the zenith (radians)
+//! \param [out] za The zenith angle of the point (radians); equals pi/2 - altitude
+//! \param [out] az The azimuth of the point (radians)
 
 void make_zenithal(double ra, double dec, double ra0, double dec0, double *za, double *az) {
     double altitude, azimuth, zenith_angle;
@@ -63,36 +79,80 @@ void make_zenithal(double ra, double dec, double ra0, double dec0, double *za, d
     *az = azimuth;
 }
 
+//! angular_distance - Calculate the angular distance between two points on the sky
+//! \param [in] ra0 The right ascension of the first point (radians)
+//! \param [in] dec0 The declination of the first point (radians)
+//! \param [in] ra1 The right ascension of the second point (radians)
+//! \param [in] dec1 The declination of the second point (radians)
+//! \return The angular separation (radians)
+
 double angular_distance(double ra0, double dec0, double ra1, double dec1) {
+    // Convert the first point from spherical polar coordinates to Cartesian coordinates
     double x0 = cos(ra0) * cos(dec0);
     double y0 = sin(ra0) * cos(dec0);
     double z0 = sin(dec0);
+    // Convert the second point from spherical polar coordinates to Cartesian coordinates
     double x1 = cos(ra1) * cos(dec1);
     double y1 = sin(ra1) * cos(dec1);
     double z1 = sin(dec1);
+    // Calculate the linear distance between the two points
     double d = sqrt(pow(x0 - x1, 2) + pow(y0 - y1, 2) + pow(z0 - z1, 2));
+    // Convert linear distance into angular distance
     return 2 * asin(d / 2);
 }
+
+//! find_mean_position - Return the average of three points on the sky
+//! \param [out] ra_out The right ascension of the average of the three points
+//! \param [out] dec_out The declination of the average of the three points
+//! \param [in] ra0 The right ascension of the first point (radians)
+//! \param [in] dec0 The declination of the first point (radians)
+//! \param [in] ra1 The right ascension of the second point (radians)
+//! \param [in] dec1 The declination of the second point (radians)
+//! \param [in] ra2 The right ascension of the third point (radians)
+//! \param [in] dec2 The declination of the third point (radians)
 
 void find_mean_position(double *ra_out, double *dec_out,
                         double ra0, double dec0,
                         double ra1, double dec1,
                         double ra2, double dec2) {
+    // Convert the first point from spherical polar coordinates to Cartesian coordinates
     double x0 = cos(ra0) * cos(dec0);
     double y0 = sin(ra0) * cos(dec0);
     double z0 = sin(dec0);
+    // Convert the second point from spherical polar coordinates to Cartesian coordinates
     double x1 = cos(ra1) * cos(dec1);
     double y1 = sin(ra1) * cos(dec1);
     double z1 = sin(dec1);
+    // Convert the third point from spherical polar coordinates to Cartesian coordinates
     double x2 = cos(ra2) * cos(dec2);
     double y2 = sin(ra2) * cos(dec2);
     double z2 = sin(dec2);
+    // Work out the centroid of the three points in Cartesian space
     double x3 = (x0 + x1 + x2) / 3;
     double y3 = (y0 + y1 + y2) / 3;
     double z3 = (z0 + z1 + z2) / 3;
-    *dec_out = asin(z3);
+    // Work out the magnitude of the centroid vector
+    double mag = sqrt(gsl_pow_2(x3) + gsl_pow_2(y3) + gsl_pow_2(z3));
+    // Convert the Cartesian coordinates into RA and Dec
+    *dec_out = asin(z3 / mag);
     *ra_out = atan2(y3, x3);
 }
+
+//! gnomonic_project - Project a pair of celestial coordinates (RA, Dec) into pixel coordinates (x,y)
+//! \param [in] ra The right ascension of the point to project (radians)
+//! \param [in] dec The declination of the point to project (radians)
+//! \param [in] ra0 The right ascension of the centre of the frame (radians)
+//! \param [in] dec0 The declination of the centre of the frame (radians)
+//! \param [in] x_size The horizontal size of the frame (pixels)
+//! \param [in] y_size The vertical size of the frame (pixels)
+//! \param [in] x_scale The angular width of the frame (radians)
+//! \param [in] y_scale The angular height of the frame (radians)
+//! \param [out] x_out The x position of (RA, Dec)
+//! \param [out] y_out The y position of (RA, Dec)
+//! \param [in] pa The position angle of the frame on the sky
+//! \param [in] barrel_a The barrel distortion parameter A
+//! \param [in] barrel_b The barrel distortion parameter B
+//! \param [in] barrel_c The barrel distortion parameter C
 
 void gnomonic_project(double ra, double dec, double ra0, double dec0, int x_size, int y_size,
                       double x_scale, double y_scale,
@@ -125,7 +185,23 @@ void gnomonic_project(double ra, double dec, double ra0, double dec0, int x_size
     *y_out = yd;
 }
 
-// Includes correction for barrel distortion
+//! inv_gnomonic_project - Project a pair of pixel coordinates (x,y) into a celestial position (RA, Dec). This includes
+//! a correction for Barrel distortion.
+//! \param [out] ra_out The right ascension of the point to project (radians)
+//! \param [out] dec_out The declination of the point to project (radians)
+//! \param [in] ra0 The right ascension of the centre of the frame (radians)
+//! \param [in] dec0 The declination of the centre of the frame (radians)
+//! \param [in] x_size The horizontal size of the frame (pixels)
+//! \param [in] y_size The vertical size of the frame (pixels)
+//! \param [in] x_scale The angular width of the frame (radians)
+//! \param [in] y_scale The angular height of the frame (radians)
+//! \param [in] x The x position of (RA, Dec)
+//! \param [in] y The y position of (RA, Dec)
+//! \param [in] pa The position angle of the frame on the sky
+//! \param [in] barrel_a The barrel distortion parameter A
+//! \param [in] barrel_b The barrel distortion parameter B
+//! \param [in] barrel_c The barrel distortion parameter C
+
 void inv_gnomonic_project(double *ra_out, double *dec_out, double ra0, double dec0, int x_size, int y_size,
                           double x_scale, double y_scale, double x, double y, double pa,
                           double barrel_a, double barrel_b, double barrel_c) {
@@ -142,7 +218,9 @@ void inv_gnomonic_project(double *ra_out, double *dec_out, double ra0, double de
     za = R * tan(y_scale / 2.);
 
     double altitude = M_PI / 2 - za;
-    double a[3] = {cos(altitude) * cos(az), cos(altitude) * sin(az), sin(altitude)};
+    double a[3] = {cos(altitude) * cos(az),
+                   cos(altitude) * sin(az),
+                   sin(altitude)};
 
     rotate_xz(a, -(M_PI / 2) + dec0);
     rotate_xy(a, ra0);

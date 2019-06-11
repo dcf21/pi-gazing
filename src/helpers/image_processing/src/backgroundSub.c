@@ -37,18 +37,28 @@
 #define GRID_SIZE 8
 #define FRACTION 0.99
 
+//! background_subtract - A simple tool for subtracting the sky background from an image, in place. The sky background
+//! is estimated as the mode sky brightness in each of a grid of 8x8 cells covering the image. Pi gazing itself uses
+//! a more sophisticated background subtraction algorithm which estimates the time-integrated average brightness of
+//! individual pixels.
+//! \param img - The image to operate upon
+//! \param si - Pi gazing settings
+
 void background_subtract(image_ptr img, settings_input *si) {
     int histogram[GRID_SIZE][GRID_SIZE][3][256];
     int mode[GRID_SIZE][GRID_SIZE][3];
     int i, j, k, l;
 
+    // If the background subtraction setting is set to zero, do nothing
     if (si->background_subtract == 0) return;
 
+    // Zero the histograms we compute of the brightness within each pixel in each cell
     for (i = 0; i < GRID_SIZE; i++)
         for (j = 0; j < GRID_SIZE; j++)
             for (k = 0; k < 3; k++)
                 for (l = 0; l < 256; l++)histogram[i][j][k][l] = 0;
 
+    // Populate histograms of the pixel brightnesses within each cell
     for (j = 0; j < img.ysize; j++) {
         int k;
         int l = img.xsize * j;
@@ -71,6 +81,7 @@ void background_subtract(image_ptr img, settings_input *si) {
         }
     }
 
+    // Work out the most common sky brightness within each cell
     for (i = 0; i < GRID_SIZE; i++)
         for (j = 0; j < GRID_SIZE; j++)
             for (k = 0; k < 3; k++) {
@@ -85,6 +96,7 @@ void background_subtract(image_ptr img, settings_input *si) {
                 mode[i][j][k] = mostPopular;
             }
 
+    // Linearly interpolate the 8x8 pixel map we have of the sky background
     for (j = 0; j < img.ysize; j++) {
         int k;
         int l = img.xsize * j;
@@ -120,10 +132,13 @@ void background_subtract(image_ptr img, settings_input *si) {
                            (mode[jbin0][kbin0][2] * jbin0w * kbin0w + mode[jbin0][kbin1][2] * jbin0w * kbin1w +
                             mode[jbin1][kbin0][2] * jbin1w * kbin0w + mode[jbin1][kbin1][2] * jbin1w * kbin1w);
 
+            // If the setting <background_subtract> is 1, then subtract the sky background
             if (si->background_subtract == 1) {
                 if (img.data_red[l] > backr) img.data_red[l] -= backr; else img.data_red[l] = 0;
                 if (img.data_grn[l] > backg) img.data_grn[l] -= backg; else img.data_grn[l] = 0;
                 if (img.data_blu[l] > backb) img.data_blu[l] -= backb; else img.data_blu[l] = 0;
+
+            // If the setting <background_subtract> is 2, then we return the sky background model
             } else if (si->background_subtract == 2) {
                 img.data_red[l] = backr;
                 img.data_grn[l] = backg;

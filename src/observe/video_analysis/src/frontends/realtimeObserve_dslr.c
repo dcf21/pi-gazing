@@ -21,6 +21,9 @@
 // along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 // -------------------------------------------------
 
+// Observe the night sky using a DSLR driven using gphoto2, and pass the frames to the analysis code in real time, to
+// generate long-exposure time-lapse frames, and to search for moving objects.
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -139,6 +142,12 @@ int fetch_frame(void *videoHandle, unsigned char *tmpc, double *utc) {
 int rewind_video(void *video_handle, double *utc) {
     return 0; // Can't rewind live video!
 }
+
+//! Observe the night sky using a DSLR driven using gphoto2, and pass the frames to the analysis code in real time, to
+//! generate long-exposure time-lapse frames, and to search for moving objects.
+//! \param argc Command-line arguments
+//! \param argv Command-line arguments
+//! \return None
 
 int main(int argc, const char *argv[]) {
     video_metadata vmd;
