@@ -37,7 +37,6 @@
 #include "gnomonic.h"
 #include "imageProcess.h"
 #include "png/image.h"
-#include "readConfig.h"
 #include "settings.h"
 #include "str_constants.h"
 #include "backgroundSub.h"

@@ -20,7 +20,7 @@ ccDefines = ['DATE=\\"03/05/2019\\"', 'VERSION=\\"0.0.3\\"', 'SRCDIR=\\"%s\\"' %
 
 # C source files which are common to all binaries we are going to build
 commonFiles = ['argparse/argparse.c', 'backgroundSub.c', 'gnomonic.c', 'imageProcess.c',
-               'jpeg/jpeg_in.c', 'png/image_in.c', 'png/image_out.c', 'readConfig.c', 'settings.c',
+               'jpeg/jpeg_in.c', 'png/image_in.c', 'png/image_out.c', 'settings.c',
                'utils/asciiDouble.c', 'utils/error.c', 'utils/julianDate.c', 'utils/lensCorrect.c',
                'utils/skyClarity.c', 'vidtools/color.c']
 
@@ -29,7 +29,6 @@ commonFiles = ['argparse/argparse.c', 'backgroundSub.c', 'gnomonic.c', 'imagePro
 targets = [[0, 0, commonFiles + ['frontends/lensCorrect.c'], 'lensCorrect'],
            [0, 0, commonFiles + ['frontends/multiply.c'], 'multiply'],
            [0, 0, commonFiles + ['frontends/resize.c'], 'resize'],
-           [0, 0, commonFiles + ['frontends/stack.c'], 'stack'],
            [0, 0, commonFiles + ['frontends/skyClarity.c'], 'skyClarity'],
            [0, 0, commonFiles + ['frontends/subtract.c'], 'subtract'],
            [0, 0, commonFiles + ['frontends/converters/rawimg2png.c'], 'rawimg2png'],

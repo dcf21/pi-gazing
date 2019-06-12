@@ -45,7 +45,21 @@
 // Each pixel is 1.5 bytes in YUV420 stream
 #define YUV420_BYTES_PER_PIXEL  3/2
 
-// Generate a filename which starts with a time stamp string
+//! filename_generate - Generate a filename for an output product. We place output products in the directory
+//! <datadir/analysis_products>. Within this, we create directories of the form <dir_name>_<label>, where label is
+//! either "live" or "nonlive", for real-time and post-observation video analysis. The file products themselves have
+//! filenames which start with a time stamp string, followed by the observatory ID, followed by <tag>.
+//!
+//! These filenames do not have file type suffices, which the user will need to add afterwards.
+//!
+//! \param [out] output The string buffer into which to write the filename for this product.
+//! \param [in] obstory_id The observatory ID which created this product.
+//! \param [in] utc The time stamp of the product.
+//! \param [in] tag The type of file, used as the last part of the filename
+//! \param [in] dir_name The name of the directory within <analysis_products> where this product should go.
+//! \param [in] label Suffix to the name of the directory; either "live" or "nonlive".
+//! \return Pointer to <output>.
+
 char *filename_generate(char *output, const char *obstory_id, double utc, char *tag, const char *dir_name,
                         const char *label) {
     char path[FNAME_LENGTH];
@@ -79,7 +93,17 @@ char *filename_generate(char *output, const char *obstory_id, double utc, char *
     return output;
 }
 
-// Record metadata associated with each file into a text file. filename must be writable string.
+//! write_metadata - Record metadata associated with each output file product into a metadata text file which sits
+//! alongside the file product, but with a '.txt' file extension.
+//! \param filename The filename of the file product that we are going to write metadata for. This character array
+//! must be writable, since we change the filename suffix to '.txt' in place, in order to write the metadata into a
+//! text file alongside the file product.
+//! \param item_types A string representing the list of types of the metadata items to write into the file. The
+//! character 's' represents a string item, 'i' represents an integer value, and 'd' represents a double
+//! (floating point).
+//! \param ... For each character in the <item_types> string, two additional parameters are required. The first should
+//! be a string containing the keyword associated with the metadata item, while the latter is the metadata value.
+
 void write_metadata(char *filename, char *item_types, ...) {
     // Change file extension of filename to .txt
     int filename_len = (int) strlen(filename);
@@ -101,19 +125,19 @@ void write_metadata(char *filename, char *item_types, ...) {
                 fprintf(f, "%s %s\n", x, y);
                 break;
             }
-                // Double type metadata
+            // Double type metadata
             case 'd': {
                 double y = va_arg(ap, double);
                 fprintf(f, "%s %.15e\n", x, y);
                 break;
             }
-                // Int type metadata
+            // Int type metadata
             case 'i': {
                 int y = va_arg(ap, int);
                 fprintf(f, "%s %d\n", x, y);
                 break;
             }
-                // Metadata type characters in <item_types> must be s, d or i.
+            // Metadata type characters in <item_types> must be s, d or i.
             default: {
                 sprintf(temp_err_string, "ERROR: Unrecognised data type character '%c'.", item_types[i]);
                 logging_fatal(__FILE__, __LINE__, temp_err_string);
@@ -125,7 +149,16 @@ void write_metadata(char *filename, char *item_types, ...) {
     fclose(f);
 }
 
-// Read a group of frames, and create the stacks used to test for triggers
+//! read_frame - Read a frame of input video. This is done by calling the function pointer os->fetch_frame, which
+//! points to a function which may variously either capture a frame of live video from a webcam via the v4l2 library,
+//! or else may return a frame of pre-recorded video from a file. The video frame is added into the stacked frame
+//! <stack2>, which is used to create long-exposure images.
+//! \param os - The settings for the current observing run.
+//! \param buffer - The character array into which to write this frame as YUV420
+//! \param stack2 - Int array of size (channels * width * height) into which we add frames to create long-exposure
+//! images.
+//! \return Zero on success; One if a frame could not be captured.
+
 int read_frame(observe_status *os, unsigned char *buffer, int *stack2) {
     int i;
 
@@ -166,6 +199,58 @@ int read_frame(observe_status *os, unsigned char *buffer, int *stack2) {
     // Done
     return 0;
 }
+
+//! observe - Main entry point for analysing a video stream for moving objects, including making periodic time-lapse
+//! exposures.
+//! \param video_handle Settings pertaining to the video stream. We pass this as an argument to the function pointer
+//! <fetch_frame>, but otherwise we are agnostic to what data the structure might contain.
+//! \param obstory_id The ID of the observatory from which this video stream is/was observed.
+//! \param utc_start The unix time stamp of the start of the video
+//! \param utc_stop The unix time stamp at which we need to exit the observing loop if we don't reach the end of the
+//! video beforehand. Zero means we never exit
+//! \param width - The width of the video frames
+//! \param height - The height of the video frames
+//! \param fps - The frames per second count, used to calculate the time stamp of each frame in pre-recorded video
+//! \param label - Either "live" or "non-live"; used in the filenames of file products.
+//! \param mask - Array of (width * height) boolean chars, indicating whether pixels are inside the allowed area for
+//! moving object detection (masking out trees, etc, which may blow in the wind).
+//! \param STACK_COMPARISON_INTERVAL - When looking for moving objects, compare either frame with the frame which came
+//! this number of frames earlier. Making this larger than one increases sensitivity to slow-moving objects.
+//! \param TRIGGER_PREFIX_TIME - When we detect a moving object, include this number of seconds of preceding video.
+//! \param TRIGGER_SUFFIX_TIME - When we detect a moving object, include this number of seconds of video after it
+//! disappears. Also, this is the amount of time that an object is allowed to go undetected, before we stop looking for
+//! further detections.
+//! \param TRIGGER_SUFFIX_TIME_INITIAL - When we detect a moving object for the first time, it must be re-detected in a
+//! subsequent frame within this time limit. Otherwise it is assumed to be noise.
+//! \param TRIGGER_MIN_DETECTIONS - The minimum number of frames in which a moving object must appear to be detected.
+//! \param TRIGGER_MIN_PATH_LENGTH - The minimum number of pixels that a moving object must move in order to be
+//! trusted not to be a star.
+//! \param TRIGGER_MAX_MOVEMENT_PER_FRAME - The maximum number of pixels that a moving object may move between
+//! consecutive frames to be plausibly the same object.
+//! \param TRIGGER_MIN_SIGNIFICANCE - The minimum number of standard deviations above the noise level that a
+//! brightening must be to trigger the motion sensor. This is summed over all the pixels which brighten.
+//! \param TRIGGER_MIN_SIGNIFICANCE_INITIAL - The minimum number of standard deviations above the noise level that a
+//! brightening must be to trigger the motion sensor for the first time. This is summed over all the pixels which
+//! brighten.
+//! \param VIDEO_BUFFER_LEN - The number of seconds of video that we hold in a rolling buffer
+//! \param TRIGGER_MAX_DURATION - The maximum duration for which we track a single moving object.
+//! \param TRIGGER_THROTTLE_PERIOD - The time period over which we throttle the allowed number of object detections.
+//! \param TRIGGER_THROTTLE_MAXEVT - The maximum number of moving objects we can track in each
+//! <TRIGGER_THROTTLE_PERIOD>.
+//! \param TIMELAPSE_EXPOSURE - The length of each long-exposure time-lapse image.
+//! \param TIMELAPSE_INTERVAL - The interval between long-exposure time-lapse images.
+//! \param STACK_TARGET_BRIGHTNESS - The target mean brightness of the pixels in background-subtracted  time-lapse
+//! images.
+//! \param BACKGROUND_MAP_FRAMES - The number of frames which are averages to create each map of the sky background.
+//! \param BACKGROUND_MAP_SAMPLES - The number of background maps which we hold concurrently, taking the lowest sky
+//! background estimate from the set to filter out pixels which brighten for a few minutes while stars pass through.
+//! \param BACKGROUND_MAP_REDUCTION_CYCLES - The number of frames over which we reduce the background map after every
+//! <BACKGROUND_MAP_FRAMES> have been averaged. The reduction is time consuming, so we do it in lots of small chunks
+//! whilst processing the video frames which are coming in.
+//! \param fetch_frame - Function pointer to the function we call to fetch video frames.
+//! \param rewind_video - Function pointer to the function we call to rewind the video to the beginning after the
+//! initial run-in period. For live observing, this function is allowed to do nothing.
+//! \return Zero on success
 
 int observe(void *video_handle, const char *obstory_id, const double utc_start, const double utc_stop,
             const int width, const int height, const double fps, const char *label, const unsigned char *mask,
@@ -489,11 +574,22 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     return 0;
 }
 
-// Register a new trigger event
+//! register_trigger - Called when <check_for_triggers> detects a moving object. We check whether this is a
+//! re-detection of an existing moving object, or something new.
+//! \param os - Settings pertaining to this observing run.
+//! \param block_id - The ID of the block of pixels which triggered the camera, as mapped in <os->trigger_map>
+//! \param x_pos - The x-position of the centroid of the block of pixels which triggered the camera.
+//! \param y_pos - The y-position of the centroid of the block of pixels which triggered the camera.
+//! \param pixel_count - The number of brightened pixels which produced this trigger.
+//! \param amplitude - The total brightness excess, integrated over all pixels, which produced this trigger.
+//! \param image1 - The video frame which triggered the camera
+//! \param image2 - The previous video frame which image1 was compared against
+
 void register_trigger(observe_status *os, const int block_id, const int x_pos, const int y_pos, const int pixel_count,
                       const int amplitude, const unsigned char *image1, const unsigned char *image2) {
     if (!os->triggering_allowed) return;
 
+    // Re-normalise the integrated brightness of this object as a number of standard deviations of random noise
     const double significance = amplitude / os->noise_level;
 
     const int trigger_maximum_movement_per_frame = os->TRIGGER_MAX_MOVEMENT_PER_FRAME;
@@ -725,8 +821,10 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
     }
 }
 
-// Check through list of events we are currently tracking.
-// Weed out any which haven't been seen for a long time, or are exceeding maximum allowed recording time.
+//! register_trigger_ends - Check through list of events we are currently tracking.
+//! Weed out any which haven't been seen for a long time, or are exceeding maximum allowed recording time.
+//! \param os - Settings pertaining to the current observing run
+
 void register_trigger_ends(observe_status *os) {
     int i;
     unsigned char *current_frame = (os->video_buffer +

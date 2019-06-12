@@ -21,8 +21,6 @@ set(SOURCE_FILES
         src/png/image.h
         src/png/image_in.c
         src/png/image_out.c
-        src/readConfig.c
-        src/readConfig.h
         src/settings.c
         src/settings.h
         src/str_constants.h
@@ -52,5 +50,4 @@ add_executable(lensCorrect ${SOURCE_FILES} src/frontends/lensCorrect.c)
 add_executable(multiply ${SOURCE_FILES} src/frontends/multiply.c)
 add_executable(resize ${SOURCE_FILES} src/frontends/resize.c)
 add_executable(skyClarity ${SOURCE_FILES} src/frontends/skyClarity.c)
-add_executable(stack ${SOURCE_FILES} src/frontends/stack.c)
 add_executable(subtract ${SOURCE_FILES} src/frontends/subtract.c)

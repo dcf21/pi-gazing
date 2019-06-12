@@ -40,20 +40,50 @@
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
-// Used by testTrigger. When blocks idOld and idNew are determined to be connected, their pixels counts are added together.
+//! trigger_blocks_merge - When we are mapping groups of pixels which have brightened, we may discover part-way down
+//! the frame that two groups which were previously unconnected actually join together. This routine merges the two
+//! blocks into a single ID. We populate the array <os->trigger_block_redirect> to indicate that id_old is the same
+//! block as id_new. We do not alter any brightened pixels which have already been assigned group ID <id_old> in the
+//! map contained in <os->trigger_map> as this would take time. We do update metadata associated with <id_new> to now
+//! include <id_old>'s pixels.
+//!
+//! \param os - Settings pertaining to the current observing run
+//! \param id_old - The block ID that we are getting rid of.
+//! \param id_new - The block ID that we are merging <id_old> pixels into.
+
 inline void trigger_blocks_merge(observe_status *os, int id_old, int id_new) {
+    // If either of the blocks <id_old> or <id_new> have already been merged into other groups, make sure that we merge
+    // the whole groups.
     while (os->trigger_block_redirect[id_old] > 0) id_old = os->trigger_block_redirect[id_old];
     while (os->trigger_block_redirect[id_new] > 0) id_new = os->trigger_block_redirect[id_new];
+
+    // If it turns out that id_old and id_new are actually part of the same big group already, then we have nothing to
+    // do
     if (id_old == id_new) return;
+
+    // Merge the pixels from <id_old> into <id_new>
     os->trigger_block_count[id_new] += os->trigger_block_count[id_old];
     os->trigger_block_top[id_new] = MIN(os->trigger_block_top[id_new], os->trigger_block_top[id_old]);
     os->trigger_block_bot[id_new] = MAX(os->trigger_block_bot[id_new], os->trigger_block_bot[id_old]);
     os->trigger_block_sumx[id_new] += os->trigger_block_sumx[id_old];
     os->trigger_block_sumy[id_new] += os->trigger_block_sumy[id_old];
     os->trigger_block_suml[id_new] += os->trigger_block_suml[id_old];
+
+    // Mark id_old as being dead and having no pixels
     os->trigger_block_count[id_old] = 0;
+
+    // Create a redirect to indicate the pixels in the trigger map marked as part of <id_old> are actually part of
+    // <id_new>
     os->trigger_block_redirect[id_old] = id_new;
 }
+
+//! test_pixel - Test a single pixel to see whether it has brightened enough to potentially trigger to motion sensor
+//! \param os - Settings pertaining to the current observing run
+//! \param image1 - The video frame which we are analysing for triggers
+//! \param image2 - The previous video frame which image1 is being compared against
+//! \param o - The offset of the pixel from the beginning of the video buffer
+//! \param threshold - The threshold increase in brightness which triggers the camera
+//! \return Boolean flag indicating whether this pixel has brightened by an interesting amount
 
 static inline int test_pixel(observe_status *os,
                              const unsigned char *image1, const unsigned char *image2,
@@ -82,7 +112,12 @@ static inline int test_pixel(observe_status *os,
     return 0;
 }
 
-// Test frames B and A, to see if pixels have brightened in B versus A.
+//! check_for_triggers - Search the frame <image1> for blocks of pixels which have brightened relative to <image2>
+//! \param os - Settings pertaining to the current observing run
+//! \param image1 - The video frame which we are analysing for triggers
+//! \param image2 - The previous video frame which image1 is being compared against
+//! \return Boolean flag indicating whether any pixels triggered the motion sensor
+
 int check_for_triggers(observe_status *os, const unsigned char *image1, const unsigned char *image2) {
     int y;
     int output = 0;
