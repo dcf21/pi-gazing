@@ -162,12 +162,17 @@ double julian_day(int year, int month, int day, int hour, int min, int sec, int 
         year--;
     }
 
-    if (required_date <= last_julian) { b = -2 + ((year + 4716) / 4) - 1179; } // Julian calendar
-    else if (required_date >= first_gregorian) { b = (year / 400) - (year / 100) + (year / 4); } // Gregorian calendar
+    // Julian calendar
+    if (required_date <= last_julian) { b = -2 + ((year + 4716) / 4) - 1179; }
+
+    // Gregorian calendar
+    else if (required_date >= first_gregorian) { b = (year / 400) - (year / 100) + (year / 4); }
+
     else {
         *status = 1;
         sprintf(err_text,
-                "The requested date never happened in the British calendar: it was lost in the transition from the Julian to the Gregorian calendar.");
+                "The requested date never happened in the British calendar: "
+                "it was lost in the transition from the Julian to the Gregorian calendar.");
         return 0.0;
     }
 
@@ -209,16 +214,22 @@ void inv_julian_day(double jd, int *year, int *month, int *day, int *hour, int *
     if (sec != NULL) *sec = fmod(86400 * day_fraction, 60);
 
     // Now work out calendar date
-    a = jd +
-        0.5; // Number of whole Julian days. b = Number of centuries since the Council of Nicaea. c = Julian Day number as if century leap years happened.
+    // a = Number of whole Julian days.
+    // b = Number of centuries since the Council of Nicaea.
+    // c = Julian Day number as if century leap years happened.
+    a = jd + 0.5;
+
+    // Julian calendar
     if (a < switch_over_jd()) {
         b = 0;
         c = a + 1524;
-    } // Julian calendar
+    }
+
+        // Gregorian calendar
     else {
         b = (a - 1867216.25) / 36524.25;
         c = a + b - (b / 4) + 1525;
-    } // Gregorian calendar
+    }
     d = (c - 122.1) / 365.25;   // Number of 365.25 periods, starting the year at the end of February
     e = 365 * d + d / 4; // Number of days accounted for by these
     f = (c - e) / 30.6001;      // Number of 30.6001 days periods (a.k.a. months) in remainder
