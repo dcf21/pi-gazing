@@ -101,41 +101,31 @@ double angular_distance(double ra0, double dec0, double ra1, double dec1) {
     return 2 * asin(d / 2);
 }
 
-//! find_mean_position - Return the average of three points on the sky
-//! \param [out] ra_out The right ascension of the average of the three points
-//! \param [out] dec_out The declination of the average of the three points
-//! \param [in] ra0 The right ascension of the first point (radians)
-//! \param [in] dec0 The declination of the first point (radians)
-//! \param [in] ra1 The right ascension of the second point (radians)
-//! \param [in] dec1 The declination of the second point (radians)
-//! \param [in] ra2 The right ascension of the third point (radians)
-//! \param [in] dec2 The declination of the third point (radians)
+//! find_mean_position - Return the average of a list of points on the sky
+//! \param [out] ra_out - The right ascension of the average of the three points
+//! \param [out] dec_out - The declination of the average of the three points
+//! \param [in] ra_list - The right ascension of the first point (radians)
+//! \param [in] dec_list - The declination of the first point (radians)
+//! \param [in] point_count - The number of points to average
 
-void find_mean_position(double *ra_out, double *dec_out,
-                        double ra0, double dec0,
-                        double ra1, double dec1,
-                        double ra2, double dec2) {
-    // Convert the first point from spherical polar coordinates to Cartesian coordinates
-    double x0 = cos(ra0) * cos(dec0);
-    double y0 = sin(ra0) * cos(dec0);
-    double z0 = sin(dec0);
-    // Convert the second point from spherical polar coordinates to Cartesian coordinates
-    double x1 = cos(ra1) * cos(dec1);
-    double y1 = sin(ra1) * cos(dec1);
-    double z1 = sin(dec1);
-    // Convert the third point from spherical polar coordinates to Cartesian coordinates
-    double x2 = cos(ra2) * cos(dec2);
-    double y2 = sin(ra2) * cos(dec2);
-    double z2 = sin(dec2);
-    // Work out the centroid of the three points in Cartesian space
-    double x3 = (x0 + x1 + x2) / 3;
-    double y3 = (y0 + y1 + y2) / 3;
-    double z3 = (z0 + z1 + z2) / 3;
+void find_mean_position(double *ra_out, double *dec_out, const double *ra_list, const double *dec_list,
+                        int point_count) {
+    int i;
+    double x_sum = 0, y_sum=0, z_sum=0;
+
+    // Convert the points from spherical polar coordinates to Cartesian coordinates, and sum them
+    for (i=0; i<point_count; i++) {
+        x_sum += cos(ra_list[i]) * cos(dec_list[i]);
+        y_sum += sin(ra_list[i]) * cos(dec_list[i]);
+        z_sum += sin(dec_list[i]);
+    }
+
     // Work out the magnitude of the centroid vector
-    double mag = sqrt(gsl_pow_2(x3) + gsl_pow_2(y3) + gsl_pow_2(z3));
+    double mag = sqrt(gsl_pow_2(x_sum) + gsl_pow_2(y_sum) + gsl_pow_2(z_sum));
+
     // Convert the Cartesian coordinates into RA and Dec
-    *dec_out = asin(z3 / mag);
-    *ra_out = atan2(y3, x3);
+    *dec_out = asin(z_sum / mag);
+    *ra_out = atan2(y_sum, x_sum);
 }
 
 //! gnomonic_project - Project a pair of celestial coordinates (RA, Dec) into pixel coordinates (x,y)

@@ -26,10 +26,8 @@
 
 double angular_distance(double ra0, double dec0, double ra1, double dec1);
 
-void find_mean_position(double *ra_out, double *dec_out,
-                        double ra0, double dec0,
-                        double ra1, double dec1,
-                        double ra2, double dec2);
+void find_mean_position(double *ra_out, double *dec_out, const double *ra_list, const double *dec_list,
+                        int point_count);
 
 void gnomonic_project(double ra, double dec, double ra0, double dec0, int x_size, int y_size,
                       double x_scale, double y_scale,
