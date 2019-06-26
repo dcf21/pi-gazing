@@ -124,47 +124,41 @@ int valid_float(const char *str, int *end) {
 //! \param latex Boolean flag indicating whether we should produce LaTeX output (true) or human-readable output (false)
 //! \return String-representation, contained in a static char buffer which may be overwritten by subsequent calls
 
-char *numeric_display(double in, int N, int SigFig, int latex) {
-    static char format[16], outputA[128], outputB[128], outputC[128], outputD[128];
+char *numeric_display(double in, int N, int sig_fig, int latex) {
+    static char format[16], output_a[128], output_b[128], output_c[128], output_d[128];
     double x, AccLevel;
     char *output;
-    int DecimalLevel, DPmax, i, j, k, l;
-    if (N == 0) output = outputA;
-    else if (N == 1) output = outputB;
-    else if (N == 2) output = outputC;
-    else output = outputD;
+    int decimal_level, dp_max, i, j, k, l;
+    if (N == 0) output = output_a;
+    else if (N == 1) output = output_b;
+    else if (N == 2) output = output_c;
+    else output = output_d;
     if ((fabs(in) < 1e10) && (fabs(in) > 1e-3)) {
         x = fabs(in);
-        AccLevel = x * (1.0 + pow(10, -SigFig));
-        DPmax = SigFig - log10(x);
-        for (DecimalLevel = 0; DecimalLevel < DPmax; DecimalLevel++)
-            if ((x - ((floor(x * pow(10, DecimalLevel)) / pow(10, DecimalLevel)) - x)) < AccLevel)break;
-        sprintf(format, "%%.%df", DecimalLevel);
-        sprintf(output, format, in);
+        AccLevel = x * (1.0 + pow(10, -sig_fig));
+        dp_max = (int)(sig_fig - log10(x));
+        for (decimal_level = 0; decimal_level < dp_max; decimal_level++)
+            if ((x - ((floor(x * pow(10, decimal_level)) / pow(10, decimal_level)) - x)) < AccLevel)break;
+        snprintf(format, 16, "%%.%df", decimal_level);
+        snprintf(output, 128, format, in);
     } else {
-        if (in == 0) { sprintf(output, "0"); }
+        if (in == 0) { strcpy(output, "0"); }
         else {
             x = fabs(in);
             x /= pow(10, (int) log10(x));
-            AccLevel = x * (1.0 + pow(10, -SigFig));
-            for (DecimalLevel = 0; DecimalLevel < SigFig; DecimalLevel++)
-                if ((x - ((floor(x * pow(10, DecimalLevel)) / pow(10, DecimalLevel)) - x)) < AccLevel)break;
-            sprintf(format, "%%.%de", DecimalLevel);
-            sprintf(output, format, in);
+            AccLevel = x * (1.0 + pow(10, -sig_fig));
+            for (decimal_level = 0; decimal_level < sig_fig; decimal_level++)
+                if ((x - ((floor(x * pow(10, decimal_level)) / pow(10, decimal_level)) - x)) < AccLevel)break;
+            snprintf(format, 16, "%%.%de", decimal_level);
+            snprintf(output, 128, format, in);
             if (latex) // Turn 1e10 into nice latex
             {
                 for (i = 0; ((output[i] != '\0') && (output[i] != 'e') && (output[i] != 'E')); i++);
                 if (output[i] != '\0') {
                     for (j = i, k = i + 32; output[j] != '\0'; j++) output[j + 32] = output[j];
                     output[j + 32] = '\0';
-                    if ((i == 1) && (output[0] == '1')) {
-                        strcpy(output, "10^{");
-                        i = strlen(output);
-                    } // Don't output 1 times 10^3
-                    else {
-                        strcpy(output + i, "\\times10^{");
-                        i += strlen(output + i);
-                    } // Replace e with times ten to the...
+                    strcpy(output + i, "\\times10^{");
+                    i += strlen(output + i); // Replace e with times ten to the...
                     k++; // FFW over the E
                     if (output[k] == '+') k++; // We don't need to say +8... 8 will do
                     for (l = 0, j = k; output[j] != '\0'; j++) {
@@ -185,8 +179,7 @@ char *numeric_display(double in, int N, int SigFig, int latex) {
     if (k == i) k--;
     k++;
     if (k == j) return output;
-    for (l = 0; output[j + l] != '\0'; l++) output[k + l] = output[j + l];
-    output[k + l] = '\0';
+    strcpy(output + k, output + j);
     return output;
 }
 

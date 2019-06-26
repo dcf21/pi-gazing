@@ -102,8 +102,8 @@ double angular_distance(double ra0, double dec0, double ra1, double dec1) {
 }
 
 //! find_mean_position - Return the average of a list of points on the sky
-//! \param [out] ra_out - The right ascension of the average of the three points
-//! \param [out] dec_out - The declination of the average of the three points
+//! \param [out] ra_out - The right ascension of the average of the input points
+//! \param [out] dec_out - The declination of the average of the input points
 //! \param [in] ra_list - The right ascension of the first point (radians)
 //! \param [in] dec_list - The declination of the first point (radians)
 //! \param [in] point_count - The number of points to average
@@ -111,10 +111,10 @@ double angular_distance(double ra0, double dec0, double ra1, double dec1) {
 void find_mean_position(double *ra_out, double *dec_out, const double *ra_list, const double *dec_list,
                         int point_count) {
     int i;
-    double x_sum = 0, y_sum=0, z_sum=0;
+    double x_sum = 0, y_sum = 0, z_sum = 0;
 
     // Convert the points from spherical polar coordinates to Cartesian coordinates, and sum them
-    for (i=0; i<point_count; i++) {
+    for (i = 0; i < point_count; i++) {
         x_sum += cos(ra_list[i]) * cos(dec_list[i]);
         y_sum += sin(ra_list[i]) * cos(dec_list[i]);
         z_sum += sin(dec_list[i]);
