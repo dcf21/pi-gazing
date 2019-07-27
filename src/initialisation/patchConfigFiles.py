@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# install.py
+# patchConfigFiles.py
 #
 # -------------------------------------------------
 # Copyright 2015-2019 Dominic Ford
@@ -48,7 +48,7 @@ def write_apache_virtual_host_config(hostname="pigazing.local"):
         ServerName {hostname}
         RewriteEngine on
         ReWriteCond %{{SERVER_PORT}} !^443$
-        RewriteRule ^/(.*) https://%{{HTTP_HOST}/$1 [NC,R,L]
+        RewriteRule ^/(.*) https://%{{HTTP_HOST}}/$1 [NC,R,L]
 </VirtualHost>
 <VirtualHost *:443>
         DocumentRoot {installation_path}/src/observatory_website/dist
@@ -62,7 +62,7 @@ def write_apache_virtual_host_config(hostname="pigazing.local"):
         <Directory {installation_path}>
                 AllowOverride All
                 WSGIProcessGroup pigazingapplication
-                WSGIApplicationGroup %{GLOBAL}
+                WSGIApplicationGroup %{{GLOBAL}}
                 Require all granted
         </Directory>
 </VirtualHost>

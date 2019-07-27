@@ -30,9 +30,8 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# Send output to log file
+# Create data directory
 mkdir -p ../../datadir
-exec &> ../../datadir/install.stdout
 
 # Log that we've starting installation
 echo "[`date`] Starting Pi Gazing installation" | tee -a ../../datadir/install.stderr
@@ -117,15 +116,15 @@ sudo npm install -g bower uglify-js less less-plugin-clean-css 2>> ${cwd}/../../
 cd $cwd
 echo "[`date`] Setting up web interface" | tee -a ../../datadir/install.stderr
 cd ../web_interface
-bower --allow-root install
+bower --allow-root install 2>> ${cwd}/../../datadir/install.stderr
 cd build
-./build.py
+./build.py 2>> ${cwd}/../../datadir/install.stderr
 
 # Create HTTPS certificate
 cd $cwd
 echo "[`date`] Creating https certificate" | tee -a ../../datadir/install.stderr
 cd ../web_interface/web_api/
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout pigazing_cert.key -out pigazing_cert.pem -subj '/CN=localhost'
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout pigazing_cert.key -out pigazing_cert.pem -subj '/CN=localhost' 2>> ${cwd}/../../datadir/install.stderr
 
 # Configure apache
 cd $cwd
@@ -139,13 +138,13 @@ ln -s ../mods-available/socache_shmcb.load
 # Write apache virtual host configuration
 cd $cwd
 echo "[`date`] Writing apache virtual host configuration" | tee -a ../../datadir/install.stderr
-python install.py | tee -a ../../datadir/install.stderr
+python patchConfigFiles.py 2>> ${cwd}/../../datadir/install.stderr
 
 # Enable the web interface
 cd $cwd
 echo "[`date`] Enabling the web interface" | tee -a ../../datadir/install.stderr
-a2ensite pigazing.local.conf
-service apache2 restart
+a2ensite pigazing.local.conf 2>> ${cwd}/../../datadir/install.stderr
+service apache2 restart 2>> ${cwd}/../../datadir/install.stderr
 
 # Log that we've finished installation
 echo "[`date`] Completed Pi Gazing installation" | tee -a ../../datadir/install.stderr

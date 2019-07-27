@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# deployRaspberryPi.py
+# flushDatabase.py
 #
 # -------------------------------------------------
 # Copyright 2015-2019 Dominic Ford
