@@ -22,6 +22,7 @@
 # -------------------------------------------------
 
 import os
+import sys
 
 # Make sure we are running as root
 if os.geteuid() != 0:
@@ -29,7 +30,8 @@ if os.geteuid() != 0:
     sys.exit(1)
 
 # Change into the directory <src/initialisation>
-os.chdir(os.path.dirname(sys.argv[0]))
+installation_path = os.path.dirname(os.path.realpath(__file__))
+os.chdir(installation_path)
 
 print("1/7: Creating database and associated user in MySQL. You will need to enter your MySQL root password")
 os.system("mysql -u root < data/createDatabase.sql")
@@ -39,9 +41,9 @@ os.system("cd ../observe/video_analysis/ ; ./prettymake")
 os.system("cd ../../helpers/image_processing/ ; ./prettymake")
 
 print("3/7: Creating MySQL configuration file, so that we don't have to pass passwords on the command line")
-./makeMysqlConfig.py
+os.system("./makeMysqlConfig.py")
 
-print("4/7: Setting up database schema."
+print("4/7: Setting up database schema.")
 os.system("mysql --defaults-extra-file=../../datadir/mysql_login.cfg < data/databaseSchema.sql")
 
 print("5/7: Creating directory to store files associated with database")

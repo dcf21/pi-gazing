@@ -22,6 +22,8 @@
 # -------------------------------------------------
 
 import os
+import re
+
 
 def fix_gpd_demon():
     """
@@ -31,14 +33,15 @@ def fix_gpd_demon():
     gpsd_config = open("/etc/default/gpsd").read()
     gpsd_config = re.sub('DEVICES=""', 'DEVICES="/dev/ttyUSB0"', gpsd_config)
     with open("/etc/default/gpsd", "w") as f:
-      f.write(gpsd_config)
+        f.write(gpsd_config)
+
 
 def write_apache_virtual_host_config(hostname="pigazing.local"):
     """
     Write a configuration file for the virtual host for the Pi Gazing web interface
     """
 
-    installation_path=os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "../.."))
+    installation_path = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "../.."))
 
     apache_config = """
 <VirtualHost *:80>
@@ -64,6 +67,10 @@ def write_apache_virtual_host_config(hostname="pigazing.local"):
         </Directory>
 </VirtualHost>
 """.format(hostname=hostname, installation_path=installation_path)
+
+    with open("/etc/apache2/sites-available/pigazing.local.conf", "w") as f:
+        f.write(apache_config)
+
 
 # Do it right away if we're run as a script
 if __name__ == "__main__":

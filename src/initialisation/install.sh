@@ -94,6 +94,11 @@ cd $cwd
 echo "[`date`] Creating python virtual environment" | tee -a ../../datadir/install.stderr
 ./makeVirtualEnvironment.sh 2>> ../../datadir/install.stderr
 
+# Set up database
+cd $cwd
+echo "[`date`] Creating Pi Gazing database" | tee -a ../../datadir/install.stderr
+./flushDatabase.py 2>> ../../datadir/install.stderr
+
 # Install node.js
 cd $cwd
 echo "[`date`] Building node.js" | tee -a ../../datadir/install.stderr
@@ -112,7 +117,7 @@ sudo npm install -g bower uglify-js less less-plugin-clean-css 2>> ${cwd}/../../
 cd $cwd
 echo "[`date`] Setting up web interface" | tee -a ../../datadir/install.stderr
 cd ../web_interface
-bower install
+bower --allow-root install
 cd build
 ./build.py
 
