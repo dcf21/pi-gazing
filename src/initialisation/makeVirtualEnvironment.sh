@@ -1,7 +1,8 @@
 #!/bin/bash
 
+# Switch to root directory of this PiGazing installation
 cd "$(dirname "$0")"
-cwd=`pwd`
+cwd=`pwd`/../..
 
 # Sometimes this line is necessary, if your locale settings are broken
 export LC_ALL=C

@@ -1,11 +1,10 @@
-This directory contains the SQL schema used by the Pi Gazing archival database.
+This directory contains scripts to install Pi Gazing, including its software
+dependencies and the MySQL database that it uses to store observations.
 
-You must set up the required MySQL user account and database before you can use
-any other python scripts in our repository.
+Run the script `install.sh` to install the Pi Gazing software and all of its
+dependencies. This will also set up an Apache webserver to host the PiGazing
+web interface.
 
-Run the script `main.sh` to do this. You will need to enter your MySQL root
-password, and then both the user account and the database will be set up from
-scratch.
+Run the script `flushDatabase.py` to clear out all observations and
+observatories from the Pi Gazing database.
 
-By default, the user name, database name, user name, and password are all
-`pigazing`.
