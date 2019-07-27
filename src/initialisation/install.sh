@@ -31,10 +31,11 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # Send output to log file
+mkdir -p ../../datadir
 exec &> ../../datadir/install.stdout
 
 # Log that we've starting installation
-echo "[`date`] Starting PiGazing installation" | tee -a ../../datadir/install.stderr
+echo "[`date`] Starting Pi Gazing installation" | tee -a ../../datadir/install.stderr
 
 # Install required packages
 echo "[`date`] Updating Ubuntu" | tee -a ../../datadir/install.stderr
@@ -45,8 +46,8 @@ apt-get -y dist-upgrade 2>> ../../datadir/install.stderr
 echo "[`date`] Installing Ubuntu packages required to go headless" | tee -a ../../datadir/install.stderr
 apt-get -y install openssh-server vim screen avahi-daemon 2>> ../../datadir/install.stderr
 
-# Packages required to build PiGazing
-echo "[`date`] Installing Ubuntu packages required by PiGazing" | tee -a ../../datadir/install.stderr
+# Packages required to build Pi Gazing
+echo "[`date`] Installing Ubuntu packages required by Pi Gazing" | tee -a ../../datadir/install.stderr
 apt-get -y install gpsd gpsd-clients libjpeg-dev libpng-dev libgsl-dev git qiv mplayer libv4l-dev libavutil-dev \
            libavcodec-dev libavformat-dev libx264-dev scons libcairo2-dev libcfitsio-dev libnetpbm10-dev netpbm \
            python3-dev python3-astropy python3-numpy python3-scipy python3-pil python3-dateutil python3-pip swig \
@@ -86,7 +87,7 @@ fi
 # Fix broken locales
 echo "[`date`] Fixing locales" | tee -a ../../datadir/install.stderr
 export LANGUAGE=en_GB.UTF-8; export LANG=en_GB.UTF-8; export LC_ALL=en_GB.UTF-8; locale-gen en_GB.UTF-8
-dpkg-reconfigure locales
+dpkg-reconfigure --frontend noninteractive locales
 
 # Create virtual environment
 cd $cwd
@@ -142,5 +143,5 @@ a2ensite pigazing.local.conf
 service apache2 restart
 
 # Log that we've finished installation
-echo "[`date`] Completed PiGazing installation" | tee -a ../../datadir/install.stderr
+echo "[`date`] Completed Pi Gazing installation" | tee -a ../../datadir/install.stderr
 
