@@ -20,7 +20,7 @@
 # along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 # -------------------------------------------------
 
-# Switch to the directory containing the installation scripts  
+# Switch to the directory containing the installation scripts
 cd "$(dirname "$0")"
 cwd=`pwd`
 
