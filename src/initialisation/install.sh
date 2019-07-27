@@ -135,6 +135,12 @@ cd $cwd
 echo "[`date`] Writing apache virtual host configuration" | tee -a ../../datadir/install.stderr
 python install.py | tee -a ../../datadir/install.stderr
 
+# Enable the web interface
+cd $cwd
+echo "[`date`] Enabling the web interface" | tee -a ../../datadir/install.stderr
+a2ensite pigazing.local.conf
+service apache2 restart
+
 # Log that we've finished installation
 echo "[`date`] Completed PiGazing installation" | tee -a ../../datadir/install.stderr
 
