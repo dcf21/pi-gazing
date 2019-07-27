@@ -38,7 +38,7 @@ os.system("mysql -u root < data/createDatabase.sql")
 
 print("2/7: Building the C code")
 os.system("cd ../observe/video_analysis/ ; ./prettymake")
-os.system("cd ../../helpers/image_processing/ ; ./prettymake")
+os.system("cd ../helpers/image_processing/ ; ./prettymake")
 
 print("3/7: Creating MySQL configuration file, so that we don't have to pass passwords on the command line")
 os.system("./makeMysqlConfig.py")
