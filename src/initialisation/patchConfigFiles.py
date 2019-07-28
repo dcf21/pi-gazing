@@ -51,14 +51,14 @@ def write_apache_virtual_host_config(hostname="pigazing.local"):
         RewriteRule ^/(.*) https://%{{HTTP_HOST}}/$1 [NC,R,L]
 </VirtualHost>
 <VirtualHost *:443>
-        DocumentRoot {installation_path}/src/observatory_website/dist
+        DocumentRoot {installation_path}/src/web_interface/dist
         ServerName {hostname}
         SSLEngine On
-        SSLCertificateFile    {installation_path}/src/observatory_website/web_api/pigazing_cert.pem
-        SSLCertificateKeyFile {installation_path}/src/observatory_website/web_api/pigazing_cert.key
+        SSLCertificateFile    {installation_path}/src/web_interface/web_api/pigazing_cert.pem
+        SSLCertificateKeyFile {installation_path}/src/web_interface/web_api/pigazing_cert.key
         WSGIPassAuthorization On
         WSGIDaemonProcess pigazingapplication user=www-data group=www-data threads=5 python-home={installation_path}/datadir/virtualenv
-        WSGIScriptAlias /api {installation_path}/src/observatory_website/web_api/pigazing_application.wsgi
+        WSGIScriptAlias /api {installation_path}/src/web_interface/web_api/pigazing_application.wsgi
         <Directory {installation_path}>
                 AllowOverride All
                 WSGIProcessGroup pigazingapplication

@@ -54,7 +54,7 @@ fi
 
 # Packages required to go headless
 echo "[`date`] Installing Ubuntu packages required to go headless" | tee -a ../../datadir/install.stderr
-apt-get -y install openssh-server vim screen avahi-daemon 2>> ../../datadir/install.stderr
+apt-get -y install openssh-server net-tools vim screen avahi-daemon 2>> ../../datadir/install.stderr
 
 # Packages required to build Pi Gazing
 echo "[`date`] Installing Ubuntu packages required by Pi Gazing" | tee -a ../../datadir/install.stderr
