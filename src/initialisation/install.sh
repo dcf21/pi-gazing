@@ -60,11 +60,11 @@ apt-get -y install gpsd gpsd-clients libjpeg-dev libpng-dev libgsl-dev git qiv m
 
 # Steps that we only need to run on Raspberry Pi
 if [ -x "$(command -v python)" ] ; then
-    R_PI=`python -c "import platform; print 'raspberrypi' in platform.uname()"`
+    R_PI=`python -c "import platform; print 'aarch64' in platform.uname()"`
 
     if [ "$R_PI" = "True" ] ; then
 
-        # If we're running on a raspberry pi, we need more than 1GB of RAM for some build steps. We add some
+        # If we're running on a Raspberry Pi, we need more than 1GB of RAM for some build steps. We add some
         # virtual memory
         echo "[`date`] Activating swap, to avoid running out of RAM" | tee -a ../../datadir/install.stderr
         dd if=/dev/zero of=/swapfile bs=1024 count=1048576
@@ -126,18 +126,18 @@ echo "[`date`] Creating https certificate" | tee -a ../../datadir/install.stderr
 cd ../web_interface/web_api/
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout pigazing_cert.key -out pigazing_cert.pem -subj '/CN=localhost' 2>> ${cwd}/../../datadir/install.stderr
 
-# Configure apache
+# Configure Apache
 cd $cwd
-echo "[`date`] Configuring apache" | tee -a ../../datadir/install.stderr
+echo "[`date`] Configuring Apache" | tee -a ../../datadir/install.stderr
 cd /etc/apache2/mods-enabled/
 ln -s ../mods-available/rewrite.load
 ln -s ../mods-available/ssl.conf
 ln -s ../mods-available/ssl.load
 ln -s ../mods-available/socache_shmcb.load
 
-# Write apache virtual host configuration
+# Write Apache virtual host configuration
 cd $cwd
-echo "[`date`] Writing apache virtual host configuration" | tee -a ../../datadir/install.stderr
+echo "[`date`] Writing Apache virtual host configuration" | tee -a ../../datadir/install.stderr
 python patchConfigFiles.py 2>> ${cwd}/../../datadir/install.stderr
 
 # Enable the web interface
