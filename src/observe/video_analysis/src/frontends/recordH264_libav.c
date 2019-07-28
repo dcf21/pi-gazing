@@ -206,8 +206,7 @@ int main(int argc, const char *argv[]) {
     ctxEncode->qmin = 10;
     ctxEncode->qmax = 51;
     ctxEncode->scenechange_threshold = 40;
-    ctxEncode->flags |= CODEC_FLAG_LOOP_FILTER;
-    ctxEncode->me_method = ME_HEX;
+    ctxEncode->flags |= AV_CODEC_FLAG_LOOP_FILTER;
     ctxEncode->me_subpel_quality = 5;
     ctxEncode->i_quant_factor = 0.71;
     ctxEncode->qcompress = 0.6;
@@ -229,7 +228,7 @@ int main(int argc, const char *argv[]) {
     if (!pictureEncoded) { logging_fatal(__FILE__, __LINE__, "Could not allocate video frame"); }
 
     // some formats want stream headers to be separate
-    if (outContainer->oformat->flags & AVFMT_GLOBALHEADER) ctxEncode->flags |= CODEC_FLAG_GLOBAL_HEADER;
+    if (outContainer->oformat->flags & AVFMT_GLOBALHEADER) ctxEncode->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
     if (!(ctxEncode->flags & AVFMT_NOFILE)) {
         if (avio_open(&outContainer->pb, product_filename, AVIO_FLAG_WRITE) < 0) {

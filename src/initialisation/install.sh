@@ -58,7 +58,7 @@ apt-get -y install openssh-server vim screen avahi-daemon 2>> ../../datadir/inst
 
 # Packages required to build Pi Gazing
 echo "[`date`] Installing Ubuntu packages required by Pi Gazing" | tee -a ../../datadir/install.stderr
-apt-get -y install gpsd gpsd-clients libjpeg-dev libpng-dev libgsl-dev git qiv mplayer libv4l-dev libavutil-dev \
+apt-get -y install gpsd gpsd-clients libjpeg8-dev libpng-dev libgsl-dev git qiv mplayer libv4l-dev libavutil-dev \
            libavcodec-dev libavformat-dev libx264-dev scons libcairo2-dev libcfitsio-dev libnetpbm10-dev netpbm \
            python3-dev python3-astropy python3-numpy python3-scipy python3-pil python3-dateutil python3-pip swig \
            ffmpeg python3-setuptools python3-virtualenv apache2 libapache2-mod-wsgi-py3 python3-tornado python3-flask \
