@@ -78,10 +78,10 @@ if [ -x "$(command -v python)" ] ; then
         # If we're running on a Raspberry Pi, we need more than 1GB of RAM for some build steps. We add some
         # virtual memory
         echo "[`date`] Activating swap, to avoid running out of RAM" | tee -a ../../datadir/install.stderr
-        dd if=/dev/zero of=/swapfile bs=1024 count=1048576
-        chmod 600 /swapfile
-        mkswap /swapfile
-        swapon /swapfile
+        dd if=/dev/zero of=/swapfile_pigazing bs=1024 count=1048576
+        chmod 600 /swapfile_pigazing
+        mkswap /swapfile_pigazing
+        swapon /swapfile_pigazing
         swapon --show
 
         # We need to Raspberry Pi GPU header files, which aren't shipped in Ubuntu. So let's compile the drivers
