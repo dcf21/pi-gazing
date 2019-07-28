@@ -41,6 +41,17 @@ echo "[`date`] Updating Ubuntu" | tee -a ../../datadir/install.stderr
 apt-get update 2>> ../../datadir/install.stderr
 apt-get -y dist-upgrade 2>> ../../datadir/install.stderr
 
+# Check that we're not running on 64-bit ARM
+if [ -x "$(command -v python)" ] ; then
+    R_PI=`python -c "import platform; print 'aarch64' in platform.uname()"`
+
+    if [ "$R_PI" = "True" ] ; then
+
+        echo "[`date`] FAIL: This is a 64-bit Raspberry Pi operating system. The Raspberry Pi graphics acceleration libraries do not support this architecture. Try again with a 32-bit operating system." | tee -a ../../datadir/install.stderr
+        exit 1
+    fi
+fi
+
 # Packages required to go headless
 echo "[`date`] Installing Ubuntu packages required to go headless" | tee -a ../../datadir/install.stderr
 apt-get -y install openssh-server vim screen avahi-daemon 2>> ../../datadir/install.stderr
@@ -60,7 +71,7 @@ apt-get -y install gpsd gpsd-clients libjpeg-dev libpng-dev libgsl-dev git qiv m
 
 # Steps that we only need to run on Raspberry Pi
 if [ -x "$(command -v python)" ] ; then
-    R_PI=`python -c "import platform; print 'aarch64' in platform.uname()"`
+    R_PI=`python -c "import platform; print 'armv7l' in platform.uname()"`
 
     if [ "$R_PI" = "True" ] ; then
 
@@ -84,6 +95,7 @@ if [ -x "$(command -v python)" ] ; then
 fi
 
 # Fix broken locales
+cd $cwd
 echo "[`date`] Fixing locales" | tee -a ../../datadir/install.stderr
 export LANGUAGE=en_GB.UTF-8; export LANG=en_GB.UTF-8; export LC_ALL=en_GB.UTF-8; locale-gen en_GB.UTF-8
 dpkg-reconfigure --frontend noninteractive locales
