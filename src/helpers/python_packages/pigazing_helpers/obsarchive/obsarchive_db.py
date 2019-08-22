@@ -67,6 +67,11 @@ class ObservationDatabase(object):
         self.db = MySQLdb.connect(host=db_host, user=db_user, passwd=db_password, db=db_name)
         self.con = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
 
+        self.db.set_character_set('utf8')
+        self.con.execute('SET NAMES utf8;')
+        self.con.execute('SET CHARACTER SET utf8;')
+        self.con.execute('SET character_set_connection=utf8;')
+
         if not os.path.exists(file_store_path):
             os.makedirs(file_store_path)
         if not os.path.isdir(file_store_path):
@@ -922,7 +927,7 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_observations WHERE publ
                          (uid, observation_id))
 
     def unlike_observation(self, observation_id, user_id):
-        self.con.execute('SELECT uid FROM pigazing_users WHERE userId = %s;', (user_id,))
+        self.con.execute('SELECT userId FROM pigazing_users WHERE username = %s;', (user_id,))
         results = self.con.fetchall()
         if len(results) == 0:
             return None

@@ -28,13 +28,15 @@ CREATE TABLE pigazing_users
 (
     userId      INTEGER PRIMARY KEY AUTO_INCREMENT,
     username    VARCHAR(48) UNIQUE NOT NULL,
-    name        TEXT,
+    name        VARCHAR(255),
     job         TEXT,
     password    TEXT,
     email       TEXT,
-    joinDate    FLOAT,
-    profilePic  TEXT,
-    profileText TEXT
+    joinDate    REAL,
+    profilePic  CHAR(32),
+    profileText TEXT,
+    localSocs   TEXT,
+    INDEX (name)
 );
 
 CREATE TABLE pigazing_user_sessions
@@ -46,8 +48,7 @@ CREATE TABLE pigazing_user_sessions
     logIn     REAL,
     lastSeen  REAL,
     logOut    REAL,
-    FOREIGN KEY (userId) REFERENCES pigazing_users (userId)
-        ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES pigazing_users (userId) ON DELETE CASCADE,
     INDEX (cookie)
 );
 
@@ -61,10 +62,8 @@ CREATE TABLE pigazing_user_roles
 (
     userId INTEGER NOT NULL,
     roleId INTEGER NOT NULL,
-    FOREIGN KEY (userId) REFERENCES pigazing_users (userId)
-        ON DELETE CASCADE,
-    FOREIGN KEY (roleId) REFERENCES pigazing_roles (roleId)
-        ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES pigazing_users (userId) ON DELETE CASCADE,
+    FOREIGN KEY (roleId) REFERENCES pigazing_roles (roleId) ON DELETE CASCADE,
     PRIMARY KEY (userId, roleId)
 );
 
@@ -160,14 +159,10 @@ CREATE TABLE archive_observations
     derived_observed_month   TINYINT         NOT NULL,
     derived_observed_day     TINYINT         NOT NULL,
 
-    FOREIGN KEY (observatory) REFERENCES archive_observatories (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (obsType) REFERENCES archive_semanticTypes (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (centralConstellation) REFERENCES pigazing_constellations (constellationId)
-        ON DELETE CASCADE,
-    FOREIGN KEY (astrometrySource) REFERENCES pigazing_sources (sourceId)
-        ON DELETE CASCADE,
+    FOREIGN KEY (observatory) REFERENCES archive_observatories (uid) ON DELETE CASCADE,
+    FOREIGN KEY (obsType) REFERENCES archive_semanticTypes (uid) ON DELETE CASCADE,
+    FOREIGN KEY (centralConstellation) REFERENCES pigazing_constellations (constellationId) ON DELETE CASCADE,
+    FOREIGN KEY (astrometrySource) REFERENCES pigazing_sources (sourceId) ON DELETE CASCADE,
     INDEX (obsTime),
     INDEX (creationTime),
     INDEX (publicId),
@@ -200,12 +195,9 @@ CREATE TABLE archive_obs_group_members
     groupId          INTEGER NOT NULL,
     childObservation INTEGER,
     childGroup       INTEGER,
-    FOREIGN KEY (groupId) REFERENCES archive_obs_groups (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (childObservation) REFERENCES archive_observations (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (childGroup) REFERENCES archive_obs_groups (uid)
-        ON DELETE CASCADE
+    FOREIGN KEY (groupId) REFERENCES archive_obs_groups (uid) ON DELETE CASCADE,
+    FOREIGN KEY (childObservation) REFERENCES archive_observations (uid) ON DELETE CASCADE,
+    FOREIGN KEY (childGroup) REFERENCES archive_obs_groups (uid) ON DELETE CASCADE
 );
 
 # Links to files in whatever external store we use
@@ -221,10 +213,8 @@ CREATE TABLE archive_files
     repositoryFname CHAR(32) UNIQUE NOT NULL,
     fileMD5         CHAR(32)        NOT NULL, /* MD5 hash of file contents */
     primaryImage    BOOLEAN         NOT NULL,
-    FOREIGN KEY (semanticType) REFERENCES archive_semanticTypes (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
-        ON DELETE CASCADE,
+    FOREIGN KEY (semanticType) REFERENCES archive_semanticTypes (uid) ON DELETE CASCADE,
+    FOREIGN KEY (observationId) REFERENCES archive_observations (uid) ON DELETE CASCADE,
     INDEX (fileTime),
     INDEX (repositoryFname)
 );
@@ -251,16 +241,11 @@ CREATE TABLE archive_metadata
     observationId INTEGER,
     observatory   INTEGER,
     groupId       INTEGER,
-    FOREIGN KEY (fileId) REFERENCES archive_files (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (observatory) REFERENCES archive_observatories (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (groupId) REFERENCES archive_obs_groups (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (fieldId) REFERENCES archive_metadataFields (uid)
-        ON DELETE CASCADE,
+    FOREIGN KEY (fileId) REFERENCES archive_files (uid) ON DELETE CASCADE,
+    FOREIGN KEY (observatory) REFERENCES archive_observatories (uid) ON DELETE CASCADE,
+    FOREIGN KEY (observationId) REFERENCES archive_observations (uid) ON DELETE CASCADE,
+    FOREIGN KEY (groupId) REFERENCES archive_obs_groups (uid) ON DELETE CASCADE,
+    FOREIGN KEY (fieldId) REFERENCES archive_metadataFields (uid) ON DELETE CASCADE,
     INDEX (setAtTime),
     INDEX (publicId),
     INDEX (fieldId, observationId),
@@ -290,10 +275,8 @@ CREATE TABLE archive_observationExport
     observationId INTEGER NOT NULL,
     exportConfig  INTEGER NOT NULL,
     exportState   INTEGER NOT NULL, /* 0 for complete, non-zero for active */
-    FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (exportConfig) REFERENCES archive_exportConfig (uid)
-        ON DELETE CASCADE
+    FOREIGN KEY (observationId) REFERENCES archive_observations (uid) ON DELETE CASCADE,
+    FOREIGN KEY (exportConfig) REFERENCES archive_exportConfig (uid) ON DELETE CASCADE
 );
 
 CREATE TABLE archive_observationImport
@@ -302,10 +285,8 @@ CREATE TABLE archive_observationImport
     observationId INTEGER NOT NULL,
     importUser    INTEGER NOT NULL,
     importTime    REAL    NOT NULL,
-    FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (importUser) REFERENCES pigazing_users (userId)
-        ON DELETE CASCADE
+    FOREIGN KEY (observationId) REFERENCES archive_observations (uid) ON DELETE CASCADE,
+    FOREIGN KEY (importUser) REFERENCES pigazing_users (userId) ON DELETE CASCADE
 );
 
 CREATE TABLE archive_fileExport
@@ -314,10 +295,8 @@ CREATE TABLE archive_fileExport
     fileId       INTEGER NOT NULL,
     exportConfig INTEGER NOT NULL,
     exportState  INTEGER NOT NULL, /* 0 for complete, non-zero for active */
-    FOREIGN KEY (fileId) REFERENCES archive_files (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (exportConfig) REFERENCES archive_exportConfig (uid)
-        ON DELETE CASCADE
+    FOREIGN KEY (fileId) REFERENCES archive_files (uid) ON DELETE CASCADE,
+    FOREIGN KEY (exportConfig) REFERENCES archive_exportConfig (uid) ON DELETE CASCADE
 );
 
 
@@ -327,10 +306,8 @@ CREATE TABLE archive_fileImport
     fileId     INTEGER NOT NULL,
     importUser INTEGER NOT NULL,
     importTime REAL    NOT NULL,
-    FOREIGN KEY (fileId) REFERENCES archive_files (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (importUser) REFERENCES pigazing_users (userId)
-        ON DELETE CASCADE
+    FOREIGN KEY (fileId) REFERENCES archive_files (uid) ON DELETE CASCADE,
+    FOREIGN KEY (importUser) REFERENCES pigazing_users (userId) ON DELETE CASCADE
 );
 
 CREATE TABLE archive_metadataExport
@@ -339,10 +316,8 @@ CREATE TABLE archive_metadataExport
     metadataId   INTEGER NOT NULL,
     exportConfig INTEGER NOT NULL, /* URL of the target import API */
     exportState  INTEGER NOT NULL, /* 0 for complete, non-zero for active */
-    FOREIGN KEY (metadataId) REFERENCES archive_metadata (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (exportConfig) REFERENCES archive_exportConfig (uid)
-        ON DELETE CASCADE
+    FOREIGN KEY (metadataId) REFERENCES archive_metadata (uid) ON DELETE CASCADE,
+    FOREIGN KEY (exportConfig) REFERENCES archive_exportConfig (uid) ON DELETE CASCADE
 );
 
 CREATE TABLE archive_metadataImport
@@ -351,10 +326,8 @@ CREATE TABLE archive_metadataImport
     metadataId INTEGER NOT NULL,
     importUser INTEGER NOT NULL,
     importTime REAL    NOT NULL,
-    FOREIGN KEY (metadataId) REFERENCES archive_metadata (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (importUser) REFERENCES pigazing_users (userId)
-        ON DELETE CASCADE
+    FOREIGN KEY (metadataId) REFERENCES archive_metadata (uid) ON DELETE CASCADE,
+    FOREIGN KEY (importUser) REFERENCES pigazing_users (userId) ON DELETE CASCADE
 );
 
 # Create tables of data about observations
@@ -368,8 +341,7 @@ CREATE TABLE archive_equipment_item
 (
     equipId     INTEGER PRIMARY KEY AUTO_INCREMENT,
     equipTypeId SMALLINT NOT NULL,
-    FOREIGN KEY (equipTypeId) REFERENCES archive_equipment_type (equipTypeId)
-        ON DELETE CASCADE
+    FOREIGN KEY (equipTypeId) REFERENCES archive_equipment_type (equipTypeId) ON DELETE CASCADE
 );
 
 CREATE TABLE archive_equipment_names
@@ -379,8 +351,7 @@ CREATE TABLE archive_equipment_names
     equipId     INTEGER             NOT NULL,
     INDEX (name),
     FULLTEXT INDEX (name),
-    FOREIGN KEY (equipId) REFERENCES archive_equipment_item (equipId)
-        ON DELETE CASCADE
+    FOREIGN KEY (equipId) REFERENCES archive_equipment_item (equipId) ON DELETE CASCADE
 );
 
 CREATE TABLE archive_obs_equipment
@@ -388,10 +359,8 @@ CREATE TABLE archive_obs_equipment
     obsId       INTEGER NOT NULL,
     equipId     INTEGER NOT NULL,
     description TEXT,
-    FOREIGN KEY (obsId) REFERENCES archive_observations (uid)
-        ON DELETE CASCADE,
-    FOREIGN KEY (equipId) REFERENCES archive_equipment_item (equipId)
-        ON DELETE CASCADE
+    FOREIGN KEY (obsId) REFERENCES archive_observations (uid) ON DELETE CASCADE,
+    FOREIGN KEY (equipId) REFERENCES archive_equipment_item (equipId) ON DELETE CASCADE
 );
 
 CREATE TABLE archive_obs_likes
@@ -399,10 +368,29 @@ CREATE TABLE archive_obs_likes
     userId        INTEGER NOT NULL,
     observationId INTEGER NOT NULL,
     PRIMARY KEY (userId, observationId),
-    FOREIGN KEY (userId) REFERENCES pigazing_users (userId)
-        ON DELETE CASCADE,
-    FOREIGN KEY (observationId) REFERENCES archive_observations (uid)
-        ON DELETE CASCADE
+    FOREIGN KEY (userId) REFERENCES pigazing_users (userId) ON DELETE CASCADE,
+    FOREIGN KEY (observationId) REFERENCES archive_observations (uid) ON DELETE CASCADE
+);
+
+CREATE TABLE archive_obs_comments
+(
+    commentId     INTEGER PRIMARY KEY AUTO_INCREMENT,
+    userId        INTEGER NOT NULL,
+    observationId INTEGER NOT NULL,
+    creationTime  REAL,
+    editTime      REAL,
+    body          TEXT,
+    FOREIGN KEY (userId) REFERENCES pigazing_users (userId) ON DELETE CASCADE,
+    FOREIGN KEY (observationId) REFERENCES archive_observations (uid) ON DELETE CASCADE
+);
+
+CREATE TABLE archive_obs_comment_likes
+(
+    userId    INTEGER NOT NULL,
+    commentId INTEGER NOT NULL,
+    PRIMARY KEY (userId, commentId),
+    FOREIGN KEY (userId) REFERENCES pigazing_users (userId) ON DELETE CASCADE,
+    FOREIGN KEY (commentId) REFERENCES archive_obs_comments (commentId) ON DELETE CASCADE
 );
 
 COMMIT;
