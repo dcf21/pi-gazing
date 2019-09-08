@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!../../datadir/virtualenv/bin/python3
 # -*- coding: utf-8 -*-
 # flushDatabase.py
 #
@@ -24,6 +24,8 @@
 import os
 import sys
 
+from pigazing_helpers.settings_read import installation_info
+
 # Make sure we are running as root
 if os.geteuid() != 0:
     print("This script must be run as root.")
@@ -48,8 +50,9 @@ os.system("mysql --defaults-extra-file=../../datadir/mysql_login.cfg < data/data
 
 print("5/7: Creating directory to store files associated with database")
 os.system("mkdir -p ../../datadir/raw_video ../../datadir/db_filestore ../../datadir/thumbnails")
-os.system("chown www-data:www-data ../../datadir/thumbnails")
 os.system("rm -f ../../datadir/db_filestore/* ../../datadir/thumbnails/*")
+os.system("chown -R {0}:{0} ../../datadir".format(installation_info['username']))
+os.system("chown -R {0}:{0} ../../datadir/thumbnails".format(installation_info['webServerUsername']))
 
 print("6/7: Populating table of constellations")
 os.system("./populateConstellations.py")
