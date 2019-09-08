@@ -67,10 +67,10 @@ class ObservationDatabase(object):
         self.db = MySQLdb.connect(host=db_host, user=db_user, passwd=db_password, db=db_name)
         self.con = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
 
-        self.db.set_character_set('utf8')
-        self.con.execute('SET NAMES utf8;')
-        self.con.execute('SET CHARACTER SET utf8;')
-        self.con.execute('SET character_set_connection=utf8;')
+        self.db.set_character_set('utf8mb4')
+        self.con.execute('SET NAMES utf8mb4;')
+        self.con.execute('SET CHARACTER SET utf8mb4;')
+        self.con.execute('SET character_set_connection=utf8mb4;')
 
         if not os.path.exists(file_store_path):
             os.makedirs(file_store_path)

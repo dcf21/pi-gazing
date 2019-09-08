@@ -49,10 +49,10 @@ def connect_db():
     db = MySQLdb.connect(host=db_host, user=db_user, passwd=db_passwd, db=db_name)
     c = db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
 
-    db.set_character_set('utf8')
-    c.execute('SET NAMES utf8;')
-    c.execute('SET CHARACTER SET utf8;')
-    c.execute('SET character_set_connection=utf8;')
+    db.set_character_set('utf8mb4')
+    c.execute('SET NAMES utf8mb4;')
+    c.execute('SET CHARACTER SET utf8mb4;')
+    c.execute('SET character_set_connection=utf8mb4;')
 
     return [db, c]
 

@@ -31,5 +31,5 @@ CREATE USER 'pigazing'@'localhost' IDENTIFIED BY 'pigazing';
 DROP DATABASE IF EXISTS pigazing;
 
 # Create new database
-CREATE DATABASE pigazing;
+CREATE DATABASE pigazing CHARACTER SET utf8mb4;
 GRANT ALL ON pigazing.* TO 'pigazing'@'localhost';

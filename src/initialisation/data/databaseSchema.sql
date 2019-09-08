@@ -367,6 +367,7 @@ CREATE TABLE archive_obs_likes
 (
     userId        INTEGER NOT NULL,
     observationId INTEGER NOT NULL,
+    creationTime  REAL,
     PRIMARY KEY (userId, observationId),
     FOREIGN KEY (userId) REFERENCES pigazing_users (userId) ON DELETE CASCADE,
     FOREIGN KEY (observationId) REFERENCES archive_observations (uid) ON DELETE CASCADE

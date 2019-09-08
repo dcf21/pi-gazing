@@ -42,6 +42,7 @@ user = {:s}
 password = {:s}
 host = {:s}
 database = {:s}
+default-character-set = utf8mb4
 """.format(installation_info['mysqlUser'], installation_info['mysqlPassword'], installation_info['mysqlHost'],
            installation_info['mysqlDatabase'])
     open(db_config, "w").write(config_text)
