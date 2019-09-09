@@ -1,6 +1,6 @@
 #!../../datadir/virtualenv/bin/python3
 # -*- coding: utf-8 -*-
-# makeMysqlConfig.py
+# databaseBackup.py
 #
 # -------------------------------------------------
 # Copyright 2015-2019 Dominic Ford
@@ -22,34 +22,19 @@
 # -------------------------------------------------
 
 import os
+import datetime
+
 from pigazing_helpers.settings_read import settings, installation_info
 
+now = datetime.datetime.now()
 
-def make_mysql_login_config():
-    """
-    Create MySQL configuration file with username and password, which means we can log into database without
-    supplying these on the command line.
+filename = "mysqlDump_{:04d}{:02d}{:02d}_{:02d}{:02d}{:02d}.sql.gz".format(
+    now.year, now.month, now.day, now.hour, now.minute, now.second)
 
-    :return:
-        None
-    """
+cmd = "mysqldump --defaults-extra-file={config} {database}  > {output}".format(
+    config=os.path.join(settings['dataPath'], "mysql_login.cfg"),
+    database=installation_info['mysqlDatabase'],
+    output=os.path.join(settings['dataPath'], filename))
 
-    db_config = os.path.join(settings['dataPath'], "mysql_login.cfg")
-
-    config_text = """
-[client]
-user = {:s}
-password = {:s}
-host = {:s}
-default-character-set = utf8mb4
-
-[mysql]
-database = {:s}
-""".format(installation_info['mysqlUser'], installation_info['mysqlPassword'], installation_info['mysqlHost'],
-           installation_info['mysqlDatabase'])
-    open(db_config, "w").write(config_text)
-
-
-# Do it right away if we're run as a script
-if __name__ == "__main__":
-    make_mysql_login_config()
+print(cmd)
+os.system(cmd)
