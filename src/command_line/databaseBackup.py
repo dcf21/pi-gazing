@@ -31,7 +31,7 @@ now = datetime.datetime.now()
 filename = "mysqlDump_{:04d}{:02d}{:02d}_{:02d}{:02d}{:02d}.sql.gz".format(
     now.year, now.month, now.day, now.hour, now.minute, now.second)
 
-cmd = "mysqldump --defaults-extra-file={config} {database}  > {output}".format(
+cmd = "mysqldump --defaults-extra-file={config} {database} | gzip > {output}".format(
     config=os.path.join(settings['dataPath'], "mysql_login.cfg"),
     database=installation_info['mysqlDatabase'],
     output=os.path.join(settings['dataPath'], filename))
