@@ -55,6 +55,7 @@ int main(int argc, const char *argv[]) {
     char line[FNAME_LENGTH];
     const char *output_filename = "\0";
     const char *background_filename = "\0";
+    const char *video_device = "/dev/video0";
     int frame_count = 50;
 
     struct argparse_option options[] = {
@@ -62,6 +63,7 @@ int main(int argc, const char *argv[]) {
         OPT_GROUP("Basic options"),
         OPT_STRING('o', "output", &output_filename, "output filename"),
         OPT_INTEGER('f', "frames", &frame_count, "frames to stack"),
+        OPT_STRING('d', "device", &video_device, "webcam device to use"),
         OPT_STRING('b', "background", &background_filename, "background to subtract"),
         OPT_END(),
     };
@@ -88,7 +90,6 @@ int main(int argc, const char *argv[]) {
     int utc_stop;
     struct video_info *video_in;
 
-    const char *video_device = VIDEO_DEV;
     float fps = nearest_multiple(VIDEO_FPS, 1);       // Requested frame rate
     int format = V4L2_PIX_FMT_YUYV;
     int grab_method = 1;

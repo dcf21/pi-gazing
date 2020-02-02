@@ -82,7 +82,7 @@ int main(int argc, const char *argv[]) {
     vmd.utc_stop = vmd.utc_start + 5;
     vmd.frame_count = 0;
     vmd.width = 720;
-    vmd.height = 480;
+    vmd.height = 576;
     vmd.fps = 24.71;
     vmd.lat = 52.2;
     vmd.lng = 0.12;

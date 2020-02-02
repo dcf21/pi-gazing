@@ -32,7 +32,7 @@
 
 #define VIDEO_DEV    "/dev/video0"
 #define VIDEO_WIDTH  720
-#define VIDEO_HEIGHT 480
+#define VIDEO_HEIGHT 576
 #define VIDEO_FPS    24.71 /* Empirically determined */
 
 // If this flag is set, we assume the camera is mounted upside down. Video is flipped before analysis.

@@ -189,7 +189,7 @@ int main(int argc, const char *argv[]) {
     image_ptr output_image;
     image_alloc(&output_image, width, height);
 
-    for (i = 0; i < frame_size; i++) output_image.data_w[i] = 1;
+    for (i = 0; i < frame_size; i++) output_image.data_w[i] = 256.;
 
     if (channel_count >= 3) {
         for (i = 0; i < frame_size; i++) output_image.data_red[i] = background_maps[0][i];

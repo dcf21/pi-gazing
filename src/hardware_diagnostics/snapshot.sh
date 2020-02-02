@@ -8,6 +8,12 @@
 # It takes two commandline arguments, e.g.:
 # ./snapshot.sh tmp.png 500
 
+if [ -e "/dev/video1" ] ; then
+ device="/dev/video1"
+else
+ device="/dev/video0"
+fi
+
 # In this example, the snapshot would be saved to tmp.png, and would be an average of 500 video frames
 
-../observe/video_analysis/bin/snapshot --output $1 --frames $2
+../observe/video_analysis/bin/snapshot --output $1 --frames $2 --device $device

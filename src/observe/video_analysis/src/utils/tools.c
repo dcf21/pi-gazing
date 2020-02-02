@@ -136,7 +136,7 @@ void snapshot(struct video_info *video_in, int frame_count, int zero, double exp
     if (!tmp_int) return;
 
     for (j = 0; j < frame_count; j++) {
-        if (j % 25 == 0) {
+        if (j % 5 == 0) {
             printf("Fetching frame %7d / %7d\n", j, frame_count);
         }
 
@@ -151,10 +151,11 @@ void snapshot(struct video_info *video_in, int frame_count, int zero, double exp
 
     image_ptr img;
     image_alloc(&img, video_in->width, video_in->height);
-    for (i = 0; i < frame_size; i++) img.data_w[i] = frame_count;
+    for (i = 0; i < frame_size; i++) img.data_w[i] = frame_count / 256.;
 
     if (!background_raw) {
-        for (i = 0; i < frame_size; i++) img.data_red[i] = (tmp_int[i] - zero * frame_count) * exposure_compensation;
+        for (i = 0; i < frame_size; i++)
+            img.data_red[i] = (tmp_int[i] - zero * frame_count) * exposure_compensation;
         for (i = 0; i < frame_size; i++)
             img.data_grn[i] = (tmp_int[i + frame_size] - zero * frame_count) * exposure_compensation;
         for (i = 0; i < frame_size; i++)
