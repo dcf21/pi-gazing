@@ -174,6 +174,10 @@ void snapshot(struct video_info *video_in, int frame_count, int zero, double exp
 
     image_deweight(&img);
     image_put(filename, img, GREYSCALE_IMAGING);
+
+    double sum = 0;
+    for (i = 0; i < frame_size; i++) sum += img.data_grn[i];
+    printf("%.1f\n", sum / frame_size);
     image_dealloc(&img);
 
     free(tmp_int);
