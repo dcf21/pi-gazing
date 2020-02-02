@@ -21,10 +21,12 @@
 # along with Pi Gazing.  If not, see <http://www.gnu.org/licenses/>.
 # -------------------------------------------------
 
-# Run this python script to manually turn the camera in an observatory on.
+"""
+Run this python script to manually turn the camera in an observatory on.
 
-# You shouldn't normally need to do this, as the camera is automatically turned on when the observatory starts
-# observing each day. However you may want to run this when you are testing the camera.
+You shouldn't normally need to do this, as the camera is automatically turned on when the observatory starts
+observing each day. However you may want to run this when you are testing the camera.
+"""
 
 import logging
 import sys
