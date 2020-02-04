@@ -179,7 +179,7 @@ def execute_shell_command(arguments):
 
         # Run the shell command
         command = job['shell_command'].format(**job)
-        # print(command)
+        print(command)
         result = subprocess.run(command, shell=True, stderr=subprocess.PIPE)
         errors = result.stderr.decode('utf-8').strip()
 
@@ -297,18 +297,18 @@ def execute_shell_command(arguments):
         db.close_db()
         del db
 
-    # Delete input and output files
-    # for item in file_inputs:
-    #     if os.path.exists(item):
-    #         os.unlink(item)
+    # Delete input files
+    for item in file_inputs:
+        if os.path.exists(item):
+            os.unlink(item)
 
     # Delete output files
-    # for item in file_products:
-    #     if os.path.exists(item['filename']):
-    #         os.unlink(item['filename'])
-    #     for metadata_filename in item['metadata_files']:
-    #         if os.path.exists(metadata_filename):
-    #             os.unlink(metadata_filename)
+    for item in file_products:
+        if os.path.exists(item['filename']):
+            os.unlink(item['filename'])
+        for metadata_filename in item['metadata_files']:
+            if os.path.exists(metadata_filename):
+                os.unlink(metadata_filename)
 
 
 observatory_information = {}
@@ -564,7 +564,7 @@ class TaskRunner:
                     'metadata_fields_to_propagate': self.propagate_metadata_to_observation(metadata=input_metadata),
                     'shell_command': self.shell_command(),
                     'data_dir': data_dir,
-                    'h264_encoder': 'openmax' if settings['i_am_a_rpi'] else 'libav',
+                    'h264_encoder': 'libav' if settings['i_am_a_rpi'] else 'libav',
                     'output_file_wildcards': self.output_file_wildcards(input_file)
                 }
 
