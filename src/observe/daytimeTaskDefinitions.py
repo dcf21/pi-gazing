@@ -1009,6 +1009,21 @@ ORDER BY m.floatValue DESC LIMIT 1;
         del db
 
 
+class ExportData(TaskRunner):
+    def fetch_job_list_by_time_stamp(self):
+        return {0: True}
+
+    def execute_tasks(self):
+
+        # If we have run out of time, exit immediately
+        if (self.must_quit_by is not None) and (time.time() > self.must_quit_by):
+            return
+
+        command = "{python_path}/command_line/exportData.py --stop-by {must_quit_by}".format(python_path=settings['pythonPath'], must_quit_by=self.must_quit_by)
+        print(command)
+        os.system(command)
+
+
 # A list of all the tasks we need to perform, in order
 task_running_order = [
     AnalyseRawVideos,
@@ -1018,5 +1033,6 @@ task_running_order = [
     ),
     TimelapseRawImages,
     SelectBestImages,
-    # DetermineLensCorrection, DeterminePointing
+    # DetermineLensCorrection, DeterminePointing,
+    ExportData
 ]

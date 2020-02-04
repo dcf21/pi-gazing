@@ -354,9 +354,9 @@ Starting daytime tasks until {} (running for {:.0f} seconds).
                 t_stop)
                 )
 
-            # Snooze for up to 10 minutes; we may rerun daytime tasks in a while if they ended prematurely
+            # Snooze for up to 30 minutes; we may rerun daytime tasks in a while if they ended prematurely
             if time.time() < t_stop:
-                snooze_duration = float(min(t_stop - time.time(), 600))
+                snooze_duration = float(min(t_stop - time.time(), 1800))
                 logging.info("Snoozing for {:.0f} seconds".format(snooze_duration))
                 time.sleep(snooze_duration)
 
