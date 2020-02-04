@@ -53,7 +53,7 @@ class ObservationDatabaseImportReceiver(object):
         if not self.db.has_obstory_metadata(entity.id):
             if not self.db.has_obstory_id(entity.obstory_id):
                 self.db.register_obstory(obstory_id=entity.obstory_id, obstory_name=entity.obstory_name,
-                                         obstory_owner=entity.obstory_owner,
+                                         owner=self.get_importing_user_id(),
                                          latitude=entity.obstory_lat, longitude=entity.obstory_lng)
             self.db.import_obstory_metadata(obstory_id=entity.obstory_id,
                                             key=entity.key, value=entity.value, metadata_time=entity.time,
