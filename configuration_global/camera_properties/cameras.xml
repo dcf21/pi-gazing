@@ -4,7 +4,7 @@
   <width>720</width>
   <height>576</height>
   <fps>24.97</fps>
-  <upside_down>1</upside_down>
+  <upside_down>0</upside_down>
   <type>webcam</type>
  </camera>
  <camera>
@@ -12,7 +12,7 @@
   <width>720</width>
   <height>576</height>
   <fps>24.97</fps>
-  <upside_down>1</upside_down>
+  <upside_down>0</upside_down>
   <type>webcam</type>
  </camera>
  <camera>
@@ -20,7 +20,7 @@
   <width>720</width>
   <height>576</height>
   <fps>24.97</fps>
-  <upside_down>1</upside_down>
+  <upside_down>0</upside_down>
   <type>webcam</type>
  </camera>
  <camera>

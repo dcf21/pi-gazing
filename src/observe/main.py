@@ -349,7 +349,10 @@ timeout {timeout} \
             logging.info("""
 Starting daytime tasks until {} (running for {:.0f} seconds).
 """.format(dcf_ast.date_string(t_stop), next_observing_wait).strip())
-            os.system("cd {} ; ./daytimeTasks.py --stop-by {}".format(settings['pythonPath'], t_stop))
+            os.system("cd {} ; ./daytimeTasks.py --stop-by {}".format(
+                os.path.join(settings['pythonPath'], "observe"),
+                t_stop)
+                )
 
             # Snooze for up to 10 minutes; we may rerun daytime tasks in a while if they ended prematurely
             if time.time() < t_stop:

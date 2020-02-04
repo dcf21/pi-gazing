@@ -52,6 +52,7 @@ def daytime_tasks(must_quit_by=None):
 
         # If we have run out of time, exit immediately
         if (must_quit_by is not None) and (time.time() > must_quit_by):
+            logging.info("Quiting as we have run out of time.")
             return
 
         # Initialise task runner
