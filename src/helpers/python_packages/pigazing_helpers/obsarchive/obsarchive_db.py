@@ -279,7 +279,8 @@ ORDER BY time DESC LIMIT 1
                 output[item['metaKey']] = value
                 
         # Return dictionary of results
-        del output['refresh']
+        if 'refresh' in output:
+            del output['refresh']
         return output
 
     def lookup_obstory_metadata(self, key, time=None, obstory_id=None):
