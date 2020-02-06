@@ -3,7 +3,7 @@
 # pigazing_application.wsgi
 #
 # -------------------------------------------------
-# Copyright 2015-2019 Dominic Ford
+# Copyright 2015-2020 Dominic Ford
 #
 # This file is part of Pi Gazing.
 #

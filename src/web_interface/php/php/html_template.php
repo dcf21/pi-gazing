@@ -5,7 +5,7 @@
 // Dominic Ford
 
 // -------------------------------------------------
-// Copyright 2019 Dominic Ford.
+// Copyright 2015-2020 Dominic Ford.
 
 // This file is part of Pi Gazing.
 
@@ -370,7 +370,7 @@ __HTML__;
                     <div class="col-sm-4" style="padding:4px;">
                         <p class="copyright">
                             <span style="font-size:15px;">
-                            &copy; <a href="#about">Dominic Ford 2019.</a>
+                            &copy; <a href="#about">Dominic Ford 2015&ndash;<?php echo date("Y"); </a>
                             </span>
                         </p>
 

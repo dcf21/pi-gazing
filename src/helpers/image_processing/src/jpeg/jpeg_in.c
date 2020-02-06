@@ -2,7 +2,7 @@
 // $Id: jpeg_in.c 1137 2014-11-24 22:18:14Z pyxplot $
 
 // -------------------------------------------------
-// Copyright 2019 Dominic Ford.
+// Copyright 2015-2020 Dominic Ford.
 
 // This file is part of Pi Gazing.
 
