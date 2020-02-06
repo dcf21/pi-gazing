@@ -73,7 +73,7 @@ def export_data(db, utc_must_stop=None):
             return
 
         # Report status to user
-        print("Export status: %s" % state.state)
+        logging.info("Export of {} with ID {}: {}".format(state.entity_dict['type'], state.entity_id, state.state))
 
         # If we failed, them sleep for a short time
         if state.state == "failed":
