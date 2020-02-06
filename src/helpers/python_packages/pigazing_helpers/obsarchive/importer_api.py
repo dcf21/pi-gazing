@@ -119,7 +119,7 @@ class ImportRequest(object):
             A response that can be returned from a Flask service method
         """
         ImportRequest.logger.info("Completed import for {0} with id {1}".format(self.entity_type, self.entity_id))
-        ImportRequest.logger.debug("Sending: complete")
+        ImportRequest.logger.debug("Sending {0} with id {1}: complete".format(self.entity_type, self.entity_id))
         return jsonify({'state': 'complete'})
 
     @staticmethod
@@ -151,10 +151,11 @@ class ImportRequest(object):
             A response that can be returned from a Flask service method
         """
         if self.entity is not None:
-            ImportRequest.logger.debug("Sending: continue")
+            ImportRequest.logger.debug("Sending {0} with id {1}: continue".format(self.entity_type, self.entity_id))
             return jsonify({'state': 'continue'})
         else:
-            ImportRequest.logger.debug("Sending: continue-nocache")
+            ImportRequest.logger.debug("Sending {0} with id {1}: continue-nocache".format(self.entity_type,
+                                                                                          self.entity_id))
             return jsonify({'state': 'continue-nocache'})
 
     @staticmethod
