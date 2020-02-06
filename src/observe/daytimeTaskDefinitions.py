@@ -85,9 +85,9 @@ def check_observatory_exists(db_handle, obs_id=installation_info['observatoryId'
     )
 
     # If we don't have a specified software version, ensure we have it now
-    if ('softwareVersion' not in metadata) or (metadata['softwareVersion'] != settings['softwareVersion']):
+    if ('software_version' not in metadata) or (metadata['software_version'] != settings['software_version']):
         db_handle.register_obstory_metadata(obstory_id=obs_id,
-                                            key="softwareVersion",
+                                            key="software_version",
                                             value=settings['softwareVersion'],
                                             metadata_time=utc,
                                             time_created=time.time(),
@@ -108,9 +108,9 @@ def check_observatory_exists(db_handle, obs_id=installation_info['observatoryId'
                        name=known_observatories[obs_id]['defaultLens'])
 
     # If we don't have a clipping region, define one now
-    if 'clippingRegion' not in metadata:
+    if 'clipping_region' not in metadata:
         db_handle.register_obstory_metadata(obstory_id=obs_id,
-                                            key="clippingRegion",
+                                            key="clipping_region",
                                             value="[[]]",
                                             metadata_time=utc,
                                             time_created=time.time(),
@@ -162,7 +162,7 @@ def execute_shell_command(arguments):
             with open(mask_file, "w") as f:
                 f.write("\n\n".join(
                     ["\n".join([("%d %d" % p) for p in pointList])
-                     for pointList in json.loads(obstory_status['clippingRegion'])]
+                     for pointList in json.loads(obstory_status['clipping_region'])]
                 )
                 )
             job['mask_file'] = mask_file
@@ -1019,7 +1019,12 @@ class ExportData(TaskRunner):
         if (self.must_quit_by is not None) and (time.time() > self.must_quit_by):
             return
 
-        command = "{python_path}/command_line/exportData.py --stop-by {must_quit_by}".format(python_path=settings['pythonPath'], must_quit_by=self.must_quit_by)
+        # This makes sure that we have a valid task list
+        self.fetch_job_list()
+
+        command = "{python_path}/command_line/exportData.py --stop-by {must_quit_by}".format(
+            python_path=settings['pythonPath'],
+            must_quit_by=self.must_quit_by)
         print(command)
         os.system(command)
 

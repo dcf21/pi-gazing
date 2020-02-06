@@ -1,6 +1,6 @@
 #!../../datadir/virtualenv/bin/python3
 # -*- coding: utf-8 -*-
-# listObservatoryStatus.py
+# addObservatoryMaintenanceEvent.py
 #
 # -------------------------------------------------
 # Copyright 2015-2019 Dominic Ford
@@ -22,21 +22,18 @@
 # -------------------------------------------------
 
 """
-Lists all of the metadata which is currently set on an observatory at a particular time.
+This script is used to manually set up a "refresh" event for an observatory.
 """
 
 import argparse
-import sys
 import time
 
-from pigazing_helpers import dcf_ast
+from addObservatoryStatus import add_observatory_status
 from pigazing_helpers.obsarchive import obsarchive_db
-from pigazing_helpers.obsarchive import obsarchive_model as mp
-from pigazing_helpers.settings_read import settings, installation_info
+from pigazing_helpers.settings_read import settings, installation_info, known_observatories
 
 
-def list_observatory_status(utc, obstory):
-    # Open connection to image archive
+def add_observatory_maintenance_event(metadata):
     db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                            db_host=installation_info['mysqlHost'],
                                            db_user=installation_info['mysqlUser'],
@@ -44,37 +41,34 @@ def list_observatory_status(utc, obstory):
                                            db_name=installation_info['mysqlDatabase'],
                                            obstory_id=installation_info['observatoryId'])
 
-    try:
-        obstory_info = db.get_obstory_from_id(obstory_id=obstory)
-    except ValueError:
-        print("Unknown observatory <{}>. Run ./listObservatories.py to see a list of available observatories.".
-              format(obstory))
-        sys.exit(0)
+    # Make sure that observatory exists in known_observatories list
+    assert metadata['obstory_id'] in known_observatories
 
-    title = "Observatory <{}>".format(obstory)
-    print("\n\n{}\n{}".format(title, "-" * len(title)))
+    db.register_obstory_metadata(obstory_id=metadata['obstory_id'],
+                                 key="refresh",
+                                 value=1,
+                                 metadata_time=metadata['utc'],
+                                 time_created=time.time(),
+                                 user_created=metadata['username'])
 
-    metadata = db.get_obstory_status(obstory_id=obstory, time=utc)
+    # Commit changes to database
+    db.commit()
 
-    # Display list of items
-    for item_key, item_value in metadata.items():
-        print("  * {:16s} = {}".format(item_key, item_value))
+    # Make sure that all required fields are populated
+    add_observatory_status(metadata)
 
 
 if __name__ == "__main__":
     # Read input parameters
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--utc',
-                        dest='utc',
-                        default=time.time(),
+    parser.add_argument('--observatory', dest='obstory_id', default=installation_info['observatoryId'],
+                        help="ID of the observatory we are set the status for")
+    parser.add_argument('--user', dest='username', default=settings['pigazingUser'],
+                        help="Username of the user who is setting this status update")
+    parser.add_argument('--utc', dest='utc', default=time.time(),
                         type=float,
-                        help="List metadata which is current at the specified unix time")
-    parser.add_argument('--observatory',
-                        dest='obstory_id',
-                        default=installation_info['observatoryId'],
-                        help="ID of the observatory we are to list events from")
+                        help="Timestamp for status update")
+
     args = parser.parse_args()
 
-    list_observatory_status(utc=args.utc,
-                            obstory=args.obstory_id,
-                            )
+    add_observatory_maintenance_event(metadata=vars(args))

@@ -101,6 +101,17 @@ if __name__ == "__main__":
                                             obstory_id=installation_info['observatoryId']
                                             )
 
+    # Set up logging
+    logging.basicConfig(level=logging.INFO,
+                        format='[%(asctime)s] %(levelname)s:%(filename)s:%(message)s',
+                        datefmt='%d/%m/%Y %H:%M:%S',
+                        handlers=[
+                            logging.FileHandler(os.path.join(settings['pythonPath'], "../datadir/pigazing.log")),
+                            logging.StreamHandler()
+                        ])
+    logger = logging.getLogger(__name__)
+    logger.info(__doc__.strip())
+
     export_data(db=_db,
                 utc_must_stop=args.stop_utc
                 )

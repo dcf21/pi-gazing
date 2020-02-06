@@ -142,7 +142,7 @@ class constants
             "camera_height" => "Camera pixel height",
             "sensor_upside_down" => "Camera mounted upside-down",
             "sensor_width" => "Camera pixel width",
-            "softwareVersion" => "Software version"
+            "software_versio" => "Software version"
         ];
     }
 }

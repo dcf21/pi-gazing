@@ -235,7 +235,7 @@ Waiting {:.0f} seconds (until {}) to start observing.
             open(mask_file, "w").write(
                 "\n\n".join(
                     ["\n".join([("%d %d" % tuple(p)) for p in point_list])
-                     for point_list in json.loads(obstory_status["clippingRegion"])]
+                     for point_list in json.loads(obstory_status["clipping_region"])]
                 )
             )
         

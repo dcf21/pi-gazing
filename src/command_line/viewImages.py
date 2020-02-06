@@ -57,7 +57,7 @@ def view_images(utc_min, utc_max, obstory, img_type, stride):
     try:
         obstory_info = db.get_obstory_from_id(obstory_id=obstory)
     except ValueError:
-        print("Unknown observatory <{}>. Run ./list_observatories.py to see a list of available observatories.".
+        print("Unknown observatory <{}>. Run ./listObservatories.py to see a list of available observatories.".
               format(obstory))
         sys.exit(0)
 

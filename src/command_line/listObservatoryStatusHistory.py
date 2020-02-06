@@ -47,7 +47,7 @@ def list_observatory_status(utc_min, utc_max, obstory):
     try:
         obstory_info = db.get_obstory_from_id(obstory_id=obstory)
     except ValueError:
-        print("Unknown observatory <{}>. Run ./list_observatories.py to see a list of available observatories.".
+        print("Unknown observatory <{}>. Run ./listObservatories.py to see a list of available observatories.".
               format(obstory))
         sys.exit(0)
 
@@ -67,7 +67,7 @@ def list_observatory_status(utc_min, utc_max, obstory):
     data.reverse()
     keys_seen = []
     for item in data:
-        # The magic metadata keyword "pigazing:refresh" causes all older metadata to be superseded
+        # The magic metadata keyword "refresh" causes all older metadata to be superseded
         if item.key == "refresh" and not refreshed:
             item.still_current = True
             refreshed = True

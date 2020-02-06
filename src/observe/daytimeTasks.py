@@ -61,6 +61,8 @@ def daytime_tasks(must_quit_by=None):
         # Run task
         task_runner.execute_tasks()
 
+    logging.info("Day time tasks complete.")
+
 
 if __name__ == "__main__":
     # Read commandline arguments
