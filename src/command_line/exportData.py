@@ -27,6 +27,7 @@ This exports observations to remote servers, if configured.
 
 import argparse
 import logging
+import os
 import time
 import warnings
 

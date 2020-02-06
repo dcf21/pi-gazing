@@ -85,7 +85,7 @@ def check_observatory_exists(db_handle, obs_id=installation_info['observatoryId'
     )
 
     # If we don't have a specified software version, ensure we have it now
-    if ('software_version' not in metadata) or (metadata['software_version'] != settings['software_version']):
+    if ('software_version' not in metadata) or (metadata['software_version'] != settings['softwareVersion']):
         db_handle.register_obstory_metadata(obstory_id=obs_id,
                                             key="software_version",
                                             value=settings['softwareVersion'],
