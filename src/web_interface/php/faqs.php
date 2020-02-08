@@ -116,48 +116,6 @@ $pageTemplate->header($pageInfo);
 
         <div class="faq_item">
             <div class="faq_question">
-                <a data-toggle="collapse" href="#collapse3">
-                    Can I build my own Pi Gazing camera?
-                </a>
-            </div>
-            <div class="faq_answer panel-collapse collapse" id="collapse3">
-
-                <div class="rightimg">
-                    <img src="img/system_diagram.png" style="max-width:450px;"/>
-                    <p class="caption">
-                        The collection of hardware found inside a Pi Gazing camera.
-                    </p>
-                </div>
-
-                <p class="text">
-                    Yes! We are very keen for amateur astronomers and others to get involved.
-                </p>
-
-                <p class="text">
-                    All the hardware designs and software used by the Pi Gazing cameras are open source, and can be
-                    found on our
-                    <a href="https://github.com/dcf21/pi-gazing">GitHub pages</a>.
-                    Not only are they free to download, but you're also welcome to change them and see if you can make
-                    them work better!
-                </p>
-
-                <p class="text">
-                    The cost of building a camera is around &pound;300&ndash;&pound;400, depending on optional extras.
-                    You can find a complete guide to how to build your own camera on our
-                    <a href="https://github.com/dcf21/pi-gazing">GitHub pages</a>.
-                </p>
-
-                <p class="text">
-                    If you'd like to get involved, why not get in touch with us via
-                    <a href="https://www.facebook.com/pigazingcamera/">Facebook</a>
-                    or <a href="https://twitter.com/pigazing">Twitter</a>?
-                </p>
-            </div>
-        </div>
-
-
-        <div class="faq_item">
-            <div class="faq_question">
                 <a data-toggle="collapse" href="#collapse4">
                     Why are the pictures black and white?
                 </a>

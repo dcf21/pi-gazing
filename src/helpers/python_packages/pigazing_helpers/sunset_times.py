@@ -59,6 +59,10 @@ def sun_pos(utc):
     ra = 12 / pi * atan2(cos(epsilon * deg) * sin(tl * deg), cos(tl * deg))  # hours
     dec = 180 / pi * asin(sin(epsilon * deg) * sin(tl * deg))  # degrees
 
+    # Ensure right ascension is in the range 0-24 hours
+    if ra < 0:
+        ra += 24
+
     return ra, dec
 
 

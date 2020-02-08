@@ -62,6 +62,16 @@ $observations = $stmt->fetchAll();
 if (count($observations) != 1) die ("Requested file does not have associated observation.");
 $observation = $observations[0];
 
+// Get list of observation metadata
+$stmt = $const->db->prepare("
+SELECT m.time, mf.metaKey, m.floatValue, m.stringValue
+FROM archive_metadata m
+INNER JOIN archive_metadataFields mf ON m.fieldId = mf.uid
+WHERE observationId=:i;");
+$stmt->bindParam(':i', $i, PDO::PARAM_INT);
+$stmt->execute(['i' => $result['observationId']]);
+$metadata_observation = $stmt->fetchAll();
+
 // Get observatory information
 $stmt = $const->db->prepare("SELECT * FROM archive_observatories WHERE uid=:i;");
 $stmt->bindParam(':i', $i, PDO::PARAM_INT);
@@ -319,7 +329,7 @@ $pageTemplate->header($pageInfo);
     <p>None</p>
 <?php endif; ?>
 
-    <h3>Status information about this image</h3>
+    <h3>Metadata about this image</h3>
 <?php if (count($metadata) > 0): ?>
     <table class="metadata">
         <thead>
@@ -330,6 +340,33 @@ $pageTemplate->header($pageInfo);
         </thead>
         <?php
         foreach ($metadata as $item):
+            $key = $item['metaKey'];
+            if (array_key_exists($key, $const->metadataFields)) $key = $const->metadataFields[$key];
+            $value = $item['stringValue'] ? $item['stringValue'] : sprintf("%.2f", $item['floatValue']);
+            ?>
+            <tr class="active">
+                <td style="vertical-align:top;white-space:nowrap;" title="<?php echo $item['metaKey']; ?>">
+                    <?php echo $key; ?>
+                </td>
+                <td><?php echo $value; ?></td>
+            </tr>
+        <?php endforeach; ?>
+    </table>
+<?php else: ?>
+    <p>None available</p>
+<?php endif; ?>
+
+    <h3>Metadata about this observation</h3>
+<?php if (count($metadata_observation) > 0): ?>
+    <table class="metadata">
+        <thead>
+        <tr>
+            <td>Property</td>
+            <td>Value</td>
+        </tr>
+        </thead>
+        <?php
+        foreach ($metadata_observation as $item):
             $key = $item['metaKey'];
             if (array_key_exists($key, $const->metadataFields)) $key = $const->metadataFields[$key];
             $value = $item['stringValue'] ? $item['stringValue'] : sprintf("%.2f", $item['floatValue']);

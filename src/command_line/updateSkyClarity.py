@@ -1,6 +1,6 @@
 #!../../datadir/virtualenv/bin/python3
 # -*- coding: utf-8 -*-
-# listImages.py
+# updateSkyClarity.py
 #
 # -------------------------------------------------
 # Copyright 2015-2019 Dominic Ford
@@ -22,18 +22,19 @@
 # -------------------------------------------------
 
 """
-Display a list of all the images registered in the database.
+Update the sky clarity measurements in the database. This is useful if the algorithm is changed.
 """
 
 import argparse
-import sys
+import os
+import subprocess
 import time
 
 from pigazing_helpers import connect_db
-from pigazing_helpers.dcf_ast import date_string
+from pigazing_helpers.settings_read import settings
 
 
-def list_images(utc_min=None, utc_max=None, username=None, obstory=None, img_type=None, obs_type=None, stride=1):
+def update_sky_clarity(utc_min=None, utc_max=None, username=None, obstory=None):
     """
     Display a list of all the images registered in the database.
 
@@ -61,24 +62,6 @@ def list_images(utc_min=None, utc_max=None, username=None, obstory=None, img_typ
     :type obstory:
         str
 
-    :param img_type:
-        Only show images with this semantic type
-
-    :type img_type:
-        str
-
-    :param obs_type:
-        Only show observations with this semantic type
-
-    :type obs_type:
-        str
-
-    :param stride:
-        Only show every nth observation matching the search criteria
-
-    :type stride:
-        int
-
     :return:
         None
     """
@@ -100,9 +83,6 @@ def list_images(utc_min=None, utc_max=None, username=None, obstory=None, img_typ
     if obstory is not None:
         where.append("l.publicId=%s")
         args.append(obstory)
-    if obs_type is not None:
-        where.append("ast.name=%s")
-        args.append(obs_type)
 
     conn.execute("""
 SELECT o.uid, o.userId, l.name AS place, o.obsTime
@@ -110,49 +90,47 @@ FROM archive_observations o
 INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_semanticTypes ast ON o.obsType = ast.uid
 WHERE """ + " AND ".join(where) + """
-ORDER BY obsTime DESC LIMIT 200;
+ORDER BY obsTime ASC;
 """, args)
     results = conn.fetchall()
 
-    # List information about each observation in turn
-    sys.stdout.write("{:6s} {:10s} {:32s} {:17s} {:20s}\n".format("obsId", "Username", "Observatory", "Time", "Images"))
+    # Update each observation in turn
     for counter, obs in enumerate(results):
-        # Only show every nth hit
-        if counter % stride != 0:
-            continue
-
-        # Print observation information
-        sys.stdout.write("{:6d} {:10s} {:32s} {:17s} ".format(obs['uid'], obs['userId'], obs['place'],
-                                                              date_string(obs['obsTime'])))
-
-        where = ["f.observationId=%s"]
-        args = [obs['uid']]
-
-        if img_type is not None:
-            where.append("ast.name=%s")
-            args.append(img_type)
 
         # Fetch list of files in this observation
         conn.execute("""
-SELECT ast.name AS semanticType, repositoryFname, am.floatValue AS skyClarity
+SELECT ast.name AS semanticType, repositoryFname, am.floatValue AS skyClarity, am.uid AS skyClarityUid
 FROM archive_files f
 INNER JOIN archive_semanticTypes ast ON f.semanticType = ast.uid
-LEFT OUTER JOIN archive_metadata am ON f.uid = am.fileId AND
+INNER JOIN archive_metadata am ON f.uid = am.fileId AND
     am.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:skyClarity")
-WHERE """ + " AND ".join(where) + """;
-""", args)
+WHERE f.observationId=%s;
+""", (obs['uid'],))
 
         files = conn.fetchall()
 
-        for count, item in enumerate(files):
-            if count > 0:
-                sys.stdout.write("\n{:69s}".format(""))
-            if item['skyClarity'] is None:
-                item['skyClarity'] = 0
-            sys.stdout.write("{:40s} {:32s} {:10.1f}".format(item['semanticType'],
-                                                             item['repositoryFname'],
-                                                             item['skyClarity']))
-        sys.stdout.write("\n")
+        for item in files:
+            # Run sky clarity calculator
+            p = subprocess.Popen(args=[os.path.join(settings['imageProcessorPath'], "skyClarity"),
+                                       '--input',
+                                       os.path.join(settings['dbFilestore'], item['repositoryFname'])],
+                                 stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+            # Extract new sky clarity measurement
+            new_sky_clarity = float(p.communicate(input=bytes("", 'utf-8'))[0].decode('utf-8'))
+
+            # Print new measurement
+            print("Updating {} from {:.0f} to {:.0f}".format(item['repositoryFname'],
+                                                             item['skyClarity'],
+                                                             new_sky_clarity))
+
+            # Commit to database
+            conn.execute("UPDATE archive_metadata SET floatValue=%s WHERE uid=%s",
+                         (new_sky_clarity, item['skyClarityUid']))
+
+    # Commit changes to database
+    db0.commit()
+    db0.close()
 
 
 if __name__ == "__main__":
@@ -164,25 +142,16 @@ if __name__ == "__main__":
                         help='Optionally specify a username, to filter only images by a particular user')
     parser.add_argument('--utc-min', dest='utc_min', default=0,
                         type=float,
-                        help="Only list events seen after the specified unix time")
+                        help="Only update images recorded after the specified unix time")
     parser.add_argument('--utc-max', dest='utc_max', default=time.time(),
                         type=float,
-                        help="Only list events seen before the specified unix time")
+                        help="Only update images recorded before the specified unix time")
     parser.add_argument('--observatory', dest='obstory_id', default=None,
-                        help="ID of the observatory we are to list events from")
-    parser.add_argument('--img-type', dest='img_type', default=None,
-                        help="The type of image to list")
-    parser.add_argument('--obs-type', dest='obs_type', default=None,
-                        help="The type of observation to list")
-    parser.add_argument('--stride', dest='stride', default=1, type=int,
-                        help="Only show every nth item, to reduce output")
+                        help="ID of the observatory we are update images from")
     args = parser.parse_args()
 
-    list_images(utc_min=args.utc_min,
-                utc_max=args.utc_max,
-                obstory=args.obstory_id,
-                username=args.username,
-                obs_type=args.obs_type,
-                img_type=args.img_type,
-                stride=args.stride
-                )
+    update_sky_clarity(utc_min=args.utc_min,
+                       utc_max=args.utc_max,
+                       obstory=args.obstory_id,
+                       username=args.username
+                       )

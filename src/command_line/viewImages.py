@@ -33,58 +33,113 @@ observatory between specified start and end times. For example:
 
 import argparse
 import os
-import sys
 import time
 
-from pigazing_helpers import dcf_ast
-from pigazing_helpers.obsarchive import obsarchive_db, obsarchive_model
+from pigazing_helpers import dcf_ast, connect_db
 from pigazing_helpers.settings_read import settings, installation_info
 
 
-def view_images(utc_min, utc_max, obstory, img_type, stride):
-    # Open connection to image archive
-    db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                           db_host=installation_info['mysqlHost'],
-                                           db_user=installation_info['mysqlUser'],
-                                           db_password=installation_info['mysqlPassword'],
-                                           db_name=installation_info['mysqlDatabase'],
-                                           obstory_id=installation_info['observatoryId'])
+def fetch_images(utc_min, utc_max, obstory, img_types, stride):
+    # Open connection to database
+    [db0, conn] = connect_db.connect_db()
 
+    # Get list of observations
+    conn.execute("""
+SELECT o.uid, o.userId, l.name AS place, o.obsTime
+FROM archive_observations o
+INNER JOIN archive_observatories l ON o.observatory = l.uid
+INNER JOIN archive_semanticTypes ast ON o.obsType = ast.uid
+WHERE o.obsTime BETWEEN %s AND %s AND l.publicId=%s
+ORDER BY obsTime ASC;
+""", (utc_min, utc_max, obstory))
+    results = conn.fetchall()
+
+    # Show each observation in turn
+    file_list = []
+    for counter, obs in enumerate(results):
+        # Only show every nth hit
+        if counter % stride != 0:
+            continue
+
+        # Fetch list of files in this observation
+        conn.execute("""
+SELECT ast.name AS semanticType, repositoryFname, am.floatValue AS skyClarity
+FROM archive_files f
+INNER JOIN archive_semanticTypes ast ON f.semanticType = ast.uid
+LEFT OUTER JOIN archive_metadata am ON f.uid = am.fileId AND
+    am.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:skyClarity")
+WHERE f.observationId=%s;
+""", (obs['uid'],))
+
+        files = conn.fetchall()
+
+        # Make dictionary of files by semantic type
+        files_by_type = {'observation': obs}
+        for file in files:
+            files_by_type[file['semanticType']] = file
+
+        # Check that we have all the requested types of file
+        have_all_types = True
+        for img_type in img_types:
+            if img_type not in files_by_type:
+                have_all_types = False
+
+        if not have_all_types:
+            continue
+
+        file_list.append(files_by_type)
+
+    return file_list
+
+
+def view_images(utc_min, utc_max, obstory, img_types, stride):
+    # Temporary directory to hold the images we are going to show
     pid = os.getpid()
     tmp = os.path.join("/tmp", "dcf_view_images_{:d}".format(pid))
     os.system("mkdir -p {}".format(tmp))
 
-    try:
-        obstory_info = db.get_obstory_from_id(obstory_id=obstory)
-    except ValueError:
-        print("Unknown observatory <{}>. Run ./listObservatories.py to see a list of available observatories.".
-              format(obstory))
-        sys.exit(0)
+    file_list = fetch_images(utc_min=utc_min,
+                             utc_max=utc_max,
+                             obstory=obstory,
+                             img_types=img_types,
+                             stride=stride)
 
-    search = obsarchive_model.FileRecordSearch(obstory_ids=[obstory], semantic_type=img_type,
-                                               time_min=utc_min, time_max=utc_max, limit=1000000)
-    files = db.search_files(search)
-    files = files['files']
-    files.sort(key=lambda x: x.file_time)
-
+    # Report how many files we found
     print("Observatory <{}>".format(obstory))
-    print("  * {:d} matching files in time range {} --> {}".format(len(files),
+    print("  * {:d} matching files in time range {} --> {}".format(len(file_list),
                                                                    dcf_ast.date_string(utc_min),
                                                                    dcf_ast.date_string(utc_max)))
 
-    command_line = "qiv "
+    # Make list of the stitched files
+    filename_list = []
 
-    count = 1
-    for file_item in files:
-        count += 1
-        if not (count % stride == 0):
-            continue
-        [year, month, day, h, m, s] = dcf_ast.inv_julian_day(dcf_ast.jd_from_unix(file_item.file_time))
-        fn = "img___{:04d}_{:02d}_{:02d}___{:02d}_{:02d}_{:02d}___{:08d}.png".format(year, month, day,
-                                                                                     h, m, int(s), count)
-        os.system("ln -s %s %s/%s" % (db.file_path_for_id(file_item.id), tmp, fn))
-        command_line += " {}".format(os.path.join(tmp, fn))
+    for file_item in file_list:
+        # Look up the date of this file
+        [year, month, day, h, m, s] = dcf_ast.inv_julian_day(dcf_ast.jd_from_unix(
+            utc=file_item['observation']['obsTime']
+        ))
 
+        # Filename for stitched image
+        fn = "img___{:04d}_{:02d}_{:02d}___{:02d}_{:02d}_{:02d}.png".format(year, month, day, h, m, int(s))
+
+        # Make list of input files
+        input_files = [os.path.join(settings['dbFilestore'],
+                                    file_item[semanticType]['repositoryFname'])
+                       for semanticType in img_types]
+
+        command = "\
+convert {inputs} +append -gravity SouthWest -fill Red -pointsize 26 -font Ubuntu-Bold \
+-annotate +16+10 '{date}  -  {label}' {output} \
+".format(inputs=" ".join(input_files),
+         date="{:02d}/{:02d}/{:04d} {:02d}:{:02d}".format(day, month, year, h, m),
+         label="Sky clarity: {}".format(" / ".join(["{:04.0f}".format(file_item[semanticType]['skyClarity'])
+                                                    for semanticType in img_types])),
+         output=os.path.join(tmp, fn))
+        # print(command)
+        os.system(command)
+        filename_list.append(fn)
+
+    command_line = "cd {} ; qiv {}".format(tmp, " ".join(filename_list))
     # print "  * Running command: {}".format(command_line)
 
     os.system(command_line)
@@ -102,15 +157,19 @@ if __name__ == "__main__":
                         help="Only list events seen before the specified unix time")
     parser.add_argument('--observatory', dest='obstory_id', default=installation_info['observatoryId'],
                         help="ID of the observatory we are to list events from")
-    parser.add_argument('--img-type', dest='img_type', default="pigazing:timelapse/backgroundSubtracted",
+    parser.add_argument('--img-type', dest='img_type', action='append',
                         help="The type of image to list")
     parser.add_argument('--stride', dest='stride', default=1, type=int,
                         help="Only show every nth item, to reduce output")
     args = parser.parse_args()
 
+    # Default list of image types to show
+    if args.img_type is None or len(args.img_type) < 1:
+        args.img_type = ["pigazing:timelapse/backgroundSubtracted"]
+
     view_images(utc_min=args.utc_min,
                 utc_max=args.utc_max,
                 obstory=args.obstory_id,
-                img_type=args.img_type,
+                img_types=args.img_type,
                 stride=args.stride
                 )
