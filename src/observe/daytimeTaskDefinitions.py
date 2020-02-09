@@ -1022,9 +1022,13 @@ class ExportData(TaskRunner):
         # This makes sure that we have a valid task list
         self.fetch_job_list()
 
-        command = "{python_path}/command_line/exportData.py --stop-by {must_quit_by}".format(
+        must_quit_string = ""
+        if self.must_quit_by is not None:
+            must_quit_string = "--stop-by {must_quit_by}".format(must_quit_by=self.must_quit_by)
+
+        command = "{python_path}/command_line/exportData.py {must_quit_string}".format(
             python_path=settings['pythonPath'],
-            must_quit_by=self.must_quit_by)
+            must_quit_string=must_quit_string)
         print(command)
         os.system(command)
 

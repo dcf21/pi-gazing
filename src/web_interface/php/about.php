@@ -41,25 +41,23 @@ $pageTemplate->header($pageInfo);
 ?>
 
 <div class="rightimg">
-    <img src="/img/IMG_20150910_193401.jpg" /><br />
-    <b>Three Pi Gazing cameras being tested side-by-side.</b>
+    <img src="/img/IMG_20200204_130609.jpg" /><br />
+    <b>A Pi Gazing camera.</b>
 </div>
 
 <p class="text">
-    Pi Gazing is written and maintained by astronomer <a href="https://in-the-sky.org/about.php">Dominic Ford</a>.
+    Pi Gazing is run by astronomer <a href="https://dcford.org.uk/">Dominic Ford</a>. The hardware design for our
+    meteor cameras was developed by Dave Ansell at <a href="https://www.sciansell.co.uk">SciAnsell</a>, while the
+    software was developed by Dominic himself.
     </p>
 <p class="text">
-    All of the software and hardware designs are open source, and can be downloaded from
+    All of the software and hardware designs are open source and can be downloaded from
     our <a href="https://github.com/dcf21/pi-gazing">GitHub pages</a> under a
     <a href="http://www.gnu.org/licenses/gpl-3.0.en.html">Gnu General Public License V3</a>.
 </p>
 <p class="text">
     You are very welcome to try building your own Pi Gazing camera. You can either use our software as is, or you can
     play around with it, figure out how it works, and try to make it work better!
-</p>
-<p class="text">
-    If you do build your own camera, please do get in touch with us via Facebook or Twitter. We'd love to keep track
-    of where Pi Gazing cameras are being installed.
 </p>
 
 <h3>Acknowledgments</h3>
@@ -68,10 +66,6 @@ $pageTemplate->header($pageInfo);
 We are very grateful for advice from many amateur astronomers who helped us with the design of Pi Gazing. These include
 the <a href="http://www.nemetode.org/">NEMETODE</a> and <a href="https://www.ukmeteornetwork.co.uk/">UKMON</a>
 networks of amateur meteor observers.
-</p>
-
-<p class="text">
-    The hardware used in our Pi Gazing cameras was designed by Dave Ansell.
 </p>
 
 <p class="text">

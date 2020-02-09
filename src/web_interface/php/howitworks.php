@@ -47,7 +47,7 @@ $pageTemplate->header($pageInfo);
                     <div class="grey_box" style="padding:16px;">
                         <div class="pane-item" data-title="What our cameras look like">
                             <div class="rightimg">
-                                <img src="img/IMG_20150316_160453.jpg"/>
+                                <img src="img/IMG_20200204_124448.jpg"/>
                                 <p class="caption">
                                     Pi Gazing cameras are similar to CCTV cameras, but they point upwards at the sky!
                                 </p>
@@ -76,9 +76,9 @@ $pageTemplate->header($pageInfo);
 
 
                             <div class="rightimg">
-                                <img src="img/IMG_20150805_142114.jpg"/>
+                                <img src="img/IMG_20200203_232928.jpg"/>
                                 <p class="caption">
-                                    The electronics in a Pi Gazing observatory. A Raspberry Pi Mk 2 analyses the pictures
+                                    The electronics in a Pi Gazing observatory. A Raspberry Pi Mk 3 analyses the pictures
                                     to look for moving objects.
                                 </p>
                             </div>
@@ -87,7 +87,7 @@ $pageTemplate->header($pageInfo);
                                 analyses the video signal.
                             </p>
                             <p class="text">
-                                We have a Raspberry Pi 2 Model B computer, which receives the pictures from the video
+                                We have a Raspberry Pi 3 Model B computer, which receives the pictures from the video
                                 camera and analyses them. It takes long-exposure still photographs every 30 seconds
                                 through the night, and also monitors the video feed to look for moving objects.
                             </p>

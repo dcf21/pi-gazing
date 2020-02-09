@@ -27,57 +27,65 @@ Make a time lapse video of still images recorded between specified start and end
 
 import argparse
 import os
-import sys
 import time
 
-from pigazing_helpers.obsarchive import obsarchive_db, obsarchive_model
+from pigazing_helpers import dcf_ast
 from pigazing_helpers.settings_read import settings, installation_info
+from viewImages import fetch_images
 
 
-def timelapse_movie(utc_min, utc_max, obstory, img_type, stride, label):
-    db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                           db_host=installation_info['mysqlHost'],
-                                           db_user=installation_info['mysqlUser'],
-                                           db_password=installation_info['mysqlPassword'],
-                                           db_name=installation_info['mysqlDatabase'],
-                                           obstory_id=installation_info['observatoryId'])
-
+def timelapse_movie(utc_min, utc_max, obstory, img_types, stride, label):
+    # Temporary directory to hold the images we are going to show
     pid = os.getpid()
-    tmp = os.path.join("/tmp", "dcf_movieImages_{:d}".format(pid))
+    tmp = os.path.join("/tmp", "dcf_movie_images_{:d}".format(pid))
     os.system("mkdir -p {}".format(tmp))
 
-    try:
-        obstory_info = db.get_obstory_from_id(obstory_id=obstory)
-    except ValueError:
-        print("Unknown observatory <{}>. Run ./listObservatories.py to see a list of available observatories.".
-              format(obstory))
-        sys.exit(0)
+    file_list = fetch_images(utc_min=utc_min,
+                             utc_max=utc_max,
+                             obstory=obstory,
+                             img_types=img_types,
+                             stride=stride)
 
-    obstory_id = obstory_info['publicId']
+    # Report how many files we found
+    print("Observatory <{}>".format(obstory))
+    print("  * {:d} matching files in time range {} --> {}".format(len(file_list),
+                                                                   dcf_ast.date_string(utc_min),
+                                                                   dcf_ast.date_string(utc_max)))
 
-    search = obsarchive_model.FileRecordSearch(obstory_ids=[obstory_id], semantic_type=img_type,
-                                               time_min=utc_min, time_max=utc_max, limit=1000000)
-    files = db.search_files(search)
-    files = files['files']
-    files.sort(key=lambda x: x.file_time)
+    # Make list of the stitched files
+    filename_list = []
+    filename_format = "frame_{:d}_%08d.jpg".format(pid)
 
-    print("Found {:d} images between time <{}> and <{}> from observatory <{}>".
-          format(len(files), utc_min, utc_max, obstory))
+    for counter, file_item in enumerate(file_list):
+        # Look up the date of this file
+        [year, month, day, h, m, s] = dcf_ast.inv_julian_day(dcf_ast.jd_from_unix(
+            utc=file_item['observation']['obsTime']
+        ))
 
-    filename_format = os.path.join(tmp, "frame_{:d}_{{:08d}}.jpg".format(pid))
+        # Filename for stitched image
+        fn = filename_format % counter
 
-    img_num = 1
-    for counter, file_item in enumerate(files):
-        if not (counter % stride == 0):
-            continue
-        utc = file_item.file_time
-        os.system("convert {} -gravity SouthEast -fill ForestGreen -pointsize 20 -font Ubuntu-Bold "
-                  "-annotate +16+10 '{} {}' {}""".format(db.file_path_for_id(file_item.id), label,
-                                                         time.strftime("%d %b %Y %H:%M", time.gmtime(utc)),
-                                                         filename_format.format(img_num)))
-        img_num += 1
+        # Make list of input files
+        input_files = [os.path.join(settings['dbFilestore'],
+                                    file_item[semanticType]['repositoryFname'])
+                       for semanticType in img_types]
 
-    os.system("ffmpeg -r 40 -i {} -codec:v libx264 {}".format(filename_format, os.path.join(tmp, "timelapse.mp4")))
+        command = "\
+convert {inputs} +append -gravity SouthWest -fill Red -pointsize 26 -font Ubuntu-Bold \
+-annotate +16+10 '{date}  -  {label1}  -  {label2}' {output} \
+".format(inputs=" ".join(input_files),
+         date="{:02d}/{:02d}/{:04d} {:02d}:{:02d}".format(day, month, year, h, m),
+         label1="Sky clarity: {}".format(" / ".join(["{:04.0f}".format(file_item[semanticType]['skyClarity'])
+                                                    for semanticType in img_types])),
+         label2=label,
+         output=os.path.join(tmp, fn))
+        # print(command)
+        os.system(command)
+        filename_list.append(fn)
+
+    command_line = "cd {} ; ffmpeg -r 10 -i {} -codec:v libx264 {}".format(tmp , filename_format, "timelapse.mp4")
+    print(command_line)
+    os.system(command_line)
 
 
 if __name__ == "__main__":
@@ -93,16 +101,20 @@ if __name__ == "__main__":
                         help="ID of the observatory we are to list events from")
     parser.add_argument('--label', dest='label', default="",
                         help="Label to put at the bottom of each frame of the video")
-    parser.add_argument('--img-type', dest='img_type', default="pigazing:timelapse/frame/bgrdSub/lensCorr",
+    parser.add_argument('--img-type', dest='img_type', action='append',
                         help="The type of image to list")
     parser.add_argument('--stride', dest='stride', default=1, type=int,
                         help="Only show every nth item, to reduce output")
     args = parser.parse_args()
 
+    # Default list of image types to show
+    if args.img_type is None or len(args.img_type) < 1:
+        args.img_type = ["pigazing:timelapse/backgroundSubtracted"]
+
     timelapse_movie(utc_min=args.utc_min,
                     utc_max=args.utc_max,
                     obstory=args.obstory_id,
-                    img_type=args.img_type,
+                    img_types=args.img_type,
                     stride=args.stride,
                     label=args.label
                     )
