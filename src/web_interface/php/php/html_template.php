@@ -5,7 +5,7 @@
 // Dominic Ford
 
 // -------------------------------------------------
-// Copyright 2019 Dominic Ford.
+// Copyright 2015-2020 Dominic Ford.
 
 // This file is part of Pi Gazing.
 
@@ -154,6 +154,10 @@ foreach ($postbreadcrumb as $c) {
         if (!isset($pageInfo["postbreadcrumb"])) $pageInfo["postbreadcrumb"] = null;
         $server = $const->server;
         $settings = local_mods::get_settings();
+
+        header("Content-Security-Policy: frame-ancestors 'none'");
+        header("X-Frame-Options: DENY");
+
         print<<<__HTML__
 <!DOCTYPE html>
 <html lang="en">
@@ -350,6 +354,8 @@ __HTML__;
 
     public function footer($pageInfo)
     {
+        global $const;
+
         ?>
         <div class="row">
             <div class="col-xl-12 wideright">
@@ -370,12 +376,15 @@ __HTML__;
                     <div class="col-sm-4" style="padding:4px;">
                         <p class="copyright">
                             <span style="font-size:15px;">
-                            &copy; <a href="#about">Dominic Ford 2019.</a>
+                            &copy;
+                                <a href="https://dcford.org.uk/about.php">Dominic Ford</a>
+                                    2015&ndash;<?php echo date("Y"); ?>
                             </span>
                         </p>
 
                         <p class="copyright">
-                            For more information about Pi Gazing, <a href="#about">click here</a>.<br/>
+                            For more information about Pi Gazing,
+                            <a href="<?php echo $const->server; ?>about.php">click here</a>.<br/>
                             Website designed by Dominic Ford.<br/>
                         </p>
 

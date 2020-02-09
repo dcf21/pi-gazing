@@ -5,7 +5,7 @@
 // Dominic Ford
 
 // -------------------------------------------------
-// Copyright 2019 Dominic Ford.
+// Copyright 2015-2020 Dominic Ford.
 
 // This file is part of Pi Gazing.
 
@@ -103,6 +103,13 @@ class constants
 
         // Known metadata fields
         $this->metadataFields = [
+            "camera" => "Camera model",
+            "camera_type" => "Camera interface type",
+            "camera_fps" => "Camera frame rate per sec",
+            "camera_height" => "Camera pixel height",
+            "camera_upside_down" => "Camera mounted upside-down",
+            "camera_width" => "Camera pixel width",
+            "clipping_region" => "Sky clipping region",
             "instName" => "Institution name",
             "instURL" => "Institution web address",
             "latitude" => "Latitude north of equator (deg)",
@@ -137,13 +144,7 @@ class constants
             "pigazing:videoDuration" => "Video duration",
             "pigazing:videoFPS" => "Video frames/second",
             "pigazing:videoStart" => "Video start time",
-            "camera" => "Camera model",
-            "camera_type" => "Camera interface type",
-            "camera_fps" => "Camera frame rate per sec",
-            "camera_height" => "Camera pixel height",
-            "sensor_upside_down" => "Camera mounted upside-down",
-            "sensor_width" => "Camera pixel width",
-            "software_versio" => "Software version"
+            "software_version" => "Software version"
         ];
     }
 }
