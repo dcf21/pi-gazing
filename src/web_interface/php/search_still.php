@@ -62,7 +62,7 @@ if ($tmax['utc'] < $tmin['utc']) {
 
 // Read image options
 $flag_bgsub = 0;
-$flag_highlights = 0;
+$flag_highlights = 1;
 
 if (array_key_exists("flag_bgsub", $_GET)) $flag_bgsub = 1;
 if (array_key_exists("flag_highlights", $_GET)) $flag_highlights = 1;
@@ -182,7 +182,7 @@ $pageTemplate->header($pageInfo);
                     </div>
                 </div>
                 <br/>
-                <div class="tooltip-holder" style="padding-top:24px; display:inline-block;">
+                <div class="tooltip-holder" style="display:inline-block; padding:0;">
                     <div class="checkbox" data-toggle="tooltip" data-pos="tooltip-right"
                          title="Show only one image per ten-minute interval. Without this, you will see large numbers of similar images."
                     >
