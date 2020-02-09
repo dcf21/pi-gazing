@@ -36,16 +36,16 @@ from pigazing_helpers.settings_read import settings
 
 def update_sky_clarity(utc_min=None, utc_max=None, username=None, obstory=None):
     """
-    Display a list of all the images registered in the database.
+    Update the sky clarity measurements in the database. This is useful if the algorithm is changed.
 
     :param utc_min:
-        Only show observations made after the specified time stamp.
+        Only update observations made after the specified time stamp.
 
     :type utc_min:
         float
 
     :param utc_max:
-        Only show observations made before the specified time stamp.
+        Only update observations made before the specified time stamp.
 
     :type utc_max:
         float
@@ -57,7 +57,7 @@ def update_sky_clarity(utc_min=None, utc_max=None, username=None, obstory=None):
         str
 
     :param obstory:
-        The public id of the observatory we are to show observations from
+        The public id of the observatory we are to update observations from
 
     :type obstory:
         str

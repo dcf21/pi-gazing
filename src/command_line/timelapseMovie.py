@@ -35,6 +35,43 @@ from viewImages import fetch_images
 
 
 def timelapse_movie(utc_min, utc_max, obstory, img_types, stride, label):
+    """
+    Make a time lapse video of images registered in the database using the command line tool ffmpeg.
+
+    :param utc_min:
+        Only return observations made after the specified time stamp.
+
+    :type utc_min:
+        float
+
+    :param utc_max:
+        Only return observations made before the specified time stamp.
+
+    :type utc_max:
+        float
+
+    :param obstory:
+        The public id of the observatory we are to fetch observations from
+
+    :type obstory:
+        str
+
+    :param img_types:
+        Only return images with these semantic types
+
+    :type img_types:
+        list[str]
+
+    :param stride:
+        Only return every nth observation matching the search criteria
+
+    :type stride:
+        int
+
+    :return:
+        None
+    """
+
     # Temporary directory to hold the images we are going to show
     pid = os.getpid()
     tmp = os.path.join("/tmp", "dcf_movie_images_{:d}".format(pid))

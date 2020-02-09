@@ -40,6 +40,42 @@ from pigazing_helpers.settings_read import settings, installation_info
 
 
 def fetch_images(utc_min, utc_max, obstory, img_types, stride):
+    """
+    Fetch a list of all the images registered in the database.
+
+    :param utc_min:
+        Only return observations made after the specified time stamp.
+
+    :type utc_min:
+        float
+
+    :param utc_max:
+        Only return observations made before the specified time stamp.
+
+    :type utc_max:
+        float
+
+    :param obstory:
+        The public id of the observatory we are to fetch observations from
+
+    :type obstory:
+        str
+
+    :param img_types:
+        Only return images with these semantic types
+
+    :type img_types:
+        list[str]
+
+    :param stride:
+        Only return every nth observation matching the search criteria
+
+    :type stride:
+        int
+
+    :return:
+        None
+    """
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
 
@@ -93,6 +129,43 @@ WHERE f.observationId=%s;
 
 
 def view_images(utc_min, utc_max, obstory, img_types, stride):
+    """
+    View images registered in the database using the command line tool qiv.
+
+    :param utc_min:
+        Only return observations made after the specified time stamp.
+
+    :type utc_min:
+        float
+
+    :param utc_max:
+        Only return observations made before the specified time stamp.
+
+    :type utc_max:
+        float
+
+    :param obstory:
+        The public id of the observatory we are to fetch observations from
+
+    :type obstory:
+        str
+
+    :param img_types:
+        Only return images with these semantic types
+
+    :type img_types:
+        list[str]
+
+    :param stride:
+        Only return every nth observation matching the search criteria
+
+    :type stride:
+        int
+
+    :return:
+        None
+    """
+
     # Temporary directory to hold the images we are going to show
     pid = os.getpid()
     tmp = os.path.join("/tmp", "dcf_view_images_{:d}".format(pid))
