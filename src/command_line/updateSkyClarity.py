@@ -85,10 +85,12 @@ def update_sky_clarity(utc_min=None, utc_max=None, username=None, obstory=None):
         args.append(obstory)
 
     conn.execute("""
-SELECT o.uid, o.userId, l.name AS place, o.obsTime
+SELECT o.uid, o.userId, l.name AS place, o.obsTime, am.uid AS skyClarityUid
 FROM archive_observations o
 INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_semanticTypes ast ON o.obsType = ast.uid
+LEFT OUTER JOIN archive_metadata am ON o.uid = am.observationId AND
+    am.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:skyClarity")
 WHERE """ + " AND ".join(where) + """
 ORDER BY obsTime ASC;
 """, args)
@@ -127,6 +129,12 @@ WHERE f.observationId=%s;
             # Commit to database
             conn.execute("UPDATE archive_metadata SET floatValue=%s WHERE uid=%s",
                          (new_sky_clarity, item['skyClarityUid']))
+
+            # Update the observation with the background-subtracted image's sky clarity
+            if ((item['semanticType'] == 'pigazing:timelapse/backgroundSubtracted') and
+                    (obs['skyClarityUid'] is not None)):
+                conn.execute("UPDATE archive_metadata SET floatValue=%s WHERE uid=%s",
+                             (new_sky_clarity, obs['skyClarityUid']))
 
     # Commit changes to database
     db0.commit()
