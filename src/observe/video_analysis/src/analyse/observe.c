@@ -979,7 +979,7 @@ void register_trigger_ends(observe_status *os) {
                 }
 
                 // Now that we know the duration of this video, we can write metadata about the video file
-                const double video_duration = os->utc - (os->event_list[i].start_time - os->TRIGGER_PREFIX_TIME;
+                const double video_duration = os->utc - (os->event_list[i].start_time - os->TRIGGER_PREFIX_TIME);
                 write_metadata(os->event_list[i].video_output.filename, "sdsiidsdidiisddd",
                                "obstoryId", os->obstory_id,
                                "utc", os->event_list[i].start_time,
@@ -996,7 +996,7 @@ void register_trigger_ends(observe_status *os) {
                                "pathBezier", path_bezier,
                                "videoStart", os->event_list[i].start_time - os->TRIGGER_PREFIX_TIME,
                                "videoFPS", coAddedFrames / video_duration,
-                               "videoDuration", video_duration)
+                               "videoDuration", video_duration
                 );
             }
         }
