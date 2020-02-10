@@ -110,6 +110,7 @@ class constants
             "camera_upside_down" => "Camera mounted upside-down",
             "camera_width" => "Camera pixel width",
             "clipping_region" => "Sky clipping region",
+            "hardware_version" => "Camera hardware",
             "instName" => "Institution name",
             "instURL" => "Institution web address",
             "latitude" => "Latitude north of equator (deg)",

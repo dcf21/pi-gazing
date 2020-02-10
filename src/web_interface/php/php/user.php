@@ -88,7 +88,7 @@ class userSession
                     $this->userId = $userList[0]['uid'];
                     $bytes = openssl_random_pseudo_bytes(16);
                     $cookieVal = bin2hex($bytes);
-                    setcookie($this->key, $cookieVal, $time + $this->lifetime, "/");
+                    setcookie($this->key, $cookieVal, $time + $this->lifetime, "/", "", 1, 1);
                     $stmt = $const->db->prepare("
 INSERT INTO archive_user_sessions (userId, logIn, lastSeen, ip, cookie) VALUES (:u,:t,:t,:i,:c);");
                     $stmt->bindParam(':u', $c, PDO::PARAM_INT);
@@ -140,7 +140,7 @@ UPDATE archive_user_sessions SET logOut=:t WHERE cookie=:c AND logOut IS NULL;")
                 $stmt->execute(['t' => $time, 'c' => $cookie]);
             }
         }
-        setcookie($this->key, "", time() - 10, "/");
+        setcookie($this->key, "", time() - 10, "/", "", 1, 1);
     }
 
     public function cron()

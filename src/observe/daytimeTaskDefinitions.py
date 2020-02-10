@@ -116,6 +116,16 @@ def check_observatory_exists(db_handle, obs_id=installation_info['observatoryId'
                                             time_created=time.time(),
                                             user_created=settings['pigazingUser'])
 
+    # Register raspberry pi hardware version
+    if os.path.exists("/sys/firmware/devicetree/base/model"):
+        hardware_version = open("/sys/firmware/devicetree/base/model").read()
+        db_handle.register_obstory_metadata(obstory_id=obs_id,
+                                            key="hardware_version",
+                                            value=hardware_version,
+                                            metadata_time=utc,
+                                            time_created=time.time(),
+                                            user_created=settings['pigazingUser'])
+
 
 def execute_shell_command(arguments):
     """
