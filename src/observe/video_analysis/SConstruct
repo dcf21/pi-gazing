@@ -8,8 +8,7 @@ srcdir = os.path.join(Dir('.').abspath, 'src')
 # Flag telling us whether we're a Raspberry Pi or a desktop PC
 I_AM_A_RPI = os.uname()[4].startswith("arm")
 
-# Are we building sources which depend on OpenMAX?
-compileOpenMAX = ARGUMENTS.get('openmax', I_AM_A_RPI)
+# Are we building sources which depend on libav?
 compileLibav = ARGUMENTS.get('libav', 1)
 
 # Build options to pass to gcc
@@ -19,7 +18,7 @@ linkFlags = ['-fopenmp']
 ccDefines = ['DATE=\\"03/05/2019\\"', 'VERSION=\\"0.0.3\\"', 'SRCDIR=\\"%s\\"' % srcdir]
 
 # C source files which are common to all binaries we are going to build
-commonFiles = ['analyse/observe.c', 'analyse/trigger.c', 'argparse/argparse.c', 'jpeg/jpeg_in.c', 'png/image_in.c',
+commonFiles = ['analyse/observe.c', 'analyse/trigger.c', 'argparse/argparse.c', 'png/image_in.c',
                'png/image_out.c', 'utils/asciiDouble.c', 'utils/error.c', 'utils/filledPoly.c', 'utils/julianDate.c',
                'utils/tools.c', 'vidtools/color.c', 'vidtools/v4l2uvc.c']
 
@@ -28,21 +27,15 @@ commonFiles = ['analyse/observe.c', 'analyse/trigger.c', 'argparse/argparse.c', 
 targets = [[0, 0, commonFiles + ['frontends/realtimeObserve.c'], 'realtimeObserve'],
            [0, 0, commonFiles + ['frontends/realtimeObserve_dslr.c'], 'realtimeObserve_dslr'],
            [0, 1, commonFiles + ['frontends/analyseH264_libav.c'], 'analyseH264_libav'],
-           [1, 0, commonFiles + ['frontends/recordH264_openmax.c'], 'recordH264_openmax'],
            [0, 1, commonFiles + ['frontends/recordH264_libav.c'], 'recordH264_libav'],
            [0, 0, commonFiles + ['frontends/snapshot.c'], 'snapshot'],
            [0, 0, commonFiles + ['frontends/makeBackgroundMap.c'], 'makeBackgroundMap'],
            ];
 
-subDirs = ['', 'analyse', 'frontends', 'png', 'jpeg', 'utils', 'vidtools']
+subDirs = ['', 'analyse', 'frontends', 'png', 'utils', 'vidtools']
 includePaths = [os.path.join('src', i) for i in subDirs]
-libraries = ['gsl', 'gslcblas', 'v4l2', 'jpeg', 'png', 'm', 'rt']
+libraries = ['gsl', 'gslcblas', 'v4l2', 'png', 'm', 'rt']
 libraryPaths = ['/usr/lib']
-
-includePaths_openmax = ['/opt/vc/include', '/opt/vc/include/interface/vcos/pthreads',
-                        '/opt/vc/include/interface/vmcs_host/linux/']
-libraryPaths_openmax = ['/opt/vc/lib']
-libraries_openmax = ['openmaxil', 'vcos', 'bcm_host', 'pthread']
 
 includePaths_libav = []
 libraryPaths_libav = []
@@ -63,19 +56,13 @@ envDebug.Append(CPPDEFINES=ccDefines + ['DEBUG=1'])
 for env in [envDebug, envNoDebug]:
     env.Append(CCFLAGS=ccFlags)
     env.Append(LINKFLAGS=linkFlags)
-    env.Append(CPPPATH=includePaths + (includePaths_openmax if compileOpenMAX else []) + (
-        includePaths_libav if compileLibav else []))
-    env.Append(
-        LIBS=libraries + (libraries_openmax if compileOpenMAX else []) + (libraries_libav if compileLibav else []))
-    env.Append(LIBPATH=libraryPaths + (libraryPaths_openmax if compileOpenMAX else []) + (
-        libraryPaths_libav if compileLibav else []))
+    env.Append(CPPPATH=includePaths + (includePaths_libav if compileLibav else []))
+    env.Append(LIBS=libraries + (libraries_libav if compileLibav else []))
+    env.Append(LIBPATH=libraryPaths + (libraryPaths_libav if compileLibav else []))
 
 for debugOption in debugOptions:
     for target in targets:
-        needOpenMAX = target[0]
         needLibav = target[1]
-        if needOpenMAX and not compileOpenMAX:
-            continue
         if needLibav and not compileLibav:
             continue
 

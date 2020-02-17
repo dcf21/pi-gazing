@@ -16,8 +16,6 @@ set(SOURCE_FILES
         src/gnomonic.h
         src/imageProcess.c
         src/imageProcess.h
-        src/jpeg/jpeg.h
-        src/jpeg/jpeg_in.c
         src/png/image.h
         src/png/image_in.c
         src/png/image_out.c
@@ -45,7 +43,6 @@ add_executable(rawimg2png ${SOURCE_FILES} src/frontends/converters/rawimg2png.c)
 add_executable(rawimg2png3 ${SOURCE_FILES} src/frontends/converters/rawimg2png3.c)
 add_executable(rawvid2frames ${SOURCE_FILES} src/frontends/converters/rawvid2frames.c)
 add_executable(rawvid2mp4_libav ${SOURCE_FILES} src/frontends/converters/rawvid2mp4_libav.c)
-add_executable(rawvid2mp4_openmax ${SOURCE_FILES} src/frontends/converters/rawvid2mp4_openmax.c)
 add_executable(lensCorrect ${SOURCE_FILES} src/frontends/lensCorrect.c)
 add_executable(multiply ${SOURCE_FILES} src/frontends/multiply.c)
 add_executable(resize ${SOURCE_FILES} src/frontends/resize.c)

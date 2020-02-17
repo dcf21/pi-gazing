@@ -9,7 +9,6 @@ srcdir = os.path.join(Dir('.').abspath, 'src')
 I_AM_A_RPI = os.uname()[4].startswith("arm")
 
 # Are we building sources which depend on OpenMAX?
-compileOpenMAX = ARGUMENTS.get('openmax', I_AM_A_RPI)
 compileLibav = ARGUMENTS.get('libav', 1)
 
 # Build options to pass to gcc
@@ -20,7 +19,7 @@ ccDefines = ['DATE=\\"03/05/2019\\"', 'VERSION=\\"0.0.3\\"', 'SRCDIR=\\"%s\\"' %
 
 # C source files which are common to all binaries we are going to build
 commonFiles = ['argparse/argparse.c', 'backgroundSub.c', 'gnomonic.c', 'imageProcess.c',
-               'jpeg/jpeg_in.c', 'png/image_in.c', 'png/image_out.c', 'settings.c',
+               'png/image_in.c', 'png/image_out.c', 'settings.c',
                'utils/asciiDouble.c', 'utils/error.c', 'utils/julianDate.c', 'utils/lensCorrect.c',
                'utils/skyClarity.c', 'vidtools/color.c']
 
@@ -34,19 +33,13 @@ targets = [[0, 0, commonFiles + ['frontends/lensCorrect.c'], 'lensCorrect'],
            [0, 0, commonFiles + ['frontends/converters/rawimg2png.c'], 'rawimg2png'],
            [0, 0, commonFiles + ['frontends/converters/rawimg2png3.c'], 'rawimg2png3'],
            [0, 0, commonFiles + ['frontends/converters/rawvid2frames.c'], 'rawvid2frames'],
-           [1, 0, commonFiles + ['frontends/converters/rawvid2mp4_openmax.c'], 'rawvid2mp4_openmax'],
            [0, 1, commonFiles + ['frontends/converters/rawvid2mp4_libav.c'], 'rawvid2mp4_libav'],
            ]
 
-subDirs = ['', 'frontends', 'frontends/converters', 'png', 'jpeg', 'utils']
+subDirs = ['', 'frontends', 'frontends/converters', 'png', 'utils']
 includePaths = [os.path.join('src', i) for i in subDirs]
-libraries = ['gsl', 'gslcblas', 'jpeg', 'png', 'm']
+libraries = ['gsl', 'gslcblas', 'png', 'm']
 libraryPaths = ['/usr/lib']
-
-includePaths_openmax = ['/opt/vc/include', '/opt/vc/include/interface/vcos/pthreads',
-                        '/opt/vc/include/interface/vmcs_host/linux/']
-libraryPaths_openmax = ['/opt/vc/lib']
-libraries_openmax = ['openmaxil', 'vcos', 'bcm_host', 'pthread']
 
 includePaths_libav = []
 libraryPaths_libav = []
@@ -67,19 +60,13 @@ envDebug.Append(CPPDEFINES=ccDefines + ['DEBUG=1'])
 for env in [envDebug, envNoDebug]:
     env.Append(CCFLAGS=ccFlags)
     env.Append(LINKFLAGS=linkFlags)
-    env.Append(CPPPATH=includePaths + (includePaths_openmax if compileOpenMAX else []) + (
-        includePaths_libav if compileLibav else []))
-    env.Append(
-        LIBS=libraries + (libraries_openmax if compileOpenMAX else []) + (libraries_libav if compileLibav else []))
-    env.Append(LIBPATH=libraryPaths + (libraryPaths_openmax if compileOpenMAX else []) + (
-        libraryPaths_libav if compileLibav else []))
+    env.Append(CPPPATH=includePaths + (includePaths_libav if compileLibav else []))
+    env.Append(LIBS=libraries + (libraries_libav if compileLibav else []))
+    env.Append(LIBPATH=libraryPaths + (libraryPaths_libav if compileLibav else []))
 
 for debugOption in debugOptions:
     for target in targets:
-        needOpenMAX = target[0]
         needLibav = target[1]
-        if needOpenMAX and not compileOpenMAX:
-            continue
         if needLibav and not compileLibav:
             continue
 

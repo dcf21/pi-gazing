@@ -7,7 +7,6 @@ include_directories(src)
 include_directories(src/analyse)
 include_directories(src/argparse)
 include_directories(src/frontends)
-include_directories(src/jpeg)
 include_directories(src/png)
 include_directories(src/utils)
 include_directories(src/vidtools)
@@ -19,8 +18,6 @@ set(SOURCE_FILES
         src/analyse/trigger.h
         src/argparse/argparse.c
         src/argparse/argparse.h
-        src/jpeg/jpeg.h
-        src/jpeg/jpeg_in.c
         src/png/image.h
         src/png/image_in.c
         src/png/image_out.c
@@ -50,5 +47,4 @@ add_executable(makeBackgroundMap ${SOURCE_FILES} src/frontends/makeBackgroundMap
 add_executable(realtimeObserve ${SOURCE_FILES} src/frontends/realtimeObserve.c)
 add_executable(realtimeObserve_dslr ${SOURCE_FILES} src/frontends/realtimeObserve_dslr.c)
 add_executable(recordH264_libav ${SOURCE_FILES} src/frontends/recordH264_libav.c)
-add_executable(recordH264_openmax ${SOURCE_FILES} src/frontends/recordH264_openmax.c)
 add_executable(snapshot ${SOURCE_FILES} src/frontends/snapshot.c)

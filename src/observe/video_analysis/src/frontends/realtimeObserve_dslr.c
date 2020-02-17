@@ -42,7 +42,7 @@
 #include "utils/julianDate.h"
 #include "analyse/observe.h"
 
-#include "jpeg/jpeg.h"
+#include "png/image.h"
 
 #include "str_constants.h"
 #include "settings.h"
@@ -74,7 +74,8 @@ int fetch_frame(void *videoHandle, unsigned char *tmpc, double *utc) {
     if (statbuf.st_mtime < utc_start) goto FAIL;
 
     // Load image
-    jpeg_ptr img = jpeg_get("/tmp/dslr_image.jpg");
+    image_ptr img;
+    // jpeg_ptr img = jpeg_get("/tmp/dslr_image.jpg");
 
     // Work out mean brightness of red channel
     int i = 0, N = 0;
@@ -126,7 +127,7 @@ int fetch_frame(void *videoHandle, unsigned char *tmpc, double *utc) {
         }
 
     // Clean up
-    jpeg_dealloc(&img);
+    image_dealloc(&img);
     goto EXIT;
 
     FAIL:
