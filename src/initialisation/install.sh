@@ -64,35 +64,10 @@ apt-get -y install gpsd gpsd-clients libjpeg8-dev libpng-dev libgsl-dev git qiv 
            ffmpeg python3-setuptools python3-virtualenv apache2 libapache2-mod-wsgi-py3 python3-tornado python3-flask \
            build-essential libpcre++-dev libboost-dev libboost-program-options-dev libboost-thread-dev \
            libboost-filesystem-dev libblas-dev liblapack-dev gfortran libffi-dev libssl-dev imagemagick gphoto2 \
-           libbz2-dev php-db php-mysql php-pear libapache2-mod-php mysql-server mysql-client libmysqlclient-dev \
+           libbz2-dev php-db php-mysql php-pear libapache2-mod-php mariadb-server mariadb-client libmariadbclient-dev \
            software-properties-common cmake astrometry.net astrometry-data-tycho2 python-virtualenv python-pip \
            python-dev libxml2-dev libxslt-dev certbot \
            2>> ../../datadir/install.stderr
-
-# Steps that we only need to run on Raspberry Pi
-if [ -x "$(command -v python)" ] ; then
-    R_PI=`python -c "import platform; print 'armv7l' in platform.uname()"`
-
-    if [ "$R_PI" = "True" ] ; then
-
-        # If we're running on a Raspberry Pi, we need more than 1GB of RAM for some build steps. We add some
-        # virtual memory
-        echo "[`date`] Activating swap, to avoid running out of RAM" | tee -a ../../datadir/install.stderr
-        dd if=/dev/zero of=/swapfile_pigazing bs=1024 count=1048576
-        chmod 600 /swapfile_pigazing
-        mkswap /swapfile_pigazing
-        swapon /swapfile_pigazing
-        swapon --show
-
-        # We need to Raspberry Pi GPU header files, which aren't shipped in Ubuntu. So let's compile the drivers
-        # from source
-        echo "[`date`] Installing Raspberry Pi libraries" | tee -a ../../datadir/install.stderr
-        cd /root
-        git clone https://github.com/raspberrypi/userland.git 2>> ${cwd}/../../datadir/install.stderr
-        cd userland
-        ./buildme 2>> ${cwd}/../../datadir/install.stderr
-    fi
-fi
 
 # Fix broken locales
 cd $cwd
@@ -105,6 +80,14 @@ cd $cwd
 echo "[`date`] Creating python virtual environment" | tee -a ../../datadir/install.stderr
 ./makeVirtualEnvironment.sh 2>> ../../datadir/install.stderr
 
+# Build the Pi Gazing software
+cd $cwd
+echo "[`date`] Building the Pi Gazing software" | tee -a ../../datadir/install.stderr
+cd ../observe/video_analysis/
+./prettymake -j 4
+cd ../../helpers/image_processing/
+./prettymake -j 4
+
 # Set up database
 cd $cwd
 echo "[`date`] Creating Pi Gazing database" | tee -a ../../datadir/install.stderr
@@ -114,9 +97,9 @@ echo "[`date`] Creating Pi Gazing database" | tee -a ../../datadir/install.stder
 cd $cwd
 echo "[`date`] Building node.js" | tee -a ../../datadir/install.stderr
 cd /root
-wget https://nodejs.org/dist/v10.14.2/node-v10.14.2.tar.gz
-tar xvfz node-v10.14.2.tar.gz
-cd node-v10.14.2
+wget https://nodejs.org/dist/v12.16.0/node-v12.16.0.tar.gz
+tar xvfz node-v12.16.0.tar.gz
+cd node-v12.16.0
 ./configure 2>> ${cwd}/../../datadir/install.stderr
 make 2>> ${cwd}/../../datadir/install.stderr
 sudo make install 2>> ${cwd}/../../datadir/install.stderr

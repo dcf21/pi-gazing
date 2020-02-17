@@ -103,6 +103,7 @@ class constants
 
         // Known metadata fields
         $this->metadataFields = [
+            "altitude_gps" => "Altitude (from GPS; m)",
             "camera" => "Camera model",
             "camera_type" => "Camera interface type",
             "camera_fps" => "Camera frame rate per sec",
@@ -110,10 +111,11 @@ class constants
             "camera_upside_down" => "Camera mounted upside-down",
             "camera_width" => "Camera pixel width",
             "clipping_region" => "Sky clipping region",
-            "hardware_version" => "Camera hardware",
+            "hardware_version" => "Observatory hardware",
             "instName" => "Institution name",
             "instURL" => "Institution web address",
             "latitude" => "Latitude north of equator (deg)",
+            "latitude_gps" => "Latitude north of equator (from GPS; deg)",
             "lens" => "Lens model",
             "lens_barrel_a" => "Barrel distortion (A)",
             "lens_barrel_b" => "Barrel distortion (B)",
@@ -121,6 +123,8 @@ class constants
             "lens_fov" => "Field of view (deg)",
             "location_source" => "Location determined from",
             "longitude" => "Longitude east of Greenwich (deg)",
+            "longitude_gps" => "Longitude east of Greenwich (from GPS; deg)",
+            "obstory_name" => "Observatory name",
             "pigazing:amplitudePeak" => "Peak brightness of object",
             "pigazing:amplitudeTimeIntegrated" => "Time-integrated brightness of object",
             "pigazing:detectionCount" => "Number of motion sensor detections",

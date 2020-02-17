@@ -209,7 +209,7 @@ Waiting {:.0f} seconds (until {}) to start observing.
             obstory_status = db.get_obstory_status(obstory_id=obstory_id)
 
             # If we've not stored a GPS fix in the database within the past six hours, do so now
-            if flag_gps or (time.time() > latest_position_update + 6 * 3600):
+            if flag_gps and (time.time() > latest_position_update + 6 * 3600):
                 latest_position_update = time.time()
                 db.register_obstory_metadata(obstory_id=obstory_id,
                                              key="latitude_gps",

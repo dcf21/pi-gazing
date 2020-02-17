@@ -87,7 +87,7 @@ $pageTemplate->header($pageInfo);
                                 analyses the video signal.
                             </p>
                             <p class="text">
-                                We have a Raspberry Pi 3 Model B computer, which receives the pictures from the video
+                                We have a Raspberry Pi 4 Model B computer, which receives the pictures from the video
                                 camera and analyses them. It takes long-exposure still photographs every 30 seconds
                                 through the night, and also monitors the video feed to look for moving objects.
                             </p>

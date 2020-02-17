@@ -29,12 +29,15 @@ Use astrometry.net to calculate the orientation of the camera based on recent im
 import argparse
 import logging
 import os
-import sys
 import time
 import re
 import subprocess
 import math
+import numpy as np
 
+from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
+from pigazing_helpers import connect_db, dcf_ast, gnomonic_project, hardware_properties
+from pigazing_helpers.settings_read import settings, installation_info
 
 
 # Return the dimensions of an image
@@ -53,38 +56,91 @@ def sgn(x):
     return 0
 
 
-def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
-    log_prefix = "[%12s %s]" % (obstory_id, dcf_ast.date_string(utc_to_study))
+def orientation_calc(obstory_id, utc_min, utc_max, utc_must_stop=None):
+    # Open connection to database
+    [db0, conn] = connect_db.connect_db()
 
-    logger.info("%s Starting calculation of camera alignment" % log_prefix)
+    # Open connection to image archive
+    db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                           db_host=installation_info['mysqlHost'],
+                                           db_user=installation_info['mysqlUser'],
+                                           db_password=installation_info['mysqlPassword'],
+                                           db_name=installation_info['mysqlDatabase'],
+                                           obstory_id=installation_info['observatoryId'])
+
+    logging.info("Starting calculation of camera alignment for <{}>".format(obstory_id))
 
     # Mathematical constants
     deg = math.pi / 180
     rad = 180 / math.pi
 
-    # This is an estimate of the *maximum* angular width we expect images to have.
-    # It should be within a factor of two of correct!
-    estimated_image_scale = installation_info.local_conf['estimatedImageScale']
+    # Read properties of known lenses
+    hw = hardware_properties.HardwareProps(
+        path=os.path.join(settings['pythonPath'], "..", "configuration_global", "camera_properties")
+    )
+
+    # Reduce time window to where observations are present
+    conn.execute("""
+SELECT obsTime
+FROM archive_observations
+WHERE obsTime BETWEEN %s AND %s
+    AND observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
+ORDER BY obsTime ASC LIMIT 1
+""", (utc_min, utc_max, obstory_id))
+    results = conn.fetchall()
+
+    if len(results) == 0:
+        logging.warning("No observations within requested time window.")
+        return
+    utc_min = results[0]['obsTime'] - 1
+
+    conn.execute("""
+SELECT obsTime
+FROM archive_observations
+WHERE obsTime BETWEEN %s AND %s
+    AND observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
+ORDER BY obsTime DESC LIMIT 1
+""", (utc_min, utc_max, obstory_id))
+    results = conn.fetchall()
+    utc_max = results[0]['obsTime'] + 1
+
+    # Divide up time interval into 30 minute blocks
+    block_size = 1800
+    time_blocks = np.arange(start=utc_min, stop=utc_max, step=block_size)
+
+    for utc_block_min in time_blocks:
+        utc_block_max = utc_block_min + block_size
+
+        # Fetch observatory status
+        obstory_status = db.get_obstory_status(obstory_id=obstory_id, time=utc_block_max)
+        lens_name = obstory_status['lens']
+        lens_props = hw.lens_data[lens_name]
+
+        # This is an estimate of the *maximum* angular width we expect images to have.
+        # It should be within a factor of two of correct!
+        estimated_image_scale = lens_props.fov
+
+
+        # Search for background-subtracted time lapse photography within this range
+    search = mp.FileRecordSearch(obstory_ids=[obstory_id], semantic_type="pigazing:timelapse/frame/bgrdSub",
+                                 time_min=utc_min, time_max=utc_max, limit=1000000)
+    files = db.search_files(search)
+    files = files['files']
 
     # When passing images to astrometry.net, only work on the central portion, as this will have least bad distortion
     fraction_x = 0.4
     fraction_y = 0.4
 
     # Path the binary barrel-correction tool
-    barrel_correct = os.path.join(mod_settings.settings['imageProcessorPath'], "barrel")
-
-    # Calculate time span to use images from
-    utc_min = utc_to_study
-    utc_max = utc_to_study + 3600 * 24
-    db = pigazing_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
+    barrel_correct = os.path.join(settings['imageProcessorPath'], "barrel")
 
     # Fetch observatory status
     obstory_info = db.get_obstory_from_id(obstory_id)
     obstory_status = None
     if obstory_info and ('name' in obstory_info):
-        obstory_status = db.get_obstory_status(obstory_name=obstory_info['name'], time=utc_now)
+        obstory_status = db.get_obstory_status(obstory_id=obstory_id, time=utc_now)
     if not obstory_status:
-        logger.info("%s Aborting -- no observatory status available." % log_prefix)
+        logging.info("%s Aborting -- no observatory status available." % log_prefix)
         db.close_db()
         return
     obstory_name = obstory_info['name']
@@ -109,10 +165,10 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
     # If we don't have enough images, we can't proceed to get a secure orientation fit
     if len(acceptable_files) < 6:
-        logger.info("%s Not enough suitable images." % log_msg)
+        logging.info("%s Not enough suitable images." % log_msg)
         db.close_db()
         return
-    logger.info(log_msg)
+    logging.info(log_msg)
 
     # We can't afford to run astrometry.net on too many images, so pick the 20 best ones
     acceptable_files.sort(key=lambda f: db.get_file_metadata(f.id, 'pigazing:skyClarity'))
@@ -124,7 +180,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     cwd = os.getcwd()
     pid = os.getpid()
     tmp = "/tmp/dcf21_orientationCalc_%d" % pid
-    # logger.info("Created temporary directory <%s>" % tmp)
+    # logging.info("Created temporary directory <%s>" % tmp)
     os.system("mkdir %s" % tmp)
     os.chdir(tmp)
 
@@ -140,7 +196,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         filename = db.file_path_for_id(f.id)
 
         if not os.path.exists(filename):
-            logger.info("%s Error! File <%s> is missing!" % (log_prefix, filename))
+            logging.info("%s Error! File <%s> is missing!" % (log_prefix, filename))
             continue
 
         # 1. Copy image into working directory
@@ -173,8 +229,8 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         f = fit['f']
 
         # Check that we've not run out of time
-        if utc_must_stop and (mod_log.get_utc() > utc_must_stop):
-            logger.info("%s We have run out of time! Aborting." % log_prefix)
+        if utc_must_stop and (time.time() > utc_must_stop):
+            logging.info("%s We have run out of time! Aborting." % log_prefix)
             continue
 
         log_msg = ("Processed image <%s> from time <%s> -- skyClarity=%.1f. " %
@@ -182,13 +238,13 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
                     db.get_file_metadata(f.id, 'pigazing:skyClarity')))
 
         # How long should we allow astrometry.net to run for?
-        if mod_settings.settings['i_am_a_rpi']:
+        if settings['i_am_a_rpi']:
             timeout = "6m"
         else:
             timeout = "50s"
 
         # Run astrometry.net. Insert --no-plots on the command line to speed things up.
-        astrometry_start_time = mod_log.get_utc()
+        astrometry_start_time = time.time()
         estimated_width = 2 * math.atan(math.tan(estimated_image_scale / 2 * deg) * fraction_x) * rad
         os.system("timeout %s /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --scale-low %.1f "
                   "--scale-high %.1f --odds-to-tune-up 1e4 --odds-to-solve 1e7 --overwrite %s > txt"
@@ -196,16 +252,16 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
                      estimated_width * 0.6,
                      estimated_width * 1.2,
                      fit['fname_processed']))
-        astrometry_time_taken = mod_log.get_utc() - astrometry_start_time
+        astrometry_time_taken = time.time() - astrometry_start_time
         log_msg += ("Astrometry.net took %d sec. " % astrometry_time_taken)
 
         # Parse the output from astrometry.net
         fit_text = open("txt").read()
-        # logger.info(fit_text)
+        # logging.info(fit_text)
         test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",
                          fit_text)
         if not test:
-            logger.info("%s FAIL(POS): %s" % (log_prefix, log_msg))
+            logging.info("%s FAIL(POS): %s" % (log_prefix, log_msg))
             continue
 
         ra_sign = sgn(float(test.group(1)))
@@ -218,7 +274,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
             dec *= -1
         test = re.search(r"up is [+]?([-\d\.]*) degrees (.) of N", fit_text)
         if not test:
-            logger.info("%s FAIL(PA ): %s" % (log_prefix, log_msg))
+            logging.info("%s FAIL(PA ): %s" % (log_prefix, log_msg))
             continue
 
         # celestial_pa is the position angle of the upward vector in the centre of the image, counterclockwise
@@ -236,7 +292,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
             celestial_pa += 360
         test = re.search(r"Field size: ([\d\.]*) x ([\d\.]*) deg", fit_text)
         if not test:
-            logger.info("%s FAIL(SIZ): %s" % (log_prefix, log_msg))
+            logging.info("%s FAIL(SIZ): %s" % (log_prefix, log_msg))
             continue
 
         # Expand reported size of image to whole image, not just the central tile we sent to astrometry.net
@@ -265,8 +321,8 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         while camera_tilt > 180:
             camera_tilt -= 360
 
-        logger.info("%s PASS     : %s" % (log_prefix, log_msg))
-        logger.info("%s FIT      : RA: %7.2fh. Dec %7.2f deg. PA %6.1f deg. ScaleX %6.1f. ScaleY %6.1f. "
+        logging.info("%s PASS     : %s" % (log_prefix, log_msg))
+        logging.info("%s FIT      : RA: %7.2fh. Dec %7.2f deg. PA %6.1f deg. ScaleX %6.1f. ScaleY %6.1f. "
                 "Zenith at (%.2f h,%.2f deg). PA Zenith %.2f deg. "
                 "Alt: %7.2f deg. Az: %7.2f deg. Tilt: %7.2f deg." %
                 (log_prefix, ra, dec, celestial_pa, scale_x, scale_y, ra_zenith, dec_zenith, zenith_pa,
@@ -280,7 +336,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
     # Average the resulting fits
     if len(fit_list) < 4:
-        logger.info("%s ABORT    : astrometry.net only managed to fit %2d images." % (log_prefix, len(fit_list)))
+        logging.info("%s ABORT    : astrometry.net only managed to fit %2d images." % (log_prefix, len(fit_list)))
         db.close_db()
         os.chdir(cwd)
         os.system("rm -Rf %s" % tmp)
@@ -303,7 +359,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
         adjective = "SUCCESSFUL"
     else:
         adjective = "REJECTED"
-    logger.info("%s %s ORIENTATION FIT (from %2d images). "
+    logging.info("%s %s ORIENTATION FIT (from %2d images). "
             "Alt: %.2f deg. Az: %.2f deg. PA: %.2f deg. ScaleX: %.2f deg. ScaleY: %.2f deg. "
             "Uncertainty: %.2f deg." % (log_prefix, adjective, len(fit_list),
                                         alt_az_best[0] * rad,
@@ -315,7 +371,7 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
 
     # Update observatory status
     if success:
-        user = mod_settings.settings['pigazingUser']
+        user = settings['pigazingUser']
         utc = utc_to_study
         db.register_obstory_metadata(obstory_name, "orientation_altitude", alt_az_best[0] * rad, utc, user)
         db.register_obstory_metadata(obstory_name, "orientation_azimuth", alt_az_best[1] * rad, utc, user)
@@ -332,39 +388,29 @@ def orientation_calc(obstory_id, utc_to_study, utc_now, utc_must_stop=0):
     return
 
 
-def reprocess_all_data(obstory_id):
-    db = pigazing_db.MeteorDatabase(mod_settings.settings['dbFilestore'])
-    db.con.execute("SELECT m.time FROM archive_metadata m "
-                   "INNER JOIN archive_observatories l ON m.observatory = l.uid "
-                   "AND l.publicId = %s AND m.time>0 "
-                   "ORDER BY m.time ASC LIMIT 1",
-                   (obstory_id,))
-    first_seen = 0
-    results = db.con.fetchall()
-    if results:
-        first_seen = results[0]['time']
-    db.con.execute("SELECT m.time FROM archive_metadata m "
-                   "INNER JOIN archive_observatories l ON m.observatory = l.uid "
-                   "AND l.publicId = %s AND m.time>0 "
-                   "ORDER BY m.time DESC LIMIT 1",
-                   (obstory_id,))
-    last_seen = 0
-    results = db.con.fetchall()
-    if results:
-        last_seen = results[0]['time']
-    day = 86400
-    utc = math.floor(first_seen / day) * day + day / 2
-    while utc < last_seen:
-        orientation_calc(obstory_id=obstory_id,
-                         utc_to_study=utc,
-                         utc_now=mod_log.get_utc(),
-                         utc_must_stop=0)
-        utc += day
+def flush_orientation(obstory_id, utc_min, utc_max):
+    # Open connection to database
+    [db0, conn] = connect_db.connect_db()
+
+    conn.execute("""
+DELETE m
+FROM archive_metadata m
+INNER JOIN archive_observations o ON m.observationId = o.uid
+WHERE
+    fieldId IN (SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'orientation:*') AND
+    o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
+    o.obsTime BETWEEN %s AND %s;
+""", (obstory_id, utc_min, utc_max))
+
+    # Commit changes to database
+    db0.commit()
+    conn.close()
+    db0.close()
 
 
 # If we're called as a script, run the method orientationCalc()
 if __name__ == "__main__":
-    # Read commandline arguments
+    # Read command-line arguments
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--stop-by', default=None, type=float,
                         dest='stop_by', help='The unix time when we need to exit, even if jobs are unfinished')
@@ -372,13 +418,13 @@ if __name__ == "__main__":
     # By default, study images taken over past 24 hours
     parser.add_argument('--utc-min', dest='utc_min', default=time.time() - 3600 * 24,
                         type=float,
-                        help="Only list events seen after the specified unix time")
+                        help="Only use images recorded after the specified unix time")
     parser.add_argument('--utc-max', dest='utc_max', default=time.time(),
                         type=float,
-                        help="Only list events seen before the specified unix time")
+                        help="Only use images recorded before the specified unix time")
 
     parser.add_argument('--observatory', dest='obstory_id', default=None,
-                        help="ID of the observatory we are to list events from")
+                        help="ID of the observatory we are to calibrate")
     parser.add_argument('--flush', dest='flush', action='store_true')
     parser.add_argument('--no-flush', dest='flush', action='store_false')
     parser.set_defaults(flush=False)
@@ -397,9 +443,9 @@ if __name__ == "__main__":
 
     # If flush option was specified, then delete all existing alignment information
     if args.flush:
-        reprocess_all_data(obstory_id=args.obstory_id,
-                           utc_min=args.utc_min,
-                           utc_max=args.utc_max)
+        flush_orientation(obstory_id=args.obstory_id,
+                          utc_min=args.utc_min,
+                          utc_max=args.utc_max)
 
     # Calculate the orientation of images
     orientation_calc(obstory_id=args.obstory_id,

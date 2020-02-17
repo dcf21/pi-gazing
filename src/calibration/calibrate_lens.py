@@ -208,3 +208,28 @@ def calibrate_image():
             print("User-supplied position (%4d,%4d). Model position (%4d,%4d). Mismatch %5d pixels." % (star['xpos'], star['ypos'],
                                                                                            pos[0], pos[1], distance))
 
+
+# If we're called as a script, run the method orientationCalc()
+if __name__ == "__main__":
+    # Read commandline arguments
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--stop-by', default=None, type=float,
+                        dest='stop_by', help='The unix time when we need to exit, even if jobs are unfinished')
+    parser.add_argument('--image', dest='image', required=True,
+                        help="The repositoryFname of the image we are to use to calibrate the lens")
+    args = parser.parse_args()
+
+    # Set up logging
+    logging.basicConfig(level=logging.INFO,
+                        format='[%(asctime)s] %(levelname)s:%(filename)s:%(message)s',
+                        datefmt='%d/%m/%Y %H:%M:%S',
+                        handlers=[
+                            logging.FileHandler(os.path.join(settings['pythonPath'], "../datadir/pigazing.log")),
+                            logging.StreamHandler()
+                        ])
+    logger = logging.getLogger(__name__)
+    logger.info(__doc__.strip())
+
+    # Calculate the orientation of images
+    calibrate_image(image=args.image,
+                     utc_must_stop=args.stop_by)
