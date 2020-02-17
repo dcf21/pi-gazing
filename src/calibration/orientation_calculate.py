@@ -26,6 +26,8 @@ Use astrometry.net to calculate the orientation of the camera based on recent im
 """
 
 
+import argparse
+import logging
 import os
 import sys
 import time
@@ -33,15 +35,6 @@ import re
 import subprocess
 import math
 
-import pigazing_db
-import pigazing_model as mp
-
-from pigazing_helpers import dcf_ast
-import mod_gnomonic
-import mod_log
-from mod_log import log_txt
-import mod_settings
-import installation_info
 
 
 # Return the dimensions of an image
@@ -371,15 +364,45 @@ def reprocess_all_data(obstory_id):
 
 # If we're called as a script, run the method orientationCalc()
 if __name__ == "__main__":
-    _obstory_name = installation_info.local_conf['observatoryName']
-    _utc_now = mod_log.get_utc()
-    if len(sys.argv) > 1:
-        _obstory_name = sys.argv[1]
-    if len(sys.argv) > 2:
-        _utc_now = float(sys.argv[2])
-    _utc_to_study = _utc_now - 3600 * 24  # By default, study images taken over past 24 hours
-    mod_log.set_utc_offset(_utc_now - time.time())
-    orientation_calc(obstory_id=_obstory_name,
-                     utc_to_study=_utc_to_study,
-                     utc_now=_utc_now,
-                     utc_must_stop=0)
+    # Read commandline arguments
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--stop-by', default=None, type=float,
+                        dest='stop_by', help='The unix time when we need to exit, even if jobs are unfinished')
+
+    # By default, study images taken over past 24 hours
+    parser.add_argument('--utc-min', dest='utc_min', default=time.time() - 3600 * 24,
+                        type=float,
+                        help="Only list events seen after the specified unix time")
+    parser.add_argument('--utc-max', dest='utc_max', default=time.time(),
+                        type=float,
+                        help="Only list events seen before the specified unix time")
+
+    parser.add_argument('--observatory', dest='obstory_id', default=None,
+                        help="ID of the observatory we are to list events from")
+    parser.add_argument('--flush', dest='flush', action='store_true')
+    parser.add_argument('--no-flush', dest='flush', action='store_false')
+    parser.set_defaults(flush=False)
+    args = parser.parse_args()
+
+    # Set up logging
+    logging.basicConfig(level=logging.INFO,
+                        format='[%(asctime)s] %(levelname)s:%(filename)s:%(message)s',
+                        datefmt='%d/%m/%Y %H:%M:%S',
+                        handlers=[
+                            logging.FileHandler(os.path.join(settings['pythonPath'], "../datadir/pigazing.log")),
+                            logging.StreamHandler()
+                        ])
+    logger = logging.getLogger(__name__)
+    logger.info(__doc__.strip())
+
+    # If flush option was specified, then delete all existing alignment information
+    if args.flush:
+        reprocess_all_data(obstory_id=args.obstory_id,
+                           utc_min=args.utc_min,
+                           utc_max=args.utc_max)
+
+    # Calculate the orientation of images
+    orientation_calc(obstory_id=args.obstory_id,
+                     utc_min=args.utc_min,
+                     utc_max=args.utc_max,
+                     utc_must_stop=args.stop_by)

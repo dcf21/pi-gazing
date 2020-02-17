@@ -44,6 +44,8 @@ that future observatories set up with your model of lens will use your barrel co
 """
 
 
+import argparse
+import logging
 import sys
 import json
 import subprocess
@@ -153,56 +155,56 @@ def image_dimensions(f):
     d = [int(item) for item in d]
     return d
 
+def calibrate_image():
+    # Read input list of stars whose positions we know
+    input_config_filename = sys.argv[1]
+    input_config = json.loads(open(input_config_filename).read())
 
-# Read input list of stars whose positions we know
-input_config_filename = sys.argv[1]
-input_config = json.loads(open(input_config_filename).read())
+    # Look up positions of each star, based on listed Hipparcos catalogue numbers
+    star_list = []
+    for star in input_config['star_list']:
+        hipp = str(star[2])
+        if hipp not in hipp_positions:
+            print("Could not find star %d" % hipp)
+            continue
+        [ra, dec] = hipp_positions[hipp]
+        star_list.append({'xpos': int(star[0]), 'ypos': int(star[1]), 'ra': ra * degrees, 'dec': dec * degrees})
 
-# Look up positions of each star, based on listed Hipparcos catalogue numbers
-star_list = []
-for star in input_config['star_list']:
-    hipp = str(star[2])
-    if hipp not in hipp_positions:
-        print("Could not find star %d" % hipp)
-        continue
-    [ra, dec] = hipp_positions[hipp]
-    star_list.append({'xpos': int(star[0]), 'ypos': int(star[1]), 'ra': ra * degrees, 'dec': dec * degrees})
+    # Get dimensions of the image we are dealing with
+    image_file = input_config['image_file']
+    [img_size_x, img_size_y] = image_dimensions(image_file)
 
-# Get dimensions of the image we are dealing with
-image_file = input_config['image_file']
-[img_size_x, img_size_y] = image_dimensions(image_file)
+    # Solve system of equations to give best fit barrel correction
+    # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/> for more information about how this works
+    ra0 = star_list[0]['ra']
+    dec0 = star_list[0]['dec']
+    params_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 0.05, 0.05, 0.05]
+    params_defaults = [ra0, dec0, pi / 4, pi / 4, 0, 0, 0, 0]
+    params_initial = [params_defaults[i] / params_scales[i] for i in range(len(params_defaults))]
+    params_optimised = scipy.optimize.minimize(mismatch, params_initial, method='nelder-mead',
+                                               options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}).x
+    params_final = [params_optimised[i] * params_scales[i] for i in range(len(params_defaults))]
 
-# Solve system of equations to give best fit barrel correction
-# See <http://www.scipy-lectures.org/advanced/mathematical_optimization/> for more information about how this works
-ra0 = star_list[0]['ra']
-dec0 = star_list[0]['dec']
-params_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 0.05, 0.05, 0.05]
-params_defaults = [ra0, dec0, pi / 4, pi / 4, 0, 0, 0, 0]
-params_initial = [params_defaults[i] / params_scales[i] for i in range(len(params_defaults))]
-params_optimised = scipy.optimize.minimize(mismatch, params_initial, method='nelder-mead',
-                                           options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}).x
-params_final = [params_optimised[i] * params_scales[i] for i in range(len(params_defaults))]
+    # Display best fit numbers
+    headings = [["Central RA / hr", 12 / pi], ["Central Decl / deg", 180 / pi],
+                ["Image width / deg", 180 / pi], ["Image height / deg", 180 / pi],
+                ["Position angle / deg", 180 / pi],
+                ["barrel_a", 1], ["barrel_b", 1], ["barrel_c", 1]
+                ]
 
-# Display best fit numbers
-headings = [["Central RA / hr", 12 / pi], ["Central Decl / deg", 180 / pi],
-            ["Image width / deg", 180 / pi], ["Image height / deg", 180 / pi],
-            ["Position angle / deg", 180 / pi],
-            ["barrel_a", 1], ["barrel_b", 1], ["barrel_c", 1]
-            ]
+    print("\n\nBest fit parameters were:")
+    for i in range(len(params_defaults)):
+        print("%30s : %s" % (headings[i][0], params_final[i] * headings[i][1]))
 
-print("\n\nBest fit parameters were:")
-for i in range(len(params_defaults)):
-    print("%30s : %s" % (headings[i][0], params_final[i] * headings[i][1]))
-
-# Print information about how well each star was fitted
-[ra0, dec0, scale_x, scale_y, pos_ang, bca, bcb, bcc] = params_final
-if True:
-    print("\n\nStars used in fitting process:")
-    for star in star_list:
-        pos = gnomonic_project(star['ra'], star['dec'], ra0, dec0,
-                               img_size_x, img_size_y, scale_x, scale_y, pos_ang,
-                               bca, bcb, bcc)
-        distance = hypot(star['xpos'] - pos[0], star['ypos'] - pos[1])
-        print("User-supplied position (%4d,%4d). Model position (%4d,%4d). Mismatch %5d pixels." % (star['xpos'], star['ypos'],
+    # Print information about how well each star was fitted
+    [ra0, dec0, scale_x, scale_y, pos_ang, bca, bcb, bcc] = params_final
+    if True:
+        print("\n\nStars used in fitting process:")
+        for star in star_list:
+            pos = gnomonic_project(star['ra'], star['dec'], ra0, dec0,
+                                   img_size_x, img_size_y, scale_x, scale_y, pos_ang,
+                                   bca, bcb, bcc)
+            distance = hypot(star['xpos'] - pos[0], star['ypos'] - pos[1])
+            print("User-supplied position (%4d,%4d). Model position (%4d,%4d). Mismatch %5d pixels." % (star['xpos'], star['ypos'],
                                                                                            pos[0], pos[1], distance))
 
