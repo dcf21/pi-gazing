@@ -25,18 +25,19 @@
 Use astrometry.net to calculate the orientation of the camera based on recent images
 """
 
-
 import argparse
 import logging
+import math
 import os
-import time
 import re
 import subprocess
-import math
-import numpy as np
+import time
+from operator import itemgetter
 
-from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
+import numpy as np
 from pigazing_helpers import connect_db, dcf_ast, gnomonic_project, hardware_properties
+from pigazing_helpers.dcf_ast import date_string
+from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 
 
@@ -105,8 +106,13 @@ ORDER BY obsTime DESC LIMIT 1
     utc_max = results[0]['obsTime'] + 1
 
     # Divide up time interval into 30 minute blocks
+    logging.info("Searching for images within time period {} to {}".format(date_string(utc_min), date_string(utc_max)))
     block_size = 1800
+    minimum_sky_clarity = 500
     time_blocks = np.arange(start=utc_min, stop=utc_max, step=block_size)
+
+    # Build list of images we are to analyse
+    images_for_analysis = []
 
     for utc_block_min in time_blocks:
         utc_block_max = utc_block_min + block_size
@@ -120,12 +126,44 @@ ORDER BY obsTime DESC LIMIT 1
         # It should be within a factor of two of correct!
         estimated_image_scale = lens_props.fov
 
+        # Search for background-subtracted time lapse image with best sky clarity, and no existing orientation fit,
+        # within this time period
+        conn.execute("""
+SELECT ao.obsTime, f.repositoryFname, am.floatValue AS skyClarity
+FROM archive_files f
+INNER JOIN archive_observations ao on f.observationId = ao.uid
+INNER JOIN archive_metadata am ON f.uid = am.fileId AND
+    am.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:skyClarity")
+LEFT OUTER JOIN archive_metadata am2 ON f.uid = am2.fileId AND
+    am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:altitude")
+WHERE ao.obsTime BETWEEN %s AND %s
+    AND ao.observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
+    AND f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name="pigazing:timelapse/backgroundSubtracted")
+    AND am.floatValue > %s
+    AND am2.uid IS NULL
+ORDER BY am.floatValue DESC LIMIT 1
+""", (utc_block_min, utc_block_max, obstory_id, minimum_sky_clarity))
+        results = conn.fetchall()
 
-        # Search for background-subtracted time lapse photography within this range
-    search = mp.FileRecordSearch(obstory_ids=[obstory_id], semantic_type="pigazing:timelapse/frame/bgrdSub",
-                                 time_min=utc_min, time_max=utc_max, limit=1000000)
-    files = db.search_files(search)
-    files = files['files']
+        if len(results) > 0:
+            images_for_analysis.append({
+                'utc': results[0]['obsTime'],
+                'skyClarity': results[0]['skyClarity'],
+                'repositoryFname': results[0]['repositoryFname']
+            })
+
+    # Sort images into order of sky clarity
+    images_for_analysis.sort(key=itemgetter("skyClarity"))
+    images_for_analysis.reverse()
+
+    # Display logging list of the images we are going to work on
+    logging.info("Estimating the orientation of the {:d} images:".format(len(images_for_analysis)))
+    for item in images_for_analysis:
+        logging.info("{:17s} {:04.0f} {:32s}".format(date_string(item['utc']),
+                                                     item['skyClarity'],
+                                                     item['repositoryFname']))
+
+    elephant
 
     # When passing images to astrometry.net, only work on the central portion, as this will have least bad distortion
     fraction_x = 0.4
@@ -212,11 +250,11 @@ ORDER BY obsTime DESC LIMIT 1
         # 3. Pass only central portion of image to astrometry.net. It's not very reliable with wide-field images
         d = image_dimensions("%s_tmp2.png" % img_name)
         os.system(
-                "convert %s_tmp2.png -colorspace sRGB -define png:format=png24 -crop %dx%d+%d+%d +repage %s_tmp3.png"
-                % (img_name,
-                   fraction_x * d[0], fraction_y * d[1],
-                   (1 - fraction_x) * d[0] / 2, (1 - fraction_y) * d[1] / 2,
-                   img_name))
+            "convert %s_tmp2.png -colorspace sRGB -define png:format=png24 -crop %dx%d+%d+%d +repage %s_tmp3.png"
+            % (img_name,
+               fraction_x * d[0], fraction_y * d[1],
+               (1 - fraction_x) * d[0] / 2, (1 - fraction_y) * d[1] / 2,
+               img_name))
 
         fit_obj['fname_processed'] = '%s_tmp3.png' % img_name
         fit_obj['fname_original'] = '%s_tmp.png' % img_name
@@ -301,12 +339,12 @@ ORDER BY obsTime DESC LIMIT 1
 
         # Work out alt-az of reported (RA,Dec) using known location of camera. Fits returned in degrees.
         alt_az = dcf_ast.alt_az(ra, dec, fit['f'].file_time,
-                                  obstory_status['latitude'], obstory_status['longitude'])
+                                obstory_status['latitude'], obstory_status['longitude'])
 
         # Get celestial coordinates of the local zenith
         ra_dec_zenith = dcf_ast.get_zenith_position(obstory_status['latitude'],
-                                                      obstory_status['longitude'],
-                                                      fit['f'].file_time)
+                                                    obstory_status['longitude'],
+                                                    fit['f'].file_time)
         ra_zenith = ra_dec_zenith['ra']
         dec_zenith = ra_dec_zenith['dec']
 
@@ -323,10 +361,10 @@ ORDER BY obsTime DESC LIMIT 1
 
         logging.info("%s PASS     : %s" % (log_prefix, log_msg))
         logging.info("%s FIT      : RA: %7.2fh. Dec %7.2f deg. PA %6.1f deg. ScaleX %6.1f. ScaleY %6.1f. "
-                "Zenith at (%.2f h,%.2f deg). PA Zenith %.2f deg. "
-                "Alt: %7.2f deg. Az: %7.2f deg. Tilt: %7.2f deg." %
-                (log_prefix, ra, dec, celestial_pa, scale_x, scale_y, ra_zenith, dec_zenith, zenith_pa,
-                 alt_az[0], alt_az[1], camera_tilt))
+                     "Zenith at (%.2f h,%.2f deg). PA Zenith %.2f deg. "
+                     "Alt: %7.2f deg. Az: %7.2f deg. Tilt: %7.2f deg." %
+                     (log_prefix, ra, dec, celestial_pa, scale_x, scale_y, ra_zenith, dec_zenith, zenith_pa,
+                      alt_az[0], alt_az[1], camera_tilt))
 
         # Store information about fit
         fit.update({'fit': True, 'ra': ra, 'dec': dec, 'pa': celestial_pa, 'sx': scale_x, 'sy': scale_y,
@@ -360,25 +398,25 @@ ORDER BY obsTime DESC LIMIT 1
     else:
         adjective = "REJECTED"
     logging.info("%s %s ORIENTATION FIT (from %2d images). "
-            "Alt: %.2f deg. Az: %.2f deg. PA: %.2f deg. ScaleX: %.2f deg. ScaleY: %.2f deg. "
-            "Uncertainty: %.2f deg." % (log_prefix, adjective, len(fit_list),
-                                        alt_az_best[0] * rad,
-                                        alt_az_best[1] * rad,
-                                        pa_best * rad,
-                                        scale_x_best * rad,
-                                        scale_y_best * rad,
-                                        alt_az_error * rad))
+                 "Alt: %.2f deg. Az: %.2f deg. PA: %.2f deg. ScaleX: %.2f deg. ScaleY: %.2f deg. "
+                 "Uncertainty: %.2f deg." % (log_prefix, adjective, len(fit_list),
+                                             alt_az_best[0] * rad,
+                                             alt_az_best[1] * rad,
+                                             pa_best * rad,
+                                             scale_x_best * rad,
+                                             scale_y_best * rad,
+                                             alt_az_error * rad))
 
     # Update observatory status
     if success:
         user = settings['pigazingUser']
         utc = utc_to_study
-        db.register_obstory_metadata(obstory_name, "orientation_altitude", alt_az_best[0] * rad, utc, user)
-        db.register_obstory_metadata(obstory_name, "orientation_azimuth", alt_az_best[1] * rad, utc, user)
-        db.register_obstory_metadata(obstory_name, "orientation_error", alt_az_error * rad, utc, user)
-        db.register_obstory_metadata(obstory_name, "orientation_pa", pa_best * rad, utc, user)
-        db.register_obstory_metadata(obstory_name, "orientation_width_x_field", scale_x_best * rad, utc, user)
-        db.register_obstory_metadata(obstory_name, "orientation_width_y_field", scale_y_best * rad, utc, user)
+        db.register_obstory_metadata(obstory_name, "orientation:altitude", alt_az_best[0] * rad, utc, user)
+        db.register_obstory_metadata(obstory_name, "orientation:azimuth", alt_az_best[1] * rad, utc, user)
+        db.register_obstory_metadata(obstory_name, "orientation:error", alt_az_error * rad, utc, user)
+        db.register_obstory_metadata(obstory_name, "orientation:pa", pa_best * rad, utc, user)
+        db.register_obstory_metadata(obstory_name, "orientation:width_x_field", scale_x_best * rad, utc, user)
+        db.register_obstory_metadata(obstory_name, "orientation:width_y_field", scale_y_best * rad, utc, user)
     db.commit()
     db.close_db()
 
@@ -423,7 +461,7 @@ if __name__ == "__main__":
                         type=float,
                         help="Only use images recorded before the specified unix time")
 
-    parser.add_argument('--observatory', dest='obstory_id', default=None,
+    parser.add_argument('--observatory', dest='obstory_id', default=installation_info['observatoryId'],
                         help="ID of the observatory we are to calibrate")
     parser.add_argument('--flush', dest='flush', action='store_true')
     parser.add_argument('--no-flush', dest='flush', action='store_false')
