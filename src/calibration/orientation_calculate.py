@@ -203,24 +203,33 @@ ORDER BY am.floatValue DESC LIMIT 1
         lens_barrel_c = obstory_status.get('calibration:lens_barrel_c', lens_props.barrel_c)
 
         # 1. Copy image into working directory
+        logging.info("Copying file")
         img_name = item['repositoryFname']
-        os.system("cp {} {}_tmp.png".format(filename, img_name))
+        command = "cp {} {}_tmp.png".format(filename, img_name)
+        logging.info(command)
+        os.system(command)
 
         # 2. Barrel-correct image
-        os.system("{} -i {}_tmp.png -a {:.6f} -b {:.6f} -c {:.6f} -o {}_tmp2.png".format(barrel_correct, img_name,
+        logging.info("Lens-correcting image")
+        command = "{} -i {}_tmp.png -a {:.6f} -b {:.6f} -c {:.6f} -o {}_tmp2.png".format(barrel_correct, img_name,
                                                                                          lens_barrel_a,
                                                                                          lens_barrel_b,
                                                                                          lens_barrel_c,
-                                                                                         img_name))
+                                                                                         img_name)
+        logging.info(command)
+        os.system(command)
 
         # 3. Pass only central portion of image to astrometry.net. It's not very reliable with wide-field images
+        logging.info("Extracting central portion of image")
         d = image_dimensions("%s_tmp2.png" % img_name)
-        os.system("""
+        command = """
 convert {}_tmp2.png -colorspace sRGB -define png:format=png24 -crop {:d}x{:d}+{:d}+{:d} +repage {}_tmp3.png
 """.format(img_name,
            int(fraction_x * d[0]), int(fraction_y * d[1]),
            int((1 - fraction_x) * d[0] / 2), int((1 - fraction_y) * d[1] / 2),
-           img_name))
+           img_name)
+        logging.info(command)
+        os.system(command)
 
         # Check that we've not run out of time
         if utc_must_stop and (time.time() > utc_must_stop):
@@ -234,15 +243,20 @@ convert {}_tmp2.png -colorspace sRGB -define png:format=png24 -crop {:d}x{:d}+{:
             timeout = "50s"
 
         # Run astrometry.net. Insert --no-plots on the command line to speed things up.
+        logging.info("Running astrometry.net")
         astrometry_start_time = time.time()
         estimated_width = 2 * math.atan(math.tan(estimated_image_scale / 2 * deg) * fraction_x) * rad
-        os.system("""
+        command = """
 timeout {} /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --scale-low {:.1f} \
         --scale-high {:.1f} --odds-to-tune-up 1e4 --odds-to-solve 1e7 --overwrite {}_tmp3.png > txt \
 """.format(timeout,
            estimated_width * 0.6,
            estimated_width * 1.2,
-           img_name))
+           img_name)
+        logging.info(command)
+        os.system(command)
+
+        # Report how long astrometry.net took
         astrometry_time_taken = time.time() - astrometry_start_time
         log_msg = "Astrometry.net took {:.0f} sec. ".format(astrometry_time_taken)
 

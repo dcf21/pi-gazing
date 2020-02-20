@@ -26,6 +26,7 @@ Update the sky clarity measurements in the database. This is useful if the algor
 """
 
 import argparse
+import logging
 import os
 import subprocess
 import time
@@ -96,16 +97,23 @@ ORDER BY obsTime ASC;
 """, args)
     results = conn.fetchall()
 
+    # Keep track of how many sky clarity values we have updated
+    values_unchanged = 0
+    values_updated = 0
+
     # Update each observation in turn
     for counter, obs in enumerate(results):
 
         # Fetch list of files in this observation
         conn.execute("""
-SELECT ast.name AS semanticType, repositoryFname, am.floatValue AS skyClarity, am.uid AS skyClarityUid
+SELECT ast.name AS semanticType, repositoryFname,
+am.floatValue AS skyClarity, am.uid AS skyClarityUid, am2.floatValue AS noiseLevel
 FROM archive_files f
 INNER JOIN archive_semanticTypes ast ON f.semanticType = ast.uid
 INNER JOIN archive_metadata am ON f.uid = am.fileId AND
     am.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:skyClarity")
+LEFT OUTER JOIN archive_metadata am2 ON f.uid = am2.fileId AND
+    am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:stackNoiseLevel")
 WHERE f.observationId=%s;
 """, (obs['uid'],))
 
@@ -115,16 +123,23 @@ WHERE f.observationId=%s;
             # Run sky clarity calculator
             p = subprocess.Popen(args=[os.path.join(settings['imageProcessorPath'], "skyClarity"),
                                        '--input',
-                                       os.path.join(settings['dbFilestore'], item['repositoryFname'])],
+                                       os.path.join(settings['dbFilestore'], item['repositoryFname']),
+                                       '--noise',
+                                       str(float(item['noiseLevel']))],
                                  stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
 
             # Extract new sky clarity measurement
             new_sky_clarity = float(p.communicate(input=bytes("", 'utf-8'))[0].decode('utf-8'))
 
+            if new_sky_clarity == item['skyClarity']:
+                values_unchanged += 1
+                continue
+
             # Print new measurement
-            print("Updating {} from {:.0f} to {:.0f}".format(item['repositoryFname'],
-                                                             item['skyClarity'],
-                                                             new_sky_clarity))
+            values_updated += 1
+            logging.info("Updating {} from {:.0f} to {:.0f}".format(item['repositoryFname'],
+                                                                    item['skyClarity'],
+                                                                    new_sky_clarity))
 
             # Commit to database
             conn.execute("UPDATE archive_metadata SET floatValue=%s WHERE uid=%s",
@@ -140,8 +155,22 @@ WHERE f.observationId=%s;
     db0.commit()
     db0.close()
 
+    # Report how many values we changed
+    logging.info("Updated {:d} images. Left {:d} images unchanged".format(values_updated, values_unchanged))
+
 
 if __name__ == "__main__":
+    # Set up logging
+    logging.basicConfig(level=logging.INFO,
+                        format='[%(asctime)s] %(levelname)s:%(filename)s:%(message)s',
+                        datefmt='%d/%m/%Y %H:%M:%S',
+                        handlers=[
+                            logging.FileHandler(os.path.join(settings['pythonPath'], "../datadir/pigazing.log")),
+                            logging.StreamHandler()
+                        ])
+    logger = logging.getLogger(__name__)
+    logger.info(__doc__.strip())
+
     # Read commandline arguments
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--username',
