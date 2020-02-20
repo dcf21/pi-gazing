@@ -125,19 +125,19 @@ void write_metadata(char *filename, char *item_types, ...) {
                 fprintf(f, "%s %s\n", x, y);
                 break;
             }
-            // Double type metadata
+                // Double type metadata
             case 'd': {
                 double y = va_arg(ap, double);
                 fprintf(f, "%s %.15e\n", x, y);
                 break;
             }
-            // Int type metadata
+                // Int type metadata
             case 'i': {
                 int y = va_arg(ap, int);
                 fprintf(f, "%s %d\n", x, y);
                 break;
             }
-            // Metadata type characters in <item_types> must be s, d or i.
+                // Metadata type characters in <item_types> must be s, d or i.
             default: {
                 sprintf(temp_err_string, "ERROR: Unrecognised data type character '%c'.", item_types[i]);
                 logging_fatal(__FILE__, __LINE__, temp_err_string);
@@ -681,10 +681,102 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                 // Reject events that don't move much -- probably a twinkling star
                 const int sufficient_movement = (pixel_track_len >= minimum_object_path_length);
 
-                // Start writing video if this event looks plausible
+                // Start producing output files if this event looks plausible
                 if (sufficient_movement && sufficient_detections) {
-                    logging_info("Detection confirmed.");
+                    // We have detected a new object, seen in multiple frames
+                    if (DEBUG) {
+                        int year, month, day, hour, min, status;
+                        double sec;
+                        double JD = (os->utc / 86400.0) + 2440587.5;
+                        inv_julian_day(JD, &year, &month, &day, &hour, &min, &sec, &status, temp_err_string);
+                        sprintf(temp_err_string,
+                                "Camera has triggered at (%04d/%02d/%02d %02d:%02d:%02d -- x=%d,y=%d).",
+                                year, month, day, hour, min, (int) sec, x_pos, y_pos);
+                        logging_info(temp_err_string);
+                    }
 
+                    // Start producing output files describing this camera trigger
+                    char fname[FNAME_LENGTH];
+                    filename_generate(os->event_list[i].filename_stub, os->obstory_id, os->utc, "event", "triggers",
+                                      os->label);
+
+                    // Configuration for video file output
+                    sprintf(os->event_list[i].video_output.filename, "%s%s", os->event_list[i].filename_stub, ".vid");
+                    os->event_list[i].video_output.active = 0;
+                    os->event_list[i].video_output.width = os->width;
+                    os->event_list[i].video_output.height = os->height;
+                    os->event_list[i].video_output.frames_written = 0;
+                    os->event_list[i].video_output.buffer_write_position = (
+                            (os->frame_counter - os->trigger_prefix_frame_count)
+                            % os->video_buffer_frames);
+                    os->event_list[i].video_output.buffer_end_position = -1;
+
+                    // Difference image, B-A, which we get from the red channel of <os->trigger_map_rgb>, set by <check_for_triggers>
+                    sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapDifference.rgb");
+                    dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 0 * os->frame_size, fname);
+                    write_metadata(fname, "sdsiiddi",
+                                   "obstoryId", os->obstory_id,
+                                   "utc", os->event_list[i].start_time,
+                                   "semanticType", "pigazing:movingObject/mapDifference",
+                                   "width", os->width,
+                                   "height", os->height,
+                                   "inputNoiseLevel", os->noise_level,
+                                   "stackNoiseLevel", os->noise_level,
+                                   "stackedFrames", 1);
+
+                    // Map of pixels which are currently excluded from triggering due to excessive variability
+                    sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapExcludedPixels.rgb");
+                    dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 1 * os->frame_size, fname);
+                    write_metadata(fname, "sdsiiddi",
+                                   "obstoryId", os->obstory_id,
+                                   "utc", os->event_list[i].start_time,
+                                   "semanticType", "pigazing:movingObject/mapExcludedPixels",
+                                   "width", os->width,
+                                   "height", os->height,
+                                   "inputNoiseLevel", os->noise_level,
+                                   "stackNoiseLevel", os->noise_level,
+                                   "stackedFrames", 1);
+
+                    // Map of the pixels whose brightening caused this trigger
+                    sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapTrigger.rgb");
+                    dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 2 * os->frame_size, fname);
+                    write_metadata(fname, "sdsiiddi",
+                                   "obstoryId", os->obstory_id,
+                                   "utc", os->event_list[i].start_time,
+                                   "semanticType", "pigazing:movingObject/mapTrigger",
+                                   "width", os->width,
+                                   "height", os->height,
+                                   "inputNoiseLevel", os->noise_level,
+                                   "stackNoiseLevel", os->noise_level,
+                                   "stackedFrames", 1);
+
+                    // The video frame in which this trigger was first detected
+                    sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_triggerFrame.rgb");
+                    dump_frame(os->width, os->height, channel_count, image1, fname);
+                    write_metadata(fname, "sdsiiddi",
+                                   "obstoryId", os->obstory_id,
+                                   "utc", os->event_list[i].start_time,
+                                   "semanticType", "pigazing:movingObject/triggerFrame",
+                                   "width", os->width,
+                                   "height", os->height,
+                                   "inputNoiseLevel", os->noise_level,
+                                   "stackNoiseLevel", os->noise_level,
+                                   "stackedFrames", 1);
+
+                    // The comparison frame which preceded the frame where the trigger was detected
+                    sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_previousFrame.rgb");
+                    dump_frame(os->width, os->height, channel_count, image2, fname);
+                    write_metadata(fname, "sdsiiddi",
+                                   "obstoryId", os->obstory_id,
+                                   "utc", os->event_list[i].start_time,
+                                   "semanticType", "pigazing:movingObject/previousFrame",
+                                   "width", os->width,
+                                   "height", os->height,
+                                   "inputNoiseLevel", os->noise_level,
+                                   "stackNoiseLevel", os->noise_level,
+                                   "stackedFrames", 1);
+
+                    // Start writing video file
                     os->event_list[i].video_output.active = 1;
                     os->event_list[i].video_output.file_handle = dump_video_init(
                             os->width, os->height,
@@ -697,16 +789,6 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
     }
 
     // We have detected a new object. Create new event descriptor.
-    if (DEBUG) {
-        int year, month, day, hour, min, status;
-        double sec;
-        double JD = (os->utc / 86400.0) + 2440587.5;
-        inv_julian_day(JD, &year, &month, &day, &hour, &min, &sec, &status, temp_err_string);
-        sprintf(temp_err_string, "Camera has triggered at (%04d/%02d/%02d %02d:%02d:%02d -- x=%d,y=%d).", year, month,
-                day, hour, min, (int) sec, x_pos, y_pos);
-        logging_info(temp_err_string);
-    }
-
     for (i = 0; i < MAX_EVENTS; i++) if (os->event_list[i].active == 0) break;
     if (i >= MAX_EVENTS) {
         // No free event storage space
@@ -727,85 +809,6 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
     d->utc = os->utc;
     d->pixel_count = pixel_count;
     d->amplitude = amplitude;
-
-    // Start producing output files describing this camera trigger
-    char fname[FNAME_LENGTH];
-    filename_generate(os->event_list[i].filename_stub, os->obstory_id, os->utc, "event", "triggers", os->label);
-
-    // Configuration for video file output
-    sprintf(os->event_list[i].video_output.filename, "%s%s", os->event_list[i].filename_stub, ".vid");
-    os->event_list[i].video_output.active = 0;
-    os->event_list[i].video_output.width = os->width;
-    os->event_list[i].video_output.height = os->height;
-    os->event_list[i].video_output.frames_written = 0;
-    os->event_list[i].video_output.buffer_write_position = ((os->frame_counter - os->trigger_prefix_frame_count)
-                                                            % os->video_buffer_frames);
-    os->event_list[i].video_output.buffer_end_position = -1;
-
-    // Difference image, B-A, which we get from the red channel of <os->trigger_map_rgb>, set by <check_for_triggers>
-    sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapDifference.rgb");
-    dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 0 * os->frame_size, fname);
-    write_metadata(fname, "sdsiiddi",
-                   "obstoryId", os->obstory_id,
-                   "utc", os->event_list[i].start_time,
-                   "semanticType", "pigazing:movingObject/mapDifference",
-                   "width", os->width,
-                   "height", os->height,
-                   "inputNoiseLevel", os->noise_level,
-                   "stackNoiseLevel", os->noise_level,
-                   "stackedFrames", 1);
-
-    // Map of pixels which are currently excluded from triggering due to excessive variability
-    sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapExcludedPixels.rgb");
-    dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 1 * os->frame_size, fname);
-    write_metadata(fname, "sdsiiddi",
-                   "obstoryId", os->obstory_id,
-                   "utc", os->event_list[i].start_time,
-                   "semanticType", "pigazing:movingObject/mapExcludedPixels",
-                   "width", os->width,
-                   "height", os->height,
-                   "inputNoiseLevel", os->noise_level,
-                   "stackNoiseLevel", os->noise_level,
-                   "stackedFrames", 1);
-
-    // Map of the pixels whose brightening caused this trigger
-    sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapTrigger.rgb");
-    dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 2 * os->frame_size, fname);
-    write_metadata(fname, "sdsiiddi",
-                   "obstoryId", os->obstory_id,
-                   "utc", os->event_list[i].start_time,
-                   "semanticType", "pigazing:movingObject/mapTrigger",
-                   "width", os->width,
-                   "height", os->height,
-                   "inputNoiseLevel", os->noise_level,
-                   "stackNoiseLevel", os->noise_level,
-                   "stackedFrames", 1);
-
-    // The video frame in which this trigger was first detected
-    sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_triggerFrame.rgb");
-    dump_frame(os->width, os->height, channel_count, image1, fname);
-    write_metadata(fname, "sdsiiddi",
-                   "obstoryId", os->obstory_id,
-                   "utc", os->event_list[i].start_time,
-                   "semanticType", "pigazing:movingObject/triggerFrame",
-                   "width", os->width,
-                   "height", os->height,
-                   "inputNoiseLevel", os->noise_level,
-                   "stackNoiseLevel", os->noise_level,
-                   "stackedFrames", 1);
-
-    // The comparison frame which preceded the frame where the trigger was detected
-    sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_previousFrame.rgb");
-    dump_frame(os->width, os->height, channel_count, image2, fname);
-    write_metadata(fname, "sdsiiddi",
-                   "obstoryId", os->obstory_id,
-                   "utc", os->event_list[i].start_time,
-                   "semanticType", "pigazing:movingObject/previousFrame",
-                   "width", os->width,
-                   "height", os->height,
-                   "inputNoiseLevel", os->noise_level,
-                   "stackNoiseLevel", os->noise_level,
-                   "stackedFrames", 1);
 
     // Copy the trigger frame into the stacked version of this trigger
     int j;
@@ -871,7 +874,7 @@ void register_trigger_ends(observe_status *os) {
 
                 // If event was not confirmed, take no further action
                 if (!os->event_list[i].video_output.active) {
-                    logging_info("Detection not confirmed.");
+                    // logging_info("Detection not confirmed.");
                     os->event_list[i].active = 0;
                     continue;
                 }
