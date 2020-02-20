@@ -37,7 +37,7 @@ from operator import itemgetter
 import numpy as np
 from pigazing_helpers import connect_db, dcf_ast, gnomonic_project, hardware_properties
 from pigazing_helpers.dcf_ast import date_string
-from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
+from pigazing_helpers.obsarchive import obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 
 
@@ -117,15 +117,6 @@ ORDER BY obsTime DESC LIMIT 1
     for utc_block_min in time_blocks:
         utc_block_max = utc_block_min + block_size
 
-        # Fetch observatory status
-        obstory_status = db.get_obstory_status(obstory_id=obstory_id, time=utc_block_max)
-        lens_name = obstory_status['lens']
-        lens_props = hw.lens_data[lens_name]
-
-        # This is an estimate of the *maximum* angular width we expect images to have.
-        # It should be within a factor of two of correct!
-        estimated_image_scale = lens_props.fov
-
         # Search for background-subtracted time lapse image with best sky clarity, and no existing orientation fit,
         # within this time period
         conn.execute("""
@@ -163,117 +154,78 @@ ORDER BY am.floatValue DESC LIMIT 1
                                                      item['skyClarity'],
                                                      item['repositoryFname']))
 
-    elephant
-
     # When passing images to astrometry.net, only work on the central portion, as this will have least bad distortion
     fraction_x = 0.4
     fraction_y = 0.4
 
     # Path the binary barrel-correction tool
-    barrel_correct = os.path.join(settings['imageProcessorPath'], "barrel")
+    barrel_correct = os.path.join(settings['imageProcessorPath'], "lensCorrect")
 
-    # Fetch observatory status
-    obstory_info = db.get_obstory_from_id(obstory_id)
-    obstory_status = None
-    if obstory_info and ('name' in obstory_info):
-        obstory_status = db.get_obstory_status(obstory_id=obstory_id, time=utc_now)
-    if not obstory_status:
-        logging.info("%s Aborting -- no observatory status available." % log_prefix)
-        db.close_db()
-        return
-    obstory_name = obstory_info['name']
+    # Analyse each image in turn
+    for item in images_for_analysis:
+        logging.info("Working on image {:32s}".format(item['repositoryFname']))
 
-    # Search for background-subtracted time lapse photography within this range
-    search = mp.FileRecordSearch(obstory_ids=[obstory_id], semantic_type="pigazing:timelapse/frame/bgrdSub",
-                                 time_min=utc_min, time_max=utc_max, limit=1000000)
-    files = db.search_files(search)
-    files = files['files']
-
-    # Filter out files where the sky clarity is good and the Sun is well below horizon
-    acceptable_files = []
-    for f in files:
-        if db.get_file_metadata(f.id, 'pigazing:skyClarity') < 27:
+        # Fetch observatory status
+        obstory_info = db.get_obstory_from_id(obstory_id)
+        obstory_status = None
+        if obstory_info and ('name' in obstory_info):
+            obstory_status = db.get_obstory_status(obstory_id=obstory_id, time=item['utc'])
+        if not obstory_status:
+            logging.info("Aborting -- no observatory status available.")
             continue
-        if db.get_file_metadata(f.id, 'pigazing:sunAlt') > -4:
-            continue
-        acceptable_files.append(f)
 
-    log_msg = ("%s %d still images in search period. %d meet sky quality requirements." %
-               (log_prefix, len(files), len(acceptable_files)))
+        # Fetch observatory status
+        lens_name = obstory_status['lens']
+        lens_props = hw.lens_data[lens_name]
 
-    # If we don't have enough images, we can't proceed to get a secure orientation fit
-    if len(acceptable_files) < 6:
-        logging.info("%s Not enough suitable images." % log_msg)
-        db.close_db()
-        return
-    logging.info(log_msg)
+        # This is an estimate of the *maximum* angular width we expect images to have.
+        # It should be within a factor of two of correct!
+        estimated_image_scale = lens_props.fov
 
-    # We can't afford to run astrometry.net on too many images, so pick the 20 best ones
-    acceptable_files.sort(key=lambda f: db.get_file_metadata(f.id, 'pigazing:skyClarity'))
-    acceptable_files.reverse()
-    acceptable_files = acceptable_files[0:20]
+        # Make a temporary directory to store files in.
+        # This is necessary as astrometry.net spams the cwd with lots of temporary junk
+        cwd = os.getcwd()
+        tmp = "/tmp/dcf21_orientationCalc_{}".format(item['repositoryFname'])
+        # logging.info("Created temporary directory <{}>".format(tmp))
+        os.system("mkdir %s" % tmp)
+        os.chdir(tmp)
 
-    # Make a temporary directory to store files in.
-    # This is necessary as astrometry.net spams the cwd with lots of temporary junk
-    cwd = os.getcwd()
-    pid = os.getpid()
-    tmp = "/tmp/dcf21_orientationCalc_%d" % pid
-    # logging.info("Created temporary directory <%s>" % tmp)
-    os.system("mkdir %s" % tmp)
-    os.chdir(tmp)
-
-    # Loop over selected images and use astrometry.net to find their orientation
-    fits = []
-    fit_list = []
-    alt_az_list = []
-    count = 0
-    for f in acceptable_files:
-        img_name = f.file_name
-        fit_obj = {'f': f, 'i': count, 'fit': False}
-        fits.append(fit_obj)
-        filename = db.file_path_for_id(f.id)
+        # Find image orientation orientation
+        filename = os.path.join(settings['dbFilestore'], item['repositoryFname'])
 
         if not os.path.exists(filename):
-            logging.info("%s Error! File <%s> is missing!" % (log_prefix, filename))
+            logging.info("Error: File <{}> is missing!".format(item['repositoryFname']))
             continue
 
+        # Look up barrel distortion
+        lens_barrel_a = obstory_status.get('calibration:lens_barrel_a', lens_props.barrel_a)
+        lens_barrel_b = obstory_status.get('calibration:lens_barrel_b', lens_props.barrel_b)
+        lens_barrel_c = obstory_status.get('calibration:lens_barrel_c', lens_props.barrel_c)
+
         # 1. Copy image into working directory
-        os.system("cp %s %s_tmp.png" % (filename, img_name))
+        img_name = item['repositoryFname']
+        os.system("cp {} {}_tmp.png".format(filename, img_name))
 
         # 2. Barrel-correct image
-        os.system("%s %s_tmp.png %.6f %.6f %.6f %s_tmp2.png" % (barrel_correct, img_name,
-                                                                obstory_status['lens_barrel_a'],
-                                                                obstory_status['lens_barrel_b'],
-                                                                obstory_status['lens_barrel_c'],
-                                                                img_name))
+        os.system("{} -i {}_tmp.png -a {:.6f} -b {:.6f} -c {:.6f} -o {}_tmp2.png".format(barrel_correct, img_name,
+                                                                                         lens_barrel_a,
+                                                                                         lens_barrel_b,
+                                                                                         lens_barrel_c,
+                                                                                         img_name))
 
         # 3. Pass only central portion of image to astrometry.net. It's not very reliable with wide-field images
         d = image_dimensions("%s_tmp2.png" % img_name)
-        os.system(
-            "convert %s_tmp2.png -colorspace sRGB -define png:format=png24 -crop %dx%d+%d+%d +repage %s_tmp3.png"
-            % (img_name,
-               fraction_x * d[0], fraction_y * d[1],
-               (1 - fraction_x) * d[0] / 2, (1 - fraction_y) * d[1] / 2,
-               img_name))
-
-        fit_obj['fname_processed'] = '%s_tmp3.png' % img_name
-        fit_obj['fname_original'] = '%s_tmp.png' % img_name
-        fit_obj['dims'] = d  # Dimensions of *original* image
-
-        count += 1
-
-    # Now pass processed image to astrometry.net for alignment
-    for fit in fits:
-        f = fit['f']
+        os.system("""
+convert {}_tmp2.png -colorspace sRGB -define png:format=png24 -crop {:d}x{:d}+{:d}+{:d} +repage {}_tmp3.png
+""".format(img_name,
+           int(fraction_x * d[0]), int(fraction_y * d[1]),
+           int((1 - fraction_x) * d[0] / 2), int((1 - fraction_y) * d[1] / 2),
+           img_name))
 
         # Check that we've not run out of time
         if utc_must_stop and (time.time() > utc_must_stop):
-            logging.info("%s We have run out of time! Aborting." % log_prefix)
+            logging.info("We have run out of time! Aborting.")
             continue
-
-        log_msg = ("Processed image <%s> from time <%s> -- skyClarity=%.1f. " %
-                   (f.id, dcf_ast.date_string(f.file_time),
-                    db.get_file_metadata(f.id, 'pigazing:skyClarity')))
 
         # How long should we allow astrometry.net to run for?
         if settings['i_am_a_rpi']:
@@ -284,14 +236,15 @@ ORDER BY am.floatValue DESC LIMIT 1
         # Run astrometry.net. Insert --no-plots on the command line to speed things up.
         astrometry_start_time = time.time()
         estimated_width = 2 * math.atan(math.tan(estimated_image_scale / 2 * deg) * fraction_x) * rad
-        os.system("timeout %s /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --scale-low %.1f "
-                  "--scale-high %.1f --odds-to-tune-up 1e4 --odds-to-solve 1e7 --overwrite %s > txt"
-                  % (timeout,
-                     estimated_width * 0.6,
-                     estimated_width * 1.2,
-                     fit['fname_processed']))
+        os.system("""
+timeout {} /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --scale-low {:.1f} \
+        --scale-high {:.1f} --odds-to-tune-up 1e4 --odds-to-solve 1e7 --overwrite {}_tmp3.png > txt \
+""".format(timeout,
+           estimated_width * 0.6,
+           estimated_width * 1.2,
+           img_name))
         astrometry_time_taken = time.time() - astrometry_start_time
-        log_msg += ("Astrometry.net took %d sec. " % astrometry_time_taken)
+        log_msg = "Astrometry.net took {:.0f} sec. ".format(astrometry_time_taken)
 
         # Parse the output from astrometry.net
         fit_text = open("txt").read()
@@ -299,7 +252,7 @@ ORDER BY am.floatValue DESC LIMIT 1
         test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",
                          fit_text)
         if not test:
-            logging.info("%s FAIL(POS): %s" % (log_prefix, log_msg))
+            logging.info("FAIL(POS): {}".format(log_msg))
             continue
 
         ra_sign = sgn(float(test.group(1)))
@@ -312,7 +265,7 @@ ORDER BY am.floatValue DESC LIMIT 1
             dec *= -1
         test = re.search(r"up is [+]?([-\d\.]*) degrees (.) of N", fit_text)
         if not test:
-            logging.info("%s FAIL(PA ): %s" % (log_prefix, log_msg))
+            logging.info("FAIL(PA ): {}".format(log_msg))
             continue
 
         # celestial_pa is the position angle of the upward vector in the centre of the image, counterclockwise
@@ -330,7 +283,7 @@ ORDER BY am.floatValue DESC LIMIT 1
             celestial_pa += 360
         test = re.search(r"Field size: ([\d\.]*) x ([\d\.]*) deg", fit_text)
         if not test:
-            logging.info("%s FAIL(SIZ): %s" % (log_prefix, log_msg))
+            logging.info("FAIL(SIZ): {}".format(log_msg))
             continue
 
         # Expand reported size of image to whole image, not just the central tile we sent to astrometry.net
@@ -338,13 +291,13 @@ ORDER BY am.floatValue DESC LIMIT 1
         scale_y = 2 * math.atan(math.tan(float(test.group(2)) / 2 * deg) * (1 / fraction_y)) * rad
 
         # Work out alt-az of reported (RA,Dec) using known location of camera. Fits returned in degrees.
-        alt_az = dcf_ast.alt_az(ra, dec, fit['f'].file_time,
+        alt_az = dcf_ast.alt_az(ra, dec, item['utc'],
                                 obstory_status['latitude'], obstory_status['longitude'])
 
         # Get celestial coordinates of the local zenith
         ra_dec_zenith = dcf_ast.get_zenith_position(obstory_status['latitude'],
                                                     obstory_status['longitude'],
-                                                    fit['f'].file_time)
+                                                    item['utc'])
         ra_zenith = ra_dec_zenith['ra']
         dec_zenith = ra_dec_zenith['dec']
 
@@ -359,70 +312,30 @@ ORDER BY am.floatValue DESC LIMIT 1
         while camera_tilt > 180:
             camera_tilt -= 360
 
-        logging.info("%s PASS     : %s" % (log_prefix, log_msg))
-        logging.info("%s FIT      : RA: %7.2fh. Dec %7.2f deg. PA %6.1f deg. ScaleX %6.1f. ScaleY %6.1f. "
-                     "Zenith at (%.2f h,%.2f deg). PA Zenith %.2f deg. "
-                     "Alt: %7.2f deg. Az: %7.2f deg. Tilt: %7.2f deg." %
-                     (log_prefix, ra, dec, celestial_pa, scale_x, scale_y, ra_zenith, dec_zenith, zenith_pa,
+        logging.info("PASS     : {}".format(log_msg))
+        logging.info("FIT      : RA: {:7.2f}h. Dec {:7.2f} deg. PA {:6.1f} deg. ScaleX {:6.1f}. ScaleY {:6.1f}. "
+                     "Zenith at ({:.2f} h,{:.2f} deg). PA Zenith {:.2f} deg. "
+                     "Alt: {:7.2f} deg. Az: {:7.2f} deg. Tilt: {:7.2f} deg.".format
+                     (ra, dec, celestial_pa, scale_x, scale_y, ra_zenith, dec_zenith, zenith_pa,
                       alt_az[0], alt_az[1], camera_tilt))
 
-        # Store information about fit
-        fit.update({'fit': True, 'ra': ra, 'dec': dec, 'pa': celestial_pa, 'sx': scale_x, 'sy': scale_y,
-                    'camera_tilt': camera_tilt})
-        fit_list.append(fit)
-        alt_az_list.append(alt_az)
+        # Update observatory status
+        # user = settings['pigazingUser']
+        # utc = item['utc']
+        # db.register_obstory_metadata(obstory_name, "orientation:altitude", alt_az_best[0] * rad, utc, user)
+        # db.register_obstory_metadata(obstory_name, "orientation:azimuth", alt_az_best[1] * rad, utc, user)
+        # db.register_obstory_metadata(obstory_name, "orientation:error", alt_az_error * rad, utc, user)
+        # db.register_obstory_metadata(obstory_name, "orientation:pa", pa_best * rad, utc, user)
+        # db.register_obstory_metadata(obstory_name, "orientation:width_x_field", scale_x_best * rad, utc, user)
+        # db.register_obstory_metadata(obstory_name, "orientation:width_y_field", scale_y_best * rad, utc, user)
 
-    # Average the resulting fits
-    if len(fit_list) < 4:
-        logging.info("%s ABORT    : astrometry.net only managed to fit %2d images." % (log_prefix, len(fit_list)))
-        db.close_db()
+        # Clean up and exit
         os.chdir(cwd)
         os.system("rm -Rf %s" % tmp)
-        return
-
-    pa_list = [i['camera_tilt'] * deg for i in fits if i['fit']]
-    pa_best = dcf_ast.mean_angle(pa_list)[0]
-    scale_x_list = [i['sx'] * deg for i in fits if i['fit']]
-    scale_x_best = dcf_ast.mean_angle(scale_x_list)[0]
-    scale_y_list = [i['sy'] * deg for i in fits if i['fit']]
-    scale_y_best = dcf_ast.mean_angle(scale_y_list)[0]
-
-    # Convert alt-az fits into radians
-    alt_az_list_r = [[i * deg for i in j] for j in alt_az_list]
-    [alt_az_best, alt_az_error] = dcf_ast.mean_angle_2d(alt_az_list_r)
-
-    # Print fit information
-    success = (alt_az_error * rad < 0.6)
-    if success:
-        adjective = "SUCCESSFUL"
-    else:
-        adjective = "REJECTED"
-    logging.info("%s %s ORIENTATION FIT (from %2d images). "
-                 "Alt: %.2f deg. Az: %.2f deg. PA: %.2f deg. ScaleX: %.2f deg. ScaleY: %.2f deg. "
-                 "Uncertainty: %.2f deg." % (log_prefix, adjective, len(fit_list),
-                                             alt_az_best[0] * rad,
-                                             alt_az_best[1] * rad,
-                                             pa_best * rad,
-                                             scale_x_best * rad,
-                                             scale_y_best * rad,
-                                             alt_az_error * rad))
-
-    # Update observatory status
-    if success:
-        user = settings['pigazingUser']
-        utc = utc_to_study
-        db.register_obstory_metadata(obstory_name, "orientation:altitude", alt_az_best[0] * rad, utc, user)
-        db.register_obstory_metadata(obstory_name, "orientation:azimuth", alt_az_best[1] * rad, utc, user)
-        db.register_obstory_metadata(obstory_name, "orientation:error", alt_az_error * rad, utc, user)
-        db.register_obstory_metadata(obstory_name, "orientation:pa", pa_best * rad, utc, user)
-        db.register_obstory_metadata(obstory_name, "orientation:width_x_field", scale_x_best * rad, utc, user)
-        db.register_obstory_metadata(obstory_name, "orientation:width_y_field", scale_y_best * rad, utc, user)
-    db.commit()
-    db.close_db()
 
     # Clean up and exit
-    os.chdir(cwd)
-    os.system("rm -Rf %s" % tmp)
+    db.commit()
+    db.close_db()
     return
 
 
