@@ -72,49 +72,18 @@ int main(int argc, const char *argv[]) {
         logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
-    FILE *in_file;
-    if ((in_file = fopen(input_filename, "rb")) == NULL) {
-        sprintf(temp_err_string, "ERROR: Cannot open input image file <%s>.\n", input_filename);
-        logging_fatal(__FILE__, __LINE__, temp_err_string);
-    }
-
-    int width, height, channels;
-    i = fread(&width, sizeof(int), 1, in_file);
-    i = fread(&height, sizeof(int), 1, in_file);
-    i = fread(&channels, sizeof(int), 1, in_file);
-
-    const int frame_size = width * height;
-    unsigned char *image_raw = malloc(channels * frame_size);
-    if (image_raw == NULL) {
-        sprintf(temp_err_string, "ERROR: malloc fail");
-        logging_fatal(__FILE__, __LINE__, temp_err_string);
-    }
-    i = fread(image_raw, 1, channels * frame_size, in_file);
-    fclose(in_file);
-
-    image_ptr output_image;
-    image_alloc(&output_image, width, height);
-
-    if (channels >= 3) {
-        for (i = 0; i < frame_size; i++) output_image.data_red[i] = image_raw[i];
-        for (i = 0; i < frame_size; i++) output_image.data_grn[i] = image_raw[i + frame_size];
-        for (i = 0; i < frame_size; i++) output_image.data_blu[i] = image_raw[i + frame_size * 2];
-        for (i = 0; i < frame_size; i++) output_image.data_w[i] = 1;
-    } else {
-        for (i = 0; i < frame_size; i++) output_image.data_red[i] = image_raw[i];
-        for (i = 0; i < frame_size; i++) output_image.data_grn[i] = image_raw[i];
-        for (i = 0; i < frame_size; i++) output_image.data_blu[i] = image_raw[i];
-        for (i = 0; i < frame_size; i++) output_image.data_w[i] = 1;
-    }
+    // Read image
+    image_ptr input_image;
+    input_image = image_get(input_filename);
+    if (input_image.data_red == NULL) logging_fatal(__FILE__, __LINE__, "Could not read input image file");
 
     char product_filename[FNAME_LENGTH];
     sprintf(product_filename, "%s.png", output_filename);
 
-    image_ptr image_corrected = lens_correct(&output_image, barrel_a, barrel_b, barrel_c);
-    image_put(product_filename, image_corrected, (channels < 3));
+    image_ptr image_corrected = lens_correct(&input_image, barrel_a, barrel_b, barrel_c);
+    image_put(product_filename, image_corrected, 0);
     image_dealloc(&image_corrected);
 
-    image_dealloc(&output_image);
-    free(image_raw);
+    image_dealloc(&input_image);
     return 0;
 }

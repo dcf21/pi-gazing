@@ -70,9 +70,9 @@ image_ptr lens_correct(image_ptr *image_in, double barrel_a, double barrel_b, do
                 image_new.data_red[offset_new] = image_in->data_red[offset_old];
                 image_new.data_grn[offset_new] = image_in->data_grn[offset_old];
                 image_new.data_blu[offset_new] = image_in->data_blu[offset_old];
+                image_new.data_w[offset_new] = image_in->data_w[offset_old];
             }
         }
 
-    image_new.data_w = image_in->data_w;
     return image_new;
 }

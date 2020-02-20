@@ -35,15 +35,16 @@ import time
 from operator import itemgetter
 
 import numpy as np
-from pigazing_helpers import connect_db, dcf_ast, gnomonic_project, hardware_properties
+from pigazing_helpers import connect_db, gnomonic_project, hardware_properties
 from pigazing_helpers.dcf_ast import date_string
 from pigazing_helpers.obsarchive import obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
+from pigazing_helpers.sunset_times import alt_az, get_zenith_position
 
 
 # Return the dimensions of an image
-def image_dimensions(f):
-    d = subprocess.check_output(["identify", f]).split()[2].split("x")
+def image_dimensions(in_file):
+    d = subprocess.check_output(["identify", "-quiet", in_file]).decode('utf-8').split()[2].split("x")
     d = [int(i) for i in d]
     return d
 
@@ -206,17 +207,17 @@ ORDER BY am.floatValue DESC LIMIT 1
         logging.info("Copying file")
         img_name = item['repositoryFname']
         command = "cp {} {}_tmp.png".format(filename, img_name)
-        logging.info(command)
+        # logging.info(command)
         os.system(command)
 
         # 2. Barrel-correct image
         logging.info("Lens-correcting image")
-        command = "{} -i {}_tmp.png -a {:.6f} -b {:.6f} -c {:.6f} -o {}_tmp2.png".format(barrel_correct, img_name,
-                                                                                         lens_barrel_a,
-                                                                                         lens_barrel_b,
-                                                                                         lens_barrel_c,
-                                                                                         img_name)
-        logging.info(command)
+        command = "{} -i {}_tmp.png -a {:.6f} -b {:.6f} -c {:.6f} -o {}_tmp2".format(barrel_correct, img_name,
+                                                                                     lens_barrel_a,
+                                                                                     lens_barrel_b,
+                                                                                     lens_barrel_c,
+                                                                                     img_name)
+        # logging.info(command)
         os.system(command)
 
         # 3. Pass only central portion of image to astrometry.net. It's not very reliable with wide-field images
@@ -228,7 +229,7 @@ convert {}_tmp2.png -colorspace sRGB -define png:format=png24 -crop {:d}x{:d}+{:
            int(fraction_x * d[0]), int(fraction_y * d[1]),
            int((1 - fraction_x) * d[0] / 2), int((1 - fraction_y) * d[1] / 2),
            img_name)
-        logging.info(command)
+        # logging.info(command)
         os.system(command)
 
         # Check that we've not run out of time
@@ -247,13 +248,13 @@ convert {}_tmp2.png -colorspace sRGB -define png:format=png24 -crop {:d}x{:d}+{:
         astrometry_start_time = time.time()
         estimated_width = 2 * math.atan(math.tan(estimated_image_scale / 2 * deg) * fraction_x) * rad
         command = """
-timeout {} /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --scale-low {:.1f} \
+timeout {} solve-field --no-plots --crpix-center --scale-low {:.1f} \
         --scale-high {:.1f} --odds-to-tune-up 1e4 --odds-to-solve 1e7 --overwrite {}_tmp3.png > txt \
 """.format(timeout,
            estimated_width * 0.6,
            estimated_width * 1.2,
            img_name)
-        logging.info(command)
+        # logging.info(command)
         os.system(command)
 
         # Report how long astrometry.net took
@@ -305,18 +306,18 @@ timeout {} /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --sca
         scale_y = 2 * math.atan(math.tan(float(test.group(2)) / 2 * deg) * (1 / fraction_y)) * rad
 
         # Work out alt-az of reported (RA,Dec) using known location of camera. Fits returned in degrees.
-        alt_az = dcf_ast.alt_az(ra, dec, item['utc'],
-                                obstory_status['latitude'], obstory_status['longitude'])
+        alt_az_pos = alt_az(ra=ra, dec=dec, utc=item['utc'],
+                            latitude=obstory_info['latitude'], longitude=obstory_info['longitude'])
 
         # Get celestial coordinates of the local zenith
-        ra_dec_zenith = dcf_ast.get_zenith_position(obstory_status['latitude'],
-                                                    obstory_status['longitude'],
-                                                    item['utc'])
+        ra_dec_zenith = get_zenith_position(latitude=obstory_info['latitude'],
+                                            longitude=obstory_info['longitude'],
+                                            utc=item['utc'])
         ra_zenith = ra_dec_zenith['ra']
         dec_zenith = ra_dec_zenith['dec']
 
         # Work out the position angle of the zenith, counterclockwise from north, as measured at centre of frame
-        zenith_pa = gnomonic_project.position_angle(ra, dec, ra_zenith, dec_zenith)
+        zenith_pa = gnomonic_project.position_angle(ra1=ra, dec1=dec, ra2=ra_zenith, dec2=dec_zenith)
 
         # Calculate the position angle of the zenith, clockwise from vertical, at the centre of the frame
         # If the camera is roughly upright, this ought to be close to zero!
@@ -331,7 +332,7 @@ timeout {} /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --sca
                      "Zenith at ({:.2f} h,{:.2f} deg). PA Zenith {:.2f} deg. "
                      "Alt: {:7.2f} deg. Az: {:7.2f} deg. Tilt: {:7.2f} deg.".format
                      (ra, dec, celestial_pa, scale_x, scale_y, ra_zenith, dec_zenith, zenith_pa,
-                      alt_az[0], alt_az[1], camera_tilt))
+                      alt_az_pos[0], alt_az_pos[1], camera_tilt))
 
         # Update observatory status
         # user = settings['pigazingUser']
@@ -345,7 +346,7 @@ timeout {} /usr/local/astrometry/bin/solve-field --no-plots --crpix-center --sca
 
         # Clean up and exit
         os.chdir(cwd)
-        os.system("rm -Rf %s" % tmp)
+        os.system("rm -Rf {}".format(tmp))
 
     # Clean up and exit
     db.commit()
