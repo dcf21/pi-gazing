@@ -22,6 +22,8 @@
 
 from math import pi, sin, cos, acos, asin, atan2, fmod, sqrt
 
+from .dcf_ast import sidereal_time
+
 """
 Functions for dealing with planes and lines
 """

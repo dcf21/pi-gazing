@@ -32,6 +32,7 @@ import os
 import re
 import subprocess
 import time
+from math import pi, floor
 from operator import itemgetter
 
 import numpy as np
@@ -39,7 +40,7 @@ from pigazing_helpers import connect_db, gnomonic_project, hardware_properties
 from pigazing_helpers.dcf_ast import date_string
 from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
-from pigazing_helpers.sunset_times import alt_az, get_zenith_position
+from pigazing_helpers.sunset_times import alt_az, get_zenith_position, mean_angle, mean_angle_2d
 
 
 # Return the dimensions of an image
@@ -59,6 +60,21 @@ def sgn(x):
 
 
 def orientation_calc(obstory_id, utc_min, utc_max, utc_must_stop=None):
+    """
+    Use astrometry.net to determine the orientation of a particular observatory.
+
+    :param obstory_id:
+        The ID of the observatory we want to determine the orientation for.
+    :param utc_min:
+        The start of the time period in which we should determine the observatory's orientation.
+    :param utc_max:
+        The end of the time period in which we should determine the observatory's orientation.
+    :param utc_must_stop:
+        The time by which we must finish work
+    :return:
+        None
+    """
+
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
 
@@ -73,8 +89,8 @@ def orientation_calc(obstory_id, utc_min, utc_max, utc_must_stop=None):
     logging.info("Starting calculation of camera alignment for <{}>".format(obstory_id))
 
     # Mathematical constants
-    deg = math.pi / 180
-    rad = 180 / math.pi
+    deg = pi / 180
+    rad = 180 / pi
 
     # Read properties of known lenses
     hw = hardware_properties.HardwareProps(
@@ -106,17 +122,17 @@ ORDER BY obsTime DESC LIMIT 1
     results = conn.fetchall()
     utc_max = results[0]['obsTime'] + 1
 
-    # Divide up time interval into 30 minute blocks
-    logging.info("Searching for images within time period {} to {}".format(date_string(utc_min), date_string(utc_max)))
-    block_size = 1800
+    # Divide up time interval into 15 minute blocks
+    logging.info("Searching for images within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
+    block_size = 900
     minimum_sky_clarity = 500
-    time_blocks = np.arange(start=utc_min, stop=utc_max, step=block_size)
+    time_blocks = list(np.arange(start=utc_min, stop=utc_max, step=block_size))
 
     # Build list of images we are to analyse
     images_for_analysis = []
 
-    for utc_block_min in time_blocks:
-        utc_block_max = utc_block_min + block_size
+    for block_index, utc_block_min in enumerate(time_blocks[:-1]):
+        utc_block_max = time_blocks[block_index + 1]
 
         # Search for background-subtracted time lapse image with best sky clarity, and no existing orientation fit,
         # within this time period
@@ -142,7 +158,7 @@ ORDER BY am.floatValue DESC LIMIT 1
                 'utc': results[0]['obsTime'],
                 'skyClarity': results[0]['skyClarity'],
                 'repositoryFname': results[0]['repositoryFname'],
-                'observationId':results[0]['observationId']
+                'observationId': results[0]['observationId']
             })
 
     # Sort images into order of sky clarity
@@ -150,7 +166,7 @@ ORDER BY am.floatValue DESC LIMIT 1
     images_for_analysis.reverse()
 
     # Display logging list of the images we are going to work on
-    logging.info("Estimating the orientation of the {:d} images:".format(len(images_for_analysis)))
+    logging.info("Estimating the orientation of {:d} images:".format(len(images_for_analysis)))
     for item in images_for_analysis:
         logging.info("{:17s} {:04.0f} {:32s}".format(date_string(item['utc']),
                                                      item['skyClarity'],
@@ -164,8 +180,9 @@ ORDER BY am.floatValue DESC LIMIT 1
     barrel_correct = os.path.join(settings['imageProcessorPath'], "lensCorrect")
 
     # Analyse each image in turn
-    for item in images_for_analysis:
-        logging.info("Working on image {:32s}".format(item['repositoryFname']))
+    for item_index, item in enumerate(images_for_analysis):
+        logging.info("Working on image {:32s} ({:4d}/{:4d})".format(item['repositoryFname'],
+                                                                    item_index + 1, len(images_for_analysis)))
 
         # Fetch observatory status
         obstory_info = db.get_obstory_from_id(obstory_id)
@@ -205,14 +222,14 @@ ORDER BY am.floatValue DESC LIMIT 1
         lens_barrel_c = obstory_status.get('calibration:lens_barrel_c', lens_props.barrel_c)
 
         # 1. Copy image into working directory
-        logging.info("Copying file")
+        # logging.info("Copying file")
         img_name = item['repositoryFname']
         command = "cp {} {}_tmp.png".format(filename, img_name)
         # logging.info(command)
         os.system(command)
 
         # 2. Barrel-correct image
-        logging.info("Lens-correcting image")
+        # logging.info("Lens-correcting image")
         command = "{} -i {}_tmp.png -a {:.6f} -b {:.6f} -c {:.6f} -o {}_tmp2".format(barrel_correct, img_name,
                                                                                      lens_barrel_a,
                                                                                      lens_barrel_b,
@@ -222,7 +239,7 @@ ORDER BY am.floatValue DESC LIMIT 1
         os.system(command)
 
         # 3. Pass only central portion of image to astrometry.net. It's not very reliable with wide-field images
-        logging.info("Extracting central portion of image")
+        # logging.info("Extracting central portion of image")
         d = image_dimensions("%s_tmp2.png" % img_name)
         command = """
 convert {}_tmp2.png -colorspace sRGB -define png:format=png24 -crop {:d}x{:d}+{:d}+{:d} +repage {}_tmp3.png
@@ -239,10 +256,7 @@ convert {}_tmp2.png -colorspace sRGB -define png:format=png24 -crop {:d}x{:d}+{:
             continue
 
         # How long should we allow astrometry.net to run for?
-        if settings['i_am_a_rpi']:
-            timeout = "6m"
-        else:
-            timeout = "50s"
+        timeout = "2m" if settings['i_am_a_rpi'] else "30s"
 
         # Run astrometry.net. Insert --no-plots on the command line to speed things up.
         logging.info("Running astrometry.net")
@@ -358,6 +372,103 @@ timeout {} solve-field --no-plots --crpix-center --scale-low {:.1f} \
         os.chdir(cwd)
         os.system("rm -Rf {}".format(tmp))
 
+    # Now determine mean orientation each day
+    logging.info("Averaging daily fits within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
+    block_size = 86400
+    utc_min = (floor(utc_min / block_size + 0.5) - 0.5) * block_size  # Make sure that blocks start at noon
+    time_blocks = list(np.arange(start=utc_min, stop=utc_max + block_size, step=block_size))
+
+    # Start new block whenever we have a hardware refresh
+    conn.execute("""
+SELECT time FROM archive_metadata
+WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
+      AND fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey='refresh')
+      AND time BETWEEN %s AND %s
+""", (obstory_id, utc_min, utc_max))
+    results = conn.fetchall()
+    for item in results:
+        time_blocks.append(item['time'])
+
+    # Make sure that start points for time blocks are in order
+    time_blocks.sort()
+
+    for block_index, utc_block_min in enumerate(time_blocks[:-1]):
+        utc_block_max = time_blocks[block_index + 1]
+
+        # Select observations with orientation fits
+        conn.execute("""
+SELECT am1.floatValue AS altitude, am2.floatValue AS azimuth, am3.floatValue AS tilt,
+       am4.floatValue AS width_x_field, am5.floatValue AS width_y_field
+FROM archive_observations o
+INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
+    am1.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:altitude")
+INNER JOIN archive_metadata am2 ON o.uid = am2.observationId AND
+    am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:azimuth")
+INNER JOIN archive_metadata am3 ON o.uid = am3.observationId AND
+    am3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:tilt")
+INNER JOIN archive_metadata am4 ON o.uid = am4.observationId AND
+    am4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:width_x_field")
+INNER JOIN archive_metadata am5 ON o.uid = am5.observationId AND
+    am5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:width_y_field")
+WHERE
+    o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
+    o.obsTime BETWEEN %s AND %s;
+""", (obstory_id, utc_block_min, utc_block_max))
+        results = conn.fetchall()
+
+        logging.info("Averaging fits within period {} to {}: Found {} fits.".format(date_string(utc_block_min),
+                                                                                    date_string(utc_block_max),
+                                                                                    len(results)))
+
+        # Average the fits we found
+        if len(results) < 4:
+            logging.info("Insufficient images to reliably average.")
+            continue
+
+        pa_list = [i['tilt'] * deg for i in results]
+        camera_tilt_best = mean_angle(pa_list)[0]
+        scale_x_list = [i['width_x_field'] * deg for i in results]
+        scale_x_best = mean_angle(scale_x_list)[0]
+        scale_y_list = [i['width_y_field'] * deg for i in results]
+        scale_y_best = mean_angle(scale_y_list)[0]
+
+        # Convert alt-az fits into radians
+        alt_az_list_r = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results]
+        [alt_az_best, alt_az_error] = mean_angle_2d(alt_az_list_r)
+
+        # Print fit information
+        success = (alt_az_error * rad < 0.6)
+        adjective = "SUCCESSFUL" if success else "REJECTED"
+        logging.info("""\
+{} ORIENTATION FIT from {:2d} images: Alt: {:.2f} deg. Az: {:.2f} deg. PA: {:.2f} deg. \
+ScaleX: {:.2f} deg. ScaleY: {:.2f} deg. Uncertainty: {:.2f} deg.\
+""".format(adjective, len(results),
+           alt_az_best[0] * rad,
+           alt_az_best[1] * rad,
+           camera_tilt_best * rad,
+           scale_x_best * rad,
+           scale_y_best * rad,
+           alt_az_error * rad))
+
+        # Update observation status
+        if success:
+            user = settings['pigazingUser']
+            db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:altitude",
+                                         value=alt_az_best[0] * rad,
+                                         metadata_time=utc_block_min, user_created=user)
+            db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:azimuth",
+                                         value=alt_az_best[1] * rad,
+                                         metadata_time=utc_block_min, user_created=user)
+            db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:tilt",
+                                         value=camera_tilt_best * rad,
+                                         metadata_time=utc_block_min, user_created=user)
+            db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:width_x_field",
+                                         value=scale_x_best * rad,
+                                         metadata_time=utc_block_min, user_created=user)
+            db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:width_y_field",
+                                         value=scale_y_best * rad,
+                                         metadata_time=utc_block_min, user_created=user)
+
     # Clean up and exit
     db.commit()
     db.close_db()
@@ -368,6 +479,17 @@ def flush_orientation(obstory_id, utc_min, utc_max):
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
 
+    # Delete observatory metadata fields that start 'orientation:*'
+    conn.execute("""
+DELETE m
+FROM archive_metadata m
+WHERE
+    fieldId IN (SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'orientation:*') AND
+    m.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
+    m.time BETWEEN %s AND %s;
+""", (obstory_id, utc_min, utc_max))
+
+    # Delete observation metadata fields that start 'orientation:*'
     conn.execute("""
 DELETE m
 FROM archive_metadata m
