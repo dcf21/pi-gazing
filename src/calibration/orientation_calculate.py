@@ -37,7 +37,7 @@ from operator import itemgetter
 import numpy as np
 from pigazing_helpers import connect_db, gnomonic_project, hardware_properties
 from pigazing_helpers.dcf_ast import date_string
-from pigazing_helpers.obsarchive import obsarchive_db
+from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 from pigazing_helpers.sunset_times import alt_az, get_zenith_position
 
@@ -121,7 +121,7 @@ ORDER BY obsTime DESC LIMIT 1
         # Search for background-subtracted time lapse image with best sky clarity, and no existing orientation fit,
         # within this time period
         conn.execute("""
-SELECT ao.obsTime, f.repositoryFname, am.floatValue AS skyClarity
+SELECT ao.obsTime, ao.publicId AS observationId, f.repositoryFname, am.floatValue AS skyClarity
 FROM archive_files f
 INNER JOIN archive_observations ao on f.observationId = ao.uid
 INNER JOIN archive_metadata am ON f.uid = am.fileId AND
@@ -141,7 +141,8 @@ ORDER BY am.floatValue DESC LIMIT 1
             images_for_analysis.append({
                 'utc': results[0]['obsTime'],
                 'skyClarity': results[0]['skyClarity'],
-                'repositoryFname': results[0]['repositoryFname']
+                'repositoryFname': results[0]['repositoryFname'],
+                'observationId':results[0]['observationId']
             })
 
     # Sort images into order of sky clarity
@@ -249,7 +250,7 @@ convert {}_tmp2.png -colorspace sRGB -define png:format=png24 -crop {:d}x{:d}+{:
         estimated_width = 2 * math.atan(math.tan(estimated_image_scale / 2 * deg) * fraction_x) * rad
         command = """
 timeout {} solve-field --no-plots --crpix-center --scale-low {:.1f} \
-        --scale-high {:.1f} --odds-to-tune-up 1e4 --odds-to-solve 1e7 --overwrite {}_tmp3.png > txt \
+        --scale-high {:.1f} --odds-to-tune-up 1e4 --odds-to-solve 1e7 --overwrite {}_tmp3.png > txt 2> /dev/null \
 """.format(timeout,
            estimated_width * 0.6,
            estimated_width * 1.2,
@@ -334,15 +335,24 @@ timeout {} solve-field --no-plots --crpix-center --scale-low {:.1f} \
                      (ra, dec, celestial_pa, scale_x, scale_y, ra_zenith, dec_zenith, zenith_pa,
                       alt_az_pos[0], alt_az_pos[1], camera_tilt))
 
-        # Update observatory status
-        # user = settings['pigazingUser']
-        # utc = item['utc']
-        # db.register_obstory_metadata(obstory_name, "orientation:altitude", alt_az_best[0] * rad, utc, user)
-        # db.register_obstory_metadata(obstory_name, "orientation:azimuth", alt_az_best[1] * rad, utc, user)
-        # db.register_obstory_metadata(obstory_name, "orientation:error", alt_az_error * rad, utc, user)
-        # db.register_obstory_metadata(obstory_name, "orientation:pa", pa_best * rad, utc, user)
-        # db.register_obstory_metadata(obstory_name, "orientation:width_x_field", scale_x_best * rad, utc, user)
-        # db.register_obstory_metadata(obstory_name, "orientation:width_y_field", scale_y_best * rad, utc, user)
+        # Update observation status
+        user = settings['pigazingUser']
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+                                    meta=mp.Meta(key="orientation:ra", value=ra))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+                                    meta=mp.Meta(key="orientation:dec", value=dec))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+                                    meta=mp.Meta(key="orientation:pa", value=celestial_pa))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+                                    meta=mp.Meta(key="orientation:altitude", value=alt_az_pos[0]))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+                                    meta=mp.Meta(key="orientation:azimuth", value=alt_az_pos[1]))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+                                    meta=mp.Meta(key="orientation:tilt", value=camera_tilt))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+                                    meta=mp.Meta(key="orientation:width_x_field", value=scale_x))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+                                    meta=mp.Meta(key="orientation:width_y_field", value=scale_y))
 
         # Clean up and exit
         os.chdir(cwd)
