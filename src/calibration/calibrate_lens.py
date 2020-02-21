@@ -200,7 +200,7 @@ def flush_calibration(obstory_id, utc_min, utc_max):
 DELETE m
 FROM archive_metadata m
 WHERE
-    fieldId IN (SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'calibration:*') AND
+    fieldId IN (SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'calibration:%%') AND
     m.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
     m.time BETWEEN %s AND %s;
 """, (obstory_id, utc_min, utc_max))
@@ -211,7 +211,7 @@ DELETE m
 FROM archive_metadata m
 INNER JOIN archive_observations o ON m.observationId = o.uid
 WHERE
-    fieldId IN (SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'calibration:*') AND
+    fieldId IN (SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'calibration:%%') AND
     o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
     o.obsTime BETWEEN %s AND %s;
 """, (obstory_id, utc_min, utc_max))

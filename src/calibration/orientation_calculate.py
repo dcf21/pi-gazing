@@ -468,6 +468,9 @@ ScaleX: {:.2f} deg. ScaleY: {:.2f} deg. Uncertainty: {:.2f} deg.\
             db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:width_y_field",
                                          value=scale_y_best * rad,
                                          metadata_time=utc_block_min, user_created=user)
+            db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:uncertainty",
+                                         value=alt_az_error * rad,
+                                         metadata_time=utc_block_min, user_created=user)
 
     # Clean up and exit
     db.commit()
@@ -484,7 +487,7 @@ def flush_orientation(obstory_id, utc_min, utc_max):
 DELETE m
 FROM archive_metadata m
 WHERE
-    fieldId IN (SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'orientation:*') AND
+    fieldId IN (SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'orientation:%%') AND
     m.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
     m.time BETWEEN %s AND %s;
 """, (obstory_id, utc_min, utc_max))
@@ -495,7 +498,7 @@ DELETE m
 FROM archive_metadata m
 INNER JOIN archive_observations o ON m.observationId = o.uid
 WHERE
-    fieldId IN (SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'orientation:*') AND
+    fieldId IN (SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'orientation:%%') AND
     o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
     o.obsTime BETWEEN %s AND %s;
 """, (obstory_id, utc_min, utc_max))
