@@ -22,7 +22,7 @@
 # -------------------------------------------------
 
 """
-This script is used to estimate the degree of lens-distortion present in an image.
+This script is used to estimate the degree of lens distortion present in an image.
 
 The best-fit parameter values are returned to the user. If they are believed to be good, you should set a status
 update on the observatory setting barrel_a, barrel_b and barrel_c. Then future observations will correct for this
@@ -34,15 +34,19 @@ that future observatories set up with your model of lens will use your barrel co
 
 import argparse
 import logging
+import math
 import os
+import re
 import subprocess
 import time
-from math import pi, floor
+from math import pi, floor, hypot
 from operator import itemgetter
 
 import numpy as np
+import scipy.optimize
 from pigazing_helpers import connect_db, hardware_properties
 from pigazing_helpers.dcf_ast import date_string
+from pigazing_helpers.gnomonic_project import gnomonic_project
 from pigazing_helpers.obsarchive import obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 
@@ -54,6 +58,45 @@ def image_dimensions(in_file):
     d = subprocess.check_output(["identify", "-quiet", in_file]).decode('utf-8').split()[2].split("x")
     d = [int(i) for i in d]
     return d
+
+
+# Return the sign of a number
+def sgn(x):
+    if x < 0:
+        return -1
+    if x > 0:
+        return 1
+    return 0
+
+
+fit_list = None
+param_scales = None
+
+
+def mismatch(params):
+    global params_scales, fit_list
+    ra0 = params[0] * params_scales[0]
+    dec0 = params[1] * params_scales[1]
+    scale_x = params[2] * params_scales[2]
+    scale_y = params[3] * params_scales[3]
+    pos_ang = params[4] * params_scales[4]
+    bca = params[5] * params_scales[5]
+    bcb = params[6] * params_scales[6]
+    bcc = params[7] * params_scales[7]
+
+    accumulator = 0
+    for star in fit_list:
+        pos = gnomonic_project(star['ra'], star['dec'], ra0, dec0,
+                               1, 1, scale_x, scale_y, pos_ang,
+                               bca, bcb, bcc)
+        if pos[0] < 0:
+            pos[0] = -999
+        if pos[1] < 0:
+            pos[1] = -999
+        offset = pow(hypot(star['x'] - pos[0], star['y'] - pos[1]), 2)
+        accumulator += offset
+    # print "%10e -- %s" % (accumulator, list(params))
+    return accumulator
 
 
 def calibrate_lens(obstory_id, utc_min, utc_max, utc_must_stop=None):
@@ -71,6 +114,7 @@ def calibrate_lens(obstory_id, utc_min, utc_max, utc_must_stop=None):
     :return:
         None
     """
+    global params_scales, fit_list
 
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
@@ -189,6 +233,149 @@ ORDER BY am.floatValue DESC LIMIT 1
     for item_index, item in enumerate(images_for_analysis):
         logging.info("Working on image {:32s} ({:4d}/{:4d})".format(item['repositoryFname'],
                                                                     item_index + 1, len(images_for_analysis)))
+
+        # Fetch observatory status
+        obstory_info = db.get_obstory_from_id(obstory_id)
+        obstory_status = None
+        if obstory_info and ('name' in obstory_info):
+            obstory_status = db.get_obstory_status(obstory_id=obstory_id, time=item['utc'])
+        if not obstory_status:
+            logging.info("Aborting -- no observatory status available.")
+            continue
+
+        # Fetch observatory status
+        lens_name = obstory_status['lens']
+        lens_props = hw.lens_data[lens_name]
+
+        # This is an estimate of the *maximum* angular width we expect images to have.
+        # It should be within a factor of two of correct!
+        estimated_image_scale = lens_props.fov
+
+        # Make a temporary directory to store files in.
+        # This is necessary as astrometry.net spams the cwd with lots of temporary junk
+        cwd = os.getcwd()
+        tmp = "/tmp/dcf21_orientationCalc_{}".format(item['repositoryFname'])
+        # logging.info("Created temporary directory <{}>".format(tmp))
+        os.system("mkdir %s" % tmp)
+        os.chdir(tmp)
+
+        # Find image orientation orientation
+        filename = os.path.join(settings['dbFilestore'], item['repositoryFname'])
+
+        if not os.path.exists(filename):
+            logging.info("Error: File <{}> is missing!".format(item['repositoryFname']))
+            continue
+
+        # 1. Copy image into working directory
+        # logging.info("Copying file")
+        img_name = item['repositoryFname']
+        command = "cp {} {}_tmp.png".format(filename, img_name)
+        # logging.info(command)
+        os.system(command)
+
+        # 2. Pass a series of small portions of image to astrometry.net.
+        fraction_x = 0.15
+        fraction_y = 0.15
+
+        fit_list = []
+        portion_centres = []
+        portion_centres.extend([[z, z] for z in np.arange(0.1, 0.9, 0.1)])
+        portion_centres.extend([[0.5, z] for z in np.arange(0.15, 0.85, 0.1)])
+        portion_centres.extend([[z, 0.5] for z in np.arange(0.15, 0.85, 0.1)])
+        portion_centres.extend([[z, 1 - z] for z in np.arange(0.1, 0.9, 0.1)])
+
+        d = image_dimensions("{}_tmp.png".format(img_name))
+
+        for image_portion in portion_centres:
+            command = """
+rm -f {0}_tmp3.png ; \
+convert {0}_tmp.png -colorspace sRGB -define png:format=png24 -crop {1:d}x{2:d}+{3:d}+{4:d} +repage {0}_tmp3.png
+""".format(img_name,
+           int(fraction_x * d[0]), int(fraction_y * d[1]),
+           int((image_portion[0] - fraction_x / 2) * d[0]), int((image_portion[1] - fraction_y / 2) * d[1]),
+           )
+            # logging.info(command)
+            os.system(command)
+
+            # Check that we've not run out of time
+            if utc_must_stop and (time.time() > utc_must_stop):
+                logging.info("We have run out of time! Aborting.")
+                continue
+
+            # How long should we allow astrometry.net to run for?
+            timeout = "2m" if settings['i_am_a_rpi'] else "30s"
+
+            # Run astrometry.net. Insert --no-plots on the command line to speed things up.
+            # logging.info("Running astrometry.net")
+            estimated_width = 2 * math.atan(math.tan(estimated_image_scale / 2 * deg) * fraction_x) * rad
+            astrometry_start_time = time.time()
+            command = """
+timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
+        --scale-high {2:.1f} --odds-to-tune-up 1e4 --odds-to-solve 1e7 --overwrite {3}_tmp3.png > txt 2> /dev/null \
+""".format(timeout,
+           estimated_width * 0.6,
+           estimated_width * 1.2,
+           img_name)
+            # logging.info(command)
+            os.system(command)
+
+            # Report how long astrometry.net took
+            astrometry_time_taken = time.time() - astrometry_start_time
+            # log_msg = "Astrometry.net took {:.0f} sec. ".format(astrometry_time_taken)
+
+            # Parse the output from astrometry.net
+            fit_text = open("txt").read()
+            # logging.info(fit_text)
+            test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",
+                             fit_text)
+            if not test:
+                logging.info("FAIL(POS): Point ({:.2f},{:.2f}).".format(image_portion[0], image_portion[1]))
+                continue
+
+            ra_sign = sgn(float(test.group(1)))
+            ra = abs(float(test.group(1))) + float(test.group(2)) / 60 + float(test.group(3)) / 3600
+            if ra_sign < 0:
+                ra *= -1
+            dec_sign = sgn(float(test.group(4)))
+            dec = abs(float(test.group(4))) + float(test.group(5)) / 60 + float(test.group(6)) / 3600
+            if dec_sign < 0:
+                dec *= -1
+
+            logging.info("FIT: RA: {:7.2f}h. Dec {:7.2f} deg. Point ({:.2f},{:.2f}).".format(ra, dec, image_portion[0],
+                                                                                             image_portion[1]))
+            fit_list.append({
+                'ra': ra,
+                'dec': dec,
+                'x': image_portion[0],
+                'y': image_portion[1]
+            })
+
+        # Clean up
+        os.chdir(cwd)
+        os.system("rm -Rf {}".format(tmp))
+
+        # Solve system of equations to give best fit barrel correction
+        # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/> for more information about how this works
+        ra0 = fit_list[0]['ra']
+        dec0 = fit_list[0]['dec']
+        params_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 0.05, 0.05, 0.05]
+        params_defaults = [ra0, dec0, pi / 4, pi / 4, 0, 0, 0, 0]
+        params_initial = [params_defaults[i] / params_scales[i] for i in range(len(params_defaults))]
+        params_optimised = scipy.optimize.minimize(mismatch, params_initial, method='nelder-mead',
+                                                   options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}
+                                                   ).x
+        params_final = [params_optimised[i] * params_scales[i] for i in range(len(params_defaults))]
+
+        # Display best fit numbers
+        headings = [["Central RA / hr", 12 / pi], ["Central Decl / deg", 180 / pi],
+                    ["Image width / deg", 180 / pi], ["Image height / deg", 180 / pi],
+                    ["Position angle / deg", 180 / pi],
+                    ["barrel_a", 1], ["barrel_b", 1], ["barrel_c", 1]
+                    ]
+
+        print("\n\nBest fit parameters were:")
+        for i in range(len(params_defaults)):
+            print("%30s : %s" % (headings[i][0], params_final[i] * headings[i][1]))
 
 
 def flush_calibration(obstory_id, utc_min, utc_max):
