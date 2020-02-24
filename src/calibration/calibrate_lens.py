@@ -39,7 +39,7 @@ import os
 import re
 import subprocess
 import time
-from math import pi, floor, hypot
+from math import pi, floor, hypot, isfinite
 from operator import itemgetter
 
 import numpy as np
@@ -86,12 +86,12 @@ def mismatch(params):
 
     accumulator = 0
     for star in fit_list:
-        pos = gnomonic_project(star['ra'], star['dec'], ra0, dec0,
-                               1, 1, scale_x, scale_y, pos_ang,
-                               bca, bcb, bcc)
-        if pos[0] < 0:
+        pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
+                               size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
+                               bca=bca, bcb=bcb, bcc=bcc)
+        if not isfinite(pos[0]):
             pos[0] = -999
-        if pos[1] < 0:
+        if not isfinite(pos[1]):
             pos[1] = -999
         offset = pow(hypot(star['x'] - pos[0], star['y'] - pos[1]), 2)
         accumulator += offset
@@ -311,7 +311,7 @@ convert {0}_tmp.png -colorspace sRGB -define png:format=png24 -crop {1:d}x{2:d}+
             astrometry_start_time = time.time()
             command = """
 timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
-        --scale-high {2:.1f} --odds-to-tune-up 1e4 --odds-to-solve 1e7 --overwrite {3}_tmp3.png > txt 2> /dev/null \
+        --scale-high {2:.1f} --overwrite {3}_tmp3.png > txt 2> /dev/null \
 """.format(timeout,
            estimated_width * 0.6,
            estimated_width * 1.2,
@@ -344,8 +344,8 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
             logging.info("FIT: RA: {:7.2f}h. Dec {:7.2f} deg. Point ({:.2f},{:.2f}).".format(ra, dec, image_portion[0],
                                                                                              image_portion[1]))
             fit_list.append({
-                'ra': ra,
-                'dec': dec,
+                'ra': ra * pi / 12,
+                'dec': dec * pi / 180,
                 'x': image_portion[0],
                 'y': image_portion[1]
             })
@@ -358,7 +358,7 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/> for more information about how this works
         ra0 = fit_list[0]['ra']
         dec0 = fit_list[0]['dec']
-        params_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 0.05, 0.05, 0.05]
+        params_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 0.005, 0.005, 0.005]
         params_defaults = [ra0, dec0, pi / 4, pi / 4, 0, 0, 0, 0]
         params_initial = [params_defaults[i] / params_scales[i] for i in range(len(params_defaults))]
         params_optimised = scipy.optimize.minimize(mismatch, params_initial, method='nelder-mead',
@@ -375,7 +375,7 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
 
         print("\n\nBest fit parameters were:")
         for i in range(len(params_defaults)):
-            print("%30s : %s" % (headings[i][0], params_final[i] * headings[i][1]))
+            print("{0:30s} : {1}".format(headings[i][0], params_final[i] * headings[i][1]))
 
 
 def flush_calibration(obstory_id, utc_min, utc_max):
