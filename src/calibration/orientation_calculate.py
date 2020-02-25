@@ -282,7 +282,7 @@ convert {}_tmp2.png -colorspace sRGB -define png:format=png24 -crop {:d}x{:d}+{:
         estimated_width = 2 * math.atan(math.tan(estimated_image_scale / 2 * deg) * fraction_x) * rad
         command = """
 timeout {} solve-field --no-plots --crpix-center --scale-low {:.1f} \
-        --scale-high {:.1f} --odds-to-tune-up 1e4 --odds-to-solve 1e7 --overwrite {}_tmp3.png > txt 2> /dev/null \
+        --scale-high {:.1f} --overwrite {}_tmp3.png > txt 2> /dev/null \
 """.format(timeout,
            estimated_width * 0.6,
            estimated_width * 1.2,
