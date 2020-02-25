@@ -47,7 +47,7 @@ import scipy.optimize
 from pigazing_helpers import connect_db, hardware_properties
 from pigazing_helpers.dcf_ast import date_string
 from pigazing_helpers.gnomonic_project import gnomonic_project
-from pigazing_helpers.obsarchive import obsarchive_db
+from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 
 degrees = pi / 180
@@ -55,13 +55,32 @@ degrees = pi / 180
 
 # Return the dimensions of an image
 def image_dimensions(in_file):
+    """
+    Return the pixel dimensions of an image.
+
+    :param in_file:
+        The filename of the image to measure
+    :type in_file:
+        str
+    :return:
+        List of the horizontal and vertical pixel dimensions
+    """
     d = subprocess.check_output(["identify", "-quiet", in_file]).decode('utf-8').split()[2].split("x")
     d = [int(i) for i in d]
     return d
 
 
-# Return the sign of a number
 def sgn(x):
+    """
+    Return the sign of a numerical value.
+
+    :param x:
+        The number to test
+    :return:
+        -1 if the number is less than zero
+        0 if the number is zero
+        1 if the number is greater than zero
+    """
     if x < 0:
         return -1
     if x > 0:
@@ -69,33 +88,51 @@ def sgn(x):
     return 0
 
 
+# Global variables used to pass information between the scipy.optimise function and its objective function
 fit_list = None
-param_scales = None
+parameter_scales = None
 
 
 def mismatch(params):
-    global params_scales, fit_list
-    ra0 = params[0] * params_scales[0]
-    dec0 = params[1] * params_scales[1]
-    scale_x = params[2] * params_scales[2]
-    scale_y = params[3] * params_scales[3]
-    pos_ang = params[4] * params_scales[4]
-    bca = params[5] * params_scales[5]
-    bcb = params[6] * params_scales[6]
-    bcc = params[7] * params_scales[7]
+    """
+    The objective function which is optimized to fit the barrel-distortion coefficients of the image.
+
+    :param params:
+        A vector, containing values in order, each normalised in units of <param_scales>:
+            0) The central RA of the image (radians)
+            1) The central declination of the image (radians)
+            2) The horizontal field-of-view of the image (radians)
+            3) The vertical field-of-view of the image (radians)
+            4) The position angle of the image; i.e. the angle of celestial north to the vertical (radians)
+            5) The barrel-distortion coefficient A
+            6) The barrel-distortion coefficient B
+            7) The barrel-distortion coefficient C
+    :return:
+        A measure of the mismatch of this proposed image orientation, based on the list of pixel positions and
+        calculated (RA, Dec) positions contained within <fit_list>.
+    """
+    global parameter_scales, fit_list
+    ra0 = params[0] * parameter_scales[0]
+    dec0 = params[1] * parameter_scales[1]
+    scale_x = params[2] * parameter_scales[2]
+    scale_y = params[3] * parameter_scales[3]
+    pos_ang = params[4] * parameter_scales[4]
+    bca = params[5] * parameter_scales[5]
+    bcb = params[6] * parameter_scales[6]
+    bcc = params[7] * parameter_scales[7]
 
     accumulator = 0
-    for star in fit_list:
-        pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
+    for point in fit_list:
+        pos = gnomonic_project(ra=point['ra'], dec=point['dec'], ra0=ra0, dec0=dec0,
                                size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
                                bca=bca, bcb=bcb, bcc=bcc)
         if not isfinite(pos[0]):
             pos[0] = -999
         if not isfinite(pos[1]):
             pos[1] = -999
-        offset = pow(hypot(star['x'] - pos[0], star['y'] - pos[1]), 2)
+        offset = pow(hypot(point['x'] - pos[0], point['y'] - pos[1]), 2)
         accumulator += offset
-    # print "%10e -- %s" % (accumulator, list(params))
+    # logging.info("{:10e} -- {}".format(accumulator, list(params)))
     return accumulator
 
 
@@ -114,7 +151,7 @@ def calibrate_lens(obstory_id, utc_min, utc_max, utc_must_stop=None):
     :return:
         None
     """
-    global params_scales, fit_list
+    global parameter_scales, fit_list
 
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
@@ -127,7 +164,7 @@ def calibrate_lens(obstory_id, utc_min, utc_max, utc_must_stop=None):
                                            db_name=installation_info['mysqlDatabase'],
                                            obstory_id=installation_info['observatoryId'])
 
-    logging.info("Starting calculation of camera alignment for <{}>".format(obstory_id))
+    logging.info("Starting estimation of lens calibration for <{}>".format(obstory_id))
 
     # Mathematical constants
     deg = pi / 180
@@ -165,7 +202,7 @@ ORDER BY obsTime DESC LIMIT 1
 
     # Divide up time interval into day-long blocks
     logging.info("Searching for images within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
-    block_size = 86400
+    block_size = 3600
     minimum_sky_clarity = 500
     utc_min = (floor(utc_min / block_size + 0.5) - 0.5) * block_size  # Make sure that blocks start at noon
     time_blocks = list(np.arange(start=utc_min, stop=utc_max + block_size, step=block_size))
@@ -273,20 +310,35 @@ ORDER BY am.floatValue DESC LIMIT 1
         # logging.info(command)
         os.system(command)
 
-        # 2. Pass a series of small portions of image to astrometry.net.
+        # 2. We estimate the distortion of the image by passing a series of small portions of the image to
+        # astrometry.net. We use this to construct a mapping between (x, y) pixel coordinates to (RA, Dec).
+
+        # Define the size of each small portion we pass to astrometry.net
         fraction_x = 0.15
         fraction_y = 0.15
 
+        # Create a list of the centres of the portions we send
         fit_list = []
         portion_centres = []
+
+        # Points along the leading diagonal of the image
         portion_centres.extend([[z, z] for z in np.arange(0.1, 0.9, 0.1)])
+
+        # Points down the vertical centre-line of the image
         portion_centres.extend([[0.5, z] for z in np.arange(0.15, 0.85, 0.1)])
+
+        # Points along the horizontal centre-line of the image
         portion_centres.extend([[z, 0.5] for z in np.arange(0.15, 0.85, 0.1)])
+
+        # Points along the trailing diagonal of the image
         portion_centres.extend([[z, 1 - z] for z in np.arange(0.1, 0.9, 0.1)])
 
+        # Fetch the pixel dimensions of the image we are working on
         d = image_dimensions("{}_tmp.png".format(img_name))
 
+        # Analyse each small portion of the image in turn
         for image_portion in portion_centres:
+            # Use ImageMagick to crop out each small piece of the image
             command = """
 rm -f {0}_tmp3.png ; \
 convert {0}_tmp.png -colorspace sRGB -define png:format=png24 -crop {1:d}x{2:d}+{3:d}+{4:d} +repage {0}_tmp3.png
@@ -303,7 +355,7 @@ convert {0}_tmp.png -colorspace sRGB -define png:format=png24 -crop {1:d}x{2:d}+
                 continue
 
             # How long should we allow astrometry.net to run for?
-            timeout = "2m" if settings['i_am_a_rpi'] else "30s"
+            timeout = "30s" if settings['i_am_a_rpi'] else "15s"
 
             # Run astrometry.net. Insert --no-plots on the command line to speed things up.
             # logging.info("Running astrometry.net")
@@ -320,7 +372,7 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
             os.system(command)
 
             # Report how long astrometry.net took
-            astrometry_time_taken = time.time() - astrometry_start_time
+            # astrometry_time_taken = time.time() - astrometry_start_time
             # log_msg = "Astrometry.net took {:.0f} sec. ".format(astrometry_time_taken)
 
             # Parse the output from astrometry.net
@@ -341,8 +393,12 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
             if dec_sign < 0:
                 dec *= -1
 
+            # If astrometry.net achieved a fit, then we report it to the user
             logging.info("FIT: RA: {:7.2f}h. Dec {:7.2f} deg. Point ({:.2f},{:.2f}).".format(ra, dec, image_portion[0],
                                                                                              image_portion[1]))
+
+            # Also, populate <fit_list> with a list of the central points of the image fragments, and their (RA, Dec)
+            # coordinates.
             fit_list.append({
                 'ra': ra * pi / 12,
                 'dec': dec * pi / 180,
@@ -354,17 +410,21 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         os.chdir(cwd)
         os.system("rm -Rf {}".format(tmp))
 
-        # Solve system of equations to give best fit barrel correction
-        # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/> for more information about how this works
+        # Fit a gnomonic projection to the image, with barrel correction, to fit all the celestial positions of the
+        # image fragments.
+
+        # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/> for more information
+
         ra0 = fit_list[0]['ra']
         dec0 = fit_list[0]['dec']
-        params_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 0.005, 0.005, 0.005]
-        params_defaults = [ra0, dec0, pi / 4, pi / 4, 0, 0, 0, 0]
-        params_initial = [params_defaults[i] / params_scales[i] for i in range(len(params_defaults))]
-        params_optimised = scipy.optimize.minimize(mismatch, params_initial, method='nelder-mead',
-                                                   options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}
-                                                   ).x
-        params_final = [params_optimised[i] * params_scales[i] for i in range(len(params_defaults))]
+        parameter_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 0.005, 0.005, 0.005]
+        parameters_default = [ra0, dec0, pi / 4, pi / 4, 0,
+                              lens_props.barrel_a, lens_props.barrel_b, lens_props.barrel_c]
+        parameters_initial = [parameters_default[i] / parameter_scales[i] for i in range(len(params_defaults))]
+        parameters_optimal = scipy.optimize.minimize(mismatch, parameters_initial, method='nelder-mead',
+                                                     options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}
+                                                     ).x
+        params_final = [parameters_optimal[i] * parameter_scales[i] for i in range(len(params_defaults))]
 
         # Display best fit numbers
         headings = [["Central RA / hr", 12 / pi], ["Central Decl / deg", 180 / pi],
@@ -377,8 +437,37 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         for i in range(len(params_defaults)):
             print("{0:30s} : {1}".format(headings[i][0], params_final[i] * headings[i][1]))
 
+        # Update observation status
+        user = settings['pigazingUser']
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+                                    meta=mp.Meta(key="calibration:lens_barrel_a", value=params_final[5]))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+                                    meta=mp.Meta(key="calibration:lens_barrel_b", value=params_final[6]))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+                                    meta=mp.Meta(key="calibration:lens_barrel_c", value=params_final[7]))
+
+    # Clean up and exit
+    db.commit()
+    db.close_db()
+    db0.commit()
+    conn.close()
+    db0.close()
+    return
+
 
 def flush_calibration(obstory_id, utc_min, utc_max):
+    """
+    Remove all calibration data for a particular observatory within a specified time period.
+
+    :param obstory_id:
+        The publicId of the observatory we are to flush.
+    :param utc_min:
+        The earliest time for which we are to flush calibration data.
+    :param utc_max:
+        The latest time for which we are to flush calibration data.
+    :return:
+        None
+    """
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
 

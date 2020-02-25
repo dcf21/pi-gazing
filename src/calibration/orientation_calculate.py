@@ -43,15 +43,33 @@ from pigazing_helpers.settings_read import settings, installation_info
 from pigazing_helpers.sunset_times import alt_az, get_zenith_position, mean_angle, mean_angle_2d
 
 
-# Return the dimensions of an image
 def image_dimensions(in_file):
+    """
+    Return the pixel dimensions of an image.
+
+    :param in_file:
+        The filename of the image to measure
+    :type in_file:
+        str
+    :return:
+        List of the horizontal and vertical pixel dimensions
+    """
     d = subprocess.check_output(["identify", "-quiet", in_file]).decode('utf-8').split()[2].split("x")
     d = [int(i) for i in d]
     return d
 
 
-# Return the sign of a number
 def sgn(x):
+    """
+    Return the sign of a numerical value.
+
+    :param x:
+        The number to test
+    :return:
+        -1 if the number is less than zero
+        0 if the number is zero
+        1 if the number is greater than zero
+    """
     if x < 0:
         return -1
     if x > 0:
@@ -368,7 +386,7 @@ timeout {} solve-field --no-plots --crpix-center --scale-low {:.1f} \
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
                                     meta=mp.Meta(key="orientation:width_y_field", value=scale_y))
 
-        # Clean up and exit
+        # Clean up
         os.chdir(cwd)
         os.system("rm -Rf {}".format(tmp))
 
@@ -450,7 +468,7 @@ ScaleX: {:.2f} deg. ScaleY: {:.2f} deg. Uncertainty: {:.2f} deg.\
            scale_y_best * rad,
            alt_az_error * rad))
 
-        # Update observation status
+        # Update observatory status
         if success:
             user = settings['pigazingUser']
             db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:altitude",
@@ -475,10 +493,25 @@ ScaleX: {:.2f} deg. ScaleY: {:.2f} deg. Uncertainty: {:.2f} deg.\
     # Clean up and exit
     db.commit()
     db.close_db()
+    db0.commit()
+    conn.close()
+    db0.close()
     return
 
 
 def flush_orientation(obstory_id, utc_min, utc_max):
+    """
+    Remove all orientation data for a particular observatory within a specified time period.
+
+    :param obstory_id:
+        The publicId of the observatory we are to flush.
+    :param utc_min:
+        The earliest time for which we are to flush orientation data.
+    :param utc_max:
+        The latest time for which we are to flush orientation data.
+    :return:
+        None
+    """
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
 
