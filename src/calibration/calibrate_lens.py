@@ -410,6 +410,11 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         os.chdir(cwd)
         os.system("rm -Rf {}".format(tmp))
 
+        # Reject this image if there are insufficient fits from astrometry.net
+        if len(fit_list) < 8:
+            logging.info("Insufficient fits to continue ({:d} fits)".format(len(fit_list)))
+            continue
+
         # Fit a gnomonic projection to the image, with barrel correction, to fit all the celestial positions of the
         # image fragments.
 
@@ -420,11 +425,12 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         parameter_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 0.005, 0.005, 0.005]
         parameters_default = [ra0, dec0, pi / 4, pi / 4, 0,
                               lens_props.barrel_a, lens_props.barrel_b, lens_props.barrel_c]
-        parameters_initial = [parameters_default[i] / parameter_scales[i] for i in range(len(params_defaults))]
-        parameters_optimal = scipy.optimize.minimize(mismatch, parameters_initial, method='nelder-mead',
+        parameters_initial = [parameters_default[i] / parameter_scales[i] for i in range(len(parameters_default))]
+        fitting_result = scipy.optimize.minimize(mismatch, parameters_initial, method='nelder-mead',
                                                      options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}
-                                                     ).x
-        params_final = [parameters_optimal[i] * parameter_scales[i] for i in range(len(params_defaults))]
+                                                     )
+        parameters_optimal = fitting_result.x
+        parameters_final = [parameters_optimal[i] * parameter_scales[i] for i in range(len(parameters_default))]
 
         # Display best fit numbers
         headings = [["Central RA / hr", 12 / pi], ["Central Decl / deg", 180 / pi],
@@ -433,18 +439,18 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
                     ["barrel_a", 1], ["barrel_b", 1], ["barrel_c", 1]
                     ]
 
-        print("\n\nBest fit parameters were:")
-        for i in range(len(params_defaults)):
-            print("{0:30s} : {1}".format(headings[i][0], params_final[i] * headings[i][1]))
+        logging.info("Fit achieved with offset of {}. Best fit parameters were:".format(fitting_result.fun))
+        for i in range(len(parameters_default)):
+            logging.info("{0:30s} : {1}".format(headings[i][0], parameters_final[i] * headings[i][1]))
 
         # Update observation status
         user = settings['pigazingUser']
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
-                                    meta=mp.Meta(key="calibration:lens_barrel_a", value=params_final[5]))
+                                    meta=mp.Meta(key="calibration:lens_barrel_a", value=parameters_final[5]))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
-                                    meta=mp.Meta(key="calibration:lens_barrel_b", value=params_final[6]))
+                                    meta=mp.Meta(key="calibration:lens_barrel_b", value=parameters_final[6]))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
-                                    meta=mp.Meta(key="calibration:lens_barrel_c", value=params_final[7]))
+                                    meta=mp.Meta(key="calibration:lens_barrel_c", value=parameters_final[7]))
 
     # Clean up and exit
     db.commit()
