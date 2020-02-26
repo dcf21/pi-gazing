@@ -90,13 +90,13 @@ WHERE
 
     # Display column headings
     print("""\
-{:1s} {:16s} {:7s} {:7s} {:7s} {:6s} {:6s}\
+{:1s} {:16s} {:8s} {:8s} {:8s} {:10s} {:6s}\
 """.format("", "Time", "barrelA", "barrelB", "barrelC", "chi2", "points"))
 
     # Display fixes
     for item in orientation_fixes:
         print("""\
-{:s} {:16s} {:7.2f} {:7.2f} {:7.2f} {:6.1f} {:6.1f} {:s}\
+{:s} {:16s} {:8.4f} {:8.4f} {:8.4f} {:10.7f} {:6.0f} {:s}\
 """.format("\n>" if item['average'] else " ",
            date_string(item['time']),
            item['fit']['barrel_a'], item['fit']['barrel_b'], item['fit']['barrel_c'],

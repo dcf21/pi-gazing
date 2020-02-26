@@ -121,7 +121,7 @@ def mismatch(params):
     bcb = params[6] * parameter_scales[6]
     bcc = params[7] * parameter_scales[7]
 
-    accumulator = 0
+    offset_list = []
     for point in fit_list:
         pos = gnomonic_project(ra=point['ra'], dec=point['dec'], ra0=ra0, dec0=dec0,
                                size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
@@ -131,8 +131,18 @@ def mismatch(params):
         if not isfinite(pos[1]):
             pos[1] = -999
         offset = pow(hypot(point['x'] - pos[0], point['y'] - pos[1]), 2)
-        accumulator += offset
+        offset_list.append(offset)
+
+    # Sort offsets into order of magnitude
+    offset_list.sort()
+
+    # Reject the two worst-matching points
+    accumulator = sum(offset_list[:-2])
+
+    # Debugging
     # logging.info("{:10e} -- {}".format(accumulator, list(params)))
+
+    # Return result
     return accumulator
 
 
@@ -411,7 +421,7 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         os.system("rm -Rf {}".format(tmp))
 
         # Reject this image if there are insufficient fits from astrometry.net
-        if len(fit_list) < 8:
+        if len(fit_list) < 12:
             logging.info("Insufficient fits to continue ({:d} fits)".format(len(fit_list)))
             continue
 
