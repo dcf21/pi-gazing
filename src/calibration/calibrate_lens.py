@@ -439,7 +439,8 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
                     ["barrel_a", 1], ["barrel_b", 1], ["barrel_c", 1]
                     ]
 
-        logging.info("Fit achieved with offset of {}. Best fit parameters were:".format(fitting_result.fun))
+        logging.info("Fit achieved to {:d} points with offset of {:.5f}. Best fit parameters were:".
+                     format(len(fit_list), fitting_result.fun))
         for i in range(len(parameters_default)):
             logging.info("{0:30s} : {1}".format(headings[i][0], parameters_final[i] * headings[i][1]))
 
@@ -451,6 +452,10 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
                                     meta=mp.Meta(key="calibration:lens_barrel_b", value=parameters_final[6]))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
                                     meta=mp.Meta(key="calibration:lens_barrel_c", value=parameters_final[7]))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+                                    meta=mp.Meta(key="calibration:chi_squared", value=fitting_result.fun))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+                                    meta=mp.Meta(key="calibration:point_count", value=len(fit_list)))
 
     # Clean up and exit
     db.commit()
