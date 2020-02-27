@@ -32,7 +32,6 @@ You may also changed the values for your lens in the XML file <src/configuration
 that future observatories set up with your model of lens will use your barrel correction coefficients.
 """
 
-import dask
 import argparse
 import logging
 import math
@@ -43,6 +42,7 @@ import time
 from math import pi, floor, hypot, isfinite
 from operator import itemgetter
 
+import dask
 import numpy as np
 import scipy.optimize
 from pigazing_helpers import connect_db, hardware_properties
@@ -282,6 +282,14 @@ ORDER BY am.floatValue DESC LIMIT 1
         logging.info("Working on image {:32s} ({:4d}/{:4d})".format(item['repositoryFname'],
                                                                     item_index + 1, len(images_for_analysis)))
 
+        # Make a temporary directory to store files in.
+        # This is necessary as astrometry.net spams the cwd with lots of temporary junk
+        cwd0 = os.getcwd()
+        tmp0 = "/tmp/dcf21_orientationCalc_{}".format(item['repositoryFname'])
+        # logging.info("Created temporary directory <{}>".format(tmp))
+        os.system("mkdir {}".format(tmp0))
+        os.chdir(tmp0)
+
         # Fetch observatory status
         obstory_info = db.get_obstory_from_id(obstory_id)
         obstory_status = None
@@ -322,29 +330,29 @@ ORDER BY am.floatValue DESC LIMIT 1
 
         # Create a list of the centres of the portions we send
         fit_list = []
-        portion_centres = [[0.5, 0.5]]
+        portion_centres = [{'x': 0.5, 'y': 0.5}]
 
         # Points along the leading diagonal of the image
         for z in np.arange(0.1, 0.9, 0.1):
             if z != 0.5:
-                portion_centres.append([z, z])
-                portion_centres.append([(z + 0.5)/2, z])
-                portion_centres.append([z, (z + 0.5)/2])
+                portion_centres.append({'x': z, 'y': z})
+                portion_centres.append({'x': (z + 0.5) / 2, 'y': z})
+                portion_centres.append({'x': z, 'y': (z + 0.5) / 2})
 
         # Points along the trailing diagonal of the image
         for z in np.arange(0.1, 0.9, 0.1):
             if z != 0.5:
-                portion_centres.append([z, 1 - z])
-                portion_centres.append([(1.5 - z)/2, z])
-                portion_centres.append([z, (1.5 - z)/2])
+                portion_centres.append({'x': z, 'y': 1 - z})
+                portion_centres.append({'x': (1.5 - z) / 2, 'y': z})
+                portion_centres.append({'x': z, 'y': (1.5 - z) / 2})
 
         # Points down the vertical centre-line of the image
         for z in np.arange(0.15, 0.85, 0.1):
-            portion_centres.append([0.5, z])
+            portion_centres.append({'x': 0.5, 'y': z})
 
         # Points along the horizontal centre-line of the image
         for z in np.arange(0.15, 0.85, 0.1):
-            portion_centres.append([z, 0.5])
+            portion_centres.append({'x': z, 'y': 0.5})
 
         # Fetch the pixel dimensions of the image we are working on
         d = image_dimensions("{}_tmp.png".format(img_name))
@@ -354,27 +362,29 @@ ORDER BY am.floatValue DESC LIMIT 1
 
             # Make a temporary directory to store files in.
             # This is necessary as astrometry.net spams the cwd with lots of temporary junk
-            cwd = os.getcwd()
             tmp = "/tmp/dcf21_orientationCalc_{}_{}".format(item['repositoryFname'], image_portion['index'])
             # logging.info("Created temporary directory <{}>".format(tmp))
-            os.system("mkdir %s" % tmp)
-            os.chdir(tmp)
+            os.system("mkdir {}".format(tmp))
 
             # Use ImageMagick to crop out each small piece of the image
             command = """
-rm -f {0}_tmp3.png ; \
-convert {0}_tmp.png -colorspace sRGB -define png:format=png24 -crop {1:d}x{2:d}+{3:d}+{4:d} +repage {0}_tmp3.png
-""".format(img_name,
-           int(fraction_x * d[0]), int(fraction_y * d[1]),
-           int((image_portion[0] - fraction_x / 2) * d[0]), int((image_portion[1] - fraction_y / 2) * d[1]),
-           )
+cd {6} ; \
+rm -f {5}_tmp3.png ; \
+convert {0}_tmp.png -colorspace sRGB -define png:format=png24 -crop {1:d}x{2:d}+{3:d}+{4:d} +repage {5}_tmp3.png
+            """.format(os.path.join(tmp0, img_name),
+                       int(fraction_x * d[0]), int(fraction_y * d[1]),
+                       int((image_portion['x'] - fraction_x / 2) * d[0]),
+                       int((image_portion['y'] - fraction_y / 2) * d[1]),
+                       img_name,
+                       tmp
+                       )
             # logging.info(command)
             os.system(command)
 
             # Check that we've not run out of time
             if utc_must_stop and (time.time() > utc_must_stop):
                 logging.info("We have run out of time! Aborting.")
-                continue
+                return None
 
             # How long should we allow astrometry.net to run for?
             timeout = "30s" if settings['i_am_a_rpi'] else "15s"
@@ -383,13 +393,17 @@ convert {0}_tmp.png -colorspace sRGB -define png:format=png24 -crop {1:d}x{2:d}+
             # logging.info("Running astrometry.net")
             estimated_width = 2 * math.atan(math.tan(estimated_image_scale / 2 * deg) * fraction_x) * rad
             astrometry_start_time = time.time()
+            astrometry_output = os.path.join(tmp, "txt")
             command = """
+cd {5} ; \
 timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
-        --scale-high {2:.1f} --overwrite {3}_tmp3.png > txt 2> /dev/null \
-""".format(timeout,
-           estimated_width * 0.6,
-           estimated_width * 1.2,
-           img_name)
+        --scale-high {2:.1f} --overwrite {3}_tmp3.png > {4} 2> /dev/null \
+            """.format(timeout,
+                       estimated_width * 0.6,
+                       estimated_width * 1.2,
+                       img_name,
+                       astrometry_output,
+                       tmp)
             # logging.info(command)
             os.system(command)
 
@@ -398,13 +412,14 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
             # log_msg = "Astrometry.net took {:.0f} sec. ".format(astrometry_time_taken)
 
             # Parse the output from astrometry.net
-            fit_text = open("txt").read()
+            assert os.path.exists(astrometry_output), "Path <{}> doesn't exist".format(astrometry_output)
+            fit_text = open(astrometry_output).read()
             # logging.info(fit_text)
             test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",
                              fit_text)
             if not test:
-                logging.info("FAIL(POS): Point ({:.2f},{:.2f}).".format(image_portion[0], image_portion[1]))
-                continue
+                logging.info("FAIL(POS): Point ({:.2f},{:.2f}).".format(image_portion['x'], image_portion['y']))
+                return None
 
             ra_sign = sgn(float(test.group(1)))
             ra = abs(float(test.group(1))) + float(test.group(2)) / 60 + float(test.group(3)) / 3600
@@ -416,11 +431,12 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
                 dec *= -1
 
             # If astrometry.net achieved a fit, then we report it to the user
-            logging.info("FIT: RA: {:7.2f}h. Dec {:7.2f} deg. Point ({:.2f},{:.2f}).".format(ra, dec, image_portion[0],
-                                                                                             image_portion[1]))
+            logging.info("FIT: RA: {:7.2f}h. Dec {:7.2f} deg. Point ({:.2f},{:.2f}).".format(ra, dec,
+                                                                                             image_portion['x'],
+                                                                                             image_portion['y']))
 
             # Clean up
-            os.chdir(cwd)
+            # logging.info("Removing temporary directory <{}>".format(tmp))
             os.system("rm -Rf {}".format(tmp))
 
             # Also, populate <fit_list> with a list of the central points of the image fragments, and their (RA, Dec)
@@ -428,23 +444,29 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
             return {
                 'ra': ra * pi / 12,
                 'dec': dec * pi / 180,
-                'x': image_portion[0],
-                'y': image_portion[1],
-                'radius': hypot(image_portion[0],image_portion[1])
+                'x': image_portion['x'],
+                'y': image_portion['y'],
+                'radius': hypot(image_portion['x'] - 0.5, image_portion['y'] - 0.5)
             }
-
 
         # Analyse each small portion of the image in turn
         dask_tasks = []
         for index, image_portion in enumerate(portion_centres):
             image_portion['index'] = index
             dask_tasks.append(analyse_image_portion(image_portion=image_portion))
-        fit_list = dask.compute(dask_tasks)
+        fit_list = dask.compute(*dask_tasks)
+
+        # Remove fits which returned None
+        fit_list = [i for i in fit_list if i is not None]
+
+        # Clean up
+        os.chdir(cwd0)
+        os.system("rm -Rf {}".format(tmp0))
 
         # Make histogram of fits as a function of radius
-        radius_histogram = [0] * 8
+        radius_histogram = [0] * 10
         for fit in fit_list:
-            radius_histogram[int(fit['radius'] * 5)] += 1
+            radius_histogram[int(fit['radius'] * 10)] += 1
 
         logging.info("Fit histogram vs radius: {}".format(radius_histogram))
 
@@ -465,8 +487,8 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
                               lens_props.barrel_a, lens_props.barrel_b, lens_props.barrel_c]
         parameters_initial = [parameters_default[i] / parameter_scales[i] for i in range(len(parameters_default))]
         fitting_result = scipy.optimize.minimize(mismatch, parameters_initial, method='nelder-mead',
-                                                     options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}
-                                                     )
+                                                 options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}
+                                                 )
         parameters_optimal = fitting_result.x
         parameters_final = [parameters_optimal[i] * parameter_scales[i] for i in range(len(parameters_default))]
 
