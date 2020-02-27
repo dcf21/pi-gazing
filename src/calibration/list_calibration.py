@@ -59,7 +59,7 @@ def list_calibration_fixes(obstory_id, utc_min, utc_max):
     # Select observations with orientation fits
     conn.execute("""
 SELECT am1.floatValue AS barrel_a, am2.floatValue AS barrel_b, am3.floatValue AS barrel_c,
-       am4.floatValue AS chi_squared, am5.floatValue AS point_count,
+       am4.floatValue AS chi_squared, am5.stringValue AS point_count,
        o.obsTime AS time
 FROM archive_observations o
 INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
@@ -96,7 +96,7 @@ WHERE
     # Display fixes
     for item in orientation_fixes:
         print("""\
-{:s} {:16s} {:8.4f} {:8.4f} {:8.4f} {:10.7f} {:6.0f} {:s}\
+{:s} {:16s} {:8.4f} {:8.4f} {:8.4f} {:10.7f} {:s} {:s}\
 """.format("\n>" if item['average'] else " ",
            date_string(item['time']),
            item['fit']['barrel_a'], item['fit']['barrel_b'], item['fit']['barrel_c'],
