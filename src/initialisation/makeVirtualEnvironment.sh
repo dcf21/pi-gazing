@@ -56,6 +56,7 @@ pip install flask-cors
 pip install flask-jsonpify
 pip install bcrypt
 pip install gps3
+pip install toolz cytoolz dask distributed bokeh
 
 # Install custom python libraries
 cd ${cwd}

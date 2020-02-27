@@ -32,6 +32,7 @@ You may also changed the values for your lens in the XML file <src/configuration
 that future observatories set up with your model of lens will use your barrel correction coefficients.
 """
 
+import dask
 import argparse
 import logging
 import math
@@ -298,14 +299,6 @@ ORDER BY am.floatValue DESC LIMIT 1
         # It should be within a factor of two of correct!
         estimated_image_scale = lens_props.fov
 
-        # Make a temporary directory to store files in.
-        # This is necessary as astrometry.net spams the cwd with lots of temporary junk
-        cwd = os.getcwd()
-        tmp = "/tmp/dcf21_orientationCalc_{}".format(item['repositoryFname'])
-        # logging.info("Created temporary directory <{}>".format(tmp))
-        os.system("mkdir %s" % tmp)
-        os.chdir(tmp)
-
         # Find image orientation orientation
         filename = os.path.join(settings['dbFilestore'], item['repositoryFname'])
 
@@ -329,25 +322,44 @@ ORDER BY am.floatValue DESC LIMIT 1
 
         # Create a list of the centres of the portions we send
         fit_list = []
-        portion_centres = []
+        portion_centres = [[0.5, 0.5]]
 
         # Points along the leading diagonal of the image
-        portion_centres.extend([[z, z] for z in np.arange(0.1, 0.9, 0.1)])
-
-        # Points down the vertical centre-line of the image
-        portion_centres.extend([[0.5, z] for z in np.arange(0.15, 0.85, 0.1)])
-
-        # Points along the horizontal centre-line of the image
-        portion_centres.extend([[z, 0.5] for z in np.arange(0.15, 0.85, 0.1)])
+        for z in np.arange(0.1, 0.9, 0.1):
+            if z != 0.5:
+                portion_centres.append([z, z])
+                portion_centres.append([(z + 0.5)/2, z])
+                portion_centres.append([z, (z + 0.5)/2])
 
         # Points along the trailing diagonal of the image
-        portion_centres.extend([[z, 1 - z] for z in np.arange(0.1, 0.9, 0.1)])
+        for z in np.arange(0.1, 0.9, 0.1):
+            if z != 0.5:
+                portion_centres.append([z, 1 - z])
+                portion_centres.append([(1.5 - z)/2, z])
+                portion_centres.append([z, (1.5 - z)/2])
+
+        # Points down the vertical centre-line of the image
+        for z in np.arange(0.15, 0.85, 0.1):
+            portion_centres.append([0.5, z])
+
+        # Points along the horizontal centre-line of the image
+        for z in np.arange(0.15, 0.85, 0.1):
+            portion_centres.append([z, 0.5])
 
         # Fetch the pixel dimensions of the image we are working on
         d = image_dimensions("{}_tmp.png".format(img_name))
 
-        # Analyse each small portion of the image in turn
-        for image_portion in portion_centres:
+        @dask.delayed
+        def analyse_image_portion(image_portion):
+
+            # Make a temporary directory to store files in.
+            # This is necessary as astrometry.net spams the cwd with lots of temporary junk
+            cwd = os.getcwd()
+            tmp = "/tmp/dcf21_orientationCalc_{}_{}".format(item['repositoryFname'], image_portion['index'])
+            # logging.info("Created temporary directory <{}>".format(tmp))
+            os.system("mkdir %s" % tmp)
+            os.chdir(tmp)
+
             # Use ImageMagick to crop out each small piece of the image
             command = """
 rm -f {0}_tmp3.png ; \
@@ -407,22 +419,38 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
             logging.info("FIT: RA: {:7.2f}h. Dec {:7.2f} deg. Point ({:.2f},{:.2f}).".format(ra, dec, image_portion[0],
                                                                                              image_portion[1]))
 
+            # Clean up
+            os.chdir(cwd)
+            os.system("rm -Rf {}".format(tmp))
+
             # Also, populate <fit_list> with a list of the central points of the image fragments, and their (RA, Dec)
             # coordinates.
-            fit_list.append({
+            return {
                 'ra': ra * pi / 12,
                 'dec': dec * pi / 180,
                 'x': image_portion[0],
-                'y': image_portion[1]
-            })
+                'y': image_portion[1],
+                'radius': hypot(image_portion[0],image_portion[1])
+            }
 
-        # Clean up
-        os.chdir(cwd)
-        os.system("rm -Rf {}".format(tmp))
+
+        # Analyse each small portion of the image in turn
+        dask_tasks = []
+        for index, image_portion in enumerate(portion_centres):
+            image_portion['index'] = index
+            dask_tasks.append(analyse_image_portion(image_portion=image_portion))
+        fit_list = dask.compute(dask_tasks)
+
+        # Make histogram of fits as a function of radius
+        radius_histogram = [0] * 8
+        for fit in fit_list:
+            radius_histogram[int(fit['radius'] * 5)] += 1
+
+        logging.info("Fit histogram vs radius: {}".format(radius_histogram))
 
         # Reject this image if there are insufficient fits from astrometry.net
-        if len(fit_list) < 12:
-            logging.info("Insufficient fits to continue ({:d} fits)".format(len(fit_list)))
+        if min(radius_histogram[:5]) < 2:
+            logging.info("Insufficient fits to continue")
             continue
 
         # Fit a gnomonic projection to the image, with barrel correction, to fit all the celestial positions of the
@@ -465,7 +493,7 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
                                     meta=mp.Meta(key="calibration:chi_squared", value=fitting_result.fun))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
-                                    meta=mp.Meta(key="calibration:point_count", value=len(fit_list)))
+                                    meta=mp.Meta(key="calibration:point_count", value=str(radius_histogram)))
 
     # Clean up and exit
     db.commit()
