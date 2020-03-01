@@ -49,6 +49,13 @@ def check_database_integrity():
         id = item['repositoryFname']
         if not os.path.exists(db.file_path_for_id(id)):
             print("Files: Missing file ID <{}>".format(id))
+            continue
+        file_size = os.stat(db.file_path_for_id(id)).st_size
+        sql.execute("UPDATE archive_files SET fileSize=%s WHERE repositoryFname=%s;",
+                    (file_size, id))
+
+    # Commit changes to database
+    db.commit()
 
 
 if __name__ == "__main__":
