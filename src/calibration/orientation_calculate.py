@@ -143,7 +143,7 @@ ORDER BY obsTime DESC LIMIT 1
     # Divide up time interval into 15 minute blocks
     logging.info("Searching for images within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
     block_size = 900
-    minimum_sky_clarity = 500
+    minimum_sky_clarity = 400
     time_blocks = list(np.arange(start=utc_min, stop=utc_max, step=block_size))
 
     # Build list of images we are to analyse
@@ -274,7 +274,7 @@ convert {}_tmp2.png -colorspace sRGB -define png:format=png24 -crop {:d}x{:d}+{:
             continue
 
         # How long should we allow astrometry.net to run for?
-        timeout = "2m" if settings['i_am_a_rpi'] else "30s"
+        timeout = "1m" if settings['i_am_a_rpi'] else "10s"
 
         # Run astrometry.net. Insert --no-plots on the command line to speed things up.
         logging.info("Running astrometry.net")
@@ -389,6 +389,10 @@ timeout {} solve-field --no-plots --crpix-center --scale-low {:.1f} \
         # Clean up
         os.chdir(cwd)
         os.system("rm -Rf {}".format(tmp))
+
+    # Commit metadata changes
+    db.commit()
+    db0.commit()
 
     # Now determine mean orientation each day
     logging.info("Averaging daily fits within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
