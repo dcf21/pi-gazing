@@ -397,6 +397,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     // Let the camera run for a period before triggering, as it takes this long to make first background map
     os->run_in_frame_countdown = 100 + BACKGROUND_MAP_FRAMES;
     os->noise_level = 128;
+    os->mean_level = 128;
 
     // Trigger throttling
     os->trigger_throttle_timer = 0;
@@ -425,7 +426,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
 
         // Once on each cycle through the video buffer, estimate the thermal noise of the camera
         if (buffer_pos == os->video_buffer) {
-            os->noise_level = estimate_noise_level(os->width, os->height, os->video_buffer, 16);
+            os->noise_level = estimate_noise_level(os->width, os->height, os->video_buffer, 16, &os->mean_level);
         }
 
         // Read the next frame of input video
@@ -472,7 +473,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
                                  os->STACK_TARGET_BRIGHTNESS, &gain_factor, fname);
 
             // Store metadata about the time-lapse frame
-            write_metadata(fname, "sdsiidddi",
+            write_metadata(fname, "sdsiiddddi",
                            "obstoryId", os->obstory_id,
                            "utc", os->timelapse_utc_start,
                            "semanticType", "pigazing:timelapse",
@@ -480,6 +481,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
                            "height", os->height,
                            "inputNoiseLevel", os->noise_level,
                            "stackNoiseLevel", os->noise_level / sqrt(frame_count) * gain_factor,
+                           "meanLevel", os->mean_level,
                            "gainFactor", gain_factor,
                            "stackedFrames", frame_count);
 
@@ -506,7 +508,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
                 sprintf(fname, "%s%s", fstub, "skyBackground.rgb");
                 dump_frame_from_ints(os->width, os->height, channel_count, os->background_maps[0],
                                      256, 0, NULL, fname);
-                write_metadata(fname, "sdsiiddi",
+                write_metadata(fname, "sdsiidddi",
                                "obstoryId", os->obstory_id,
                                "utc", os->timelapse_utc_start,
                                "semanticType", "pigazing:timelapse/backgroundModel",
@@ -514,6 +516,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
                                "height", os->height,
                                "inputNoiseLevel", os->noise_level,
                                "stackNoiseLevel", os->noise_level / sqrt(BACKGROUND_MAP_FRAMES),
+                               "meanLevel", os->mean_level,
                                "stackedFrames", ((int) BACKGROUND_MAP_FRAMES));
             }
 
@@ -714,7 +717,7 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                     // Difference image, B-A, which we get from the red channel of <os->trigger_map_rgb>, set by <check_for_triggers>
                     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapDifference.rgb");
                     dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 0 * os->frame_size, fname);
-                    write_metadata(fname, "sdsiiddi",
+                    write_metadata(fname, "sdsiidddi",
                                    "obstoryId", os->obstory_id,
                                    "utc", os->event_list[i].start_time,
                                    "semanticType", "pigazing:movingObject/mapDifference",
@@ -722,12 +725,13 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                                    "height", os->height,
                                    "inputNoiseLevel", os->noise_level,
                                    "stackNoiseLevel", os->noise_level,
+                                   "meanLevel", os->mean_level,
                                    "stackedFrames", 1);
 
                     // Map of pixels which are currently excluded from triggering due to excessive variability
                     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapExcludedPixels.rgb");
                     dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 1 * os->frame_size, fname);
-                    write_metadata(fname, "sdsiiddi",
+                    write_metadata(fname, "sdsiidddi",
                                    "obstoryId", os->obstory_id,
                                    "utc", os->event_list[i].start_time,
                                    "semanticType", "pigazing:movingObject/mapExcludedPixels",
@@ -735,12 +739,13 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                                    "height", os->height,
                                    "inputNoiseLevel", os->noise_level,
                                    "stackNoiseLevel", os->noise_level,
+                                   "meanLevel", os->mean_level,
                                    "stackedFrames", 1);
 
                     // Map of the pixels whose brightening caused this trigger
                     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapTrigger.rgb");
                     dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 2 * os->frame_size, fname);
-                    write_metadata(fname, "sdsiiddi",
+                    write_metadata(fname, "sdsiidddi",
                                    "obstoryId", os->obstory_id,
                                    "utc", os->event_list[i].start_time,
                                    "semanticType", "pigazing:movingObject/mapTrigger",
@@ -748,12 +753,13 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                                    "height", os->height,
                                    "inputNoiseLevel", os->noise_level,
                                    "stackNoiseLevel", os->noise_level,
+                                   "meanLevel", os->mean_level,
                                    "stackedFrames", 1);
 
                     // The video frame in which this trigger was first detected
                     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_triggerFrame.rgb");
                     dump_frame(os->width, os->height, channel_count, image1, fname);
-                    write_metadata(fname, "sdsiiddi",
+                    write_metadata(fname, "sdsiidddi",
                                    "obstoryId", os->obstory_id,
                                    "utc", os->event_list[i].start_time,
                                    "semanticType", "pigazing:movingObject/triggerFrame",
@@ -761,12 +767,13 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                                    "height", os->height,
                                    "inputNoiseLevel", os->noise_level,
                                    "stackNoiseLevel", os->noise_level,
+                                   "meanLevel", os->mean_level,
                                    "stackedFrames", 1);
 
                     // The comparison frame which preceded the frame where the trigger was detected
                     sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_previousFrame.rgb");
                     dump_frame(os->width, os->height, channel_count, image2, fname);
-                    write_metadata(fname, "sdsiiddi",
+                    write_metadata(fname, "sdsiidddi",
                                    "obstoryId", os->obstory_id,
                                    "utc", os->event_list[i].start_time,
                                    "semanticType", "pigazing:movingObject/previousFrame",
@@ -774,6 +781,7 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                                    "height", os->height,
                                    "inputNoiseLevel", os->noise_level,
                                    "stackNoiseLevel", os->noise_level,
+                                   "meanLevel", os->mean_level,
                                    "stackedFrames", 1);
 
                     // Start writing video file
@@ -883,7 +891,9 @@ void register_trigger_ends(observe_status *os) {
                 os->event_list[i].active = 2;
 
                 // Work out duration of event
-                double duration = os->event_list[i].detections[N2].utc - os->event_list[i].detections[N0].utc;
+                const double duration = os->event_list[i].detections[N2].utc - os->event_list[i].detections[N0].utc;
+                const int duration_frames =
+                        os->event_list[i].detections[N2].frame_count - os->event_list[i].detections[N0].frame_count;
 
                 // Update counter for trigger rate throttling
                 os->trigger_throttle_counter++;
@@ -912,7 +922,7 @@ void register_trigger_ends(observe_status *os) {
                 sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_timeAverage.rgb");
                 dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[i].stacked_image,
                                      coAddedFrames, 0, NULL, fname);
-                write_metadata(fname, "sdsiiddidiii",
+                write_metadata(fname, "sdsiidddidiii",
                                "obstoryId", os->obstory_id,
                                "utc", os->event_list[i].start_time,
                                "semanticType", "pigazing:movingObject/timeAverage",
@@ -920,6 +930,7 @@ void register_trigger_ends(observe_status *os) {
                                "height", os->height,
                                "inputNoiseLevel", os->noise_level,
                                "stackNoiseLevel", os->noise_level / sqrt(coAddedFrames),
+                               "meanLevel", os->mean_level,
                                "stackedFrames", coAddedFrames,
                                "duration", duration,
                                "detectionCount", os->event_list[i].detection_count,
@@ -930,7 +941,7 @@ void register_trigger_ends(observe_status *os) {
                 sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_maxBrightness.rgb");
                 dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[i].max_stack,
                                      1, 0, NULL, fname);
-                write_metadata(fname, "sdsiiddidiii",
+                write_metadata(fname, "sdsiidddidiii",
                                "obstoryId", os->obstory_id,
                                "utc", os->event_list[i].start_time,
                                "semanticType", "pigazing:movingObject/maximumBrightness",
@@ -938,6 +949,7 @@ void register_trigger_ends(observe_status *os) {
                                "height", os->height,
                                "inputNoiseLevel", os->noise_level,
                                "stackNoiseLevel", os->noise_level / sqrt(coAddedFrames),
+                               "meanLevel", os->mean_level,
                                "stackedFrames", coAddedFrames,
                                "duration", duration,
                                "detectionCount", os->event_list[i].detection_count,
@@ -947,13 +959,14 @@ void register_trigger_ends(observe_status *os) {
                 // Map of all pixels which triggered motion sensor over the duration of the event
                 sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_allTriggers.rgb");
                 dump_frame(os->width, os->height, 1, os->event_list[i].max_trigger, fname);
-                write_metadata(fname, "sdsiiddidiii",
+                write_metadata(fname, "sdsiidddidiii",
                                "obstoryId", os->obstory_id,
                                "utc", os->event_list[i].start_time,
                                "semanticType", "pigazing:movingObject/allTriggers",
                                "width", os->width,
                                "height", os->height,
                                "inputNoiseLevel", os->noise_level,
+                               "meanLevel", os->mean_level,
                                "stackNoiseLevel", 1.,
                                "stackedFrames", coAddedFrames,
                                "duration", duration,
@@ -983,13 +996,14 @@ void register_trigger_ends(observe_status *os) {
 
                 // Now that we know the duration of this video, we can write metadata about the video file
                 const double video_duration = os->utc - (os->event_list[i].start_time - os->TRIGGER_PREFIX_TIME);
-                write_metadata(os->event_list[i].video_output.filename, "sdsiidsdidiisddd",
+                write_metadata(os->event_list[i].video_output.filename, "sdsiiddsdidiisddd",
                                "obstoryId", os->obstory_id,
                                "utc", os->event_list[i].start_time,
                                "semanticType", "pigazing:movingObject/video",
                                "width", os->width,
                                "height", os->height,
                                "inputNoiseLevel", os->noise_level,
+                               "meanLevel", os->mean_level,
                                "path", path_json,
                                "duration", duration,
                                "detectionCount", os->event_list[i].detection_count,
@@ -998,7 +1012,7 @@ void register_trigger_ends(observe_status *os) {
                                "amplitudePeak", amplitude_peak,
                                "pathBezier", path_bezier,
                                "videoStart", os->event_list[i].start_time - os->TRIGGER_PREFIX_TIME,
-                               "videoFPS", coAddedFrames / video_duration,
+                               "videoFPS", duration_frames / duration,
                                "videoDuration", video_duration
                 );
             }

@@ -133,11 +133,11 @@ $pageTemplate->header($pageInfo);
         <div class="col-md-10">
 
             <div style="text-align: center; font-size:26px; padding-top:20px;">
-                <a href="observatory_activity.php?month=<?php echo $prev_month; ?>&year=<?php echo $prev_month_year; ?>">
+                <a href="observatory_activity.php?id=<?php echo $obstory; ?>&month=<?php echo $prev_month; ?>&year=<?php echo $prev_month_year; ?>">
                     <span class="mp-img mp-img-leftB"></span>
                 </a>
                 <?php echo $month_name; ?>
-                <a href="observatory_activity.php?month=<?php echo $next_month; ?>&year=<?php echo $next_month_year; ?>">
+                <a href="observatory_activity.php?id=<?php echo $obstory; ?>&month=<?php echo $next_month; ?>&year=<?php echo $next_month_year; ?>">
                     <span class="mp-img mp-img-rightB"></span>
                 </a>
             </div>

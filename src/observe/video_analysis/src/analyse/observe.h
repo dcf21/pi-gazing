@@ -111,6 +111,7 @@ typedef struct observeStatus {
     double utc;
     int triggering_allowed;
     double noise_level;
+    double mean_level;
 
     // Video buffer. This is used to store a rolling spool of recent video
     int video_buffer_frames;

@@ -47,7 +47,7 @@ void *video_record(struct video_info *video_in, double seconds);
 void snapshot(struct video_info *video_in, int frame_count, int zero, double exposure_compensation,
               const char *filename, const unsigned char *background_raw);
 
-double estimate_noise_level(int width, int height, unsigned char *buffer, int frame_count);
+double estimate_noise_level(int width, int height, unsigned char *buffer, int frame_count, double *mean_level);
 
 void background_calculate(const int width, const int height, const int channels, const int reduction_cycle,
                           const int reduction_cycle_count, const int *background_workspace,

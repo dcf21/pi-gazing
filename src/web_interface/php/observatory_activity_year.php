@@ -112,11 +112,11 @@ $pageTemplate->header($pageInfo);
         <div class="col-md-10">
 
             <div style="text-align: center; font-size:26px; padding-top:20px;">
-                <a href="observatory_activity_year.php?year=<?php echo $prev_year; ?>">
+                <a href="observatory_activity_year.php?id=<?php echo $obstory; ?>&year=<?php echo $prev_year; ?>">
                     <span class="mp-img mp-img-leftB"></span>
                 </a>
                 <?php echo $year; ?>
-                <a href="observatory_activity_year.php?year=<?php echo $next_year; ?>">
+                <a href="observatory_activity_year.php?id=<?php echo $obstory; ?>&year=<?php echo $next_year; ?>">
                     <span class="mp-img mp-img-rightB"></span>
                 </a>
             </div>

@@ -132,10 +132,10 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
     const int threshold_intensity = (int) (os->TRIGGER_MIN_SIGNIFICANCE * os->noise_level);
 
     // Pixel must have brightened by at least N standard deviations to trigger
-    const int threshold_trigger = MAX(1, 3.5 * os->noise_level);
+    const int threshold_trigger = MAX(10, 3.5 * os->noise_level + 0.25 * os->mean_level);
 
     // Monitor and flag pixels which brighten by this amount
-    const int threshold_monitor = MAX(1, 2.0 * os->noise_level);
+    const int threshold_monitor = MAX(10, 2.0 * os->noise_level + 0.25 * os->mean_level);
 
     // These arrays are used to produce diagnostic images when the camera triggers
     unsigned char *trigger_r = os->trigger_map_rgb;
@@ -168,9 +168,9 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
 
             if ((os->mask[o]) && test_pixel(os, image1, image2, o, threshold_monitor)) {
                 os->past_trigger_map[o]++;
-                if (test_pixel(os, image1, image2, o,
-                               threshold_trigger)) // Search for pixels which have brightened by more than threshold since past image
-                {
+
+                // Search for pixels which have brightened by more than threshold since past image
+                if (test_pixel(os, image1, image2, o, threshold_trigger)) {
                     os->past_trigger_map[o]++;
 #pragma omp critical (add_trigger)
                     {

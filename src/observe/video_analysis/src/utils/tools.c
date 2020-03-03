@@ -189,9 +189,10 @@ void snapshot(struct video_info *video_in, int frame_count, int zero, double exp
 //! \param height The height of the frames in the video buffer <buffer>
 //! \param buffer Buffer containing YUV colour video frames
 //! \param frame_count The number of frames from which to estimate the noise level
+//! \param mean_level The mean brightness of the camera field
 //! \return The noise level
 
-double estimate_noise_level(int width, int height, unsigned char *buffer, int frame_count) {
+double estimate_noise_level(int width, int height, unsigned char *buffer, int frame_count, double *mean_level) {
     const int frame_size = width * height;
     const int frame_stride = 3 * frame_size / 2;
     const int pixel_stride = 499; // Only study every 499th pixel
@@ -210,14 +211,20 @@ double estimate_noise_level(int width, int height, unsigned char *buffer, int fr
     }
 
     double sd_sum = 0;
+    double mean_sum = 0;
     for (i = 0; i < study_pixel_count; i++) {
         double mean = sum_y[i] / ((double) study_pixel_count);
         double sd = sqrt(sum_y2[i] / ((double) study_pixel_count) - mean * mean);
         sd_sum += sd;
+        mean_sum += mean;
     }
 
+    // Clean up
     free(sum_y);
     free(sum_y2);
+
+    // Return result
+    *mean_level = mean_sum / study_pixel_count;
     return sd_sum / study_pixel_count; // Average standard deviation of the studied pixels
 }
 
