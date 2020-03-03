@@ -140,14 +140,13 @@ void find_mean_position(double *ra_out, double *dec_out, const double *ra_list, 
 //! \param [out] x_out The x position of (RA, Dec)
 //! \param [out] y_out The y position of (RA, Dec)
 //! \param [in] pa The position angle of the frame on the sky
-//! \param [in] barrel_a The barrel distortion parameter A
-//! \param [in] barrel_b The barrel distortion parameter B
-//! \param [in] barrel_c The barrel distortion parameter C
+//! \param [in] barrel_k1 The barrel distortion parameter K1
+//! \param [in] barrel_k2 The barrel distortion parameter K2
 
 void gnomonic_project(double ra, double dec, double ra0, double dec0, int x_size, int y_size,
                       double x_scale, double y_scale,
                       double *x_out, double *y_out, double pa,
-                      double barrel_a, double barrel_b, double barrel_c) {
+                      double barrel_k1, double barrel_k2) {
     double dist = angular_distance(ra, dec, ra0, dec0);
     double za, az, radius, xd, yd;
 
@@ -161,10 +160,10 @@ void gnomonic_project(double ra, double dec, double ra0, double dec0, int x_size
     az += pa;
 
     // Correction for barrel distortion
-    double r = radius / tan(y_scale / 2);
-    double bcd = 1. - barrel_a - barrel_b - barrel_c;
-    double R = (((barrel_a * r + barrel_b) * r + barrel_c) * r + bcd) * r;
-    radius = R * tan(y_scale / 2);
+    double r = radius / tan(x_scale / 2);
+    double barrel_kn = 1. - barrel_k1 - barrel_k2;
+    double R = r / (barrel_kn + barrel_k1 * gsl_pow_2(r) + barrel_k2 * gsl_pow_4(r));
+    radius = R * tan(x_scale / 2);
 
     yd = radius * cos(az) * (y_size / 2. / tan(y_scale / 2.)) + y_size / 2.;
     xd = radius * -sin(az) * (x_size / 2. / tan(x_scale / 2.)) + x_size / 2.;
@@ -175,8 +174,7 @@ void gnomonic_project(double ra, double dec, double ra0, double dec0, int x_size
     *y_out = yd;
 }
 
-//! inv_gnomonic_project - Project a pair of pixel coordinates (x,y) into a celestial position (RA, Dec). This includes
-//! a correction for Barrel distortion.
+//! inv_gnomonic_project - Project a pair of pixel coordinates (x,y) into a celestial position (RA, Dec).
 //! \param [out] ra_out The right ascension of the point to project (radians)
 //! \param [out] dec_out The declination of the point to project (radians)
 //! \param [in] ra0 The right ascension of the centre of the frame (radians)
@@ -188,24 +186,14 @@ void gnomonic_project(double ra, double dec, double ra0, double dec0, int x_size
 //! \param [in] x The x position of (RA, Dec)
 //! \param [in] y The y position of (RA, Dec)
 //! \param [in] pa The position angle of the frame on the sky
-//! \param [in] barrel_a The barrel distortion parameter A
-//! \param [in] barrel_b The barrel distortion parameter B
-//! \param [in] barrel_c The barrel distortion parameter C
 
 void inv_gnomonic_project(double *ra_out, double *dec_out, double ra0, double dec0, int x_size, int y_size,
-                          double x_scale, double y_scale, double x, double y, double pa,
-                          double barrel_a, double barrel_b, double barrel_c) {
+                          double x_scale, double y_scale, double x, double y, double pa) {
     double x2 = (x - x_size / 2.) / (x_size / 2. / tan(x_scale / 2.));
     double y2 = (y - y_size / 2.) / (y_size / 2. / tan(y_scale / 2.));
 
     double za = atan(hypot(x2, y2));
     double az = atan2(-x2, y2) - pa;
-
-    // Correction for barrel distortion
-    double r = za / tan(y_scale / 2.);
-    double bcd = 1. - barrel_a - barrel_b - barrel_c;
-    double R = (((barrel_a * r + barrel_b) * r + barrel_c) * r + bcd) * r;
-    za = R * tan(y_scale / 2.);
 
     double altitude = M_PI / 2 - za;
     double a[3] = {cos(altitude) * cos(az),

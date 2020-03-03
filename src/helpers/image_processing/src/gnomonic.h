@@ -32,11 +32,10 @@ void find_mean_position(double *ra_out, double *dec_out, const double *ra_list, 
 void gnomonic_project(double ra, double dec, double ra0, double dec0, int x_size, int y_size,
                       double x_scale, double y_scale,
                       double *x_out, double *y_out, double pa,
-                      double barrel_a, double barrel_b, double barrel_c);
+                      double barrel_k1, double barrel_k2);
 
 void inv_gnomonic_project(double *ra_out, double *dec_out, double ra0, double dec0, int x_size, int y_size,
-                          double x_scale, double y_scale, double x, double y, double pa,
-                          double barrel_a, double barrel_b, double barrel_c);
+                          double x_scale, double y_scale, double x, double y, double pa);
 
 #endif
 

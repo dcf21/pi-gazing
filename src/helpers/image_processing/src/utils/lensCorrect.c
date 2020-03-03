@@ -25,22 +25,23 @@
 #include <stdio.h>
 #include <math.h>
 
+#include <gsl/gsl_math.h>
+
 #include "png/image.h"
 
 //! lens_correct - Create a new version of the image pointed to by <image_in>, with radial barrel distortion corrected.
 //! The radial distortion is assumed by be expressible as:
-//! r_new = A r^4 + B r^3 + C r^2 + D r,
-//! where D=(1-A-B-C-D), which ensures the far edges of the image remain at fixed distance from the centre
+//! r_new = r / (Kn + K1 r^2 + K2 r^4),
+//! where Kn=(1 - K1 - K2), which ensures the far edges of the image remain at fixed distance from the centre
 //! \param image_in The input image
-//! \param barrel_a Parameter A
-//! \param barrel_b Parameter B
-//! \param barrel_c Parameter C
+//! \param [in] barrel_k1 The barrel distortion parameter K1
+//! \param [in] barrel_k2 The barrel distortion parameter K2
 //! \return A pointer to an image with barrel-correction applied
 
-image_ptr lens_correct(image_ptr *image_in, double barrel_a, double barrel_b, double barrel_c) {
+image_ptr lens_correct(image_ptr *image_in, double barrel_k1, double barrel_k2) {
     const int width = image_in->xsize;
     const int height = image_in->ysize;
-    const double barrelD = 1 - barrel_a - barrel_b - barrel_c;
+    const double barrel_kn = 1 - barrel_k1 - barrel_k2;
 
     int x, y;
 
@@ -59,7 +60,7 @@ image_ptr lens_correct(image_ptr *image_in, double barrel_a, double barrel_b, do
             double t = atan2(x2, y2);
 
             // Apply barrel correction to radial component of position
-            double r2 = (((barrel_a * r + barrel_b) * r + barrel_c) * r + barrelD) * r * (width / 2);
+            double r2 = r / (barrel_kn + barrel_k1 * gsl_pow_2(r) + barrel_k2 * gsl_pow_4(r)) * (width / 2);
 
             // Calculate offset of pixel in the original (uncorrected) pixel array
             int x3 = r2 * sin(t) + width / 2;

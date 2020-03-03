@@ -2,32 +2,28 @@
  <lens>
   <name>null</name>
   <fov>0</fov>
-  <barrel_a>0</barrel_a>
-  <barrel_b>0</barrel_b>
-  <barrel_c>0</barrel_c>
+  <barrel_k1>0</barrel_k1>
+  <barrel_k2>0</barrel_k2>
  </lens>
  <lens>
   <name>f1.6_cctv_lens</name>
   <comment>Lens in use on test camera</comment>
   <fov>65</fov>
-  <barrel_a>0</barrel_a>
-  <barrel_b>0</barrel_b>
-  <barrel_c>0</barrel_c>
+  <barrel_k1>0</barrel_k1>
+  <barrel_k2>0</barrel_k2>
  </lens>
  <lens>
   <name>siemens_f1.2</name>
   <comment>Siemens 1/2" F1.2 4-12mm Varifocal Auto Iris C Mount CCTV Lens - Installed Feb 2020</comment>
   <fov>65</fov>
-  <barrel_a>0</barrel_a>
-  <barrel_b>0</barrel_b>
-  <barrel_c>0</barrel_c>
+  <barrel_k1>0</barrel_k1>
+  <barrel_k2>0</barrel_k2>
  </lens>
  <lens>
   <name>eos1000d</name>
   <comment>Canon 1000D DSLR kit lens</comment>
   <fov>53</fov>
-  <barrel_a>0</barrel_a>
-  <barrel_b>0</barrel_b>
-  <barrel_c>0</barrel_c>
+  <barrel_k1>0</barrel_k1>
+  <barrel_k2>0</barrel_k2>
  </lens>
 </lenses>

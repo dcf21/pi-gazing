@@ -22,14 +22,17 @@
 # -------------------------------------------------
 
 """
-This script is used to estimate the degree of lens distortion present in an image.
+This script is used to estimate the degree of lens distortion present in an
+image.
 
-The best-fit parameter values are returned to the user. If they are believed to be good, you should set a status
-update on the observatory setting barrel_a, barrel_b and barrel_c. Then future observations will correct for this
-lens distortion.
+The best-fit parameter values are returned to the user. If they are believed to
+be good, you should set a status update on the observatory setting barrel_k1
+and barrel_k1. Then future observations will correct for this lens distortion.
 
-You may also changed the values for your lens in the XML file <src/configuration_global/camera_properties> which means
-that future observatories set up with your model of lens will use your barrel correction coefficients.
+You may also changed the values for your lens in the XML file
+<src/configuration_global/camera_properties> which means that future
+observatories set up with your model of lens will use your barrel correction
+coefficients.
 """
 
 import argparse
@@ -105,9 +108,8 @@ def mismatch(params):
             2) The horizontal field-of-view of the image (radians)
             3) The vertical field-of-view of the image (radians)
             4) The position angle of the image; i.e. the angle of celestial north to the vertical (radians)
-            5) The barrel-distortion coefficient A
-            6) The barrel-distortion coefficient B
-            7) The barrel-distortion coefficient C
+            5) The barrel-distortion coefficient K1
+            6) The barrel-distortion coefficient K2
     :return:
         A measure of the mismatch of this proposed image orientation, based on the list of pixel positions and
         calculated (RA, Dec) positions contained within <fit_list>.
@@ -118,15 +120,14 @@ def mismatch(params):
     scale_x = params[2] * parameter_scales[2]
     scale_y = params[3] * parameter_scales[3]
     pos_ang = params[4] * parameter_scales[4]
-    bca = params[5] * parameter_scales[5]
-    bcb = params[6] * parameter_scales[6]
-    bcc = params[7] * parameter_scales[7]
+    bc_k1 = params[5] * parameter_scales[5]
+    bc_k2 = params[6] * parameter_scales[6]
 
     offset_list = []
     for point in fit_list:
         pos = gnomonic_project(ra=point['ra'], dec=point['dec'], ra0=ra0, dec0=dec0,
                                size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
-                               bca=bca, bcb=bcb, bcc=bcc)
+                               barrel_k1=bc_k1, barrel_k2=bc_k2)
         if not isfinite(pos[0]):
             pos[0] = -999
         if not isfinite(pos[1]):
@@ -482,9 +483,9 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
 
         ra0 = fit_list[0]['ra']
         dec0 = fit_list[0]['dec']
-        parameter_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 0.005, 0.005, 0.005]
+        parameter_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 0.005, 0.005]
         parameters_default = [ra0, dec0, pi / 4, pi / 4, 0,
-                              lens_props.barrel_a, lens_props.barrel_b, lens_props.barrel_c]
+                              lens_props.barrel_k1, lens_props.barrel_k2]
         parameters_initial = [parameters_default[i] / parameter_scales[i] for i in range(len(parameters_default))]
         fitting_result = scipy.optimize.minimize(mismatch, parameters_initial, method='nelder-mead',
                                                  options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}
@@ -496,7 +497,7 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         headings = [["Central RA / hr", 12 / pi], ["Central Decl / deg", 180 / pi],
                     ["Image width / deg", 180 / pi], ["Image height / deg", 180 / pi],
                     ["Position angle / deg", 180 / pi],
-                    ["barrel_a", 1], ["barrel_b", 1], ["barrel_c", 1]
+                    ["barrel_k1", 1], ["barrel_k2", 1]
                     ]
 
         logging.info("Fit achieved to {:d} points with offset of {:.5f}. Best fit parameters were:".
@@ -507,11 +508,9 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         # Update observation status
         user = settings['pigazingUser']
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
-                                    meta=mp.Meta(key="calibration:lens_barrel_a", value=parameters_final[5]))
+                                    meta=mp.Meta(key="calibration:lens_barrel_k1", value=parameters_final[5]))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
-                                    meta=mp.Meta(key="calibration:lens_barrel_b", value=parameters_final[6]))
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
-                                    meta=mp.Meta(key="calibration:lens_barrel_c", value=parameters_final[7]))
+                                    meta=mp.Meta(key="calibration:lens_barrel_k2", value=parameters_final[6]))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
                                     meta=mp.Meta(key="calibration:chi_squared", value=fitting_result.fun))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'],

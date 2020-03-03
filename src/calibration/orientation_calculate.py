@@ -235,9 +235,8 @@ ORDER BY am.floatValue DESC LIMIT 1
             continue
 
         # Look up barrel distortion
-        lens_barrel_a = obstory_status.get('calibration:lens_barrel_a', lens_props.barrel_a)
-        lens_barrel_b = obstory_status.get('calibration:lens_barrel_b', lens_props.barrel_b)
-        lens_barrel_c = obstory_status.get('calibration:lens_barrel_c', lens_props.barrel_c)
+        lens_barrel_k1 = obstory_status.get('calibration:lens_barrel_k1', lens_props.barrel_k1)
+        lens_barrel_k2 = obstory_status.get('calibration:lens_barrel_k2', lens_props.barrel_k2)
 
         # 1. Copy image into working directory
         # logging.info("Copying file")
@@ -248,11 +247,10 @@ ORDER BY am.floatValue DESC LIMIT 1
 
         # 2. Barrel-correct image
         # logging.info("Lens-correcting image")
-        command = "{} -i {}_tmp.png -a {:.6f} -b {:.6f} -c {:.6f} -o {}_tmp2".format(barrel_correct, img_name,
-                                                                                     lens_barrel_a,
-                                                                                     lens_barrel_b,
-                                                                                     lens_barrel_c,
-                                                                                     img_name)
+        command = "{} -i {}_tmp.png --barrel-k1 {:.6f} --barrel-k2 {:.6f} -o {}_tmp2".format(barrel_correct, img_name,
+                                                                                             lens_barrel_k1,
+                                                                                             lens_barrel_k2,
+                                                                                             img_name)
         # logging.info(command)
         os.system(command)
 

@@ -51,15 +51,14 @@ class Lens:
     associated with this particularly lens.
     """
 
-    def __init__(self, name, fov, barrel_a, barrel_b, barrel_c):
+    def __init__(self, name, fov, barrel_k1, barrel_k2):
         self.name = name
         self.fov = fov
-        self.barrel_a = barrel_a
-        self.barrel_b = barrel_b
-        self.barrel_c = barrel_c
+        self.barrel_k1 = barrel_k1
+        self.barrel_k2 = barrel_k2
 
     def __str__(self):
-        print("Lens({},{},{},{},{})".format(self.name, self.fov, self.barrel_a, self.barrel_b, self.barrel_c))
+        print("Lens({},{},{},{})".format(self.name, self.fov, self.barrel_k1, self.barrel_k2))
 
 
 class HardwareProps:
@@ -87,9 +86,8 @@ class HardwareProps:
         for d in lens_xml:
             self.lens_data[d['name']] = Lens(name=d['name'],
                                              fov=float(d['fov']),
-                                             barrel_a=float(d['barrel_a']),
-                                             barrel_b=float(d['barrel_b']),
-                                             barrel_c=float(d['barrel_c'])
+                                             barrel_k1=float(d['barrel_k1']),
+                                             barrel_k2=float(d['barrel_k2'])
                                              )
 
     def update_camera(self, db, obstory_id, utc, name):

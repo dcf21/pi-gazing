@@ -195,7 +195,7 @@ def find_mean_position(ra0, dec0, ra1, dec1, ra2, dec2):
     z3 = (z0 + z1 + z2) / 3
 
     # Work out the magnitude of the centroid vector
-    mag = sqrt(x3*x3 + y3*y3 + z3*z3)
+    mag = sqrt(x3 * x3 + y3 * y3 + z3 * z3)
 
     # Convert the Cartesian coordinates into RA and Dec
     dec_mean = asin(z3 / mag)
@@ -203,7 +203,7 @@ def find_mean_position(ra0, dec0, ra1, dec1, ra2, dec2):
     return [ra_mean, dec_mean]
 
 
-def gnomonic_project(ra, dec, ra0, dec0, size_x, size_y, scale_x, scale_y, pos_ang, bca, bcb, bcc):
+def gnomonic_project(ra, dec, ra0, dec0, size_x, size_y, scale_x, scale_y, pos_ang, barrel_k1, barrel_k2):
     """
     Project a pair of celestial coordinates (RA, Dec) into pixel coordinates (x,y)
 
@@ -225,12 +225,10 @@ def gnomonic_project(ra, dec, ra0, dec0, size_x, size_y, scale_x, scale_y, pos_a
         The angular height of the frame (radians)
     :param pos_ang:
         The position angle of the frame on the sky
-    :param bca:
-        The barrel distortion parameter A
-    :param bcb:
-        The barrel distortion parameter B
-    :param bcc:
-        The barrel distortion parameter C
+    :param barrel_k1:
+        The barrel distortion parameter K1
+    :param barrel_k2:
+        The barrel distortion parameter K2
     :return:
         The (x,y) coordinates of the projected point
     """
@@ -247,10 +245,10 @@ def gnomonic_project(ra, dec, ra0, dec0, size_x, size_y, scale_x, scale_y, pos_a
     az += pos_ang
 
     # Correction for barrel distortion
-    r = radius / tan(scale_y / 2)
-    bcd = 1. - bca - bcb - bcc
-    r2 = (((bca * r + bcb) * r + bcc) * r + bcd) * r
-    radius = r2 * tan(scale_y / 2)
+    r = radius / tan(scale_x / 2)
+    bc_kn = 1. - barrel_k1 - barrel_k2
+    r2 = r / (bc_kn + barrel_k1 * (r ** 2) + barrel_k2 * (r ** 4))
+    radius = r2 * tan(scale_x / 2)
 
     yd = radius * cos(az) * (size_y / 2. / tan(scale_y / 2.)) + size_y / 2.
     xd = radius * -sin(az) * (size_x / 2. / tan(scale_x / 2.)) + size_x / 2.
@@ -258,7 +256,7 @@ def gnomonic_project(ra, dec, ra0, dec0, size_x, size_y, scale_x, scale_y, pos_a
     return [xd, yd]
 
 
-def inv_gnom_project(ra0, dec0, size_x, size_y, scale_x, scale_y, x, y, pos_ang, bca, bcb, bcc):
+def inv_gnom_project(ra0, dec0, size_x, size_y, scale_x, scale_y, x, y, pos_ang, barrel_k1, barrel_k2):
     """
     Project a pair of pixel coordinates (x,y) into a celestial position (RA, Dec). This includes a correction for
     barrel distortion.
@@ -281,12 +279,10 @@ def inv_gnom_project(ra0, dec0, size_x, size_y, scale_x, scale_y, x, y, pos_ang,
         The y position of (RA, Dec)
     :param pos_ang:
         The position angle of the frame on the sky
-    :param bca:
-        The barrel distortion parameter A
-    :param bcb:
-        The barrel distortion parameter B
-    :param bcc:
-        The barrel distortion parameter C
+    :param barrel_k1:
+        The barrel distortion parameter K1
+    :param barrel_k2:
+        The barrel distortion parameter K2
     :return:
         The (RA, Dec) coordinates of the projected point
     """
@@ -311,7 +307,7 @@ def inv_gnom_project(ra0, dec0, size_x, size_y, scale_x, scale_y, x, y, pos_ang,
     # Correction for barrel distortion
     def mismatch_slave(parameters):
         [ra, dec] = parameters
-        pos = gnomonic_project(ra, dec, ra0, dec0, size_x, size_y, scale_x, scale_y, pos_ang, bca, bcb, bcc)
+        pos = gnomonic_project(ra, dec, ra0, dec0, size_x, size_y, scale_x, scale_y, pos_ang, barrel_k1, barrel_k2)
         return hypot(pos[0] - x, pos[1] - y)
 
     params_initial = [ra, dec]
