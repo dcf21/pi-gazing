@@ -132,10 +132,10 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
     const int threshold_intensity = (int) (os->TRIGGER_MIN_SIGNIFICANCE * os->noise_level);
 
     // Pixel must have brightened by at least N standard deviations to trigger
-    const int threshold_trigger = MAX(10, 3.5 * os->noise_level + 0.25 * os->mean_level);
+    const int threshold_trigger = MAX(10, 3.5 * os->noise_level);
 
     // Monitor and flag pixels which brighten by this amount
-    const int threshold_monitor = MAX(10, 2.0 * os->noise_level + 0.25 * os->mean_level);
+    const int threshold_monitor = MAX(10, 2.0 * os->noise_level);
 
     // These arrays are used to produce diagnostic images when the camera triggers
     unsigned char *trigger_r = os->trigger_map_rgb;

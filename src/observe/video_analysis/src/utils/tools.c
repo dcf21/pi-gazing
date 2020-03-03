@@ -213,8 +213,8 @@ double estimate_noise_level(int width, int height, unsigned char *buffer, int fr
     double sd_sum = 0;
     double mean_sum = 0;
     for (i = 0; i < study_pixel_count; i++) {
-        double mean = sum_y[i] / ((double) study_pixel_count);
-        double sd = sqrt(sum_y2[i] / ((double) study_pixel_count) - mean * mean);
+        double mean = sum_y[i] / ((double) frame_count);
+        double sd = sqrt(sum_y2[i] / ((double) frame_count) - mean * mean);
         sd_sum += sd;
         mean_sum += mean;
     }
