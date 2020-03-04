@@ -526,6 +526,11 @@ __HTML__;
                     <div class="col-md-3 gallery_item">
                         <a href="<?php echo $url_stub . $item['linkId']; ?>">
                             <div class="gallery_image" <?php echo $path_attribute; ?> >
+                                <?php if (array_key_exists('classification', $item) && $item['classification']): ?>
+                                    <div class="gallery_image_classification">
+                                        <?php echo $item['classification']; ?>
+                                    </div>
+                                <?php endif; ?>
                                 <?php if ($item['mimeType'] == 'image/png'): ?>
                                     <img class="gallery_img" alt="" title="" src="/api/thumbnail/<?php
                                     echo $item['fileId'] . "/" . $item['filename'];

@@ -59,8 +59,8 @@ $pageTemplate->header($pageInfo);
 
     <?php
     $stmt = $const->db->prepare("
-SELECT u.userId,s.logIn,s.logOut,s.ip FROM archive_user_sessions s
-INNER JOIN archive_users u ON u.uid=s.userId
+SELECT u.username,s.logIn,s.logOut,s.ip FROM pigazing_user_sessions s
+INNER JOIN pigazing_users u ON u.userId=s.userId
 ORDER BY logIn LIMIT 10;");
     $stmt->execute();
     $activity = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -89,7 +89,7 @@ ORDER BY logIn LIMIT 10;");
                 <tbody>
                 <?php foreach ($activity as $item): ?>
                     <tr>
-                        <td><?php echo $item['userId']; ?></td>
+                        <td><?php echo $item['username']; ?></td>
                         <td><?php echo date("d M Y H:i", $item['logIn']); ?></td>
                         <td><?php echo $item['logOut'] ? date("d M Y H:i", $item['logOut']) : "Still logged in"; ?></td>
                         <td><?php printf("%d.%d.%d.%d", ($item['ip'] / 256 / 256 / 256) & 255,

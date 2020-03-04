@@ -112,7 +112,7 @@ def edit_user(username, delete=False, password=None,
                 conn.execute("SELECT roleId FROM pigazing_roles WHERE name=%s;", (role,))
                 results = conn.fetchall()
 
-            conn.execute('INSERT INTO pigazing_user_roles (userId, roleId) VALUES '
+            conn.execute('REPLACE INTO pigazing_user_roles (userId, roleId) VALUES '
                          '((SELECT u.userId FROM pigazing_users u WHERE u.userId=%s),'
                          '%s)', (user_id, results[0]['roleId']))
 

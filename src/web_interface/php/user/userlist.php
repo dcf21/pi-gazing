@@ -59,9 +59,9 @@ $pageTemplate->header($pageInfo);
 
     <?php
     $stmt = $const->db->prepare("
-SELECT u.userId,
-(SELECT lastSeen FROM archive_user_sessions s WHERE s.userId=u.uid ORDER BY lastSeen DESC LIMIT 1) AS lastSeen
-FROM archive_users u ORDER BY u.userId LIMIT 500;");
+SELECT u.username,
+(SELECT lastSeen FROM pigazing_user_sessions s WHERE s.userId=u.userId ORDER BY lastSeen DESC LIMIT 1) AS lastSeen
+FROM pigazing_users u ORDER BY u.userId LIMIT 500;");
     $stmt->execute();
     $user_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
     if (count($user_list) > 0):
@@ -87,7 +87,7 @@ FROM archive_users u ORDER BY u.userId LIMIT 500;");
                 <tbody>
                 <?php foreach ($user_list as $item): ?>
                     <tr>
-                        <td><?php echo $item['userId']; ?></td>
+                        <td><?php echo $item['username']; ?></td>
                         <td><?php echo $item['lastSeen'] ? date("d M Y H:i", $item['lastSeen']) : "Never"; ?></td>
                     </tr>
                 <?php endforeach; ?>

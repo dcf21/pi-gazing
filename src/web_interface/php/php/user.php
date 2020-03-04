@@ -62,7 +62,7 @@ class userSession
             $cookie = $_COOKIE[$this->key];
             $cookieLen = strlen($cookie);
             if ($cookieLen == 32) {
-                $stmt = $const->db->prepare("SELECT * FROM archive_user_sessions WHERE cookie=:c;");
+                $stmt = $const->db->prepare("SELECT * FROM pigazing_user_sessions WHERE cookie=:c;");
                 $stmt->bindParam(':c', $c, PDO::PARAM_STR, $cookieLen);
                 $stmt->execute(['c' => $cookie]);
                 $sessionList = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -70,6 +70,12 @@ class userSession
                     $session = $sessionList[0];
                     if ((!$session['logOut']) && ($session['lastSeen'] > $time - $this->lifetime)) {
                         $this->userId = $session['userId'];
+                        $stmt = $const->db->prepare("
+UPDATE pigazing_user_sessions SET lastSeen=:t WHERE cookie=:c;");
+                        $stmt->bindParam(':c', $c, PDO::PARAM_STR, $cookieLen);
+                        $stmt->bindParam(':t', $t, PDO::PARAM_STR, 64);
+                        $stmt->execute(['c' => $cookie, 't' => $time]);
+
                     }
                 }
             }
@@ -80,25 +86,23 @@ class userSession
             if (isset($_POST['un']) && isset($_POST['pw'])) {
                 $username = $_POST['un'];
                 $secret = $_POST['pw'];
-                $stmt = $const->db->prepare("SELECT * FROM archive_users WHERE userId=:u;");
+                $stmt = $const->db->prepare("SELECT * FROM pigazing_users WHERE username=:u;");
                 $stmt->bindParam(':u', $u, PDO::PARAM_STR, strlen($username));
                 $stmt->execute(['u' => $username]);
                 $userList = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                if ((count($userList) == 1) && password_verify($secret, $userList[0]['pwHash'])) {
-                    $this->userId = $userList[0]['uid'];
+                if ((count($userList) == 1) && password_verify($secret, $userList[0]['password'])) {
+                    $this->userId = $userList[0]['userId'];
                     $bytes = openssl_random_pseudo_bytes(16);
                     $cookieVal = bin2hex($bytes);
                     setcookie($this->key, $cookieVal, $time + $this->lifetime, "/", "", 1, 1);
                     $stmt = $const->db->prepare("
-INSERT INTO archive_user_sessions (userId, logIn, lastSeen, ip, cookie) VALUES (:u,:t,:t,:i,:c);");
+INSERT INTO pigazing_user_sessions (userId, logIn, lastSeen, ip, cookie) VALUES (:u,:t,:t,:i,:c);");
                     $stmt->bindParam(':u', $c, PDO::PARAM_INT);
                     $stmt->bindParam(':i', $i, PDO::PARAM_INT);
-                    $stmt->bindParam(':i', $t, PDO::PARAM_STR, 64);
+                    $stmt->bindParam(':t', $t, PDO::PARAM_STR, 64);
                     $stmt->bindParam(':c', $c, PDO::PARAM_STR, 32);
                     $stmt->execute(['u' => $this->userId, 't' => $time, 'i' => $networkAddr, 'c' => $cookieVal]);
-                }
-                else
-                {
+                } else {
                     $this->refused = true;
                 }
             }
@@ -106,16 +110,16 @@ INSERT INTO archive_user_sessions (userId, logIn, lastSeen, ip, cookie) VALUES (
 
         // Look up information about user
         if ($this->userId) {
-            $stmt = $const->db->prepare("SELECT * FROM archive_users WHERE uid=:u;");
+            $stmt = $const->db->prepare("SELECT * FROM pigazing_users WHERE userId=:u;");
             $stmt->bindParam(':u', $u, PDO::PARAM_INT);
             $stmt->execute(['u' => $this->userId]);
             $userList = $stmt->fetchAll(PDO::FETCH_ASSOC);
             if (count($userList) == 1) {
                 $user = $userList[0];
-                $this->username = $user['userId'];
+                $this->username = $user['username'];
                 $stmt = $const->db->prepare("
-SELECT r.name FROM archive_user_roles ur
-INNER JOIN archive_roles r ON ur.roleId=r.uid
+SELECT r.name FROM pigazing_user_roles ur
+INNER JOIN pigazing_roles r ON ur.roleId=r.roleId
 WHERE ur.userId=:u;");
                 $stmt->bindParam(':u', $u, PDO::PARAM_INT);
                 $stmt->execute(['u' => $this->userId]);
@@ -134,7 +138,7 @@ WHERE ur.userId=:u;");
             $cookieLen = strlen($cookie);
             if ($cookieLen == 32) {
                 $stmt = $const->db->prepare("
-UPDATE archive_user_sessions SET logOut=:t WHERE cookie=:c AND logOut IS NULL;");
+UPDATE pigazing_user_sessions SET logOut=:t WHERE cookie=:c AND logOut IS NULL;");
                 $stmt->bindParam(':c', $c, PDO::PARAM_STR, $cookieLen);
                 $stmt->bindParam(':t', $t, PDO::PARAM_STR, 64);
                 $stmt->execute(['t' => $time, 'c' => $cookie]);
@@ -149,10 +153,10 @@ UPDATE archive_user_sessions SET logOut=:t WHERE cookie=:c AND logOut IS NULL;")
         $time = time();
         $tmin = $time - $this->lifetime;
         $stmt = $const->db->prepare("
-UPDATE archive_user_sessions SET logOut=:t
-WHERE lastSeen<userId=:tmin;");
+UPDATE pigazing_user_sessions SET logOut=:t
+WHERE lastSeen<:tmin;");
         $stmt->bindParam(':t', $t, PDO::PARAM_STR, 64);
-        $stmt->bindParam(':tmin', $t, PDO::PARAM_STR, 64);
+        $stmt->bindParam(':tmin', $m, PDO::PARAM_STR, 64);
         $stmt->execute(['t' => $time, 'tmin' => $tmin]);
     }
 }

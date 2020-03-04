@@ -36,7 +36,7 @@ class constants
     {
         $this->server = "/";
         $this->server_json = "/";
-        $this->yearMin = 2015;
+        $this->yearMin = 2019;
         $this->yearMax = date("Y");
 
         // Path to PHP modules directory

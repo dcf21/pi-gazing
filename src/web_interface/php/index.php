@@ -42,8 +42,12 @@ $result_list = $stmt->fetchAll();
 
 $paneList = [];
 foreach ($result_list as $item) {
-    if ($item["obsType"] == "timelapse") $link = "/image.php?id=" . $item['repositoryFname'];
-    else $link = "/moving_obj.php?id=" . $item['obsId'];
+    if ($item["obsType"] == "pigazing:timelapse/") {
+        $link = "/image.php?id=" . $item['repositoryFname'];
+    }
+    else {
+        $link = "/moving_obj.php?id=" . $item['obsId'];
+    }
     $paneList[] = ["link" => $link,
         "caption" => "<div class='smallcaps'>" .
             "<a href='observatory.php?id={$item['locId']}'>{$item['obsName']}</a>" .

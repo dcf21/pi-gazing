@@ -225,6 +225,8 @@ LEFT OUTER JOIN archive_metadata d3 ON o.uid = d3.observationId AND
     d3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:width\")
 LEFT OUTER JOIN archive_metadata d4 ON o.uid = d4.observationId AND
     d4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:height\")
+LEFT OUTER JOIN archive_metadata d5 ON o.uid = d5.observationId AND
+    d5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"web:category\")
 WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:movingObject/\")
     AND " . implode(' AND ', $where));
 
@@ -242,7 +244,7 @@ WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:m
         $stmt = $const->db->prepare("
 SELECT f.repositoryFname, f.fileName, o.publicId AS observationId,
 o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType,
-d2.stringValue AS path, d3.floatValue AS width, d4.floatValue AS height
+d2.stringValue AS path, d3.floatValue AS width, d4.floatValue AS height, d5.stringValue AS classification
 FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
         $stmt->execute([]);
         $result_list = $stmt->fetchAll();
@@ -258,6 +260,7 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
             "path" => $item['path'],
             "image_width" => $item['width'],
             "image_height" => $item['height'],
+            "classification" => $item['classification'],
             "linkId" => $item['observationId'],
             "mimeType" => $item['mimeType']
         ];

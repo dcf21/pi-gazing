@@ -83,7 +83,8 @@ $pageTemplate->header($pageInfo);
     </div>
 
     <?php
-    $stmt = $const->db->prepare("SELECT * FROM archive_user_sessions WHERE userId=:u ORDER BY logIn LIMIT 10;");
+    $stmt = $const->db->prepare("
+SELECT * FROM pigazing_user_sessions WHERE userId=:u ORDER BY logIn LIMIT 10;");
     $stmt->bindParam(':u', $u, PDO::PARAM_INT);
     $stmt->execute(['u' => $user->userId]);
     $activity = $stmt->fetchAll(PDO::FETCH_ASSOC);

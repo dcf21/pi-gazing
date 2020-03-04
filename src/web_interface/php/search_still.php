@@ -69,14 +69,12 @@ if (array_key_exists("flag_highlights", $_GET)) $flag_highlights = 1;
 if (array_key_exists("defaults", $_GET)) $flag_highlights = 1;
 
 // Read sky clarity options
-$sky_clarity_min = 0;
-$sky_clarity_min_str = "";
+$sky_clarity_min = 400;
 
 if (array_key_exists("clarity", $_GET) && is_numeric($_GET["clarity"])) {
-    $sky_clarity_min = $_GET["clarity"];
+    $sky_clarity_min = intval($_GET["clarity"]);
     if ($sky_clarity_min < 0) $sky_clarity_min = 0;
-    if ($sky_clarity_min > 100) $sky_clarity_min = 100;
-    $sky_clarity_min_str = sprintf("%.2f", $sky_clarity_min);
+    if ($sky_clarity_min > 3000) $sky_clarity_min = 3000;
 }
 
 // Set default options for if we are not searching
@@ -204,9 +202,9 @@ $pageTemplate->header($pageInfo);
                     <input class="form-control-dcf form-inline-number"
                            name="clarity"
                            style="width:70px;"
-                           type="text"
-                           value="<?php echo $sky_clarity_min_str; ?>"
-                    />&nbsp;(scale 0&ndash;100)
+                           type="number" min="0" max="3000" step="10"
+                           value="<?php echo $sky_clarity_min; ?>"
+                    />&nbsp;(scale 0&ndash;3000)
                 </span></div>
                 </div>
 
@@ -317,7 +315,7 @@ ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
             "hour2={$tmax['hour']}&min2={$tmax['min']}";
         if ($flag_bgsub) $self_url .= "&flag_bgsub=1";
         if ($flag_highlights) $self_url .= "&flag_highlights=1";
-        if ($sky_clarity_min_str) $self_url .= "&clarity={$sky_clarity_min_str}";
+        if ($sky_clarity_min) $self_url .= "&clarity={$sky_clarity_min}";
         $pageTemplate->showPager($result_count, $pageNum, $pageSize, $self_url);
     }
 

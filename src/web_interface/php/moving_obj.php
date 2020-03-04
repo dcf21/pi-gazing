@@ -290,9 +290,9 @@ if (count($simultaneous_events) > 0) {
                 "filename" => $item["fileName"],
                 "caption" => $caption[0],
                 "hover" => $caption[1],
-                "path" => $metadata_by_key['pigazing:pathBezier'],
-                "image_width" => $metadata_by_key['pigazing:width'],
-                "image_height" => $metadata_by_key['pigazing:height'],
+                "path" => array_key_exists('pigazing:pathBezier', $metadata_by_key) ? $metadata_by_key['pigazing:pathBezier'] : null,
+                "image_width" => array_key_exists('pigazing:width', $metadata_by_key) ? $metadata_by_key['pigazing:width'] : 720,
+                "image_height" => array_key_exists('pigazing:height', $metadata_by_key) ? $metadata_by_key['pigazing:height'] : 576,
                 "linkId" => $item['repositoryFname'],
                 "mimeType" => $item['mimeType']];
         }

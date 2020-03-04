@@ -82,9 +82,6 @@ $pageTemplate->header($pageInfo);
                                 <img style="width:400px;" src="img/example_plane_2.png"/>
                                 <p class="caption">
                                     An example image of a plane, as it might appear when you search Pi Gazing images.
-                                    <a href="moving_obj.php?id=20160201_213134_2ddfb9ebfb71bc54">
-                                        Click here to see a full video of the event.
-                                    </a>
                                 </p>
                             </div>
 
@@ -112,9 +109,6 @@ $pageTemplate->header($pageInfo);
                                         <p class="caption">
                                             An example image of a plane, as it might appear when you search Pi Gazing
                                             images.
-                                            <a href="moving_obj.php?id=20160203_204726_ae6e95f84da1e69e">
-                                                Click here to see a full video of the event.
-                                            </a>
                                         </p>
                                     </div>
                                 </div>
@@ -144,9 +138,6 @@ $pageTemplate->header($pageInfo);
                                 <p class="caption">
                                     An example image of a meteor, as it might appear when you search Pi Gazing
                                     images.
-                                    <a href="moving_obj.php?id=20160212_034057_4c5aead12cf736d2">
-                                        Click here to see a full video of the event.
-                                    </a>
                                 </p>
                             </div>
 
@@ -186,9 +177,6 @@ $pageTemplate->header($pageInfo);
                                 <p class="caption">
                                     An example image of a satellite, as it might appear when you search Pi Gazing
                                     images.
-                                    <a href="moving_obj.php?id=20151211_165838_ed3b70e50e079f3d">
-                                        Click here to see a full video of the event.
-                                    </a>
                                 </p>
                             </div>
 
