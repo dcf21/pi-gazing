@@ -74,7 +74,7 @@ VALUES (:i,:k,:p,:t,:st,:u,:sv,:fv);");
     $stmt->bindParam(':p', $p, PDO::PARAM_INT, 64);
     $stmt->bindParam(':t', $t, PDO::PARAM_STR, 256);
     $stmt->bindParam(':st', $st, PDO::PARAM_STR, 256);
-    $stmt->bindParam(':u', $u, PDO::PARAM_STR, strlen($user->userId));
+    $stmt->bindParam(':u', $u, PDO::PARAM_STR, strlen($user->username));
     $stmt->bindParam(':sv', $sv, PDO::PARAM_STR, 256);
     $stmt->bindParam(':fv', $fv, PDO::PARAM_STR, 256);
     $stmt->execute(['i' => $uid,
@@ -82,7 +82,7 @@ VALUES (:i,:k,:p,:t,:st,:u,:sv,:fv);");
         'p' => $publicId,
         't' => $time,
         'st' => time(),
-        'u' => $user->userId,
+        'u' => $user->username,
         'sv' => $stringValue,
         'fv' => $floatValue
     ]);

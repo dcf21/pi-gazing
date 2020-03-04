@@ -53,10 +53,10 @@ def list_calibration_fixes(obstory_id, utc_min, utc_max):
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
 
-    # Start compiling list of orientation fixes
-    orientation_fixes = []
+    # Start compiling list of calibration fixes
+    calibration_fixes = []
 
-    # Select observations with orientation fits
+    # Select observations with calibration fits
     conn.execute("""
 SELECT am1.floatValue AS barrel_k1, am2.floatValue AS barrel_k2,
        am3.floatValue AS chi_squared, am4.stringValue AS point_count,
@@ -77,14 +77,41 @@ WHERE
     results = conn.fetchall()
 
     for item in results:
-        orientation_fixes.append({
+        calibration_fixes.append({
             'time': item['time'],
             'average': False,
             'fit': item
         })
 
+    # Select observatory calibration fits
+    conn.execute("""
+SELECT am1.floatValue AS barrel_k1, am2.floatValue AS barrel_k2,
+       am3.floatValue AS chi_squared, am4.stringValue AS point_count,
+       am1.time AS time
+FROM archive_observatories o
+INNER JOIN archive_metadata am1 ON o.uid = am1.observatory AND
+    am1.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k1")
+INNER JOIN archive_metadata am2 ON o.uid = am2.observatory AND am2.time=am1.time AND
+    am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k2")
+LEFT OUTER JOIN archive_metadata am3 ON o.uid = am3.observatory AND am3.time=am1.time AND
+    am3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:chi_squared")
+LEFT OUTER JOIN archive_metadata am4 ON o.uid = am4.observatory AND am4.time=am1.time AND
+    am4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:point_count")
+WHERE
+    o.publicId=%s AND
+    am1.time BETWEEN %s AND %s;
+""", (obstory_id, utc_min, utc_max))
+    results = conn.fetchall()
+
+    for item in results:
+        calibration_fixes.append({
+            'time': item['time'],
+            'average': True,
+            'fit': item
+        })
+
     # Sort fixes by time
-    orientation_fixes.sort(key=itemgetter('time'))
+    calibration_fixes.sort(key=itemgetter('time'))
 
     # Display column headings
     print("""\
@@ -92,7 +119,14 @@ WHERE
 """.format("", "Time", "barrelK1", "barrelK2", "chi2", "points"))
 
     # Display fixes
-    for item in orientation_fixes:
+    for item in calibration_fixes:
+        # Deal with missing data
+        if item['fit']['chi_squared'] is None:
+            item['fit']['chi_squared'] = -1
+        if item['fit']['point_count'] is None:
+            item['fit']['point_count'] = "-"
+
+        # Display calibration fix
         print("""\
 {:s} {:16s} {:8.4f} {:8.4f} {:10.7f} {:s} {:s}\
 """.format("\n>" if item['average'] else " ",

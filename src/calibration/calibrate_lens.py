@@ -38,6 +38,7 @@ coefficients.
 import argparse
 import logging
 import math
+import operator
 import os
 import re
 import subprocess
@@ -215,7 +216,7 @@ ORDER BY obsTime DESC LIMIT 1
     # Divide up time interval into day-long blocks
     logging.info("Searching for images within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
     block_size = 3600
-    minimum_sky_clarity = 500
+    minimum_sky_clarity = 1500
     utc_min = (floor(utc_min / block_size + 0.5) - 0.5) * block_size  # Make sure that blocks start at noon
     time_blocks = list(np.arange(start=utc_min, stop=utc_max + block_size, step=block_size))
 
@@ -505,6 +506,11 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         for i in range(len(parameters_default)):
             logging.info("{0:30s} : {1}".format(headings[i][0], parameters_final[i] * headings[i][1]))
 
+        # Reject fit if objective function too large
+        if fitting_result.fun > 1e-4:
+            logging.info("Rejecting fit as chi-squared too large.")
+            continue
+
         # Update observation status
         user = settings['pigazingUser']
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
@@ -515,6 +521,76 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
                                     meta=mp.Meta(key="calibration:chi_squared", value=fitting_result.fun))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
                                     meta=mp.Meta(key="calibration:point_count", value=str(radius_histogram)))
+
+    # Commit metadata changes
+    db.commit()
+    db0.commit()
+
+    # Now determine mean orientation each day
+    logging.info("Averaging daily fits within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
+    block_size = 86400
+    utc_min = (floor(utc_min / block_size + 0.5) - 0.5) * block_size  # Make sure that blocks start at noon
+    time_blocks = list(np.arange(start=utc_min, stop=utc_max + block_size, step=block_size))
+
+    # Start new block whenever we have a hardware refresh
+    conn.execute("""
+SELECT time FROM archive_metadata
+WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
+      AND fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey='refresh')
+      AND time BETWEEN %s AND %s
+""", (obstory_id, utc_min, utc_max))
+    results = conn.fetchall()
+    for item in results:
+        time_blocks.append(item['time'])
+
+    # Make sure that start points for time blocks are in order
+    time_blocks.sort()
+
+    for block_index, utc_block_min in enumerate(time_blocks[:-1]):
+        utc_block_max = time_blocks[block_index + 1]
+
+        # Select observations with orientation fits
+        conn.execute("""
+SELECT am1.floatValue AS k1, am2.floatValue AS k2
+FROM archive_observations o
+INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
+    am1.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k1")
+INNER JOIN archive_metadata am2 ON o.uid = am2.observationId AND
+    am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k2")
+WHERE
+    o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
+    o.obsTime BETWEEN %s AND %s
+ORDER BY k1 ASC;
+""", (obstory_id, utc_block_min, utc_block_max))
+        results = conn.fetchall()
+
+        logging.info("Averaging fits within period {} to {}: Found {} fits.".format(date_string(utc_block_min),
+                                                                                    date_string(utc_block_max),
+                                                                                    len(results)))
+
+        # Average the fits we found
+        if len(results) < 3:
+            logging.info("Insufficient images to reliably average.")
+            continue
+
+        # Pick the median fit
+        median_fit = results[len(results) // 2]
+
+        # Print fit information
+        logging.info("""\
+CALIBRATION FIT from {:2d} images: K1: {:.6f}. K2: {:.6f} deg. \
+""".format(len(results),
+           median_fit['k1'],
+           median_fit['k2']))
+
+        # Update observatory status
+        user = settings['pigazingUser']
+        db.register_obstory_metadata(obstory_id=obstory_id, key="calibration:lens_barrel_k1",
+                                     value=median_fit['k1'],
+                                     metadata_time=utc_block_min, user_created=user)
+        db.register_obstory_metadata(obstory_id=obstory_id, key="calibration:lens_barrel_k2",
+                                     value=median_fit['k2'],
+                                     metadata_time=utc_block_min, user_created=user)
 
     # Clean up and exit
     db.commit()
