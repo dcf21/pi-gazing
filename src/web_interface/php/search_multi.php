@@ -155,7 +155,8 @@ $pageTemplate->header($pageInfo);
 <?php
 
 // Display results if and only if we are searching
-if (array_key_exists('obstory', $_GET)) {
+$searching = true;
+if ($searching) {
 
     // Search for results
     $where = ['s.name="simultaneous"', "g.time>={$tmin['utc']}", "g.time<={$tmax['utc']}"];

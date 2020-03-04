@@ -143,6 +143,7 @@ class constants
             "pigazing:gainFactor" => "Multiplicative gain applied to image",
             "pigazing:height" => "Height of frame",
             "pigazing:inputNoiseLevel" => "Noise level of input frames (0-255)",
+            "pigazing:meanLevel" => "Average pixel brightness (0-255)",
             "pigazing:obstoryId" => "Observatory ID",
             "pigazing:path" => "Path of object",
             "pigazing:pathBezier" => "Path of object",
