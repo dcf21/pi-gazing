@@ -259,7 +259,7 @@ Starting observing run until {} (running for {:.0f} seconds).
 
             # Flick the relay to turn the camera on
             relay_control.camera_on()
-            time.sleep(2)
+            time.sleep(5)
             logging.info("Camera has been turned on.")
 
             # Observe! We use different binaries depending whether we're using a webcam-like camera,
@@ -321,7 +321,7 @@ timeout {timeout} \
 
             # Flick the relay to turn the camera off
             relay_control.camera_off()
-            time.sleep(2)
+            time.sleep(5)
             logging.info("Camera has been turned off.")
 
             # Snooze for up to 10 minutes; we may rerun observing tasks in a while if they ended prematurely

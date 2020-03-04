@@ -72,32 +72,43 @@ $pageTemplate->header($pageInfo);
     <div class="row">
         <div class="col-md-4" style="padding:16px;">
             <p class="text" style="font-size:18px;">
-                Pi Gazing lets you browse the night sky without having to step outside or wait until nightfall.
+                Pi Gazing is a project to build meteor cameras using Raspberry Pi computers
+                connected to CCTV cameras which are directed upwards to record the night sky.
             </p>
 
             <p class="text">
-                We've set up a network of cameras which take pictures of the night sky from dusk till dawn every day.
+                The Raspberry Pi computer analyses the video feed in real time to search for
+                moving objects, recording the tracks of shooting stars, as well as satellites
+                and aircraft. We also see rarer phenomena: lightning strikes, fireworks, and
+                Iridian flares, caused by glints of light from solar panels on spacecraft.
             </p>
 
             <p class="text">
-                As the night progresses they record the constellations circling overhead.
+                The cameras also take a series of long-exposure still photos each night. These
+                are used by the software to determine the direction the camera is pointing in,
+                as well as to calibrate any distortions which may be present in the lens used.
             </p>
 
             <p class="text">
-                They're also motion sensitive. Whenever anything flies past, they record a video. They capture footage
-                of planes, satellites, and shooting stars. We also see rarer phenomena: lightning strikes,
-                fireworks, and glints of light from solar panels on spacecraft.
+                These still images also allow you to watch how the constellations circle
+                overhead as the night progresses, or how they change with the seasons. You can
+                see the changing phases of the Moon, or watch the planets move across the sky.
             </p>
 
             <p class="text">
-                Nothing beats the experience of looking at the night sky for yourself with a pair of binoculars, but
-                Pi Gazing will help you learn what to look out for. And because our motion-sensitive cameras are keeping
-                constant watch, you may see rare events that you would have to wait a long time to see for yourself.
+                On this website, you can browse the entire archive of observations recorded by
+                our cameras.
+            </p>
+
+            <p class="text">
+                The program code and hardware designs that we use are all open source, and you
+                can find them on GitHub
+                <a href="https://github.com/dcf21/pi-gazing">here</a>.
             </p>
 
             <div style="padding:10px 20px;text-align:right;">
                 <button type="button" class="btn btn-primary btn-sm" onclick="window.location='/whattodo.php';">
-                    What to do &#187;
+                    Browse the archive &#187;
                 </button>
             </div>
 
