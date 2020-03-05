@@ -1043,6 +1043,54 @@ class ExportData(TaskRunner):
         os.system(command)
 
 
+class DetermineLensCorrection(TaskRunner):
+    def fetch_job_list_by_time_stamp(self):
+        return {0: True}
+
+    def execute_tasks(self):
+
+        # If we have run out of time, exit immediately
+        if (self.must_quit_by is not None) and (time.time() > self.must_quit_by):
+            return
+
+        # This makes sure that we have a valid task list
+        self.fetch_job_list()
+
+        must_quit_string = ""
+        if self.must_quit_by is not None:
+            must_quit_string = "--stop-by {must_quit_by}".format(must_quit_by=self.must_quit_by)
+
+        command = "{python_path}/calibration/calibrate_lens.py {must_quit_string}".format(
+            python_path=settings['pythonPath'],
+            must_quit_string=must_quit_string)
+        print(command)
+        os.system(command)
+
+
+class DeterminePointing(TaskRunner):
+    def fetch_job_list_by_time_stamp(self):
+        return {0: True}
+
+    def execute_tasks(self):
+
+        # If we have run out of time, exit immediately
+        if (self.must_quit_by is not None) and (time.time() > self.must_quit_by):
+            return
+
+        # This makes sure that we have a valid task list
+        self.fetch_job_list()
+
+        must_quit_string = ""
+        if self.must_quit_by is not None:
+            must_quit_string = "--stop-by {must_quit_by}".format(must_quit_by=self.must_quit_by)
+
+        command = "{python_path}/calibration/orientation_calculate.py {must_quit_string}".format(
+            python_path=settings['pythonPath'],
+            must_quit_string=must_quit_string)
+        print(command)
+        os.system(command)
+
+
 # A list of all the tasks we need to perform, in order
 task_running_order = [
     AnalyseRawVideos,
@@ -1052,6 +1100,7 @@ task_running_order = [
     ),
     TimelapseRawImages,
     SelectBestImages,
-    # DetermineLensCorrection, DeterminePointing,
+    DetermineLensCorrection,
+    DeterminePointing,
     ExportData
 ]

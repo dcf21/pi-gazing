@@ -71,7 +71,7 @@
 #define STACK_COMPARISON_INTERVAL 4
 
 // Time-lapse
-#define TIMELAPSE_EXPOSURE 116 /* Exposure length for time-lapse photography */
+#define TIMELAPSE_EXPOSURE  60 /* Exposure length for time-lapse photography */
 #define TIMELAPSE_INTERVAL 120 /* Interval between time-lapse frames */
 
 #endif
