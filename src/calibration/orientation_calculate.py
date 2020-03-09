@@ -333,8 +333,8 @@ timeout {} solve-field --no-plots --crpix-center --scale-low {:.1f} \
             continue
 
         # Expand reported size of image to whole image, not just the central tile we sent to astrometry.net
-        scale_x = 2 * math.atan(math.tan(float(test.group(1)) / 2 * deg) * (1 / fraction_x)) * rad
-        scale_y = 2 * math.atan(math.tan(float(test.group(2)) / 2 * deg) * (1 / fraction_y)) * rad
+        scale_x = 2 * math.atan(math.tan(float(test.group(1)) / 2 * deg) / fraction_x) * rad
+        scale_y = 2 * math.atan(math.tan(float(test.group(2)) / 2 * deg) / fraction_y) * rad
 
         # Work out alt-az of reported (RA,Dec) using known location of camera. Fits returned in degrees.
         alt_az_pos = alt_az(ra=ra, dec=dec, utc=item['utc'],
@@ -367,21 +367,22 @@ timeout {} solve-field --no-plots --crpix-center --scale-low {:.1f} \
 
         # Update observation status
         user = settings['pigazingUser']
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+        timestamp = time.time()
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:ra", value=ra))
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:dec", value=dec))
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:pa", value=celestial_pa))
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:altitude", value=alt_az_pos[0]))
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:azimuth", value=alt_az_pos[1]))
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:tilt", value=camera_tilt))
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:width_x_field", value=scale_x))
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:width_y_field", value=scale_y))
 
         # Clean up
@@ -417,7 +418,7 @@ WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
 
         # Select observations with orientation fits
         conn.execute("""
-SELECT am1.floatValue AS altitude, am2.floatValue AS azimuth, am3.floatValue AS tilt,
+SELECT am1.floatValue AS altitude, am2.floatValue AS azimuth, am3.floatValue AS pa, am4.floatValue AS tilt,
        am4.floatValue AS width_x_field, am5.floatValue AS width_y_field
 FROM archive_observations o
 INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
@@ -425,11 +426,13 @@ INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
 INNER JOIN archive_metadata am2 ON o.uid = am2.observationId AND
     am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:azimuth")
 INNER JOIN archive_metadata am3 ON o.uid = am3.observationId AND
-    am3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:tilt")
+    am3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:pa")
 INNER JOIN archive_metadata am4 ON o.uid = am4.observationId AND
-    am4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:width_x_field")
+    am4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:tilt")
 INNER JOIN archive_metadata am5 ON o.uid = am5.observationId AND
-    am5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:width_y_field")
+    am5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:width_x_field")
+INNER JOIN archive_metadata am6 ON o.uid = am6.observationId AND
+    am6.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:width_y_field")
 WHERE
     o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
     o.obsTime BETWEEN %s AND %s;
@@ -445,10 +448,19 @@ WHERE
             logging.info("Insufficient images to reliably average.")
             continue
 
-        pa_list = [i['tilt'] * deg for i in results]
-        camera_tilt_best = mean_angle(pa_list)[0]
+        # Average camera tilt measurements
+        tilt_list = [i['tilt'] * deg for i in results]
+        camera_tilt_best = mean_angle(tilt_list)[0]
+
+        # Average position angle measurements
+        pa_list = [i['pa'] * deg for i in results]
+        position_angle_best = mean_angle(pa_list)[0]
+
+        # Average field-width measurements
         scale_x_list = [i['width_x_field'] * deg for i in results]
         scale_x_best = mean_angle(scale_x_list)[0]
+
+        # Average field-height measurements
         scale_y_list = [i['width_y_field'] * deg for i in results]
         scale_y_best = mean_angle(scale_y_list)[0]
 
@@ -473,23 +485,27 @@ ScaleX: {:.2f} deg. ScaleY: {:.2f} deg. Uncertainty: {:.2f} deg.\
         # Update observatory status
         if success:
             user = settings['pigazingUser']
+            timestamp = time.time()
             db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:altitude",
-                                         value=alt_az_best[0] * rad,
+                                         value=alt_az_best[0] * rad, time_created=timestamp,
                                          metadata_time=utc_block_min, user_created=user)
             db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:azimuth",
-                                         value=alt_az_best[1] * rad,
+                                         value=alt_az_best[1] * rad, time_created=timestamp,
+                                         metadata_time=utc_block_min, user_created=user)
+            db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:pa",
+                                         value=position_angle_best * rad, time_created=timestamp,
                                          metadata_time=utc_block_min, user_created=user)
             db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:tilt",
-                                         value=camera_tilt_best * rad,
+                                         value=camera_tilt_best * rad, time_created=timestamp,
                                          metadata_time=utc_block_min, user_created=user)
             db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:width_x_field",
-                                         value=scale_x_best * rad,
+                                         value=scale_x_best * rad, time_created=timestamp,
                                          metadata_time=utc_block_min, user_created=user)
             db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:width_y_field",
-                                         value=scale_y_best * rad,
+                                         value=scale_y_best * rad, time_created=timestamp,
                                          metadata_time=utc_block_min, user_created=user)
             db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:uncertainty",
-                                         value=alt_az_error * rad,
+                                         value=alt_az_error * rad, time_created=timestamp,
                                          metadata_time=utc_block_min, user_created=user)
 
     # Clean up and exit

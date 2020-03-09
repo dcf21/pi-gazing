@@ -513,20 +513,21 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
 
         # Update observation status
         user = settings['pigazingUser']
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+        timestamp = time.time()
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="calibration:lens_barrel_k1", value=parameters_final[5]))
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="calibration:lens_barrel_k2", value=parameters_final[6]))
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="calibration:chi_squared", value=fitting_result.fun))
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'],
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="calibration:point_count", value=str(radius_histogram)))
 
     # Commit metadata changes
     db.commit()
     db0.commit()
 
-    # Now determine mean orientation each day
+    # Now determine mean lens calibration each day
     logging.info("Averaging daily fits within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
     block_size = 86400
     utc_min = (floor(utc_min / block_size + 0.5) - 0.5) * block_size  # Make sure that blocks start at noon
@@ -549,7 +550,7 @@ WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
     for block_index, utc_block_min in enumerate(time_blocks[:-1]):
         utc_block_max = time_blocks[block_index + 1]
 
-        # Select observations with orientation fits
+        # Select observations with calibration fits
         conn.execute("""
 SELECT am1.floatValue AS k1, am2.floatValue AS k2
 FROM archive_observations o
@@ -585,11 +586,12 @@ CALIBRATION FIT from {:2d} images: K1: {:.6f}. K2: {:.6f} deg. \
 
         # Update observatory status
         user = settings['pigazingUser']
+        timestamp = time.time()
         db.register_obstory_metadata(obstory_id=obstory_id, key="calibration:lens_barrel_k1",
-                                     value=median_fit['k1'],
+                                     value=median_fit['k1'], time_created=timestamp,
                                      metadata_time=utc_block_min, user_created=user)
         db.register_obstory_metadata(obstory_id=obstory_id, key="calibration:lens_barrel_k2",
-                                     value=median_fit['k2'],
+                                     value=median_fit['k2'], time_created=timestamp,
                                      metadata_time=utc_block_min, user_created=user)
 
     # Clean up and exit

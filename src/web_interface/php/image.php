@@ -157,28 +157,42 @@ $stmt->bindParam(':i', $i, PDO::PARAM_INT);
 $stmt->execute(['i' => $result['observationId']]);
 $other_files = $stmt->fetchAll();
 
+// Build metadata for planetarium overlay
+$planetarium_metadata = [
+        'active' => false
+];
+
 // Get observatory metadata
 $obstory_metadata = observatory_info::obstory_metadata($observation['obsTime'], $obstory['publicId']);
-var_dump($obstory_metadata);
 
-// Get image RA/Dec
-$ra_dec = sphericalAst::RaDec(
-    floatval($obstory_metadata['orientation:altitude']),
-    floatval($obstory_metadata['orientation:azimuth']),
-    $observation['obsTime'],
-    floatval($obstory_metadata['latitude_gps']),
-    floatval($obstory_metadata['longitude_gps']));
+if (array_key_exists('orientation:altitude', $obstory_metadata) &&
+    array_key_exists('latitude_gps', $obstory_metadata)) {
 
-// Create planetarium overlay metadata
-$planetarium_metadata = [
-    'barrel_k1' => $obstory_metadata['calibration:lens_barrel_k1'],
-    'barrel_k2' => $obstory_metadata['calibration:lens_barrel_k2'],
-    'dec0' => $ra_dec[1] * pi() / 180,
-    'pos_ang' => 21.8 * pi() / 180,
-    'ra0' => $ra_dec[0] * pi() / 12,
-    'scale_x' => $obstory_metadata['orientation:width_x_field'] * pi() / 180 * 1.16,
-    'scale_y' => $obstory_metadata['orientation:width_y_field'] * pi() / 180 * 1.16
-];
+    // Get image RA/Dec
+    $ra_dec = sphericalAst::RaDec(
+        floatval($obstory_metadata['orientation:altitude']),
+        floatval($obstory_metadata['orientation:azimuth']),
+        $observation['obsTime'],
+        floatval($obstory_metadata['latitude_gps']),
+        floatval($obstory_metadata['longitude_gps']));
+
+    // Create planetarium overlay metadata
+    $planetarium_metadata = [
+            'active' => true,
+        'barrel_k1' => 0,
+        'barrel_k2' => 0,
+        'dec0' => $ra_dec[1] * pi() / 180,
+        'pos_ang' => $obstory_metadata['orientation:pa'] * pi() / 180,
+        'ra0' => $ra_dec[0] * pi() / 12,
+        'scale_x' => $obstory_metadata['orientation:width_x_field'] * pi() / 180 * 1.16,
+        'scale_y' => $obstory_metadata['orientation:width_y_field'] * pi() / 180 * 1.16
+    ];
+
+    if (array_key_exists('calibration:lens_barrel_k1', $obstory_metadata)) {
+        $planetarium_metadata['barrel_k1'] = $obstory_metadata['calibration:lens_barrel_k1'];
+        $planetarium_metadata['barrel_k2'] = $obstory_metadata['calibration:lens_barrel_k2'];
+    }
+}
 
 // Information about this event
 $pageInfo = [
@@ -270,6 +284,61 @@ $pageTemplate->header($pageInfo);
                 print $const->semanticTypes[$semantic_type][1] . "</p>";
             }
             ?>
+            <h5>Display options</h5>
+            <form method="get" action="javascript:void(0);">
+                <p>
+                    <label>
+                        <input class="chk chkoverlay" type="checkbox" name="chkoverlay" checked="checked">
+                        Planetarium overlay
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkss" type="checkbox" name="chkss" checked="checked">
+                        Show stars
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkls" type="checkbox" name="chkls" checked="checked">
+                        Label stars
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chksn" type="checkbox" name="chksn" checked="checked">
+                        Show deep sky objects
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkln" type="checkbox" name="chkln" >
+                        Label deep sky objects
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkcb" type="checkbox" name="chkcb" >
+                        Show constellation boundaries
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkcl" type="checkbox" name="chkcl" checked="checked">
+                        Show constellation sticks
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkcn" type="checkbox" name="chkcn" checked="checked">
+                        Show constellation labels
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkragrid" type="checkbox" name="chkragrid" checked="checked">
+                        Show RA/Dec grid
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkbarrel" type="checkbox" name="chkbarrel" checked="checked">
+                        Include lens correction
+                    </label>
+                    <br />
+                </p>
+            </form>
         </div>
     </div>
 

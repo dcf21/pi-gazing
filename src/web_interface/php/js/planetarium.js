@@ -8,9 +8,11 @@ function Planetarium(settings, context) {
     this.context = context;
     this.width = 1;
     this.height = 1;
-    this.ready = 0;
     this.refresh = 0;
     this.lock = 0;
+
+    // If this overlay is disabled, do nothing
+    if (!this.settings['active']) return;
     
     // Styling information
     this.styling = {
@@ -62,7 +64,7 @@ Planetarium.prototype.setup_2 = function () {
 
     // Update display when any settings change
     switches = ["chkss", "chkls", "chksn", "chkln", "chkcb", "chkcl", "chkcn",
-        "chkragrid", "chkaltazg"];
+        "chkragrid", "chkbarrel"];
     for (i = 0; i < switches.length; i++) {
         $("." + switches[i], self.context).click(function () {
             self.refresh = 1;
@@ -192,7 +194,7 @@ Planetarium.prototype.magnitudeRadius = function (mag) {
 
 // Read the value of an HTML checkbox, with default value if the checkbox doesn't exist
 Planetarium.prototype.getInputSwitch = function (name, def) {
-    var l = $("." + name, self.context);
+    var l = $("." + name);
     if (l.length === 0) return def;
     return l.prop("checked");
 };
