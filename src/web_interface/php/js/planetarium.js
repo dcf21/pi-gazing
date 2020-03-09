@@ -10,21 +10,38 @@ function Planetarium(settings, context) {
     this.height = 1;
     this.refresh = 0;
     this.lock = 0;
+    this.barrel_correct = true;
 
     // If this overlay is disabled, do nothing
     if (!this.settings['active']) return;
-    
+
+    // Buttons to show and hide overlay
+    $(".chkoverlay").click(function () {
+            if (self.getInputSwitch("chkoverlay", true)) {
+                $(".PLbuf0").fadeIn();
+            } else {
+                $(".PLbuf0").fadeOut();
+            }
+        }
+    );
+
+    // Fade overlay into place
+    setTimeout(function () {
+        self.resize();
+        $(".PLbuf0").fadeIn(2500);
+    }, 1000);
+
     // Styling information
     this.styling = {
-        "radecol": "rgba(255,255,0,64)",
+        "radecol": "rgba(255,128,0,0.75)",
         "radewid": 1,
-        "conlcol": "rgba(255,255,0,64)",
+        "conlcol": "rgba(255,255,0,0.8)",
         "conlwid": 1,
-        "conbcol": "rgba(255,255,0,64)",
+        "conbcol": "rgba(255,255,255,0.7)",
         "conbwid": 1,
-        "conncol": "rgba(255,255,0,64)",
-        "dso_col": "rgba(255,255,0,64)",
-        "starcol": "rgba(255,255,0,64)",
+        "conncol": "rgba(255,255,255,0.8)",
+        "dso_col": "rgba(0,255,255,0.8)",
+        "starcol": "rgba(255,255,0,0.8)",
         "starwid": 2
     };
 
@@ -66,7 +83,7 @@ Planetarium.prototype.setup_2 = function () {
     switches = ["chkss", "chkls", "chksn", "chkln", "chkcb", "chkcl", "chkcn",
         "chkragrid", "chkbarrel"];
     for (i = 0; i < switches.length; i++) {
-        $("." + switches[i], self.context).click(function () {
+        $("." + switches[i]).click(function () {
             self.refresh = 1;
         });
     }
@@ -83,21 +100,21 @@ Planetarium.prototype.setup_2 = function () {
     }, 200); // poll for mouse moves at 5fps
 };
 
-Planetarium.prototype.rotate_xy = function(a, theta) {
+Planetarium.prototype.rotate_xy = function (a, theta) {
     var a0 = a[0] * Math.cos(theta) + a[1] * -Math.sin(theta);
     var a1 = a[0] * Math.sin(theta) + a[1] * Math.cos(theta);
     var a2 = a[2];
     return [a0, a1, a2];
 };
 
-Planetarium.prototype.rotate_xz = function(a, theta) {
+Planetarium.prototype.rotate_xz = function (a, theta) {
     var a0 = a[0] * Math.cos(theta) + a[2] * -Math.sin(theta);
     var a1 = a[1];
     var a2 = a[0] * Math.sin(theta) + a[2] * Math.cos(theta);
     return [a0, a1, a2];
 };
 
-Planetarium.prototype.make_zenithal = function(ra, dec) {
+Planetarium.prototype.make_zenithal = function (ra, dec) {
     var x = Math.cos(ra) * Math.cos(dec);
     var y = Math.sin(ra) * Math.cos(dec);
     var z = Math.sin(dec);
@@ -117,7 +134,7 @@ Planetarium.prototype.make_zenithal = function(ra, dec) {
     return [za, az];
 };
 
-Planetarium.prototype.ang_dist = function(ra0, dec0, ra1, dec1) {
+Planetarium.prototype.ang_dist = function (ra0, dec0, ra1, dec1) {
     var x0 = Math.cos(ra0) * Math.cos(dec0);
     var y0 = Math.sin(ra0) * Math.cos(dec0);
     var z0 = Math.sin(dec0);
@@ -128,7 +145,7 @@ Planetarium.prototype.ang_dist = function(ra0, dec0, ra1, dec1) {
     return 2 * Math.asin(d / 2);
 };
 
-Planetarium.prototype.gnomonic_project = function(ra, dec) {
+Planetarium.prototype.gnomonic_project = function (ra, dec) {
     var dist = this.ang_dist(ra, dec, this.settings['ra0'], this.settings['dec0']);
 
     if (dist > Math.PI / 2) {
@@ -142,20 +159,21 @@ Planetarium.prototype.gnomonic_project = function(ra, dec) {
     az += this.settings['pos_ang'];
 
     // Correction for barrel distortion
-    var r = radius / Math.tan(this.settings['scale_x'] / 2);
-    if (r > 1.4) return null;
-    var bc_kn = 1. - this.settings['barrel_k1'] - this.settings['barrel_k2'];
-    var r2 = r / (bc_kn + this.settings['barrel_k1'] * (r ** 2) + this.settings['barrel_k2'] * (r ** 4));
-    radius = r2 * Math.tan(this.settings['scale_x'] / 2);
+    if (this.barrel_correct) {
+        var r = radius / Math.tan(this.settings['scale_x'] / 2);
+        if (r > 1.4) return null;
+        var bc_kn = 1. - this.settings['barrel_k1'] - this.settings['barrel_k2'];
+        var r2 = r / (bc_kn + this.settings['barrel_k1'] * (r ** 2) + this.settings['barrel_k2'] * (r ** 4));
+        radius = r2 * Math.tan(this.settings['scale_x'] / 2);
+    }
 
-    var yd = radius * Math.cos(az) * (this.height / 2. / Math.tan(this.settings['scale_y'] / 2.)) + this.height/2;
-    var xd = radius * -Math.sin(az) * (this.width / 2. / Math.tan(this.settings['scale_x'] / 2.)) + this.width/2;
+    var yd = radius * Math.cos(az) * (this.height / 2. / Math.tan(this.settings['scale_y'] / 2.)) + this.height / 2;
+    var xd = radius * -Math.sin(az) * (this.width / 2. / Math.tan(this.settings['scale_x'] / 2.)) + this.width / 2;
 
     return [xd, yd];
 };
 
-Planetarium.prototype.inv_gnom_project = function(x, y)
-{
+Planetarium.prototype.inv_gnom_project = function (x, y) {
     var x2 = (x - this.width / 2.) / (this.width / 2. / Math.tan(this.settings['scale_x'] / 2.));
     var y2 = (y - this.height / 2.) / (this.height / 2. / Math.tan(this.settings['scale_y'] / 2.));
 
@@ -242,48 +260,49 @@ Planetarium.prototype.draw = function () {
     var showConb = this.getInputSwitch("chkcb", false);
     var showConl = this.getInputSwitch("chkcl", true);
     var showConn = this.getInputSwitch("chkcn", true);
-    var showDSO = this.getInputSwitch("chksn", true);
+    var showDSO = this.getInputSwitch("chksn", false);
     var labelDSO = this.getInputSwitch("chkln", false);
     var showRADec = this.getInputSwitch("chkragrid", true);
+    this.barrel_correct = this.getInputSwitch("chkbarrel", true);
 
     // Draw RA/Dec grid
-        if (showRADec) {
-            co.strokeStyle = this.styling["radecol"];
-            co.lineWidth = this.settings["radewid"];
-            co.beginPath();
+    if (showRADec) {
+        co.strokeStyle = this.styling["radecol"];
+        co.lineWidth = this.settings["radewid"];
+        co.beginPath();
+        penUp = 1;
+        for (i = -80; i < 89; i += 10) {
             penUp = 1;
-            for (i = -80; i < 89; i += 10) {
-                penUp = 1;
-                for (j = 0; j < 361; j += 2) {
-                    p0 = this.gnomonic_project(j * Math.PI / 180, i * Math.PI / 180);
-                    if (p0 === null) {
-                        penUp = 1;
-                        continue;
-                    }
-                    x0 = p0[0];
-                    y0 = p0[1];
-                    if (penUp) co.moveTo(x0, y0);
-                    else co.lineTo(x0, y0);
-                    penUp = 0;
+            for (j = 0; j < 361; j += 2) {
+                p0 = this.gnomonic_project(j * Math.PI / 180, i * Math.PI / 180);
+                if (p0 === null) {
+                    penUp = 1;
+                    continue;
                 }
+                x0 = p0[0];
+                y0 = p0[1];
+                if (penUp) co.moveTo(x0, y0);
+                else co.lineTo(x0, y0);
+                penUp = 0;
             }
-            for (j = 0; j < 359; j += 15) {
-                penUp = 1;
-                for (i = -89; i < 90; i += 2) {
-                    p0 = this.gnomonic_project(j * Math.PI / 180, i * Math.PI / 180);
-                    if (p0 === null) {
-                        penUp = 1;
-                        continue;
-                    }
-                    x0 = p0[0];
-                    y0 = p0[1];
-                    if (penUp) co.moveTo(x0, y0);
-                    else co.lineTo(x0, y0);
-                    penUp = 0;
-                }
-            }
-            co.stroke();
         }
+        for (j = 0; j < 359; j += 15) {
+            penUp = 1;
+            for (i = -89; i < 90; i += 2) {
+                p0 = this.gnomonic_project(j * Math.PI / 180, i * Math.PI / 180);
+                if (p0 === null) {
+                    penUp = 1;
+                    continue;
+                }
+                x0 = p0[0];
+                y0 = p0[1];
+                if (penUp) co.moveTo(x0, y0);
+                else co.lineTo(x0, y0);
+                penUp = 0;
+            }
+        }
+        co.stroke();
+    }
 
     // Draw constellation sticks
     if (showConl) {
@@ -356,6 +375,7 @@ Planetarium.prototype.draw = function () {
                 y = p[1];
 
                 // Create text
+                co.font = "bold 14px Arial,Helvetica,sans-serif";
                 co.fillStyle = this.styling["conncol"];
                 co.textAlign = "center";
                 co.textBaseline = "middle";
@@ -412,7 +432,7 @@ Planetarium.prototype.draw = function () {
     if (showDSO) {
         // Display DSOs which two fainter than surrounding stars
         var dso_mag_offset = 2;
-        co.textStyle = "13px Arial,Helvetica,sans-serif";
+        co.font = "bold 13px Arial,Helvetica,sans-serif";
         co.fillStyle = self.styling["dso_col"];
         co.strokeStyle = self.styling["dso_col"];
         co.lineWidth = 1.5;
@@ -450,10 +470,9 @@ Planetarium.prototype.draw = function () {
         co.fillStyle = self.styling["starcol"];
         co.strokeStyle = self.styling["starcol"];
         co.lineWidth = self.styling["starwid"];
-        co.textStyle = "13px Arial,Helvetica,sans-serif";
+        co.font = "bold 13px Arial,Helvetica,sans-serif";
 
         // Loop over all of the tiles which we are going to display
-        // Display tiles in inverse order, so bright stars like Castor are drawn in front of faint companions
         for (k = tileList.length - 1; k >= 0; k--) {
             var stars = this.stars[tileList[k]];
             for (i = stars.length - 1; i >= 0; i--) {
@@ -464,9 +483,6 @@ Planetarium.prototype.draw = function () {
                 x = p[0];
                 y = p[1];
                 var M = this.magnitudeRadius(stars[i][4]);
-                co.globalCompositeOperation = "destination-out";
-                co.arc(x, y, M, 0, 2 * Math.PI, false);
-                co.fill();
                 co.globalCompositeOperation = "source-over";
                 co.arc(x, y, M, 0, 2 * Math.PI, false);
                 co.stroke();
@@ -481,6 +497,23 @@ Planetarium.prototype.draw = function () {
                     co.textBaseline = "middle";
                     co.fillText(names[0], x + M + 4, y);
                 }
+            }
+        }
+
+        // Blank out the middle of stars, so that the pi gazing image of the star is always visible
+        for (k = tileList.length - 1; k >= 0; k--) {
+            stars = this.stars[tileList[k]];
+            for (i = stars.length - 1; i >= 0; i--) {
+                if (stars[i][4] > self.limitmag) continue;
+                p = this.gnomonic_project(stars[i][1], stars[i][2]);
+                if (p === null) continue;
+                co.beginPath();
+                x = p[0];
+                y = p[1];
+                var M = this.magnitudeRadius(stars[i][4]) - 1;
+                co.globalCompositeOperation = "destination-out";
+                co.arc(x, y, M, 0, 2 * Math.PI, false);
+                co.fill();
             }
         }
     }

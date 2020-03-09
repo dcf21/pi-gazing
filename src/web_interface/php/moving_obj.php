@@ -26,6 +26,8 @@
 require "php/imports.php";
 require_once "php/html_getargs.php";
 require_once "php/set_metadata.php";
+require_once "php/observatory_info.php";
+require_once "php/spherical_ast.php";
 
 $getargs = new html_getargs(true);
 
@@ -146,6 +148,43 @@ $stmt->bindParam(':i', $i, PDO::PARAM_INT);
 $stmt->execute(['i' => $uid]);
 $simultaneous_events = $stmt->fetchAll();
 
+// Build metadata for planetarium overlay
+$planetarium_metadata = [
+        'active' => false
+];
+
+// Get observatory metadata
+$obstory_metadata = observatory_info::obstory_metadata($observation['obsTime'], $obstory['publicId']);
+
+if (array_key_exists('orientation:altitude', $obstory_metadata) &&
+    array_key_exists('latitude_gps', $obstory_metadata)) {
+
+    // Get image RA/Dec
+    $ra_dec = sphericalAst::RaDec(
+        floatval($obstory_metadata['orientation:altitude']),
+        floatval($obstory_metadata['orientation:azimuth']),
+        $observation['obsTime'] + 40, // Mid-point of exposure
+        floatval($obstory_metadata['latitude_gps']),
+        floatval($obstory_metadata['longitude_gps']));
+
+    // Create planetarium overlay metadata
+    $planetarium_metadata = [
+            'active' => true,
+        'barrel_k1' => 0,
+        'barrel_k2' => 0,
+        'dec0' => $ra_dec[1] * pi() / 180,
+        'pos_ang' => $obstory_metadata['orientation:pa'] * pi() / 180,
+        'ra0' => $ra_dec[0] * pi() / 12,
+        'scale_x' => $obstory_metadata['orientation:width_x_field'] * pi() / 180,
+        'scale_y' => $obstory_metadata['orientation:width_y_field'] * pi() / 180
+    ];
+
+    if (array_key_exists('calibration:lens_barrel_k1', $obstory_metadata)) {
+        $planetarium_metadata['barrel_k1'] = $obstory_metadata['calibration:lens_barrel_k1'];
+        $planetarium_metadata['barrel_k2'] = $obstory_metadata['calibration:lens_barrel_k2'];
+    }
+}
+
 // Information about this event
 $pageInfo = [
     "pageTitle" => "Moving object detected at " . date("d M Y - H:i", $observation['obsTime']),
@@ -193,8 +232,9 @@ if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
 
     <div class="row">
         <div class="col-xl-8">
-            <div class="gallery_still">
-                <video class="gallery_still_img" controls>
+            <div class="gallery_still planetarium" data-meta='<?php echo json_encode($planetarium_metadata); ?>'>
+                <canvas class="PLbuf0" width="1" height="1"></canvas>
+                <video class="gallery_still_img planetarium_image" controls>
                     <source src="<?php echo $file_url; ?>" type="video/mp4"/>
                     Your browser does not support the video tag.
                 </video>
@@ -207,6 +247,60 @@ if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
             <p><a href="observatory.php?id=<?php echo $obstory['publicId']; ?>"><?php echo $obstory['name']; ?></a></p>
             <h5>Time</h5>
             <p><?php echo date("d M Y - H:i", $observation['obsTime']); ?></p>
+            <h5>Display options</h5>
+            <form method="get" action="javascript:void(0);">
+                <p>
+                    <label>
+                        <input class="chk chkoverlay" type="checkbox" name="chkoverlay" checked="checked">
+                        Planetarium overlay
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkss" type="checkbox" name="chkss" checked="checked">
+                        Show stars
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkls" type="checkbox" name="chkls" checked="checked">
+                        Label stars
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chksn" type="checkbox" name="chksn">
+                        Show deep sky objects
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkln" type="checkbox" name="chkln">
+                        Label deep sky objects
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkcb" type="checkbox" name="chkcb">
+                        Show constellation boundaries
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkcl" type="checkbox" name="chkcl" checked="checked">
+                        Show constellation sticks
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkcn" type="checkbox" name="chkcn" checked="checked">
+                        Show constellation labels
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkragrid" type="checkbox" name="chkragrid" checked="checked">
+                        Show RA/Dec grid
+                    </label>
+                    <br />
+                    <label>
+                        <input class="chk chkbarrel" type="checkbox" name="chkbarrel" checked="checked">
+                        Include lens correction
+                    </label>
+                </p>
+            </form>
         </div>
     </div>
 

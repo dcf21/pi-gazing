@@ -272,7 +272,7 @@ convert {}_tmp2.png -colorspace sRGB -define png:format=png24 -crop {:d}x{:d}+{:
             continue
 
         # How long should we allow astrometry.net to run for?
-        timeout = "1m" if settings['i_am_a_rpi'] else "10s"
+        timeout = "1m" if settings['i_am_a_rpi'] else "15s"
 
         # Run astrometry.net. Insert --no-plots on the command line to speed things up.
         logging.info("Running astrometry.net")
@@ -295,6 +295,12 @@ timeout {} solve-field --no-plots --crpix-center --scale-low {:.1f} \
         # Parse the output from astrometry.net
         fit_text = open("txt").read()
         # logging.info(fit_text)
+
+        # Clean up
+        os.chdir(cwd)
+        os.system("rm -Rf {}".format(tmp))
+
+        # Extract celestial coordinates of the centre of the frame from astrometry.net output
         test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",
                          fit_text)
         if not test:
@@ -385,10 +391,6 @@ timeout {} solve-field --no-plots --crpix-center --scale-low {:.1f} \
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:width_y_field", value=scale_y))
 
-        # Clean up
-        os.chdir(cwd)
-        os.system("rm -Rf {}".format(tmp))
-
     # Commit metadata changes
     db.commit()
     db0.commit()
@@ -419,7 +421,7 @@ WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
         # Select observations with orientation fits
         conn.execute("""
 SELECT am1.floatValue AS altitude, am2.floatValue AS azimuth, am3.floatValue AS pa, am4.floatValue AS tilt,
-       am4.floatValue AS width_x_field, am5.floatValue AS width_y_field
+       am5.floatValue AS width_x_field, am6.floatValue AS width_y_field
 FROM archive_observations o
 INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
     am1.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:altitude")

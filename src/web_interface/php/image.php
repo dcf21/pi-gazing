@@ -172,7 +172,7 @@ if (array_key_exists('orientation:altitude', $obstory_metadata) &&
     $ra_dec = sphericalAst::RaDec(
         floatval($obstory_metadata['orientation:altitude']),
         floatval($obstory_metadata['orientation:azimuth']),
-        $observation['obsTime'],
+        $observation['obsTime'] + 40, // Mid-point of exposure
         floatval($obstory_metadata['latitude_gps']),
         floatval($obstory_metadata['longitude_gps']));
 
@@ -184,8 +184,8 @@ if (array_key_exists('orientation:altitude', $obstory_metadata) &&
         'dec0' => $ra_dec[1] * pi() / 180,
         'pos_ang' => $obstory_metadata['orientation:pa'] * pi() / 180,
         'ra0' => $ra_dec[0] * pi() / 12,
-        'scale_x' => $obstory_metadata['orientation:width_x_field'] * pi() / 180 * 1.16,
-        'scale_y' => $obstory_metadata['orientation:width_y_field'] * pi() / 180 * 1.16
+        'scale_x' => $obstory_metadata['orientation:width_x_field'] * pi() / 180,
+        'scale_y' => $obstory_metadata['orientation:width_y_field'] * pi() / 180
     ];
 
     if (array_key_exists('calibration:lens_barrel_k1', $obstory_metadata)) {
@@ -237,7 +237,7 @@ $pageTemplate->header($pageInfo);
     <div class="row">
         <div class="col-md-8">
             <div class="gallery_still planetarium" data-meta='<?php echo json_encode($planetarium_metadata); ?>'>
-                <canvas class="PLbuf0" style="position: absolute; z-index: 10;" width="1" height="1"></canvas>
+                <canvas class="PLbuf0" width="1" height="1"></canvas>
                 <?php if ($mime_type == "image/png"): ?>
                     <img class="gallery_still_img planetarium_image" alt="" title="" src="<?php echo $file_url; ?>"/>
                 <?php elseif ($mime_type == "video/mp4"): ?>
@@ -303,17 +303,17 @@ $pageTemplate->header($pageInfo);
                     </label>
                     <br />
                     <label>
-                        <input class="chk chksn" type="checkbox" name="chksn" checked="checked">
+                        <input class="chk chksn" type="checkbox" name="chksn">
                         Show deep sky objects
                     </label>
                     <br />
                     <label>
-                        <input class="chk chkln" type="checkbox" name="chkln" >
+                        <input class="chk chkln" type="checkbox" name="chkln">
                         Label deep sky objects
                     </label>
                     <br />
                     <label>
-                        <input class="chk chkcb" type="checkbox" name="chkcb" >
+                        <input class="chk chkcb" type="checkbox" name="chkcb">
                         Show constellation boundaries
                     </label>
                     <br />
@@ -336,7 +336,6 @@ $pageTemplate->header($pageInfo);
                         <input class="chk chkbarrel" type="checkbox" name="chkbarrel" checked="checked">
                         Include lens correction
                     </label>
-                    <br />
                 </p>
             </form>
         </div>
