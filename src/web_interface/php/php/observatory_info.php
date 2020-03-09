@@ -100,4 +100,63 @@ ORDER BY obsTime DESC LIMIT 1;");
         ];
     }
 
+    // This function returns a list of metadata for an observatory
+    public static function obstory_metadata($time, $obstory)
+    {
+        global $const;
+        $output = [];
+
+        # See when this observatory was last serviced. Do not report any metadata set before this time.
+        $last_serviced = 0;
+        $stmt = $const->db->prepare("
+SELECT time FROM archive_metadata
+WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=:o)
+      AND fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey='refresh')
+      AND time <= :t
+ORDER BY time DESC LIMIT 1");
+        $stmt->bindParam(':o', $o, PDO::PARAM_STR, strlen($obstory));
+        $stmt->bindParam(':t', $t, PDO::PARAM_STR, 32);
+        $stmt->execute(["o" => $obstory, "t" => $time]);
+        $results = $stmt->fetchAll();
+        if (count($results) > 0) {
+            $last_serviced = $results[0]['time'];
+        }
+
+        # Loop over each known metadata field in turn, and see when it was most recently set
+        $stmt = $const->db->prepare("SELECT uid,metaKey FROM archive_metadataFields;");
+        $stmt->execute([]);
+        $fields = $stmt->fetchAll();
+        foreach ($fields as $field) {
+            $stmt = $const->db->prepare("
+SELECT floatValue, stringValue FROM archive_metadata
+WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=:o) AND fieldId=:f
+      AND time BETWEEN :s AND :t
+ORDER BY time DESC LIMIT 1");
+            $stmt->bindParam(':o', $o, PDO::PARAM_STR, strlen($obstory));
+            $stmt->bindParam(':f', $f, PDO::PARAM_INT);
+            $stmt->bindParam(':s', $s, PDO::PARAM_STR, 32);
+            $stmt->bindParam(':t', $t, PDO::PARAM_STR, 32);
+            $stmt->execute(["o" => $obstory, "f" => $field['uid'], "s" => $last_serviced, "t" => $time]);
+            $results = $stmt->fetchAll();
+
+            # See if this metadata field has ever been set for this observatory
+            if (count($results) > 0) {
+                $result = $results[0];
+
+                # If so, return it as a floating-point value if possible, otherwise as a string
+                if (is_null($result['stringValue'])) {
+                    $value = $result['floatValue'];
+                } else {
+                    $value = $result['stringValue'];
+                }
+                $output[$field['metaKey']] = $value;
+            }
+        }
+
+        # Return dictionary of results
+        if (array_key_exists('refresh', $output)) {
+            unset($output['refresh']);
+        }
+        return $output;
+    }
 }

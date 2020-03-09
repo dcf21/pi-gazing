@@ -26,6 +26,8 @@
 require "php/imports.php";
 require_once "php/html_getargs.php";
 require_once "php/set_metadata.php";
+require_once "php/observatory_info.php";
+require_once "php/spherical_ast.php";
 
 $getargs = new html_getargs(true);
 
@@ -155,6 +157,29 @@ $stmt->bindParam(':i', $i, PDO::PARAM_INT);
 $stmt->execute(['i' => $result['observationId']]);
 $other_files = $stmt->fetchAll();
 
+// Get observatory metadata
+$obstory_metadata = observatory_info::obstory_metadata($observation['obsTime'], $obstory['publicId']);
+var_dump($obstory_metadata);
+
+// Get image RA/Dec
+$ra_dec = sphericalAst::RaDec(
+    floatval($obstory_metadata['orientation:altitude']),
+    floatval($obstory_metadata['orientation:azimuth']),
+    $observation['obsTime'],
+    floatval($obstory_metadata['latitude_gps']),
+    floatval($obstory_metadata['longitude_gps']));
+
+// Create planetarium overlay metadata
+$planetarium_metadata = [
+    'barrel_k1' => $obstory_metadata['calibration:lens_barrel_k1'],
+    'barrel_k2' => $obstory_metadata['calibration:lens_barrel_k2'],
+    'dec0' => $ra_dec[1] * pi() / 180,
+    'pos_ang' => 21.8 * pi() / 180,
+    'ra0' => $ra_dec[0] * pi() / 12,
+    'scale_x' => $obstory_metadata['orientation:width_x_field'] * pi() / 180 * 1.16,
+    'scale_y' => $obstory_metadata['orientation:width_y_field'] * pi() / 180 * 1.16
+];
+
 // Information about this event
 $pageInfo = [
     "pageTitle" => "{$const->mimeTypes[$mime_type]} recorded at " . date("d M Y - H:i", $observation['obsTime']),
@@ -172,34 +197,35 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
-<table style="width:100%; margin:4px 0;">
-    <tr>
-        <?php if ($related['prev']): ?>
-            <td style="text-align:left;">
-                <form method="get" action="<?php echo $const->server; ?>image.php">
-                    <input type="hidden" name="id" value="<?php echo $related['prev'][0]['uid']; ?>"/>
-                    <input type="hidden" name="highlights" value="<?php echo $flag_highlights; ?>"/>
-                    <input class="btn btn-sm btn-success" type="submit" value="Previous"/>
-                </form>
-            </td>
-        <?php endif; ?>
-        <?php if ($related['next']): ?>
-            <td style="text-align:right;">
-                <form method="get" action="<?php echo $const->server; ?>image.php">
-                    <input type="hidden" name="id" value="<?php echo $related['next'][0]['uid']; ?>"/>
-                    <input type="hidden" name="highlights" value="<?php echo $flag_highlights; ?>"/>
-                    <input class="btn btn-sm btn-success" type="submit" value="Next"/>
-                </form>
-            </td>
-        <?php endif; ?>
-    </tr>
-</table>
+    <table style="width:100%; margin:4px 0;">
+        <tr>
+            <?php if ($related['prev']): ?>
+                <td style="text-align:left;">
+                    <form method="get" action="<?php echo $const->server; ?>image.php">
+                        <input type="hidden" name="id" value="<?php echo $related['prev'][0]['uid']; ?>"/>
+                        <input type="hidden" name="highlights" value="<?php echo $flag_highlights; ?>"/>
+                        <input class="btn btn-sm btn-success" type="submit" value="Previous"/>
+                    </form>
+                </td>
+            <?php endif; ?>
+            <?php if ($related['next']): ?>
+                <td style="text-align:right;">
+                    <form method="get" action="<?php echo $const->server; ?>image.php">
+                        <input type="hidden" name="id" value="<?php echo $related['next'][0]['uid']; ?>"/>
+                        <input type="hidden" name="highlights" value="<?php echo $flag_highlights; ?>"/>
+                        <input class="btn btn-sm btn-success" type="submit" value="Next"/>
+                    </form>
+                </td>
+            <?php endif; ?>
+        </tr>
+    </table>
 
     <div class="row">
         <div class="col-md-8">
-            <div class="gallery_still">
+            <div class="gallery_still planetarium" data-meta='<?php echo json_encode($planetarium_metadata); ?>'>
+                <canvas class="PLbuf0" style="position: absolute; z-index: 10;" width="1" height="1"></canvas>
                 <?php if ($mime_type == "image/png"): ?>
-                    <img class="gallery_still_img" alt="" title="" src="<?php echo $file_url; ?>"/>
+                    <img class="gallery_still_img planetarium_image" alt="" title="" src="<?php echo $file_url; ?>"/>
                 <?php elseif ($mime_type == "video/mp4"): ?>
                     <div style="position:relative" class="video_marker_overlay"
                          data-path='<?php echo $metadata_by_key['pigazing:path']; ?>'
@@ -225,10 +251,10 @@ $pageTemplate->header($pageInfo);
         </div>
         <div class="col-md-4">
             <?php if ($mime_type == "video/mp4"): ?>
-            <h5>Video controls</h5>
-            <label>
-                <input type="checkbox" checked="" class="video_marker" /> Show position marker
-            </label>
+                <h5>Video controls</h5>
+                <label>
+                    <input type="checkbox" checked="" class="video_marker"/> Show position marker
+                </label>
             <?php endif; ?>
             <h5>Observation type</h5>
             <p><?php echo $const->semanticTypes[$observation['semanticType']][1]; ?></p>

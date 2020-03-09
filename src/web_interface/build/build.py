@@ -117,6 +117,11 @@ def makehtml():
                     # print "Copying file <%s>"%fname
                     shutil.copyfile(infile, outfile)
 
+    # Unzip planetarium JSON files
+    cmd = "cd %s ; tar xvfz *.tar.gz " % (os.path.join(output, "json"))
+    print(cmd)
+    os.system(cmd)
+
     # Compress Javascript
     javascripts = glob.glob(os.path.join(output, "js/*.js")) + glob.glob(os.path.join(output, "js/*/*.js"))
     if minify:
