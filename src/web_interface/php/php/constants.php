@@ -41,7 +41,7 @@ class constants
 
         // Path to PHP modules directory
         $this->path = realpath(dirname(__FILE__));
-        $this->datapath = $this->path."/../../../../datadir/db_filestore/";
+        $this->datapath = $this->path . "/../../../../datadir/db_filestore/";
 
         // Time we started execution
         $this->timeStart = microtime(True);
@@ -71,7 +71,7 @@ class constants
         $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
         // Categories of image
-        $this->item_categories = ["Not set","Plane","Satellite","Meteor","Junk","Pretty sky"];
+        $this->item_categories = ["Not set", "Bird", "Plane", "Satellite", "Meteor", "Junk", "Pretty sky"];
 
         // Known mime types
         $this->mimeTypes = ["image/png" => "Image",
@@ -93,7 +93,7 @@ class constants
             "pigazing:movingObject/mapExcludedPixels" => ["Excluded pixels", "This is a map of pixels within the frame which were being ignored owing to too much past variability. They may be foreground objects which are often illuminated by car headlights, for example. Only white pixels are ignored; different shades of grey indicate how much each pixel has varied in the past."],
             "pigazing:movingObject/mapDifference" => ["Difference frame", "This frame indicates why the camera thought this object was interesting. It shows the difference between the video frame where the object appeared and the one before. White areas have brightened; dark areas have darkened."],
             "pigazing:movingObject/video" => ["Video of object", "This is a video of the object which triggered the camera"],
-            "pigazing:timelapse/backgroundModel" => ["Light pollution map","This is an image of the light pollution that we believe to be present in this image, compiled from observations over the previous 20 minutes. It is subtracted from the observed image to see faint objects."],
+            "pigazing:timelapse/backgroundModel" => ["Light pollution map", "This is an image of the light pollution that we believe to be present in this image, compiled from observations over the previous 20 minutes. It is subtracted from the observed image to see faint objects."],
             "pigazing:timelapse/backgroundSubtracted" => ["Image with light pollution removed", "This image has been processed to attempt to remove light pollution."],
             "pigazing:timelapse" => ["Original image", "This is the original image recorded by the camera, with no post-processing."],
             "pigazing:path" => ["Path of object across frame", "This file contains a list of positions within the frame where the object was detected, together with the time of sighting at each position"],
