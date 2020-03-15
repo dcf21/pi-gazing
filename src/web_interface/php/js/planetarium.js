@@ -18,9 +18,9 @@ function Planetarium(settings, context) {
     // Buttons to show and hide overlay
     $(".chkoverlay").click(function () {
             if (self.getInputSwitch("chkoverlay", true)) {
-                $(".PLbuf0").fadeIn();
+                $(".PLbuf0").stop().fadeIn();
             } else {
-                $(".PLbuf0").fadeOut();
+                $(".PLbuf0").stop().fadeOut();
             }
         }
     );
@@ -28,7 +28,9 @@ function Planetarium(settings, context) {
     // Fade overlay into place
     setTimeout(function () {
         self.resize();
-        $(".PLbuf0").fadeIn(2500);
+        if (self.getInputSwitch("chkoverlay", true)) {
+            $(".PLbuf0").stop().fadeIn(2500);
+        }
     }, 1000);
 
     // Styling information
@@ -160,8 +162,11 @@ Planetarium.prototype.gnomonic_project = function (ra, dec) {
 
     // Correction for barrel distortion
     if (this.barrel_correct) {
+        // Check if point is far outside image
+        var max_scale = Math.max(this.settings['scale_x'], this.settings['scale_y']);
+        if (radius / Math.tan(max_scale / 2) > 1.4) return null;
+
         var r = radius / Math.tan(this.settings['scale_x'] / 2);
-        if (r > 1.4) return null;
         var bc_kn = 1. - this.settings['barrel_k1'] - this.settings['barrel_k2'];
         var r2 = r / (bc_kn + this.settings['barrel_k1'] * (r ** 2) + this.settings['barrel_k2'] * (r ** 4));
         radius = r2 * Math.tan(this.settings['scale_x'] / 2);
