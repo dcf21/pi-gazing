@@ -533,6 +533,16 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
             os->trigger_throttle_counter = 0;
         }
 
+        // Attenuate the map of past triggers <past_trigger_map> so that old-triggers decay with a half-life around
+        // 15 minutes
+        if ((os->frame_counter % 2000) == 0) {
+            int o;
+#pragma omp parallel for private(o)
+            for (o=0; o<os->frame_size; o++) {
+                os->past_trigger_map[o] *= 0.95;
+            }
+        }
+
         // Test whether triggering is allowed
         os->triggering_allowed = ((!os->run_in_frame_countdown) &&
                                   (os->trigger_throttle_counter < os->TRIGGER_THROTTLE_MAXEVT));

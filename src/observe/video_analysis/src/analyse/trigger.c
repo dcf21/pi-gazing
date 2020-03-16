@@ -167,11 +167,14 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
             trigger_b[o] = 0;
 
             if ((os->mask[o]) && test_pixel(os, image1, image2, o, threshold_monitor)) {
-                os->past_trigger_map[o]++;
+                // If pixel has brightened by more than <threshold_monitor> standard deviations, mark it, and all
+                // neighbouring pixels, on the <past_trigger_map>, which excludes long-term variable pixels
+                for (int yo = -1; yo <= 1; yo++)
+                    for (int xo = -1; xo <= 1; xo++)
+                        os->past_trigger_map[o + yo * os->width + xo] += 100;
 
                 // Search for pixels which have brightened by more than threshold since past image
                 if (test_pixel(os, image1, image2, o, threshold_trigger)) {
-                    os->past_trigger_map[o]++;
 #pragma omp critical (add_trigger)
                     {
                         // Put triggering pixel on map. Wait till be have <Npixels> connected pixels.
