@@ -534,8 +534,8 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
         }
 
         // Attenuate the map of past triggers <past_trigger_map> so that old-triggers decay with a half-life around
-        // 15 minutes
-        if ((os->frame_counter % 2000) == 0) {
+        // 7-8 minutes
+        if ((os->frame_counter % 1000) == 0) {
             int o;
 #pragma omp parallel for private(o)
             for (o=0; o<os->frame_size; o++) {
