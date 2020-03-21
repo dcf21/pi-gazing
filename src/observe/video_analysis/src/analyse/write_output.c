@@ -315,7 +315,7 @@ void write_trigger_time_average_frame(const observe_status *os, int trigger_inde
 void write_trigger_max_brightness_frame(const observe_status *os, int trigger_index, const int channel_count,
                                         const double duration, int amplitude_peak, int amplitude_time_integrated,
                                         int integrated_frame_count) {
-    char fname[FNAME_LENGTH]
+    char fname[FNAME_LENGTH];
     sprintf(fname, "%s%s", os->event_list[trigger_index].filename_stub, "_maxBrightness.rgb");
     dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[trigger_index].max_stack,
                          1, 0, NULL, fname);
@@ -338,7 +338,7 @@ void write_trigger_max_brightness_frame(const observe_status *os, int trigger_in
 void write_trigger_integrated_trigger_map(const observe_status *os, int trigger_index,
                                           const double duration, int amplitude_peak, int amplitude_time_integrated,
                                           int integrated_frame_count) {
-    char fname[FNAME_LENGTH]
+    char fname[FNAME_LENGTH];
     sprintf(fname, "%s%s", os->event_list[trigger_index].filename_stub, "_allTriggers.rgb");
     dump_frame(os->width, os->height, 1, os->event_list[trigger_index].max_trigger, fname);
     write_metadata(fname, "sdsiidddidiii",
@@ -357,7 +357,7 @@ void write_trigger_integrated_trigger_map(const observe_status *os, int trigger_
                    "amplitudePeak", amplitude_peak);
 }
 
-void write_video_metadata(const observe_status *os, int trigger_index) {
+void write_video_metadata(observe_status *os, int trigger_index) {
     // Three detections which span the whole duration of this event
     const int N0 = 0;
     const int N1 = os->event_list[trigger_index].detection_count / 2;

@@ -24,6 +24,8 @@
 #ifndef TRIGGER_H
 #define TRIGGER_H 1
 
+#include "observe.h"
+
 int check_for_triggers(observe_status *os, const unsigned char *image1, const unsigned char *image2);
 
 #endif
