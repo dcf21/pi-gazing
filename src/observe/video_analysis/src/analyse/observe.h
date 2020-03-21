@@ -162,9 +162,6 @@ typedef struct observeStatus {
     event event_list[MAX_EVENTS];
 } observe_status;
 
-char *filename_generate(char *output, const char *obstory_id, double utc, char *tag, const char *dir_name,
-                        const char *label);
-
 int read_frame(observe_status *os, unsigned char *buffer, int *stack2);
 
 int observe(void *video_handle, const char *obstory_id, const double utc_start, const double utc_stop,

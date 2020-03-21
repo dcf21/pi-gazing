@@ -16,6 +16,8 @@ set(SOURCE_FILES
         src/analyse/observe.h
         src/analyse/trigger.c
         src/analyse/trigger.h
+        src/analyse/write_output.c
+        src/analyse/write_output.h
         src/argparse/argparse.c
         src/argparse/argparse.h
         src/png/image.h

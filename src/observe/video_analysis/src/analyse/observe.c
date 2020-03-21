@@ -41,113 +41,11 @@
 #include "vidtools/color.h"
 
 #include "settings.h"
+#include "write_output.h"
 
 // Each pixel is 1.5 bytes in YUV420 stream
 #define YUV420_BYTES_PER_PIXEL  3/2
 
-//! filename_generate - Generate a filename for an output product. We place output products in the directory
-//! <datadir/analysis_products>. Within this, we create directories of the form <dir_name>_<label>, where label is
-//! either "live" or "nonlive", for real-time and post-observation video analysis. The file products themselves have
-//! filenames which start with a time stamp string, followed by the observatory ID, followed by <tag>.
-//!
-//! These filenames do not have file type suffices, which the user will need to add afterwards.
-//!
-//! \param [out] output The string buffer into which to write the filename for this product.
-//! \param [in] obstory_id The observatory ID which created this product.
-//! \param [in] utc The time stamp of the product.
-//! \param [in] tag The type of file, used as the last part of the filename
-//! \param [in] dir_name The name of the directory within <analysis_products> where this product should go.
-//! \param [in] label Suffix to the name of the directory; either "live" or "nonlive".
-//! \return Pointer to <output>.
-
-char *filename_generate(char *output, const char *obstory_id, double utc, char *tag, const char *dir_name,
-                        const char *label) {
-    char path[FNAME_LENGTH];
-
-    // Convert unix time into a Julian day number
-    const double JD = utc / 86400.0 + 2440587.5;
-    int year, month, day, hour, min, status;
-    double sec;
-
-    // Make sure that the analysis products directory exists
-    sprintf(path, "%s/analysis_products", OUTPUT_PATH);
-    status = mkdir(path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    if (status && (errno != EEXIST)) {
-        sprintf(temp_err_string, "ERROR: Could not create directory <%s>. Returned error code %d. errno %d. %s.",
-                path, status, errno, strerror(errno));
-        logging_info(temp_err_string);
-    }
-
-    // Make sure that the subdirectory for this kind of observation exists, e.g. <timelapse_live>
-    sprintf(path, "%s/analysis_products/%s_%s", OUTPUT_PATH, dir_name, label);
-    status = mkdir(path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    if (status && (errno != EEXIST)) {
-        sprintf(temp_err_string, "ERROR: Could not create directory <%s>. Returned error code %d. errno %d. %s.",
-                path, status, errno, strerror(errno));
-        logging_info(temp_err_string);
-    }
-
-    // Convert unix time into a calendar date
-    inv_julian_day(JD, &year, &month, &day, &hour, &min, &sec, &status, output);
-    sprintf(output, "%s/%04d%02d%02d%02d%02d%02d_%s_%s", path, year, month, day, hour, min, (int) sec, obstory_id, tag);
-    return output;
-}
-
-//! write_metadata - Record metadata associated with each output file product into a metadata text file which sits
-//! alongside the file product, but with a '.txt' file extension.
-//! \param filename The filename of the file product that we are going to write metadata for. This character array
-//! must be writable, since we change the filename suffix to '.txt' in place, in order to write the metadata into a
-//! text file alongside the file product.
-//! \param item_types A string representing the list of types of the metadata items to write into the file. The
-//! character 's' represents a string item, 'i' represents an integer value, and 'd' represents a double
-//! (floating point).
-//! \param ... For each character in the <item_types> string, two additional parameters are required. The first should
-//! be a string containing the keyword associated with the metadata item, while the latter is the metadata value.
-
-void write_metadata(char *filename, char *item_types, ...) {
-    // Change file extension of filename to .txt
-    int filename_len = (int) strlen(filename);
-    int i = filename_len - 1;
-    while ((i > 0) && (filename[i] != '.')) i--;
-    sprintf(filename + i, ".txt");
-
-    // Write metadata, item by item
-    FILE *f = fopen(filename, "w");
-    if (!f) return;
-    va_list ap;
-    va_start(ap, item_types);
-    for (i = 0; item_types[i] != '\0'; i++) {
-        char *x = va_arg(ap, char*);
-        switch (item_types[i]) {
-            // String metadata
-            case 's': {
-                char *y = va_arg(ap, char*);
-                fprintf(f, "%s %s\n", x, y);
-                break;
-            }
-                // Double type metadata
-            case 'd': {
-                double y = va_arg(ap, double);
-                fprintf(f, "%s %.15e\n", x, y);
-                break;
-            }
-                // Int type metadata
-            case 'i': {
-                int y = va_arg(ap, int);
-                fprintf(f, "%s %d\n", x, y);
-                break;
-            }
-                // Metadata type characters in <item_types> must be s, d or i.
-            default: {
-                sprintf(temp_err_string, "ERROR: Unrecognised data type character '%c'.", item_types[i]);
-                logging_fatal(__FILE__, __LINE__, temp_err_string);
-            }
-        }
-    }
-    // Close metadata output file
-    va_end(ap);
-    fclose(f);
-}
 
 //! read_frame - Read a frame of input video. This is done by calling the function pointer os->fetch_frame, which
 //! points to a function which may variously either capture a frame of live video from a webcam via the v4l2 library,
@@ -462,62 +360,19 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
         if ((os->timelapse_frame_count >= os->frames_per_timelapse) ||
             (os->utc > os->timelapse_utc_start + os->TIMELAPSE_INTERVAL - 1)) {
             const int frame_count = os->timelapse_frame_count;
-            char fstub[FNAME_LENGTH], fname[FNAME_LENGTH];
-            double gain_factor;
+            char fstub[FNAME_LENGTH];
 
             // First dump the time-lapse image without background subtraction
             filename_generate(fstub, os->obstory_id, os->timelapse_utc_start, "frame_", "timelapse", os->label);
 
-            sprintf(fname, "%s%s", fstub, "BS0.rgb");
-            dump_frame_from_ints(os->width, os->height, channel_count, os->stack_timelapse, frame_count,
-                                 os->STACK_TARGET_BRIGHTNESS, &gain_factor, fname);
-
-            // Store metadata about the time-lapse frame
-            write_metadata(fname, "sdsiiddddi",
-                           "obstoryId", os->obstory_id,
-                           "utc", os->timelapse_utc_start,
-                           "semanticType", "pigazing:timelapse",
-                           "width", os->width,
-                           "height", os->height,
-                           "inputNoiseLevel", os->noise_level,
-                           "stackNoiseLevel", os->noise_level / sqrt(frame_count) * gain_factor,
-                           "meanLevel", os->mean_level,
-                           "gainFactor", gain_factor,
-                           "stackedFrames", frame_count);
+            write_timelapse_frame(channel_count, os, frame_count, fstub);
 
             // Dump a background-subtracted version of the time-lapse image
-            sprintf(fname, "%s%s", fstub, "BS1.rgb");
-            dump_frame_from_int_subtraction(os->width, os->height, channel_count, os->stack_timelapse, frame_count,
-                                            os->STACK_TARGET_BRIGHTNESS, &gain_factor,
-                                            os->background_maps[0], fname);
-
-            // Store metadata about the time-lapse frame
-            write_metadata(fname, "sdsiidddi",
-                           "obstoryId", os->obstory_id,
-                           "utc", os->timelapse_utc_start,
-                           "semanticType", "pigazing:timelapse/backgroundSubtracted",
-                           "width", os->width,
-                           "height", os->height,
-                           "inputNoiseLevel", os->noise_level,
-                           "stackNoiseLevel", os->noise_level / sqrt(frame_count) * gain_factor,
-                           "gainFactor", gain_factor,
-                           "stackedFrames", frame_count);
+            write_timelapse_bs_frame(channel_count, os, frame_count, fstub);
 
             // Every few minutes, dump an image of the sky background map for diagnostic purposes
             if (floor(fmod(os->timelapse_utc_start, 1)) == 0) {
-                sprintf(fname, "%s%s", fstub, "skyBackground.rgb");
-                dump_frame_from_ints(os->width, os->height, channel_count, os->background_maps[0],
-                                     256, 0, NULL, fname);
-                write_metadata(fname, "sdsiidddi",
-                               "obstoryId", os->obstory_id,
-                               "utc", os->timelapse_utc_start,
-                               "semanticType", "pigazing:timelapse/backgroundModel",
-                               "width", os->width,
-                               "height", os->height,
-                               "inputNoiseLevel", os->noise_level,
-                               "stackNoiseLevel", os->noise_level / sqrt(BACKGROUND_MAP_FRAMES),
-                               "meanLevel", os->mean_level,
-                               "stackedFrames", ((int) BACKGROUND_MAP_FRAMES));
+                write_timelapse_bg_model(BACKGROUND_MAP_FRAMES, channel_count, os, fstub);
             }
 
             // Schedule the next time-lapse exposure
@@ -709,7 +564,6 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                     }
 
                     // Start producing output files describing this camera trigger
-                    char fname[FNAME_LENGTH];
                     filename_generate(os->event_list[i].filename_stub, os->obstory_id, os->utc, "event", "triggers",
                                       os->label);
 
@@ -725,74 +579,19 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                     os->event_list[i].video_output.buffer_end_position = -1;
 
                     // Difference image, B-A, which we get from the red channel of <os->trigger_map_rgb>, set by <check_for_triggers>
-                    sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapDifference.rgb");
-                    dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 0 * os->frame_size, fname);
-                    write_metadata(fname, "sdsiidddi",
-                                   "obstoryId", os->obstory_id,
-                                   "utc", os->event_list[i].start_time,
-                                   "semanticType", "pigazing:movingObject/mapDifference",
-                                   "width", os->width,
-                                   "height", os->height,
-                                   "inputNoiseLevel", os->noise_level,
-                                   "stackNoiseLevel", os->noise_level,
-                                   "meanLevel", os->mean_level,
-                                   "stackedFrames", 1);
+                    write_trigger_difference_frame(os, i);
 
                     // Map of pixels which are currently excluded from triggering due to excessive variability
-                    sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapExcludedPixels.rgb");
-                    dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 1 * os->frame_size, fname);
-                    write_metadata(fname, "sdsiidddi",
-                                   "obstoryId", os->obstory_id,
-                                   "utc", os->event_list[i].start_time,
-                                   "semanticType", "pigazing:movingObject/mapExcludedPixels",
-                                   "width", os->width,
-                                   "height", os->height,
-                                   "inputNoiseLevel", os->noise_level,
-                                   "stackNoiseLevel", os->noise_level,
-                                   "meanLevel", os->mean_level,
-                                   "stackedFrames", 1);
+                    write_trigger_mask_frame(os, i);
 
                     // Map of the pixels whose brightening caused this trigger
-                    sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_mapTrigger.rgb");
-                    dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 2 * os->frame_size, fname);
-                    write_metadata(fname, "sdsiidddi",
-                                   "obstoryId", os->obstory_id,
-                                   "utc", os->event_list[i].start_time,
-                                   "semanticType", "pigazing:movingObject/mapTrigger",
-                                   "width", os->width,
-                                   "height", os->height,
-                                   "inputNoiseLevel", os->noise_level,
-                                   "stackNoiseLevel", os->noise_level,
-                                   "meanLevel", os->mean_level,
-                                   "stackedFrames", 1);
+                    write_trigger_map_frame(os, i);
 
                     // The video frame in which this trigger was first detected
-                    sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_triggerFrame.rgb");
-                    dump_frame(os->width, os->height, channel_count, image1, fname);
-                    write_metadata(fname, "sdsiidddi",
-                                   "obstoryId", os->obstory_id,
-                                   "utc", os->event_list[i].start_time,
-                                   "semanticType", "pigazing:movingObject/triggerFrame",
-                                   "width", os->width,
-                                   "height", os->height,
-                                   "inputNoiseLevel", os->noise_level,
-                                   "stackNoiseLevel", os->noise_level,
-                                   "meanLevel", os->mean_level,
-                                   "stackedFrames", 1);
+                    write_trigger_frame(os, image1, channel_count, i);
 
                     // The comparison frame which preceded the frame where the trigger was detected
-                    sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_previousFrame.rgb");
-                    dump_frame(os->width, os->height, channel_count, image2, fname);
-                    write_metadata(fname, "sdsiidddi",
-                                   "obstoryId", os->obstory_id,
-                                   "utc", os->event_list[i].start_time,
-                                   "semanticType", "pigazing:movingObject/previousFrame",
-                                   "width", os->width,
-                                   "height", os->height,
-                                   "inputNoiseLevel", os->noise_level,
-                                   "stackNoiseLevel", os->noise_level,
-                                   "meanLevel", os->mean_level,
-                                   "stackedFrames", 1);
+                    write_trigger_previous_frame(os, image2, channel_count, i);
 
                     // Start writing video file
                     os->event_list[i].video_output.active = 1;
@@ -857,9 +656,8 @@ void register_trigger_ends(observe_status *os) {
         if (os->event_list[i].active == 1) {
             int j;
 
-            // Three detections which span the whole duration of this event
+            // Detections which span the whole duration of this event
             const int N0 = 0;
-            const int N1 = os->event_list[i].detection_count / 2;
             const int N2 = os->event_list[i].detection_count - 1;
 
             // Create stack of the average brightness of each pixel over the duration of this event
@@ -909,122 +707,34 @@ void register_trigger_ends(observe_status *os) {
                 os->trigger_throttle_counter++;
 
                 // Write path of event as JSON string
-                char fname[FNAME_LENGTH], path_json[LSTR_LENGTH], path_bezier[FNAME_LENGTH];
                 int amplitude_peak = 0, amplitude_time_integrated = 0;
                 {
-                    int j = 0, k = 0;
-                    sprintf(path_json + k, "[");
-                    k += strlen(path_json + k);
-                    for (j = 0; j < os->event_list[i].detection_count; j++) {
+                    for (int j = 0; j < os->event_list[i].detection_count; j++) {
                         const detection *d = &os->event_list[i].detections[j];
-                        sprintf(path_json + k, "%s[%d,%d,%d,%.3f]", j ? "," : "", d->x, d->y, d->amplitude, d->utc);
-                        k += strlen(path_json + k);
                         amplitude_time_integrated += d->amplitude;
                         if (d->amplitude > amplitude_peak) amplitude_peak = d->amplitude;
                     }
-                    sprintf(path_json + k, "]");
                 }
 
                 // Dump stacked images of entire duration of event
                 int coAddedFrames = (os->frame_counter - os->event_list[i].detections[0].frame_count);
 
                 // Time-averaged value of each pixel over the duration of the event
-                sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_timeAverage.rgb");
-                dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[i].stacked_image,
-                                     coAddedFrames, 0, NULL, fname);
-                write_metadata(fname, "sdsiidddidiii",
-                               "obstoryId", os->obstory_id,
-                               "utc", os->event_list[i].start_time,
-                               "semanticType", "pigazing:movingObject/timeAverage",
-                               "width", os->width,
-                               "height", os->height,
-                               "inputNoiseLevel", os->noise_level,
-                               "stackNoiseLevel", os->noise_level / sqrt(coAddedFrames),
-                               "meanLevel", os->mean_level,
-                               "stackedFrames", coAddedFrames,
-                               "duration", duration,
-                               "detectionCount", os->event_list[i].detection_count,
-                               "amplitudeTimeIntegrated", amplitude_time_integrated,
-                               "amplitudePeak", amplitude_peak);
+                write_trigger_time_average_frame(os, i, channel_count, duration, amplitude_peak,
+                                                 amplitude_time_integrated, coAddedFrames);
 
                 // Maximum brightness of each pixel over the duration of the event
-                sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_maxBrightness.rgb");
-                dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[i].max_stack,
-                                     1, 0, NULL, fname);
-                write_metadata(fname, "sdsiidddidiii",
-                               "obstoryId", os->obstory_id,
-                               "utc", os->event_list[i].start_time,
-                               "semanticType", "pigazing:movingObject/maximumBrightness",
-                               "width", os->width,
-                               "height", os->height,
-                               "inputNoiseLevel", os->noise_level,
-                               "stackNoiseLevel", os->noise_level / sqrt(coAddedFrames),
-                               "meanLevel", os->mean_level,
-                               "stackedFrames", coAddedFrames,
-                               "duration", duration,
-                               "detectionCount", os->event_list[i].detection_count,
-                               "amplitudeTimeIntegrated", amplitude_time_integrated,
-                               "amplitudePeak", amplitude_peak);
+                write_trigger_max_brightness_frame(os, i, channel_count, duration, amplitude_peak,
+                                                   amplitude_time_integrated, coAddedFrames);
 
                 // Map of all pixels which triggered motion sensor over the duration of the event
-                sprintf(fname, "%s%s", os->event_list[i].filename_stub, "_allTriggers.rgb");
-                dump_frame(os->width, os->height, 1, os->event_list[i].max_trigger, fname);
-                write_metadata(fname, "sdsiidddidiii",
-                               "obstoryId", os->obstory_id,
-                               "utc", os->event_list[i].start_time,
-                               "semanticType", "pigazing:movingObject/allTriggers",
-                               "width", os->width,
-                               "height", os->height,
-                               "inputNoiseLevel", os->noise_level,
-                               "meanLevel", os->mean_level,
-                               "stackNoiseLevel", 1.,
-                               "stackedFrames", coAddedFrames,
-                               "duration", duration,
-                               "detectionCount", os->event_list[i].detection_count,
-                               "amplitudeTimeIntegrated", amplitude_time_integrated,
-                               "amplitudePeak", amplitude_peak);
+                write_trigger_integrated_trigger_map(os, i, duration, amplitude_peak, amplitude_time_integrated,
+                                                     coAddedFrames);
 
                 // Make sure that video of this event ends at the right time
                 os->event_list[i].video_output.buffer_end_position = os->frame_counter % os->video_buffer_frames;
 
-                // Write path of event as a three-point Bezier curve
-                {
-                    int k = 0;
-                    sprintf(path_bezier + k, "[");
-                    k += strlen(path_bezier + k);
-                    sprintf(path_bezier + k, "[%d,%d,%.3f],", os->event_list[i].detections[N0].x,
-                            os->event_list[i].detections[N0].y, os->event_list[i].detections[N0].utc);
-                    k += strlen(path_bezier + k);
-                    sprintf(path_bezier + k, "[%d,%d,%.3f],", os->event_list[i].detections[N1].x,
-                            os->event_list[i].detections[N1].y, os->event_list[i].detections[N1].utc);
-                    k += strlen(path_bezier + k);
-                    sprintf(path_bezier + k, "[%d,%d,%.3f]", os->event_list[i].detections[N2].x,
-                            os->event_list[i].detections[N2].y, os->event_list[i].detections[N2].utc);
-                    k += strlen(path_bezier + k);
-                    sprintf(path_bezier + k, "]");
-                }
-
-                // Now that we know the duration of this video, we can write metadata about the video file
-                const double video_duration = os->utc - (os->event_list[i].start_time - os->TRIGGER_PREFIX_TIME);
-                write_metadata(os->event_list[i].video_output.filename, "sdsiiddsdidiisddd",
-                               "obstoryId", os->obstory_id,
-                               "utc", os->event_list[i].start_time,
-                               "semanticType", "pigazing:movingObject/video",
-                               "width", os->width,
-                               "height", os->height,
-                               "inputNoiseLevel", os->noise_level,
-                               "meanLevel", os->mean_level,
-                               "path", path_json,
-                               "duration", duration,
-                               "detectionCount", os->event_list[i].detection_count,
-                               "detectionSignificance", amplitude_peak / os->noise_level,
-                               "amplitudeTimeIntegrated", amplitude_time_integrated,
-                               "amplitudePeak", amplitude_peak,
-                               "pathBezier", path_bezier,
-                               "videoStart", os->event_list[i].start_time - os->TRIGGER_PREFIX_TIME,
-                               "videoFPS", duration_frames / duration,
-                               "videoDuration", video_duration
-                );
+                write_video_metadata(os, i);
             }
         }
 
