@@ -165,11 +165,11 @@ image_ptr image_get(const char *filename) {
     png_colour_type = png_get_color_type(png_ptr, info_ptr);
 
     if (DEBUG) {
-        sprintf(temp_err_string, "Size %dx%d", width, height);
+        snprintf(temp_err_string, FNAME_LENGTH, "Size %dx%d", width, height);
         logging_info(temp_err_string);
     }
     if (DEBUG) {
-        sprintf(temp_err_string, "Depth %d", depth);
+        snprintf(temp_err_string, FNAME_LENGTH, "Depth %d", depth);
         logging_info(temp_err_string);
     }
 
@@ -209,7 +209,7 @@ image_ptr image_get(const char *filename) {
             *(palette + 3 * i + 2) = pngpalette[i].blue;
         }
         if (DEBUG) {
-            sprintf(temp_err_string, "PNG image file contains a palette of %d colours", ncols);
+            snprintf(temp_err_string, FNAME_LENGTH, "PNG image file contains a palette of %d colours", ncols);
             logging_info(temp_err_string);
         }
     }
@@ -250,7 +250,7 @@ image_ptr image_get(const char *filename) {
         if (DEBUG) logging_info("PNG has transparency");
         png_get_tRNS(png_ptr, info_ptr, &trans_colours, &ntrans, &trans_val);
         if (DEBUG) {
-            sprintf(temp_err_string, "PNG has %d transparent entries in palette", ntrans);
+            snprintf(temp_err_string, FNAME_LENGTH, "PNG has %d transparent entries in palette", ntrans);
             logging_info(temp_err_string);
         }
         if (png_colour_type == PNG_COLOR_TYPE_PALETTE) {
@@ -277,7 +277,7 @@ image_ptr image_get(const char *filename) {
             }
         }
     }
-    png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp) NULL);
+    png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)NULL);
 
     // Put all necessary information into the output data structure
     image_alloc(&output, width, height);

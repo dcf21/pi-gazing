@@ -92,8 +92,8 @@ int main(int argc, const char *argv[]) {
     const char *stub = output_filename;
 
     char rgb_filename[FNAME_LENGTH], png_filename[FNAME_LENGTH];
-    sprintf(rgb_filename, "%s.rgb", stub);
-    sprintf(png_filename, "%s.png", stub);
+    snprintf(rgb_filename, FNAME_LENGTH, "%s.rgb", stub);
+    snprintf(png_filename, FNAME_LENGTH, "%s.png", stub);
 
     video_in = (struct video_info *) calloc(1, sizeof(struct video_info));
 
@@ -117,13 +117,13 @@ int main(int argc, const char *argv[]) {
 
     int utc_start = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Commencing makeBackgroundMap at %s.", friendly_time_string(utc_start));
+        snprintf(line, FNAME_LENGTH, "Commencing makeBackgroundMap at %s.", friendly_time_string(utc_start));
         logging_info(line);
     }
 
     unsigned char *buffer = malloc(bytes_per_frame);
     if (!buffer) {
-        sprintf(temp_err_string, "ERROR: malloc fail in makeBackgroundMap.");
+        snprintf(temp_err_string, FNAME_LENGTH, "ERROR: malloc fail in makeBackgroundMap.");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
@@ -132,12 +132,12 @@ int main(int argc, const char *argv[]) {
     int **background_maps = malloc((BACKGROUND_MAP_SAMPLES + 1) * sizeof(int *));
 
     if ((!background_workspace) || (!background_maps)) {
-        sprintf(temp_err_string, "ERROR: malloc fail in makeBackgroundMap.");
+        snprintf(temp_err_string, FNAME_LENGTH, "ERROR: malloc fail in makeBackgroundMap.");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     for (int i = 0; i <= BACKGROUND_MAP_SAMPLES; i++) {
-        background_maps[i] = (int *)calloc(sizeof(int), frame_size * channel_count);
+        background_maps[i] = (int *) calloc(sizeof(int), frame_size * channel_count);
     }
 
 
@@ -210,7 +210,7 @@ int main(int argc, const char *argv[]) {
 
     int utc_stop = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Finishing making background map at %s.", friendly_time_string(utc_stop));
+        snprintf(line, FNAME_LENGTH, "Finishing making background map at %s.", friendly_time_string(utc_stop));
         logging_info(line);
     }
 

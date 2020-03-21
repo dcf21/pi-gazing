@@ -27,6 +27,7 @@
 
 #include <gsl/gsl_math.h>
 
+#include "str_constants.h"
 #include "utils/julianDate.h"
 
 // Routines for looking up the dates when the transition between the Julian calendar and the Gregorian calendar occurred
@@ -125,32 +126,32 @@ double julian_day(int year, int month, int day, int hour, int min, int sec, int 
 
     if ((year < -1e6) || (year > 1e6) || (!gsl_finite(year))) {
         *status = 1;
-        sprintf(err_text, "Supplied year is too big.");
+        snprintf(err_text, FNAME_LENGTH, "Supplied year is too big.");
         return 0.0;
     }
     if ((day < 1) || (day > 31)) {
         *status = 1;
-        sprintf(err_text, "Supplied day number should be in the range 1-31.");
+        snprintf(err_text, FNAME_LENGTH, "Supplied day number should be in the range 1-31.");
         return 0.0;
     }
     if ((hour < 0) || (hour > 23)) {
         *status = 1;
-        sprintf(err_text, "Supplied hour number should be in the range 0-23.");
+        snprintf(err_text, FNAME_LENGTH, "Supplied hour number should be in the range 0-23.");
         return 0.0;
     }
     if ((min < 0) || (min > 59)) {
         *status = 1;
-        sprintf(err_text, "Supplied minute number should be in the range 0-59.");
+        snprintf(err_text, FNAME_LENGTH, "Supplied minute number should be in the range 0-59.");
         return 0.0;
     }
     if ((sec < 0) || (sec > 59)) {
         *status = 1;
-        sprintf(err_text, "Supplied second number should be in the range 0-59.");
+        snprintf(err_text, FNAME_LENGTH, "Supplied second number should be in the range 0-59.");
         return 0.0;
     }
     if ((month < 1) || (month > 12)) {
         *status = 1;
-        sprintf(err_text, "Supplied month number should be in the range 1-12.");
+        snprintf(err_text, FNAME_LENGTH, "Supplied month number should be in the range 1-12.");
         return 0.0;
     }
 
@@ -165,14 +166,14 @@ double julian_day(int year, int month, int day, int hour, int min, int sec, int 
     // Julian calendar
     if (required_date <= last_julian) { b = -2 + ((year + 4716) / 4) - 1179; }
 
-    // Gregorian calendar
+        // Gregorian calendar
     else if (required_date >= first_gregorian) { b = (year / 400) - (year / 100) + (year / 4); }
 
     else {
         *status = 1;
-        sprintf(err_text,
-                "The requested date never happened in the British calendar: "
-                "it was lost in the transition from the Julian to the Gregorian calendar.");
+        snprintf(err_text, FNAME_LENGTH,
+                 "The requested date never happened in the British calendar: "
+                 "it was lost in the transition from the Julian to the Gregorian calendar.");
         return 0.0;
     }
 
@@ -203,7 +204,7 @@ void inv_julian_day(double jd, int *year, int *month, int *day, int *hour, int *
 
     if ((jd < -1e8) || (jd > 1e8) || (!gsl_finite(jd))) {
         *status = 1;
-        sprintf(err_text, "Supplied Julian Day number is too big.");
+        snprintf(err_text, FNAME_LENGTH, "Supplied Julian Day number is too big.");
         return;
     }
 

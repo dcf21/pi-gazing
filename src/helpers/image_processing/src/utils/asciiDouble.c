@@ -255,7 +255,8 @@ char *friendly_time_string(double t) {
     double sec;
     inv_julian_day(JD, &year, &month, &day, &hour, &min, &sec, &status, output);
     char *mn = get_month_name(month);
-    sprintf(output, "%c%c%c %02d %04d %02d:%02d:%02d", mn[0], mn[1], mn[2], day, year, hour, min, (int) sec);
+    snprintf(output, 256,
+            "%c%c%c %02d %04d %02d:%02d:%02d", mn[0], mn[1], mn[2], day, year, hour, min, (int) sec);
 
     return output;
 }

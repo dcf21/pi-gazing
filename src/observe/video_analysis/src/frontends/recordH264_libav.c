@@ -59,9 +59,9 @@ int fetchFrame(struct video_info *video_in, unsigned char *tmpc, int upside_down
 }
 
 static const char *const usage[] = {
-    "recordH264_libav [options] [[--] args]",
-    "recordH264_libav [options]",
-    NULL,
+        "recordH264_libav [options] [[--] args]",
+        "recordH264_libav [options]",
+        NULL,
 };
 
 //! Record a video stream from a webcam to an H264 video file for later analysis, using libav (software encoding).
@@ -90,28 +90,29 @@ int main(int argc, const char *argv[]) {
     vmd.flag_upside_down = 0;
 
     struct argparse_option arg_options[] = {
-        OPT_HELP(),
-        OPT_GROUP("Basic options"),
-        OPT_STRING('o', "obsid", &obstory_id, "observatory id"),
-        OPT_STRING('x', "output", &output_filename, "output filename"),
-        OPT_STRING('d', "device", &input_device, "input video device, e.g. /dev/video0"),
-        OPT_STRING('m', "mask", &mask_file, "mask file"),
-        OPT_FLOAT('s', "utc-stop", &vmd.utc_stop, "time stamp at which to end observing"),
-        OPT_FLOAT('f', "fps", &vmd.fps, "frame count per second"),
-        OPT_FLOAT('l', "latitude", &vmd.lat, "latitude of observatory"),
-        OPT_FLOAT('L', "longitude", &vmd.lng, "longitude of observatory"),
-        OPT_INTEGER('w', "width", &vmd.width, "frame width"),
-        OPT_INTEGER('h', "height", &vmd.height, "frame height"),
-        OPT_INTEGER('g', "flag-gps", &vmd.flag_gps, "boolean flag indicating whether position determined by GPS"),
-        OPT_INTEGER('u', "flag-upside-down", &vmd.flag_upside_down, "boolean flag indicating whether the camera is upside down"),
-        OPT_END(),
+            OPT_HELP(),
+            OPT_GROUP("Basic options"),
+            OPT_STRING('o', "obsid", &obstory_id, "observatory id"),
+            OPT_STRING('x', "output", &output_filename, "output filename"),
+            OPT_STRING('d', "device", &input_device, "input video device, e.g. /dev/video0"),
+            OPT_STRING('m', "mask", &mask_file, "mask file"),
+            OPT_FLOAT('s', "utc-stop", &vmd.utc_stop, "time stamp at which to end observing"),
+            OPT_FLOAT('f', "fps", &vmd.fps, "frame count per second"),
+            OPT_FLOAT('l', "latitude", &vmd.lat, "latitude of observatory"),
+            OPT_FLOAT('L', "longitude", &vmd.lng, "longitude of observatory"),
+            OPT_INTEGER('w', "width", &vmd.width, "frame width"),
+            OPT_INTEGER('h', "height", &vmd.height, "frame height"),
+            OPT_INTEGER('g', "flag-gps", &vmd.flag_gps, "boolean flag indicating whether position determined by GPS"),
+            OPT_INTEGER('u', "flag-upside-down", &vmd.flag_upside_down,
+                        "boolean flag indicating whether the camera is upside down"),
+            OPT_END(),
     };
 
     struct argparse argparse;
     argparse_init(&argparse, arg_options, usage, 0);
     argparse_describe(&argparse,
-    "\nRecord a video stream to an H264 file for future analysis.",
-    "\n");
+                      "\nRecord a video stream to an H264 file for future analysis.",
+                      "\n");
     argc = argparse_parse(&argparse, argc, argv);
 
     if (argc != 0) {
@@ -129,15 +130,16 @@ int main(int argc, const char *argv[]) {
 
     // Append .h264 suffix to output filename
     char product_filename[4096];
-    sprintf(product_filename, "%s.h264", vmd.filename);
+    snprintf(product_filename, FNAME_LENGTH, "%s.h264", vmd.filename);
 
     if (DEBUG) {
-        sprintf(line, "Starting video recording run at %s.",
-                str_strip(friendly_time_string(vmd.utc_start), temp_err_string));
+        snprintf(line, FNAME_LENGTH, "Starting video recording run at %s.",
+                 str_strip(friendly_time_string(vmd.utc_start), temp_err_string));
         logging_info(line);
     }
     if (DEBUG) {
-        sprintf(line, "Video will end at %s.", str_strip(friendly_time_string(vmd.utc_stop), temp_err_string));
+        snprintf(line, FNAME_LENGTH, "Video will end at %s.",
+                 str_strip(friendly_time_string(vmd.utc_stop), temp_err_string));
         logging_info(line);
     }
 
@@ -222,7 +224,9 @@ int main(int argc, const char *argv[]) {
     av_dict_set(&options, "preset", "veryfast", 0);
 
     /* open codec for encoder*/
-    if (avcodec_open2(ctxEncode, codecEncode, &options) < 0) { logging_fatal(__FILE__, __LINE__, "could not open codec"); }
+    if (avcodec_open2(ctxEncode, codecEncode, &options) < 0) {
+        logging_fatal(__FILE__, __LINE__, "could not open codec");
+    }
 
     pictureEncoded = av_frame_alloc();
     if (!pictureEncoded) { logging_fatal(__FILE__, __LINE__, "Could not allocate video frame"); }
@@ -288,7 +292,7 @@ int main(int argc, const char *argv[]) {
             av_write_frame(outContainer, &avpkt);
         }
         av_packet_unref(&avpkt);
-        
+
         // Increment frame counter
         vmd.frame_count++;
     }
@@ -311,7 +315,7 @@ int main(int argc, const char *argv[]) {
 
     //fclose(tmpout);
     write_raw_video_metadata(vmd);
-    
+
     av_write_trailer(outContainer);
     av_freep(video_avstream);
     if (!(outContainer->oformat->flags & AVFMT_NOFILE)) avio_close(outContainer->pb);

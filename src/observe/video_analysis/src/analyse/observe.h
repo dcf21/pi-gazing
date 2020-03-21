@@ -140,7 +140,9 @@ typedef struct observeStatus {
     int *trigger_map;
     int *trigger_block_count, *trigger_block_top, *trigger_block_bot;
     int *trigger_block_sumx, *trigger_block_sumy, *trigger_block_suml, *trigger_block_redirect;
-    unsigned char *trigger_map_rgb;
+
+    // Buffers used to create images used to produce diagnostic images of triggers
+    unsigned char *difference_frame, *trigger_mask_frame, *trigger_map_frame;
 
     // Count how many frames we've fed into the brightness histograms in background_workspace
     int background_frame_count;

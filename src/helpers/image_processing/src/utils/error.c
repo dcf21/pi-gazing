@@ -54,20 +54,20 @@ void logging_error(int ErrType, char *msg) {
         // Prepend error type
         switch (ErrType) {
             case ERR_INTERNAL:
-                sprintf(temp_string_b + i, "Internal Error: ");
+                snprintf(temp_string_b + i, FNAME_LENGTH - i, "Internal Error: ");
                 break;
             case ERR_MEMORY  :
             case ERR_GENERAL :
-                sprintf(temp_string_b + i, "Error: ");
+                snprintf(temp_string_b + i, FNAME_LENGTH - i, "Error: ");
                 break;
             case ERR_SYNTAX  :
-                sprintf(temp_string_b + i, "Syntax Error: ");
+                snprintf(temp_string_b + i, FNAME_LENGTH - i, "Syntax Error: ");
                 break;
             case ERR_NUMERIC :
-                sprintf(temp_string_b + i, "Numerical Error: ");
+                snprintf(temp_string_b + i, FNAME_LENGTH - i, "Numerical Error: ");
                 break;
             case ERR_FILE    :
-                sprintf(temp_string_b + i, "File Error: ");
+                snprintf(temp_string_b + i, FNAME_LENGTH - i, "File Error: ");
                 break;
         }
         i += strlen(temp_string_b + i);
@@ -75,7 +75,7 @@ void logging_error(int ErrType, char *msg) {
 
     strcpy(temp_string_b + i, msg);
     if (DEBUG) { logging_info(temp_string_b); }
-    sprintf(temp_string_c, "%s\n", temp_string_b);
+    snprintf(temp_string_c, FNAME_LENGTH, "%s\n", temp_string_b);
     fputs(temp_string_c, stderr);
 }
 
@@ -86,7 +86,7 @@ void logging_error(int ErrType, char *msg) {
 void logging_fatal(char *file, int line, char *msg) {
     char introline[FNAME_LENGTH];
     if (msg != temp_string_e) strcpy(temp_string_e, msg);
-    sprintf(introline, "Fatal Error encountered in %s at line %d: %s", file, line, temp_string_e);
+    snprintf(introline, FNAME_LENGTH, "Fatal Error encountered in %s at line %d: %s", file, line, temp_string_e);
     logging_error(ERR_PREFORMED, introline);
     if (DEBUG) logging_info("Terminating with error condition 1.");
     exit(1);
@@ -111,28 +111,28 @@ void logging_warning(int ErrType, char *msg) {
         // Prepend error type
         switch (ErrType) {
             case ERR_INTERNAL:
-                sprintf(temp_string_b + i, "Internal Warning: ");
+                snprintf(temp_string_b + i, FNAME_LENGTH - i, "Internal Warning: ");
                 break;
             case ERR_MEMORY  :
             case ERR_GENERAL :
-                sprintf(temp_string_b + i, "Warning: ");
+                snprintf(temp_string_b + i, FNAME_LENGTH - i, "Warning: ");
                 break;
             case ERR_SYNTAX  :
-                sprintf(temp_string_b + i, "Syntax Warning: ");
+                snprintf(temp_string_b + i, FNAME_LENGTH - i, "Syntax Warning: ");
                 break;
             case ERR_NUMERIC :
-                sprintf(temp_string_b + i, "Numerical Warning: ");
+                snprintf(temp_string_b + i, FNAME_LENGTH - i, "Numerical Warning: ");
                 break;
             case ERR_FILE    :
-                sprintf(temp_string_b + i, "File Warning: ");
+                snprintf(temp_string_b + i, FNAME_LENGTH - i, "File Warning: ");
                 break;
         }
-        i += strlen(temp_string_b + i);
+        i += (int) strlen(temp_string_b + i);
     }
 
     strcpy(temp_string_b + i, msg);
     if (DEBUG) { logging_info(temp_string_b); }
-    sprintf(temp_string_c, "%s\n", temp_string_b);
+    snprintf(temp_string_c, FNAME_LENGTH, "%s\n", temp_string_b);
     fputs(temp_string_c, stderr);
 }
 
@@ -142,10 +142,10 @@ void logging_warning(int ErrType, char *msg) {
 void logging_report(char *msg) {
     if (msg != temp_string_a) strcpy(temp_string_a, msg);
     if (DEBUG) {
-        sprintf(temp_string_c, "%s%s", "Reporting:\n", temp_string_a);
+        snprintf(temp_string_c, FNAME_LENGTH, "%s%s", "Reporting:\n", temp_string_a);
         logging_info(temp_string_c);
     }
-    sprintf(temp_string_c, "%s\n", temp_string_a);
+    snprintf(temp_string_c, FNAME_LENGTH, "%s\n", temp_string_a);
     fputs(temp_string_c, stdout);
 }
 

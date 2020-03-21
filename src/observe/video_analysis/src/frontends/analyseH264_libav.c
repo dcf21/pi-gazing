@@ -86,7 +86,7 @@ int fetch_frame(void *ctx_void, unsigned char *tmpc, double *utc) {
     while (1) {
         if (ctx->data_size == 0) {
             if (feof(ctx->f)) {
-                sprintf(temp_err_string, "End of video file");
+                snprintf(temp_err_string, FNAME_LENGTH, "End of video file");
                 logging_error(ERR_GENERAL, temp_err_string);
                 return 1;
             }
@@ -111,9 +111,9 @@ int fetch_frame(void *ctx_void, unsigned char *tmpc, double *utc) {
                 int status1 = avcodec_send_packet(ctx->c, ctx->avpkt);
 
                 if (status1) {
-                    sprintf(temp_err_string,
-                            "In input file <%s>, error decoding frame %d; avcodec_send_packet returned %d.",
-                            ctx->filename, ctx->frame, status1);
+                    snprintf(temp_err_string, FNAME_LENGTH,
+                             "In input file <%s>, error decoding frame %d; avcodec_send_packet returned %d.",
+                             ctx->filename, ctx->frame, status1);
                     logging_error(ERR_GENERAL, temp_err_string);
 
                     av_strerror(status1, temp_err_string, LSTR_LENGTH);
@@ -126,9 +126,9 @@ int fetch_frame(void *ctx_void, unsigned char *tmpc, double *utc) {
                 if (status2 == AVERROR(EAGAIN)) continue;
 
                 if (status2) {
-                    sprintf(temp_err_string,
-                            "In input file <%s>, error decoding frame %d; avcodec_receive_frame returned %d.",
-                            ctx->filename, ctx->frame, status2);
+                    snprintf(temp_err_string, FNAME_LENGTH,
+                             "In input file <%s>, error decoding frame %d; avcodec_receive_frame returned %d.",
+                             ctx->filename, ctx->frame, status2);
                     logging_error(ERR_GENERAL, temp_err_string);
 
                     av_strerror(status2, temp_err_string, LSTR_LENGTH);
@@ -261,7 +261,7 @@ int create_observation_mask(context *ctx) {
 
 int main(int argc, const char **argv) {
     context ctx;
-    const char *fname = "\0";
+    const char *filename = "\0";
     const char *mask_file = "\0";
     const char *obstory_id = "\0";
 
@@ -272,7 +272,7 @@ int main(int argc, const char **argv) {
     struct argparse_option options[] = {
             OPT_HELP(),
             OPT_GROUP("Basic options"),
-            OPT_STRING('i', "input", &fname, "input filename"),
+            OPT_STRING('i', "input", &filename, "input filename"),
             OPT_STRING('o', "obsid", &obstory_id, "observatory id"),
             OPT_STRING('m', "mask", &mask_file, "mask file"),
             OPT_FLOAT('t', "time-start", &ctx.utc_start, "time stamp of start of video clip"),
@@ -295,7 +295,7 @@ int main(int argc, const char **argv) {
         logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
     }
 
-    ctx.filename = fname;
+    ctx.filename = filename;
     ctx.mask_file = mask_file;
 
     initLut();

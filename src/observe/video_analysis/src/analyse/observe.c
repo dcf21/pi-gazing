@@ -168,14 +168,14 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     const int channel_count = GREYSCALE_IMAGING ? 1 : 3;
 
     if (DEBUG) {
-        sprintf(line, "Starting observing run at %s; observing run will end at %s.",
-                str_strip(friendly_time_string(utc_start), line2), str_strip(friendly_time_string(utc_stop), line3));
+        snprintf(line, FNAME_LENGTH, "Starting observing run at %s; observing run will end at %s.",
+                 str_strip(friendly_time_string(utc_start), line2), str_strip(friendly_time_string(utc_stop), line3));
         logging_info(line);
     }
 
     observe_status *os = calloc(1, sizeof(observe_status));
     if (os == NULL) {
-        sprintf(temp_err_string, "ERROR: malloc fail in observe.");
+        snprintf(temp_err_string, FNAME_LENGTH, "ERROR: malloc fail in observe.");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
         exit(1);
     }
@@ -241,7 +241,9 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     // Buffers used while checking for triggers, to give a visual report on why triggers occur when they do
     // 2D array of ints used to mark out pixels which have brightened suspiciously.
     os->trigger_map = calloc(1, os->frame_size * sizeof(int));
-    os->trigger_map_rgb = calloc(1, os->frame_size * 3);
+    os->difference_frame = calloc(1, os->frame_size);
+    os->trigger_mask_frame = calloc(1, os->frame_size);
+    os->trigger_map_frame = calloc(1, os->frame_size);
 
     // Count of how many pixels are in each numbered connected block
     os->trigger_block_count = calloc(1, MAX_TRIGGER_BLOCKS * sizeof(int));
@@ -255,12 +257,12 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     // Make sure malloc operations were successful
     if ((!os->video_buffer) ||
         (!os->stack_timelapse) || (!os->background_workspace) || (!os->past_trigger_map) ||
-        (!os->trigger_map) || (!os->trigger_map_rgb) ||
+        (!os->trigger_map) || (!os->difference_frame) || (!os->trigger_mask_frame) || (!os->trigger_map_frame) ||
         (!os->trigger_block_count) || (!os->trigger_block_top) || (!os->trigger_block_bot) ||
         (!os->trigger_block_sumx) ||
         (!os->trigger_block_sumy) || (!os->trigger_block_suml) || (!os->trigger_block_redirect)
             ) {
-        sprintf(temp_err_string, "ERROR: malloc fail in observe.");
+        snprintf(temp_err_string, FNAME_LENGTH, "ERROR: malloc fail in observe.");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
@@ -273,7 +275,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
 
         if ((!os->event_list[i].stacked_image) ||
             (!os->event_list[i].max_stack) || (!os->event_list[i].max_trigger)) {
-            sprintf(temp_err_string, "ERROR: malloc fail in observe.");
+            snprintf(temp_err_string, FNAME_LENGTH, "ERROR: malloc fail in observe.");
             logging_fatal(__FILE__, __LINE__, temp_err_string);
         }
     }
@@ -309,7 +311,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
         // Once we've done initial run-in period, rewind the tape to the beginning if we can
         if (os->run_in_frame_countdown && !--os->run_in_frame_countdown) {
             if (DEBUG) {
-                sprintf(line, "Run-in period completed.");
+                snprintf(line, FNAME_LENGTH, "Run-in period completed.");
                 logging_info(line);
             }
             (*rewind_video)(os->video_handle, &os->utc);
@@ -324,7 +326,8 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
 
         // Once on each cycle through the video buffer, estimate the thermal noise of the camera
         if (buffer_pos == os->video_buffer) {
-            os->noise_level = estimate_noise_level(os->width, os->height, os->video_buffer, 16, &os->mean_level);
+            os->noise_level = estimate_noise_level(os->width, os->height,
+                                                   os->video_buffer, 16, &os->mean_level);
         }
 
         // Read the next frame of input video
@@ -360,19 +363,20 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
         if ((os->timelapse_frame_count >= os->frames_per_timelapse) ||
             (os->utc > os->timelapse_utc_start + os->TIMELAPSE_INTERVAL - 1)) {
             const int frame_count = os->timelapse_frame_count;
-            char fstub[FNAME_LENGTH];
+            char filename_stub[FNAME_LENGTH];
 
             // First dump the time-lapse image without background subtraction
-            filename_generate(fstub, os->obstory_id, os->timelapse_utc_start, "frame_", "timelapse", os->label);
+            filename_generate(filename_stub, os->obstory_id, os->timelapse_utc_start,
+                              "frame_", "timelapse", os->label);
 
-            write_timelapse_frame(channel_count, os, frame_count, fstub);
+            write_timelapse_frame(channel_count, os, frame_count, filename_stub);
 
             // Dump a background-subtracted version of the time-lapse image
-            write_timelapse_bs_frame(channel_count, os, frame_count, fstub);
+            write_timelapse_bs_frame(channel_count, os, frame_count, filename_stub);
 
             // Every few minutes, dump an image of the sky background map for diagnostic purposes
             if (floor(fmod(os->timelapse_utc_start, 1)) == 0) {
-                write_timelapse_bg_model(BACKGROUND_MAP_FRAMES, channel_count, os, fstub);
+                write_timelapse_bg_model(BACKGROUND_MAP_FRAMES, channel_count, os, filename_stub);
             }
 
             // Schedule the next time-lapse exposure
@@ -393,7 +397,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
         if ((os->frame_counter % 1000) == 0) {
             int o;
 #pragma omp parallel for private(o)
-            for (o=0; o<os->frame_size; o++) {
+            for (o = 0; o < os->frame_size; o++) {
                 os->past_trigger_map[o] *= 0.95;
             }
         }
@@ -431,7 +435,9 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     free(os->trigger_block_sumy);
     free(os->trigger_block_suml);
     free(os->trigger_block_redirect);
-    free(os->trigger_map_rgb);
+    free(os->difference_frame);
+    free(os->trigger_mask_frame);
+    free(os->trigger_map_frame);
     free(os->video_buffer);
     free(os->stack_timelapse);
     for (i = 0; i < BACKGROUND_MAP_SAMPLES; i++) free(os->background_maps[i]);
@@ -495,16 +501,15 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
         int k2 = k;
         while (os->trigger_block_redirect[k2] > 0) k2 = os->trigger_block_redirect[k2];
         if (k2 == block_id) {
-            unsigned char *triggerB = os->trigger_map_rgb + os->frame_size * 2;
             int j;
 #pragma omp parallel for private(j)
             for (j = 0; j < os->frame_size; j++)
                 if (os->trigger_map[j] == k2) {
-                    triggerB[j] *= 4;
+                    os->trigger_map_frame[j] *= 4;
 
                     for (int i = 0; i < MAX_EVENTS; i++)
                         if (os->event_list[i].active == 1)
-                            os->event_list[i].max_trigger[j] = triggerB[j];
+                            os->event_list[i].max_trigger[j] = os->trigger_map_frame[j];
                 }
         }
     }
@@ -557,18 +562,19 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                         double sec;
                         double JD = (os->utc / 86400.0) + 2440587.5;
                         inv_julian_day(JD, &year, &month, &day, &hour, &min, &sec, &status, temp_err_string);
-                        sprintf(temp_err_string,
-                                "Camera has triggered at (%04d/%02d/%02d %02d:%02d:%02d -- x=%d,y=%d).",
-                                year, month, day, hour, min, (int) sec, x_pos, y_pos);
+                        snprintf(temp_err_string, FNAME_LENGTH,
+                                 "Camera has triggered at (%04d/%02d/%02d %02d:%02d:%02d -- x=%d,y=%d).",
+                                 year, month, day, hour, min, (int) sec, x_pos, y_pos);
                         logging_info(temp_err_string);
                     }
 
                     // Start producing output files describing this camera trigger
-                    filename_generate(os->event_list[i].filename_stub, os->obstory_id, os->utc, "event", "triggers",
-                                      os->label);
+                    filename_generate(os->event_list[i].filename_stub, os->obstory_id, os->utc,
+                                      "event", "triggers", os->label);
 
                     // Configuration for video file output
-                    sprintf(os->event_list[i].video_output.filename, "%s%s", os->event_list[i].filename_stub, ".vid");
+                    snprintf(os->event_list[i].video_output.filename, FNAME_LENGTH,
+                             "%s%s", os->event_list[i].filename_stub, ".vid");
                     os->event_list[i].video_output.active = 0;
                     os->event_list[i].video_output.width = os->width;
                     os->event_list[i].video_output.height = os->height;
@@ -578,7 +584,7 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                             % os->video_buffer_frames);
                     os->event_list[i].video_output.buffer_end_position = -1;
 
-                    // Difference image, B-A, which we get from the red channel of <os->trigger_map_rgb>, set by <check_for_triggers>
+                    // Difference image, B-A, set by <check_for_triggers>
                     write_trigger_difference_frame(os, i);
 
                     // Map of pixels which are currently excluded from triggering due to excessive variability
@@ -637,7 +643,7 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
 
 #pragma omp parallel for private(j)
     for (j = 0; j < os->frame_size; j++) {
-        os->event_list[i].max_trigger[j] = os->trigger_map_rgb[2 * os->frame_size + j];
+        os->event_list[i].max_trigger[j] = os->trigger_map_frame[j];
     }
 }
 

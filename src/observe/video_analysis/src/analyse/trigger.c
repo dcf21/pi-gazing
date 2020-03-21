@@ -137,10 +137,7 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
     // Monitor and flag pixels which brighten by this amount
     const int threshold_monitor = MAX(10, 2.0 * os->noise_level);
 
-    // These arrays are used to produce diagnostic images when the camera triggers
-    unsigned char *trigger_r = os->trigger_map_rgb;
-    unsigned char *trigger_g = os->trigger_map_rgb + os->frame_size * 1;
-    unsigned char *trigger_b = os->trigger_map_rgb + os->frame_size * 2;
+    // Initialise blank map for searching frame for triggers
     memset(os->trigger_map, 0, os->frame_size * sizeof(int));
     os->block_count = 0;
 
@@ -157,14 +154,14 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
             trigger_map_line_sum += os->past_trigger_map[o];
             if (os->mask[o]) pixel_count_within_mask_line_sum++;
 
-            // RED channel - difference between images B and A
-            trigger_r[o] = CLIP256((image1[o] - image2[o]) * 64 / threshold_trigger);
+            // Difference between images B and A
+            os->difference_frame[o] = CLIP256((image1[o] - image2[o]) * 64 / threshold_trigger);
 
-            // GRN channel - map of pixels which are excluded for triggering too often
-            trigger_g[o] = CLIP256(os->past_trigger_map[o] * 256 / (2.3 * past_trigger_map_average));
+            // Map of pixels which are excluded for triggering too often
+            os->trigger_mask_frame[o] = CLIP256(os->past_trigger_map[o] * 256 / (2.3 * past_trigger_map_average));
 
-            // BLU channel - blank for now; will put spots where triggers happen
-            trigger_b[o] = 0;
+            // Blank for now; will put spots where triggers happen
+            os->trigger_map_frame[o] = 0;
 
             if ((os->mask[o]) && test_pixel(os, image1, image2, o, threshold_monitor)) {
                 // If pixel has brightened by more than <threshold_monitor> standard deviations, mark it, and all
@@ -178,7 +175,7 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
 #pragma omp critical (add_trigger)
                     {
                         // Put triggering pixel on map. Wait till be have <Npixels> connected pixels.
-                        trigger_b[o] = (os->past_trigger_map[o] < 3 * past_trigger_map_average) ? 63 : 31;
+                        os->trigger_map_frame[o] = (os->past_trigger_map[o] < 3 * past_trigger_map_average) ? 63 : 31;
                         int block_id = 0;
                         if (os->trigger_map[o - 1]) {
                             if (!block_id) {

@@ -43,9 +43,9 @@
 //! \param v Data structure containing metadata about the video file
 
 void write_raw_video_metadata(video_metadata v) {
-    char fname[FNAME_LENGTH];
-    sprintf(fname, "%s.txt", v.filename);
-    FILE *f = fopen(fname, "w");
+    char filename[FNAME_LENGTH];
+    snprintf(filename, FNAME_LENGTH, "%s.txt", v.filename);
+    FILE *f = fopen(filename, "w");
     if (!f) return;
     fprintf(f, "obstoryId %s\n", v.obstory_id);
     fprintf(f, "utc %.1f\n", v.utc_start);
@@ -315,7 +315,7 @@ int dump_frame(int width, int height, int channels, const unsigned char *buffer,
     const int bit_width = 8;
 
     if ((outfile = fopen(filename, "wb")) == NULL) {
-        sprintf(temp_err_string, "ERROR: Cannot open output RAW image frame %s.\n", filename);
+        snprintf(temp_err_string, FNAME_LENGTH, "ERROR: Cannot open output RAW image frame %s.\n", filename);
         logging_error(ERR_GENERAL, temp_err_string);
         return 1;
     }
@@ -348,12 +348,12 @@ int dump_frame_from_ints(int width, int height, int channels, const int *buffer,
 
     uint16_t *tmp_frame = malloc(frame_size * channels * sizeof(uint16_t));
     if (!tmp_frame) {
-        sprintf(temp_err_string, "ERROR: malloc fail in dump_frame_from_ints.");
+        snprintf(temp_err_string, FNAME_LENGTH, "ERROR: malloc fail in dump_frame_from_ints.");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     if ((out_file = fopen(filename, "wb")) == NULL) {
-        sprintf(temp_err_string, "ERROR: Cannot open output RAW image frame %s.\n", filename);
+        snprintf(temp_err_string, FNAME_LENGTH, "ERROR: Cannot open output RAW image frame %s.\n", filename);
         logging_error(ERR_GENERAL, temp_err_string);
         return 1;
     }
@@ -416,12 +416,12 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
 
     uint16_t *tmp_frame = malloc(frame_size * channels * sizeof(uint16_t));
     if (!tmp_frame) {
-        sprintf(temp_err_string, "ERROR: malloc fail in dump_frame_from_ints.");
+        snprintf(temp_err_string, FNAME_LENGTH, "ERROR: malloc fail in dump_frame_from_ints.");
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
     if ((outfile = fopen(filename, "wb")) == NULL) {
-        sprintf(temp_err_string, "ERROR: Cannot open output RAW image frame %s.\n", filename);
+        snprintf(temp_err_string, FNAME_LENGTH, "ERROR: Cannot open output RAW image frame %s.\n", filename);
         logging_error(ERR_GENERAL, temp_err_string);
         return 1;
     }
@@ -477,7 +477,7 @@ FILE *dump_video_init(int width, int height, const char *filename) {
 
     FILE *outfile;
     if ((outfile = fopen(filename, "wb")) == NULL) {
-        sprintf(temp_err_string, "ERROR: Cannot open output RAW video file %s.\n", filename);
+        snprintf(temp_err_string, FNAME_LENGTH, "ERROR: Cannot open output RAW video file %s.\n", filename);
         logging_error(ERR_GENERAL, temp_err_string);
         return NULL;
     }

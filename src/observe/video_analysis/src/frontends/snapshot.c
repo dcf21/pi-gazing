@@ -41,9 +41,9 @@
 #include "settings_webcam.h"
 
 static const char *const usage[] = {
-    "snapshot [options] [[--] args]",
-    "snapshot [options]",
-    NULL,
+        "snapshot [options] [[--] args]",
+        "snapshot [options]",
+        NULL,
 };
 
 //! Record a single long-exposure image, by averaging together a large number of webcam frames.
@@ -59,20 +59,20 @@ int main(int argc, const char *argv[]) {
     int frame_count = 50;
 
     struct argparse_option options[] = {
-        OPT_HELP(),
-        OPT_GROUP("Basic options"),
-        OPT_STRING('o', "output", &output_filename, "output filename"),
-        OPT_INTEGER('f', "frames", &frame_count, "frames to stack"),
-        OPT_STRING('d', "device", &video_device, "webcam device to use"),
-        OPT_STRING('b', "background", &background_filename, "background to subtract"),
-        OPT_END(),
+            OPT_HELP(),
+            OPT_GROUP("Basic options"),
+            OPT_STRING('o', "output", &output_filename, "output filename"),
+            OPT_INTEGER('f', "frames", &frame_count, "frames to stack"),
+            OPT_STRING('d', "device", &video_device, "webcam device to use"),
+            OPT_STRING('b', "background", &background_filename, "background to subtract"),
+            OPT_END(),
     };
 
     struct argparse argparse;
     argparse_init(&argparse, options, usage, 0);
     argparse_describe(&argparse,
-    "\nTake a snapshot image.",
-    "\n");
+                      "\nTake a snapshot image.",
+                      "\n");
     argc = argparse_parse(&argparse, argc, argv);
 
     if (argc != 0) {
@@ -115,7 +115,8 @@ int main(int argc, const char *argv[]) {
     if (have_background) {
         FILE *infile;
         if ((infile = fopen(background_filename, "rb")) == NULL) {
-            sprintf(temp_err_string, "ERROR: Cannot open background filter image %s.\n", background_filename);
+            snprintf(temp_err_string, FNAME_LENGTH,
+                     "ERROR: Cannot open background filter image %s.\n", background_filename);
             logging_fatal(__FILE__, __LINE__, temp_err_string);
         }
 
@@ -124,16 +125,16 @@ int main(int argc, const char *argv[]) {
         utc_stop = fread(&background_height, sizeof(int), 1, infile);
 
         if ((background_width != width) || (background_height != height)) {
-            sprintf(temp_err_string,
-                    "ERROR: Background subtraction image has dimensions %d x %d. But frames from webcam have dimensions %d x %d. These must match.\n",
-                    background_width, background_height, width, height);
+            snprintf(temp_err_string, FNAME_LENGTH,
+                     "ERROR: Background subtraction image has dimensions %d x %d. But frames from webcam have dimensions %d x %d. These must match.\n",
+                     background_width, background_height, width, height);
             logging_fatal(__FILE__, __LINE__, temp_err_string);
         }
 
         size = width * height;
         background_raw = malloc(size);
         if (background_raw == NULL) {
-            sprintf(temp_err_string, "ERROR: malloc fail in snapshot.");
+            snprintf(temp_err_string, FNAME_LENGTH, "ERROR: malloc fail in snapshot.");
             logging_fatal(__FILE__, __LINE__, temp_err_string);
         }
         utc_stop = fread(background_raw, 1, size, infile);
@@ -142,7 +143,8 @@ int main(int argc, const char *argv[]) {
 
     int utc_start = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Commencing snapshot at %s. Will stack %d frames.", friendly_time_string(utc_start), frame_count);
+        snprintf(line, FNAME_LENGTH,
+                 "Commencing snapshot at %s. Will stack %d frames.", friendly_time_string(utc_start), frame_count);
         logging_info(line);
     }
 
@@ -150,11 +152,11 @@ int main(int argc, const char *argv[]) {
 
     utc_stop = time(NULL);
     if (DEBUG) {
-        sprintf(line, "Finishing snapshot at %s.", friendly_time_string(utc_stop));
+        snprintf(line, FNAME_LENGTH, "Finishing snapshot at %s.", friendly_time_string(utc_stop));
         logging_info(line);
     }
     if (DEBUG) {
-        sprintf(line, "Frame rate was %.1f fps.", (utc_stop - utc_start) / ((double) frame_count));
+        snprintf(line, FNAME_LENGTH, "Frame rate was %.1f fps.", (utc_stop - utc_start) / ((double) frame_count));
         logging_info(line);
     }
 

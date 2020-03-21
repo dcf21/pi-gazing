@@ -66,26 +66,29 @@ char *filename_generate(char *output, const char *obstory_id, double utc, char *
     double sec;
 
     // Make sure that the analysis products directory exists
-    sprintf(path, "%s/analysis_products", OUTPUT_PATH);
+    snprintf(path, FNAME_LENGTH, "%s/analysis_products", OUTPUT_PATH);
     status = mkdir(path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     if (status && (errno != EEXIST)) {
-        sprintf(temp_err_string, "ERROR: Could not create directory <%s>. Returned error code %d. errno %d. %s.",
-                path, status, errno, strerror(errno));
+        snprintf(temp_err_string, FNAME_LENGTH,
+                 "ERROR: Could not create directory <%s>. Returned error code %d. errno %d. %s.",
+                 path, status, errno, strerror(errno));
         logging_info(temp_err_string);
     }
 
     // Make sure that the subdirectory for this kind of observation exists, e.g. <timelapse_live>
-    sprintf(path, "%s/analysis_products/%s_%s", OUTPUT_PATH, dir_name, label);
+    snprintf(path, FNAME_LENGTH, "%s/analysis_products/%s_%s", OUTPUT_PATH, dir_name, label);
     status = mkdir(path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     if (status && (errno != EEXIST)) {
-        sprintf(temp_err_string, "ERROR: Could not create directory <%s>. Returned error code %d. errno %d. %s.",
-                path, status, errno, strerror(errno));
+        snprintf(temp_err_string, FNAME_LENGTH,
+                 "ERROR: Could not create directory <%s>. Returned error code %d. errno %d. %s.",
+                 path, status, errno, strerror(errno));
         logging_info(temp_err_string);
     }
 
     // Convert unix time into a calendar date
     inv_julian_day(JD, &year, &month, &day, &hour, &min, &sec, &status, output);
-    sprintf(output, "%s/%04d%02d%02d%02d%02d%02d_%s_%s", path, year, month, day, hour, min, (int) sec, obstory_id, tag);
+    snprintf(output, FNAME_LENGTH,
+             "%s/%04d%02d%02d%02d%02d%02d_%s_%s", path, year, month, day, hour, min, (int) sec, obstory_id, tag);
     return output;
 }
 
@@ -105,7 +108,7 @@ void write_metadata(char *filename, char *item_types, ...) {
     int filename_len = (int) strlen(filename);
     int i = filename_len - 1;
     while ((i > 0) && (filename[i] != '.')) i--;
-    sprintf(filename + i, ".txt");
+    snprintf(filename + i, FNAME_LENGTH - i, ".txt");
 
     // Write metadata, item by item
     FILE *f = fopen(filename, "w");
@@ -135,7 +138,7 @@ void write_metadata(char *filename, char *item_types, ...) {
             }
                 // Metadata type characters in <item_types> must be s, d or i.
             default: {
-                sprintf(temp_err_string, "ERROR: Unrecognised data type character '%c'.", item_types[i]);
+                snprintf(temp_err_string, FNAME_LENGTH, "ERROR: Unrecognised data type character '%c'.", item_types[i]);
                 logging_fatal(__FILE__, __LINE__, temp_err_string);
             }
         }
@@ -145,16 +148,22 @@ void write_metadata(char *filename, char *item_types, ...) {
     fclose(f);
 }
 
+//! write_timelapse_frame - Write a time lapse frame to an RGB file
+//! \param channel_count - The number of colour channels in use. Either (1) Greyscale, or (3) RGB.
+//! \param os - The current observing status.
+//! \param frame_count - The number of co-added frames.
+//! \param filename_stub - The stub filename for the output file, without file extension.
+
 void write_timelapse_frame(const int channel_count, const observe_status *os, const int frame_count,
                            const char *filename_stub) {
-    char fname[FNAME_LENGTH];
+    char filename[FNAME_LENGTH];
     double gain_factor;
-    sprintf(fname, "%s%s", filename_stub, "BS0.rgb");
+    snprintf(filename, FNAME_LENGTH, "%s%s", filename_stub, "BS0.rgb");
     dump_frame_from_ints(os->width, os->height, channel_count, os->stack_timelapse, frame_count,
-                         os->STACK_TARGET_BRIGHTNESS, &gain_factor, fname);
+                         os->STACK_TARGET_BRIGHTNESS, &gain_factor, filename);
 
     // Store metadata about the time-lapse frame
-    write_metadata(fname, "sdsiiddddi",
+    write_metadata(filename, "sdsiiddddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->timelapse_utc_start,
                    "semanticType", "pigazing:timelapse",
@@ -167,17 +176,23 @@ void write_timelapse_frame(const int channel_count, const observe_status *os, co
                    "stackedFrames", frame_count);
 }
 
+//! write_timelapse_bs_frame - Write a time lapse frame with background subtraction to an RGB file
+//! \param channel_count - The number of colour channels in use. Either (1) Greyscale, or (3) RGB.
+//! \param os - The current observing status.
+//! \param frame_count - The number of co-added frames.
+//! \param filename_stub - The stub filename for the output file, without file extension.
+
 void write_timelapse_bs_frame(const int channel_count, const observe_status *os, const int frame_count,
                               const char *filename_stub) {
-    char fname[FNAME_LENGTH];
+    char filename[FNAME_LENGTH];
     double gain_factor;
-    sprintf(fname, "%s%s", filename_stub, "BS1.rgb");
+    snprintf(filename, FNAME_LENGTH, "%s%s", filename_stub, "BS1.rgb");
     dump_frame_from_int_subtraction(os->width, os->height, channel_count, os->stack_timelapse, frame_count,
                                     os->STACK_TARGET_BRIGHTNESS, &gain_factor,
-                                    os->background_maps[0], fname);
+                                    os->background_maps[0], filename);
 
     // Store metadata about the time-lapse frame
-    write_metadata(fname, "sdsiidddi",
+    write_metadata(filename, "sdsiidddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->timelapse_utc_start,
                    "semanticType", "pigazing:timelapse/backgroundSubtracted",
@@ -189,13 +204,19 @@ void write_timelapse_bs_frame(const int channel_count, const observe_status *os,
                    "stackedFrames", frame_count);
 }
 
+//! write_timelapse_bg_model - Write a time lapse model of the sky background to an RGB file
+//! \param channel_count - The number of colour channels in use. Either (1) Greyscale, or (3) RGB.
+//! \param os - The current observing status.
+//! \param frame_count - The number of co-added frames.
+//! \param filename_stub - The stub filename for the output file, without file extension.
+
 void write_timelapse_bg_model(const int BACKGROUND_MAP_FRAMES, const int channel_count, const observe_status *os,
                               const char *filename_stub) {
-    char fname[FNAME_LENGTH];
-    sprintf(fname, "%s%s", filename_stub, "skyBackground.rgb");
+    char filename[FNAME_LENGTH];
+    snprintf(filename, FNAME_LENGTH, "%s%s", filename_stub, "skyBackground.rgb");
     dump_frame_from_ints(os->width, os->height, channel_count, os->background_maps[0],
-                         256, 0, NULL, fname);
-    write_metadata(fname, "sdsiidddi",
+                         256, 0, NULL, filename);
+    write_metadata(filename, "sdsiidddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->timelapse_utc_start,
                    "semanticType", "pigazing:timelapse/backgroundModel",
@@ -207,11 +228,16 @@ void write_timelapse_bg_model(const int BACKGROUND_MAP_FRAMES, const int channel
                    "stackedFrames", ((int) BACKGROUND_MAP_FRAMES));
 }
 
+//! write_trigger_difference_frame - Write the A-B difference frame, where A is the frame which triggered the camera,
+//! and B the previous frame.
+//! \param os - The current observing status.
+//! \param trigger_index - The number of the moving object trigger within the array <os->event_list>
+
 void write_trigger_difference_frame(const observe_status *os, const int trigger_index) {
-    char fname[FNAME_LENGTH];
-    sprintf(fname, "%s%s", os->event_list[trigger_index].filename_stub, "_mapDifference.rgb");
-    dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 0 * os->frame_size, fname);
-    write_metadata(fname, "sdsiidddi",
+    char filename[FNAME_LENGTH];
+    snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_mapDifference.rgb");
+    dump_frame(os->width, os->height, 1, os->difference_frame, filename);
+    write_metadata(filename, "sdsiidddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
                    "semanticType", "pigazing:movingObject/mapDifference",
@@ -223,11 +249,16 @@ void write_trigger_difference_frame(const observe_status *os, const int trigger_
                    "stackedFrames", 1);
 }
 
+//! write_trigger_mask_frame - Write the map of the rate of triggering of each pixel across the frame, which is used
+//! to filter out pixels which trigger too often.
+//! \param os - The current observing status.
+//! \param trigger_index - The number of the moving object trigger within the array <os->event_list>
+
 void write_trigger_mask_frame(const observe_status *os, const int trigger_index) {
-    char fname[FNAME_LENGTH];
-    sprintf(fname, "%s%s", os->event_list[trigger_index].filename_stub, "_mapExcludedPixels.rgb");
-    dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 1 * os->frame_size, fname);
-    write_metadata(fname, "sdsiidddi",
+    char filename[FNAME_LENGTH];
+    snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_mapExcludedPixels.rgb");
+    dump_frame(os->width, os->height, 1, os->trigger_mask_frame, filename);
+    write_metadata(filename, "sdsiidddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
                    "semanticType", "pigazing:movingObject/mapExcludedPixels",
@@ -239,11 +270,15 @@ void write_trigger_mask_frame(const observe_status *os, const int trigger_index)
                    "stackedFrames", 1);
 }
 
+//! write_trigger_map_frame - Write a map of the pixels which caused the present triggering event.
+//! \param os - The current observing status.
+//! \param trigger_index - The number of the moving object trigger within the array <os->event_list>
+
 void write_trigger_map_frame(const observe_status *os, const int trigger_index) {
-    char fname[FNAME_LENGTH];
-    sprintf(fname, "%s%s", os->event_list[trigger_index].filename_stub, "_mapTrigger.rgb");
-    dump_frame(os->width, os->height, 1, os->trigger_map_rgb + 2 * os->frame_size, fname);
-    write_metadata(fname, "sdsiidddi",
+    char filename[FNAME_LENGTH];
+    snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_mapTrigger.rgb");
+    dump_frame(os->width, os->height, 1, os->trigger_map_frame, filename);
+    write_metadata(filename, "sdsiidddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
                    "semanticType", "pigazing:movingObject/mapTrigger",
@@ -255,12 +290,18 @@ void write_trigger_map_frame(const observe_status *os, const int trigger_index) 
                    "stackedFrames", 1);
 }
 
+//! write_trigger_frame - Write the frame which caused the present trigger.
+//! \param os - The current observing status.
+//! \param image1 - A pointer to the frame which caused the trigger.
+//! \param channel_count - The number of colour channels in use. Either (1) Greyscale, or (3) RGB.
+//! \param trigger_index - The number of the moving object trigger within the array <os->event_list>
+
 void write_trigger_frame(const observe_status *os, const unsigned char *image1, const int channel_count,
                          const int trigger_index) {
-    char fname[FNAME_LENGTH];
-    sprintf(fname, "%s%s", os->event_list[trigger_index].filename_stub, "_triggerFrame.rgb");
-    dump_frame(os->width, os->height, channel_count, image1, fname);
-    write_metadata(fname, "sdsiidddi",
+    char filename[FNAME_LENGTH];
+    snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_triggerFrame.rgb");
+    dump_frame(os->width, os->height, channel_count, image1, filename);
+    write_metadata(filename, "sdsiidddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
                    "semanticType", "pigazing:movingObject/triggerFrame",
@@ -272,12 +313,18 @@ void write_trigger_frame(const observe_status *os, const unsigned char *image1, 
                    "stackedFrames", 1);
 }
 
+//! write_trigger_previous_frame - Write the frame before the one which caused the present trigger.
+//! \param os - The current observing status.
+//! \param image2 - A pointer to the frame before the one which caused the trigger.
+//! \param channel_count - The number of colour channels in use. Either (1) Greyscale, or (3) RGB.
+//! \param trigger_index - The number of the moving object trigger within the array <os->event_list>
+
 void write_trigger_previous_frame(const observe_status *os, const unsigned char *image2, const int channel_count,
                                   const int trigger_index) {
-    char fname[FNAME_LENGTH];
-    sprintf(fname, "%s%s", os->event_list[trigger_index].filename_stub, "_previousFrame.rgb");
-    dump_frame(os->width, os->height, channel_count, image2, fname);
-    write_metadata(fname, "sdsiidddi",
+    char filename[FNAME_LENGTH];
+    snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_previousFrame.rgb");
+    dump_frame(os->width, os->height, channel_count, image2, filename);
+    write_metadata(filename, "sdsiidddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
                    "semanticType", "pigazing:movingObject/previousFrame",
@@ -289,14 +336,25 @@ void write_trigger_previous_frame(const observe_status *os, const unsigned char 
                    "stackedFrames", 1);
 }
 
+//! write_trigger_time_average_frame - Write the time-averaged brightness of each pixel over the duration that a
+//! moving object was tracked.
+//! \param os - The current observing status.
+//! \param trigger_index - The number of the moving object trigger within the array <os->event_list>
+//! \param channel_count - The number of colour channels in use. Either (1) Greyscale, or (3) RGB.
+//! \param duration - The duration of the event, seconds
+//! \param amplitude_peak - The maximum brightness of the moving object, in standard deviation pixel variability units,
+//! summed over all the pixels the object covers in each single frame.
+//! \param amplitude_time_integrated - The time-integrated brightness of the moving object, summed over all frames
+//! \param integrated_frame_count - The total number of frames in which the moving object was detected.
+
 void write_trigger_time_average_frame(const observe_status *os, int trigger_index, const int channel_count,
                                       const double duration, int amplitude_peak, int amplitude_time_integrated,
                                       int integrated_frame_count) {
-    char fname[FNAME_LENGTH];
-    sprintf(fname, "%s%s", os->event_list[trigger_index].filename_stub, "_timeAverage.rgb");
+    char filename[FNAME_LENGTH];
+    snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_timeAverage.rgb");
     dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[trigger_index].stacked_image,
-                         integrated_frame_count, 0, NULL, fname);
-    write_metadata(fname, "sdsiidddidiii",
+                         integrated_frame_count, 0, NULL, filename);
+    write_metadata(filename, "sdsiidddidiii",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
                    "semanticType", "pigazing:movingObject/timeAverage",
@@ -312,14 +370,25 @@ void write_trigger_time_average_frame(const observe_status *os, int trigger_inde
                    "amplitudePeak", amplitude_peak);
 }
 
+//! write_trigger_max_brightness_frame - Write the maximum brightness of each pixel over the duration that a
+//! moving object was tracked.
+//! \param os - The current observing status.
+//! \param trigger_index - The number of the moving object trigger within the array <os->event_list>
+//! \param channel_count - The number of colour channels in use. Either (1) Greyscale, or (3) RGB.
+//! \param duration - The duration of the event, seconds
+//! \param amplitude_peak - The maximum brightness of the moving object, in standard deviation pixel variability units,
+//! summed over all the pixels the object covers in each single frame.
+//! \param amplitude_time_integrated - The time-integrated brightness of the moving object, summed over all frames
+//! \param integrated_frame_count - The total number of frames in which the moving object was detected.
+
 void write_trigger_max_brightness_frame(const observe_status *os, int trigger_index, const int channel_count,
                                         const double duration, int amplitude_peak, int amplitude_time_integrated,
                                         int integrated_frame_count) {
-    char fname[FNAME_LENGTH]
-    sprintf(fname, "%s%s", os->event_list[trigger_index].filename_stub, "_maxBrightness.rgb");
+    char filename[FNAME_LENGTH]
+    snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_maxBrightness.rgb");
     dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[trigger_index].max_stack,
-                         1, 0, NULL, fname);
-    write_metadata(fname, "sdsiidddidiii",
+                         1, 0, NULL, filename);
+    write_metadata(filename, "sdsiidddidiii",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
                    "semanticType", "pigazing:movingObject/maximumBrightness",
@@ -335,13 +404,24 @@ void write_trigger_max_brightness_frame(const observe_status *os, int trigger_in
                    "amplitudePeak", amplitude_peak);
 }
 
+//! write_trigger_integrated_trigger_map - Write the time-integrated map of all pixels which tripped the motion sensor
+//! during the period when the moving object was being tracked.
+//! \param os - The current observing status.
+//! \param trigger_index - The number of the moving object trigger within the array <os->event_list>
+//! \param channel_count - The number of colour channels in use. Either (1) Greyscale, or (3) RGB.
+//! \param duration - The duration of the event, seconds
+//! \param amplitude_peak - The maximum brightness of the moving object, in standard deviation pixel variability units,
+//! summed over all the pixels the object covers in each single frame.
+//! \param amplitude_time_integrated - The time-integrated brightness of the moving object, summed over all frames
+//! \param integrated_frame_count - The total number of frames in which the moving object was detected.
+
 void write_trigger_integrated_trigger_map(const observe_status *os, int trigger_index,
                                           const double duration, int amplitude_peak, int amplitude_time_integrated,
                                           int integrated_frame_count) {
-    char fname[FNAME_LENGTH]
-    sprintf(fname, "%s%s", os->event_list[trigger_index].filename_stub, "_allTriggers.rgb");
-    dump_frame(os->width, os->height, 1, os->event_list[trigger_index].max_trigger, fname);
-    write_metadata(fname, "sdsiidddidiii",
+    char filename[FNAME_LENGTH]
+    snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_allTriggers.rgb");
+    dump_frame(os->width, os->height, 1, os->event_list[trigger_index].max_trigger, filename);
+    write_metadata(filename, "sdsiidddidiii",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
                    "semanticType", "pigazing:movingObject/allTriggers",
@@ -356,6 +436,11 @@ void write_trigger_integrated_trigger_map(const observe_status *os, int trigger_
                    "amplitudeTimeIntegrated", amplitude_time_integrated,
                    "amplitudePeak", amplitude_peak);
 }
+
+//! write_video_metadata - Compute all the metadata to associated with a video of a moving object, and write them
+//! to a text file.
+//! \param os - The current observing status.
+//! \param trigger_index - The number of the moving object trigger within the array <os->event_list>
 
 void write_video_metadata(const observe_status *os, int trigger_index) {
     // Three detections which span the whole duration of this event
@@ -375,33 +460,34 @@ void write_video_metadata(const observe_status *os, int trigger_index) {
     int amplitude_peak = 0, amplitude_time_integrated = 0;
     {
         int j = 0, k = 0;
-        sprintf(path_json + k, "[");
-        k += strlen(path_json + k);
+        snprintf(path_json + k, FNAME_LENGTH - k, "[");
+        k += (int) strlen(path_json + k);
         for (j = 0; j < os->event_list[trigger_index].detection_count; j++) {
             const detection *d = &os->event_list[trigger_index].detections[j];
-            sprintf(path_json + k, "%s[%d,%d,%d,%.3f]", j ? "," : "", d->x, d->y, d->amplitude, d->utc);
-            k += strlen(path_json + k);
+            snprintf(path_json + k, FNAME_LENGTH - k, "%s[%d,%d,%d,%.3f]",
+                     j ? "," : "", d->x, d->y, d->amplitude, d->utc);
+            k += (int) strlen(path_json + k);
             amplitude_time_integrated += d->amplitude;
             if (d->amplitude > amplitude_peak) amplitude_peak = d->amplitude;
         }
-        sprintf(path_json + k, "]");
+        snprintf(path_json + k, FNAME_LENGTH - k, "]");
     }
 
     // Write path of event as a three-point Bezier curve
     {
         int k = 0;
-        sprintf(path_bezier + k, "[");
-        k += strlen(path_bezier + k);
-        sprintf(path_bezier + k, "[%d,%d,%.3f],", os->event_list[trigger_index].detections[N0].x,
-                os->event_list[trigger_index].detections[N0].y, os->event_list[trigger_index].detections[N0].utc);
-        k += strlen(path_bezier + k);
-        sprintf(path_bezier + k, "[%d,%d,%.3f],", os->event_list[trigger_index].detections[N1].x,
-                os->event_list[trigger_index].detections[N1].y, os->event_list[trigger_index].detections[N1].utc);
-        k += strlen(path_bezier + k);
-        sprintf(path_bezier + k, "[%d,%d,%.3f]", os->event_list[trigger_index].detections[N2].x,
-                os->event_list[trigger_index].detections[N2].y, os->event_list[trigger_index].detections[N2].utc);
-        k += strlen(path_bezier + k);
-        sprintf(path_bezier + k, "]");
+        snprintf(path_bezier + k, FNAME_LENGTH - k, "[");
+        k += (int) strlen(path_bezier + k);
+        snprintf(path_bezier + k, FNAME_LENGTH - k, "[%d,%d,%.3f],", os->event_list[trigger_index].detections[N0].x,
+                 os->event_list[trigger_index].detections[N0].y, os->event_list[trigger_index].detections[N0].utc);
+        k += (int) strlen(path_bezier + k);
+        snprintf(path_bezier + k, FNAME_LENGTH - k, "[%d,%d,%.3f],", os->event_list[trigger_index].detections[N1].x,
+                 os->event_list[trigger_index].detections[N1].y, os->event_list[trigger_index].detections[N1].utc);
+        k += (int) strlen(path_bezier + k);
+        snprintf(path_bezier + k, FNAME_LENGTH - k, "[%d,%d,%.3f]", os->event_list[trigger_index].detections[N2].x,
+                 os->event_list[trigger_index].detections[N2].y, os->event_list[trigger_index].detections[N2].utc);
+        k += (int) strlen(path_bezier + k);
+        snprintf(path_bezier + k, FNAME_LENGTH - k, "]");
     }
 
     // Now that we know the duration of this video, we can write metadata about the video file
