@@ -706,8 +706,6 @@ void register_trigger_ends(observe_status *os) {
 
                 // Work out duration of event
                 const double duration = os->event_list[i].detections[N2].utc - os->event_list[i].detections[N0].utc;
-                const int duration_frames =
-                        os->event_list[i].detections[N2].frame_count - os->event_list[i].detections[N0].frame_count;
 
                 // Update counter for trigger rate throttling
                 os->trigger_throttle_counter++;

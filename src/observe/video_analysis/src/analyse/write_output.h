@@ -24,6 +24,8 @@
 #ifndef VIDEO_ANALYSIS_WRITE_OUTPUT_H
 #define VIDEO_ANALYSIS_WRITE_OUTPUT_H
 
+#include "observe.h"
+
 char *filename_generate(char *output, const char *obstory_id, double utc, char *tag, const char *dir_name,
                         const char *label);
 
@@ -60,7 +62,7 @@ void write_trigger_integrated_trigger_map(const observe_status *os, int trigger_
                                           const double duration, int amplitude_peak, int amplitude_time_integrated,
                                           int integrated_frame_count);
 
-void write_video_metadata(const observe_status *os, int trigger_index);
+void write_video_metadata(observe_status *os, int trigger_index);
 
 
 #include "str_constants.h"
