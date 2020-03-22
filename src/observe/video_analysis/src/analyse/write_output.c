@@ -87,6 +87,8 @@ char *filename_generate(char *output, const char *obstory_id, double utc, char *
 
     // Convert unix time into a calendar date
     inv_julian_day(JD, &year, &month, &day, &hour, &min, &sec, &status, output);
+
+    // Create filename of the form <yyymmddhhmmss_observatory_live>
     snprintf(output, FNAME_LENGTH,
              "%s/%04d%02d%02d%02d%02d%02d_%s_%s", path, year, month, day, hour, min, (int) sec, obstory_id, tag);
     return output;
@@ -110,33 +112,39 @@ void write_metadata(char *filename, char *item_types, ...) {
     while ((i > 0) && (filename[i] != '.')) i--;
     snprintf(filename + i, FNAME_LENGTH - i, ".txt");
 
-    // Write metadata, item by item
+    // Prepare to loop over metadata, writing to text
     FILE *f = fopen(filename, "w");
     if (!f) return;
     va_list ap;
     va_start(ap, item_types);
+
+    // Loop over metadata items
     for (i = 0; item_types[i] != '\0'; i++) {
         char *x = va_arg(ap, char*);
         switch (item_types[i]) {
-            // String metadata
+
+            // String metadata item
             case 's': {
                 char *y = va_arg(ap, char*);
                 fprintf(f, "%s %s\n", x, y);
                 break;
             }
-                // Double type metadata
+
+            // Double type metadata item
             case 'd': {
                 double y = va_arg(ap, double);
                 fprintf(f, "%s %.15e\n", x, y);
                 break;
             }
-                // Int type metadata
+
+            // Int type metadata item
             case 'i': {
                 int y = va_arg(ap, int);
                 fprintf(f, "%s %d\n", x, y);
                 break;
             }
-                // Metadata type characters in <item_types> must be s, d or i.
+
+            // Metadata type characters in <item_types> must be s, d or i.
             default: {
                 snprintf(temp_err_string, FNAME_LENGTH, "ERROR: Unrecognised data type character '%c'.", item_types[i]);
                 logging_fatal(__FILE__, __LINE__, temp_err_string);
@@ -159,6 +167,8 @@ void write_timelapse_frame(const int channel_count, const observe_status *os, co
     char filename[FNAME_LENGTH];
     double gain_factor;
     snprintf(filename, FNAME_LENGTH, "%s%s", filename_stub, "BS0.rgb");
+
+    // Write the frame to a binary RGB file
     dump_frame_from_ints(os->width, os->height, channel_count, os->stack_timelapse, frame_count,
                          os->STACK_TARGET_BRIGHTNESS, &gain_factor, filename);
 
@@ -187,6 +197,8 @@ void write_timelapse_bs_frame(const int channel_count, const observe_status *os,
     char filename[FNAME_LENGTH];
     double gain_factor;
     snprintf(filename, FNAME_LENGTH, "%s%s", filename_stub, "BS1.rgb");
+
+    // Write the frame to a binary RGB file
     dump_frame_from_int_subtraction(os->width, os->height, channel_count, os->stack_timelapse, frame_count,
                                     os->STACK_TARGET_BRIGHTNESS, &gain_factor,
                                     os->background_maps[0], filename);
@@ -214,8 +226,12 @@ void write_timelapse_bg_model(const int BACKGROUND_MAP_FRAMES, const int channel
                               const char *filename_stub) {
     char filename[FNAME_LENGTH];
     snprintf(filename, FNAME_LENGTH, "%s%s", filename_stub, "skyBackground.rgb");
+
+    // Write the frame to a binary RGB file
     dump_frame_from_ints(os->width, os->height, channel_count, os->background_maps[0],
                          256, 0, NULL, filename);
+
+    // Store metadata about the time-lapse frame
     write_metadata(filename, "sdsiidddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->timelapse_utc_start,
@@ -236,7 +252,11 @@ void write_timelapse_bg_model(const int BACKGROUND_MAP_FRAMES, const int channel
 void write_trigger_difference_frame(const observe_status *os, const int trigger_index) {
     char filename[FNAME_LENGTH];
     snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_mapDifference.rgb");
+
+    // Write the frame to a binary RGB file
     dump_frame(os->width, os->height, 1, os->difference_frame, filename);
+
+    // Store metadata about frame
     write_metadata(filename, "sdsiidddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
@@ -257,7 +277,11 @@ void write_trigger_difference_frame(const observe_status *os, const int trigger_
 void write_trigger_mask_frame(const observe_status *os, const int trigger_index) {
     char filename[FNAME_LENGTH];
     snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_mapExcludedPixels.rgb");
+
+    // Write the frame to a binary RGB file
     dump_frame(os->width, os->height, 1, os->trigger_mask_frame, filename);
+
+    // Store metadata about frame
     write_metadata(filename, "sdsiidddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
@@ -277,7 +301,11 @@ void write_trigger_mask_frame(const observe_status *os, const int trigger_index)
 void write_trigger_map_frame(const observe_status *os, const int trigger_index) {
     char filename[FNAME_LENGTH];
     snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_mapTrigger.rgb");
+
+    // Write the frame to a binary RGB file
     dump_frame(os->width, os->height, 1, os->trigger_map_frame, filename);
+
+    // Store metadata about frame
     write_metadata(filename, "sdsiidddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
@@ -300,7 +328,11 @@ void write_trigger_frame(const observe_status *os, const unsigned char *image1, 
                          const int trigger_index) {
     char filename[FNAME_LENGTH];
     snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_triggerFrame.rgb");
+
+    // Write the frame to a binary RGB file
     dump_frame(os->width, os->height, channel_count, image1, filename);
+
+    // Store metadata about frame
     write_metadata(filename, "sdsiidddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
@@ -323,7 +355,11 @@ void write_trigger_previous_frame(const observe_status *os, const unsigned char 
                                   const int trigger_index) {
     char filename[FNAME_LENGTH];
     snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_previousFrame.rgb");
+
+    // Write the frame to a binary RGB file
     dump_frame(os->width, os->height, channel_count, image2, filename);
+
+    // Store metadata about frame
     write_metadata(filename, "sdsiidddi",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
@@ -352,8 +388,12 @@ void write_trigger_time_average_frame(const observe_status *os, int trigger_inde
                                       int integrated_frame_count) {
     char filename[FNAME_LENGTH];
     snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_timeAverage.rgb");
+
+    // Write the frame to a binary RGB file
     dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[trigger_index].stacked_image,
                          integrated_frame_count, 0, NULL, filename);
+
+    // Store metadata about frame
     write_metadata(filename, "sdsiidddidiii",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
@@ -386,8 +426,12 @@ void write_trigger_max_brightness_frame(const observe_status *os, int trigger_in
                                         int integrated_frame_count) {
     char filename[FNAME_LENGTH];
     snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_maxBrightness.rgb");
+
+    // Write the frame to a binary RGB file
     dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[trigger_index].max_stack,
                          1, 0, NULL, filename);
+
+    // Store metadata about frame
     write_metadata(filename, "sdsiidddidiii",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
@@ -420,7 +464,11 @@ void write_trigger_integrated_trigger_map(const observe_status *os, int trigger_
                                           int integrated_frame_count) {
     char filename[FNAME_LENGTH];
     snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_allTriggers.rgb");
+
+    // Write the frame to a binary RGB file
     dump_frame(os->width, os->height, 1, os->event_list[trigger_index].max_trigger, filename);
+
+    // Store metadata about frame
     write_metadata(filename, "sdsiidddidiii",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
@@ -449,24 +497,27 @@ void write_video_metadata(observe_status *os, int trigger_index) {
     const int N2 = os->event_list[trigger_index].detection_count - 1;
 
     // Work out duration of event
-    const double duration =
-            os->event_list[trigger_index].detections[N2].utc - os->event_list[trigger_index].detections[N0].utc;
-    const int duration_frames =
-            os->event_list[trigger_index].detections[N2].frame_count -
-            os->event_list[trigger_index].detections[N0].frame_count;
+    const double duration = (os->event_list[trigger_index].detections[N2].utc -
+                             os->event_list[trigger_index].detections[N0].utc);
+    const int duration_frames = (os->event_list[trigger_index].detections[N2].frame_count -
+                                 os->event_list[trigger_index].detections[N0].frame_count);
 
-    // Write path of event as JSON string
+    // Write full path of event as JSON string
     char path_json[LSTR_LENGTH], path_bezier[FNAME_LENGTH];
     int amplitude_peak = 0, amplitude_time_integrated = 0;
     {
         int j = 0, k = 0;
         snprintf(path_json + k, FNAME_LENGTH - k, "[");
         k += (int) strlen(path_json + k);
+
+        // Write each point in turn as [x, y, amplitude, unix time]
         for (j = 0; j < os->event_list[trigger_index].detection_count; j++) {
             const detection *d = &os->event_list[trigger_index].detections[j];
             snprintf(path_json + k, FNAME_LENGTH - k, "%s[%d,%d,%d,%.3f]",
                      j ? "," : "", d->x, d->y, d->amplitude, d->utc);
             k += (int) strlen(path_json + k);
+
+            // Calculate time-integrated brightness of this event, and its peak brightness
             amplitude_time_integrated += d->amplitude;
             if (d->amplitude > amplitude_peak) amplitude_peak = d->amplitude;
         }
@@ -478,20 +529,28 @@ void write_video_metadata(observe_status *os, int trigger_index) {
         int k = 0;
         snprintf(path_bezier + k, FNAME_LENGTH - k, "[");
         k += (int) strlen(path_bezier + k);
+
+        // Write first point of curve
         snprintf(path_bezier + k, FNAME_LENGTH - k, "[%d,%d,%.3f],", os->event_list[trigger_index].detections[N0].x,
                  os->event_list[trigger_index].detections[N0].y, os->event_list[trigger_index].detections[N0].utc);
         k += (int) strlen(path_bezier + k);
+
+        // Write midpoint of curve
         snprintf(path_bezier + k, FNAME_LENGTH - k, "[%d,%d,%.3f],", os->event_list[trigger_index].detections[N1].x,
                  os->event_list[trigger_index].detections[N1].y, os->event_list[trigger_index].detections[N1].utc);
         k += (int) strlen(path_bezier + k);
+
+        // Write end point of curve
         snprintf(path_bezier + k, FNAME_LENGTH - k, "[%d,%d,%.3f]", os->event_list[trigger_index].detections[N2].x,
                  os->event_list[trigger_index].detections[N2].y, os->event_list[trigger_index].detections[N2].utc);
         k += (int) strlen(path_bezier + k);
         snprintf(path_bezier + k, FNAME_LENGTH - k, "]");
     }
 
-    // Now that we know the duration of this video, we can write metadata about the video file
+    // Duration of video, in seconds
     const double video_duration = os->utc - (os->event_list[trigger_index].start_time - os->TRIGGER_PREFIX_TIME);
+
+    // Now that we know the duration of this video, we can write metadata about the video file
     write_metadata(os->event_list[trigger_index].video_output.filename, "sdsiiddsdidiisddd",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,

@@ -62,6 +62,7 @@ int read_frame(observe_status *os, unsigned char *buffer, int *stack2) {
 
     static unsigned char *tmp_rgb = NULL;
 
+    // Are we dealing with single-channel greyscale frames, or RGB video?
     const int channel_count = GREYSCALE_IMAGING ? 1 : 3;
 
     // If we're doing colour imaging, we need a buffer for turning YUV data into RGB pixels
@@ -105,7 +106,7 @@ int read_frame(observe_status *os, unsigned char *buffer, int *stack2) {
 //! \param obstory_id The ID of the observatory from which this video stream is/was observed.
 //! \param utc_start The unix time stamp of the start of the video
 //! \param utc_stop The unix time stamp at which we need to exit the observing loop if we don't reach the end of the
-//! video beforehand. Zero means we never exit
+//! video beforehand. Zero means we never exit.
 //! \param width - The width of the video frames
 //! \param height - The height of the video frames
 //! \param fps - The frames per second count, used to calculate the time stamp of each frame in pre-recorded video
@@ -165,6 +166,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     int i;
     char line[FNAME_LENGTH], line2[FNAME_LENGTH], line3[FNAME_LENGTH];
 
+    // Are we dealing with single-channel greyscale frames, or RGB video?
     const int channel_count = GREYSCALE_IMAGING ? 1 : 3;
 
     if (DEBUG) {
@@ -173,6 +175,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
         logging_info(line);
     }
 
+    // Allocate structure to store the current status of the observatory
     observe_status *os = calloc(1, sizeof(observe_status));
     if (os == NULL) {
         snprintf(temp_err_string, FNAME_LENGTH, "ERROR: malloc fail in observe.");
@@ -180,6 +183,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
         exit(1);
     }
 
+    // Store input settings inside observatory status
     os->video_handle = video_handle;
     os->width = width;
     os->height = height;
@@ -207,27 +211,31 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     os->TIMELAPSE_INTERVAL = TIMELAPSE_INTERVAL;
     os->STACK_TARGET_BRIGHTNESS = STACK_TARGET_BRIGHTNESS;
 
-    // Video buffer. This store the last few seconds of video in a rolling spool.
-    os->video_buffer_frames = (int) (os->fps * VIDEO_BUFFER_LEN);
+    // Allocate a rolling video buffer which we use to store the last few seconds of video
+    os->video_buffer_frames = (int) (os->fps * VIDEO_BUFFER_LEN); // frames in buffer
     os->bytes_per_frame = os->frame_size * YUV420_BYTES_PER_PIXEL;
     os->video_buffer_bytes = os->video_buffer_frames * os->bytes_per_frame;
     os->video_buffer = malloc((size_t) os->video_buffer_bytes);
 
     // When we catch a trigger, we include a few frames before the object appears, and after it disappears
-    os->trigger_prefix_frame_count = (int) (os->TRIGGER_PREFIX_TIME * os->fps);
-    os->trigger_suffix_frame_count = (int) (os->TRIGGER_SUFFIX_TIME * os->fps);
+    os->trigger_prefix_frame_count = (int) (os->TRIGGER_PREFIX_TIME * os->fps); // frames to store beforehand
+    os->trigger_suffix_frame_count = (int) (os->TRIGGER_SUFFIX_TIME * os->fps); // frames to store afterwards
+
+    // An object which has only been seen once must recur within this number of frames
     os->trigger_suffix_initial_frame_count = (int) (os->TRIGGER_SUFFIX_TIME_INITIAL * os->fps);
 
-    // Timelapse buffers
+    // Allocate timelapse buffer
     os->utc = 0;
-    os->timelapse_utc_start = 1e40; // This is UTC of next frame, but we don't start until we've done a run-in period
+    os->timelapse_utc_start = 1e40; // This is UTC of next frame; we don't start until we've done a run-in period
     os->frames_per_timelapse = (int) (os->fps * os->TIMELAPSE_EXPOSURE);
-    os->stack_timelapse = malloc(os->frame_size * sizeof(int) * channel_count);
+    os->stack_timelapse = malloc(os->frame_size * sizeof(int) * channel_count); // Stack frames here
 
     // Background maps are used for background subtraction.
-    // Holds the background value of each pixel, sampled over a few thousand frames
+    // Holds the average value of each pixel, sampled over a few thousand frames
     os->background_maps = malloc((BACKGROUND_MAP_SAMPLES + 1) * sizeof(int *));
 
+    // We store a number of historical background maps over a long period, to exclude maps where stars were passing
+    // through particular pixels.
     for (i = 0; i <= BACKGROUND_MAP_SAMPLES; i++) {
         os->background_maps[i] = (int *) calloc(sizeof(int), os->frame_size * channel_count);
     }
@@ -267,7 +275,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     }
 
     // For each object that we are tracking, we compile a stacked image of its appearance,
-    // and the max value of each pixel.
+    // and the maximum value of each pixel.
     for (i = 0; i < MAX_EVENTS; i++) {
         os->event_list[i].stacked_image = malloc(os->frame_size * channel_count * sizeof(int));
         os->event_list[i].max_stack = malloc(os->frame_size * channel_count * sizeof(int));
@@ -295,135 +303,22 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     os->frame_counter = 0;
 
     // Let the camera run for a period before triggering, as it takes this long to make first background map
+    // This counts down to zero. When it reaches zero, we start observing.
     os->run_in_frame_countdown = 100 + BACKGROUND_MAP_FRAMES;
+
+    // Noise level if frames, estimated from the standard deviation of pixel values between successive frames
     os->noise_level = 128;
     os->mean_level = 128;
 
     // Trigger throttling
-    os->trigger_throttle_timer = 0;
-    os->trigger_throttle_counter = 0;
+    os->trigger_throttle_timer = 0; // Count down to when we reset the trigger throttle
+    os->trigger_throttle_counter = 0; // Number of triggers within the last time period
 
-    // Processing loop
-    while (1) {
-        int t = (int) (time(NULL));
-        if (t >= utc_stop) break; // Check how we're doing for time; if we've reached the time to stop, stop now!
+    // Do some observing!
+    observing_loop(os, utc_stop, BACKGROUND_MAP_FRAMES, BACKGROUND_MAP_SAMPLES, BACKGROUND_MAP_REDUCTION_CYCLES,
+                   rewind_video);
 
-        // Once we've done initial run-in period, rewind the tape to the beginning if we can
-        if (os->run_in_frame_countdown && !--os->run_in_frame_countdown) {
-            if (DEBUG) {
-                snprintf(line, FNAME_LENGTH, "Run-in period completed.");
-                logging_info(line);
-            }
-            (*rewind_video)(os->video_handle, &os->utc);
-
-            // Start making timelapse video
-            os->timelapse_utc_start = ceil(os->utc / os->TIMELAPSE_EXPOSURE) * os->TIMELAPSE_EXPOSURE + 0.5;
-        }
-
-        // Work out where we're going to read next second of video to.
-        unsigned char *buffer_pos = (os->video_buffer +
-                                     (os->frame_counter % os->video_buffer_frames) * os->bytes_per_frame);
-
-        // Once on each cycle through the video buffer, estimate the thermal noise of the camera
-        if (buffer_pos == os->video_buffer) {
-            os->noise_level = estimate_noise_level(os->width, os->height,
-                                                   os->video_buffer, 16, &os->mean_level);
-        }
-
-        // Read the next frame of input video
-        int status = read_frame(os, buffer_pos, (os->timelapse_frame_count >= 0) ? os->stack_timelapse : NULL);
-        if (status) break; // We've run out of video
-
-        // If we've stacked enough frames since we last made a background map, make a new background map
-        os->background_frame_count++;
-        if (os->background_frame_count >= BACKGROUND_MAP_FRAMES) {
-            const int reduction_cycle = os->background_frame_count - BACKGROUND_MAP_FRAMES;
-            background_calculate(os->width, os->height, channel_count,
-                                 reduction_cycle, BACKGROUND_MAP_REDUCTION_CYCLES,
-                                 os->background_workspace, os->background_maps,
-                                 BACKGROUND_MAP_SAMPLES, os->background_buffer_current);
-            if (reduction_cycle >= BACKGROUND_MAP_REDUCTION_CYCLES) {
-                os->background_frame_count = 0;
-                os->background_buffer_current = (os->background_buffer_current + 1) % BACKGROUND_MAP_SAMPLES;
-                memset(os->background_workspace, 0, os->frame_size * channel_count * 256 * sizeof(int));
-            }
-        }
-
-        // If we're making a time lapse exposure, count the frames we've put in
-        if (os->timelapse_frame_count >= 0) {
-            os->timelapse_frame_count++;
-        }
-            // Is it time to start a new time lapse exposure?
-        else if (os->utc > os->timelapse_utc_start) {
-            memset(os->stack_timelapse, 0, os->frame_size * channel_count * sizeof(int));
-            os->timelapse_frame_count = 0;
-        }
-
-        // If time-lapse exposure is finished, dump it
-        if ((os->timelapse_frame_count >= os->frames_per_timelapse) ||
-            (os->utc > os->timelapse_utc_start + os->TIMELAPSE_INTERVAL - 1)) {
-            const int frame_count = os->timelapse_frame_count;
-            char filename_stub[FNAME_LENGTH];
-
-            // First dump the time-lapse image without background subtraction
-            filename_generate(filename_stub, os->obstory_id, os->timelapse_utc_start,
-                              "frame_", "timelapse", os->label);
-
-            write_timelapse_frame(channel_count, os, frame_count, filename_stub);
-
-            // Dump a background-subtracted version of the time-lapse image
-            write_timelapse_bs_frame(channel_count, os, frame_count, filename_stub);
-
-            // Every few minutes, dump an image of the sky background map for diagnostic purposes
-            if (floor(fmod(os->timelapse_utc_start, 1)) == 0) {
-                write_timelapse_bg_model(BACKGROUND_MAP_FRAMES, channel_count, os, filename_stub);
-            }
-
-            // Schedule the next time-lapse exposure
-            os->timelapse_utc_start += os->TIMELAPSE_INTERVAL;
-            os->timelapse_frame_count = -1;
-        }
-
-        // Update counters for trigger throttling
-        os->trigger_throttle_timer++;
-        const int trigger_throttle_cycles = (int) (os->TRIGGER_THROTTLE_PERIOD * 60 * os->fps);
-        if (os->trigger_throttle_timer >= trigger_throttle_cycles) {
-            os->trigger_throttle_timer = 0;
-            os->trigger_throttle_counter = 0;
-        }
-
-        // Attenuate the map of past triggers <past_trigger_map> so that old-triggers decay with a half-life around
-        // 7-8 minutes
-        if ((os->frame_counter % 1000) == 0) {
-            int o;
-#pragma omp parallel for private(o)
-            for (o = 0; o < os->frame_size; o++) {
-                os->past_trigger_map[o] *= 0.95;
-            }
-        }
-
-        // Test whether triggering is allowed
-        os->triggering_allowed = ((!os->run_in_frame_countdown) &&
-                                  (os->trigger_throttle_counter < os->TRIGGER_THROTTLE_MAXEVT));
-
-        // Close any trigger events which are no longer active
-        register_trigger_ends(os);
-
-        // Pointers to the two frames we plan to compare
-        unsigned char *image_new = buffer_pos;
-
-        unsigned char *image_old =
-                os->video_buffer +
-                (((os->frame_counter + os->video_buffer_frames - os->STACK_COMPARISON_INTERVAL)
-                  % os->video_buffer_frames)
-                 * os->bytes_per_frame);
-
-        // Test whether motion sensor has triggered
-        check_for_triggers(os, image_new, image_old);
-
-        os->frame_counter++;
-    }
-
+    // Clean up all the buffers we allocated
     for (i = 0; i < MAX_EVENTS; i++) {
         free(os->event_list[i].stacked_image);
         free(os->event_list[i].max_stack);
@@ -446,6 +341,181 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     free(os->past_trigger_map);
     free(os);
     return 0;
+}
+
+//! observing_loop - The main observing loop
+//! \param os - Settings pertaining to this observing run.
+//! \param utc_stop The unix time stamp at which we need to exit the observing loop if we don't reach the end of the
+//! video beforehand. Zero means we never exit.
+//! \param BACKGROUND_MAP_FRAMES - The number of frames which are averages to create each map of the sky background.
+//! \param BACKGROUND_MAP_SAMPLES - The number of background maps which we hold concurrently, taking the lowest sky
+//! background estimate from the set to filter out pixels which brighten for a few minutes while stars pass through.
+//! \param BACKGROUND_MAP_REDUCTION_CYCLES - The number of frames over which we reduce the background map after every
+//! <BACKGROUND_MAP_FRAMES> have been averaged. The reduction is time consuming, so we do it in lots of small chunks
+//! whilst processing the video frames which are coming in.
+//! \param rewind_video - Function pointer to the function we call to rewind the video to the beginning after the
+//! initial run-in period. For live observing, this function is allowed to do nothing.
+void observing_loop(observe_status *os, const double utc_stop,
+                    const int BACKGROUND_MAP_FRAMES, const int BACKGROUND_MAP_SAMPLES,
+                    const int BACKGROUND_MAP_REDUCTION_CYCLES, int (*rewind_video)(void *, double *)) {
+    char line[FNAME_LENGTH];
+
+    // Are we dealing with single-channel greyscale frames, or RGB video?
+    const int channel_count = GREYSCALE_IMAGING ? 1 : 3;
+
+    // Main observing loop
+    while (1) {
+
+        // Check how we're doing for time; if we've reached the time to stop, stop now!
+        int t = (int) (time(NULL));
+        if (t >= utc_stop) break;
+
+        // Check if we've just completed the initial run-in period
+        if ((os->run_in_frame_countdown > 0) && (--os->run_in_frame_countdown == 0)) {
+            if (DEBUG) {
+                snprintf(line, FNAME_LENGTH, "Run-in period completed.");
+                logging_info(line);
+            }
+
+            // Rewind the tape to the beginning if we can
+            (*rewind_video)(os->video_handle, &os->utc);
+
+            // Start making time lapse video; set the start time for the first frame at a round number of seconds
+            os->timelapse_utc_start = ceil(os->utc / os->TIMELAPSE_EXPOSURE) * os->TIMELAPSE_EXPOSURE + 0.5;
+        }
+
+        // Calculate position in the rolling buffer where we will store the next video frame
+        unsigned char *buffer_pos = (os->video_buffer +
+                                     (os->frame_counter % os->video_buffer_frames) * os->bytes_per_frame);
+
+        // Once on each cycle through the video buffer, estimate the noise level and mean level of the input frames
+        if (buffer_pos == os->video_buffer) {
+            os->noise_level = estimate_noise_level(os->width, os->height,
+                                                   os->video_buffer, 16, &os->mean_level);
+        }
+
+        // Fetch the next frame of input video
+        int status = read_frame(os, buffer_pos, (os->timelapse_frame_count >= 0) ? os->stack_timelapse : NULL);
+        if (status) break; // We've run out of video
+
+        // We've just stacked another frame into the histograms we use to construct a background map for each pixel
+        os->background_frame_count++;
+
+        // Have we just finished compiling the histograms for a new background model?
+        if (os->background_frame_count >= BACKGROUND_MAP_FRAMES) {
+            // In the successive frames after we've got enough frames, we compile small parts of the background map, but
+            // not all in one go as it takes quite a long time
+
+            // The chunk number we want to work on is given by how many frames past <BACKGROUND_MAP_FRAMES> we are
+            const int reduction_cycle = os->background_frame_count - BACKGROUND_MAP_FRAMES;
+
+            // Compile the next chunk of the background map
+            background_calculate(os->width, os->height, channel_count,
+                                 reduction_cycle, BACKGROUND_MAP_REDUCTION_CYCLES,
+                                 os->background_workspace, os->background_maps,
+                                 BACKGROUND_MAP_SAMPLES, os->background_buffer_current);
+
+            // Was this the last data reduction cycle?
+            if (reduction_cycle >= BACKGROUND_MAP_REDUCTION_CYCLES) {
+                // Start compiling histograms for a new background model
+                os->background_frame_count = 0;
+
+                // Pointer to the buffer where we will compile the next background model
+                os->background_buffer_current = (os->background_buffer_current + 1) % BACKGROUND_MAP_SAMPLES;
+
+                // Set the buffer to zero
+                memset(os->background_workspace, 0, os->frame_size * channel_count * 256 * sizeof(int));
+            }
+        }
+
+        // Are we making a time-lapse exposure?
+        if (os->timelapse_frame_count >= 0) {
+            // Count the number of frames we've added into time-lapse exposure
+            os->timelapse_frame_count++;
+        }
+
+        // We are not making a time-lapse exposure, but is it time to start a new one?
+        else if (os->utc > os->timelapse_utc_start) {
+            // Clear buffer to hold new exposure, and reset frame counter
+            memset(os->stack_timelapse, 0, os->frame_size * channel_count * sizeof(int));
+            os->timelapse_frame_count = 0;
+        }
+
+        // If time-lapse exposure is finished, write it to disk
+        // This happens if we have collected enough frames, or if the next time-lapse exposure is due to begin soon
+        if ((os->timelapse_frame_count >= os->frames_per_timelapse) ||
+            (os->utc > os->timelapse_utc_start + os->TIMELAPSE_INTERVAL - 1)) {
+            // How many frames did we integrate?
+            const int frame_count = os->timelapse_frame_count;
+            char filename_stub[FNAME_LENGTH];
+
+            // First record the time-lapse frame without background subtraction
+            filename_generate(filename_stub, os->obstory_id, os->timelapse_utc_start,
+                              "frame_", "timelapse", os->label);
+
+            write_timelapse_frame(channel_count, os, frame_count, filename_stub);
+
+            // Second, record a background-subtracted version of the time-lapse frame
+            write_timelapse_bs_frame(channel_count, os, frame_count, filename_stub);
+
+            // Every little while, dump an image of the sky background map for diagnostic purposes
+            if (floor(fmod(os->timelapse_utc_start, 1)) == 0) {
+                write_timelapse_bg_model(BACKGROUND_MAP_FRAMES, channel_count, os, filename_stub);
+            }
+
+            // Schedule the next time-lapse exposure
+            os->timelapse_utc_start += os->TIMELAPSE_INTERVAL;
+
+            // We are not actively recording a time-lapse exposure any longer
+            os->timelapse_frame_count = -1;
+        }
+
+        // Increment the timer used to clear the trigger throttle counter periodically
+        os->trigger_throttle_timer++;
+
+        // How many frames before we clear the trigger throttling counter?
+        const int trigger_throttle_cycles = (int) (os->TRIGGER_THROTTLE_PERIOD * 60 * os->fps);
+
+        // Has the trigger-throttling timer reached its limit?
+        if (os->trigger_throttle_timer >= trigger_throttle_cycles) {
+            // Refresh throttling counter, and allow events to be recorded again
+            os->trigger_throttle_timer = 0;
+            os->trigger_throttle_counter = 0;
+        }
+
+        // Attenuate the map of past triggers <past_trigger_map> so that old-triggers decay with a half-life around
+        // 7-8 minutes
+        if ((os->frame_counter % 1000) == 0) {
+            int o;
+#pragma omp parallel for private(o)
+            for (o = 0; o < os->frame_size; o++) {
+                os->past_trigger_map[o] *= 0.95;
+            }
+        }
+
+        // Test whether triggering is allowed (we are not in run-in period, and trigger throttle not active)
+        os->triggering_allowed = ((os->run_in_frame_countdown == 0) &&
+                                  (os->trigger_throttle_counter < os->TRIGGER_THROTTLE_MAXEVT));
+
+        // Close any trigger events which are no longer active
+        register_trigger_ends(os);
+
+        // Pointers to the latest video frame
+        unsigned char *image_new = buffer_pos;
+
+        // Pointer to the previous frame that we compare the latest frame to
+        unsigned char *image_old =
+                os->video_buffer +
+                (((os->frame_counter + os->video_buffer_frames - os->STACK_COMPARISON_INTERVAL)
+                  % os->video_buffer_frames)
+                 * os->bytes_per_frame);
+
+        // Test whether motion sensor has triggered
+        check_for_triggers(os, image_new, image_old);
+
+        // Count frames from the beginning of the video
+        os->frame_counter++;
+    }
 }
 
 //! register_trigger - Called when <check_for_triggers> detects a moving object. We check whether this is a
