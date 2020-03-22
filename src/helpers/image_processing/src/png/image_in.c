@@ -30,6 +30,8 @@
 #include "error.h"
 #include <png.h>
 
+#include "str_constants.h"
+
 // Colour channel configurations
 
 #define BMP_COLOUR_BMP     1001
