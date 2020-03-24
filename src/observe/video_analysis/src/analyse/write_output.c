@@ -551,7 +551,9 @@ void write_video_metadata(observe_status *os, int trigger_index) {
     const double video_duration = os->utc - (os->event_list[trigger_index].start_time - os->TRIGGER_PREFIX_TIME);
 
     // Now that we know the duration of this video, we can write metadata about the video file
-    write_metadata(os->event_list[trigger_index].video_output.filename, "sdsiiddsdidiisddd",
+    char metadata_filename[FNAME_LENGTH];
+    strcpy(metadata_filename, os->event_list[trigger_index].video_output.filename);
+    write_metadata(metadata_filename, "sdsiiddsdidiisddd",
                    "obstoryId", os->obstory_id,
                    "utc", os->event_list[trigger_index].start_time,
                    "semanticType", "pigazing:movingObject/video",
