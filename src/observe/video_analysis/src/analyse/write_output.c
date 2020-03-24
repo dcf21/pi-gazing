@@ -383,32 +383,32 @@ void write_trigger_previous_frame(const observe_status *os, const unsigned char 
 //! \param amplitude_time_integrated - The time-integrated brightness of the moving object, summed over all frames
 //! \param integrated_frame_count - The total number of frames in which the moving object was detected.
 
-void write_trigger_time_average_frame(const observe_status *os, int trigger_index, const int channel_count,
-                                      const double duration, int amplitude_peak, int amplitude_time_integrated,
-                                      int integrated_frame_count) {
-    char filename[FNAME_LENGTH];
-    snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_timeAverage.rgb");
-
-    // Write the frame to a binary RGB file
-    dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[trigger_index].stacked_image,
-                         integrated_frame_count, 0, NULL, filename);
-
-    // Store metadata about frame
-    write_metadata(filename, "sdsiidddidiii",
-                   "obstoryId", os->obstory_id,
-                   "utc", os->event_list[trigger_index].start_time,
-                   "semanticType", "pigazing:movingObject/timeAverage",
-                   "width", os->width,
-                   "height", os->height,
-                   "inputNoiseLevel", os->noise_level,
-                   "stackNoiseLevel", os->noise_level / sqrt(integrated_frame_count),
-                   "meanLevel", os->mean_level,
-                   "stackedFrames", integrated_frame_count,
-                   "duration", duration,
-                   "detectionCount", os->event_list[trigger_index].detection_count,
-                   "amplitudeTimeIntegrated", amplitude_time_integrated,
-                   "amplitudePeak", amplitude_peak);
-}
+//void write_trigger_time_average_frame(const observe_status *os, int trigger_index, const int channel_count,
+//                                      const double duration, int amplitude_peak, int amplitude_time_integrated,
+//                                      int integrated_frame_count) {
+//    char filename[FNAME_LENGTH];
+//    snprintf(filename, FNAME_LENGTH, "%s%s", os->event_list[trigger_index].filename_stub, "_timeAverage.rgb");
+//
+//    // Write the frame to a binary RGB file
+//    dump_frame_from_ints(os->width, os->height, channel_count, os->event_list[trigger_index].stacked_image,
+//                         integrated_frame_count, 0, NULL, filename);
+//
+//    // Store metadata about frame
+//    write_metadata(filename, "sdsiidddidiii",
+//                   "obstoryId", os->obstory_id,
+//                   "utc", os->event_list[trigger_index].start_time,
+//                   "semanticType", "pigazing:movingObject/timeAverage",
+//                   "width", os->width,
+//                   "height", os->height,
+//                   "inputNoiseLevel", os->noise_level,
+//                   "stackNoiseLevel", os->noise_level / sqrt(integrated_frame_count),
+//                   "meanLevel", os->mean_level,
+//                   "stackedFrames", integrated_frame_count,
+//                   "duration", duration,
+//                   "detectionCount", os->event_list[trigger_index].detection_count,
+//                   "amplitudeTimeIntegrated", amplitude_time_integrated,
+//                   "amplitudePeak", amplitude_peak);
+//}
 
 //! write_trigger_max_brightness_frame - Write the maximum brightness of each pixel over the duration that a
 //! moving object was tracked.

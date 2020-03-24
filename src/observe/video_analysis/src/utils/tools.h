@@ -63,11 +63,9 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
                                     int target_brightness, double *gain_out,
                                     const int *buffer2, char *filename);
 
-FILE *dump_video_init(int width, int height, const char *filename);
-
-int dump_video_frame(int width, int height, const unsigned char *video_buffer, const int video_buffer_frames,
-                     int *write_position, int *frames_written, const int write_end_position,
-                     FILE *output);
+void dump_video(int width, int height, const char *filename,
+                const unsigned char *video_buffer, const int video_buffer_frames,
+                const int write_position, const int write_end_position);
 
 #endif
 

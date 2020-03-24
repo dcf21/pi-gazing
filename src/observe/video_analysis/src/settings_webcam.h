@@ -47,8 +47,7 @@
 #define TRIGGER_THROTTLE_MAXEVT  5 /* number of triggers allowed in that time */
 
 // Trigger parameters
-#define VIDEO_BUFFER_LENGTH   10  /* maximum period of video to buffer in ram */
-#define TRIGGER_MAX_DURATION 120  /* maximum length of video to record after trigger */
+#define VIDEO_BUFFER_LENGTH   60  /* maximum period of video to buffer in ram */
 #define TRIGGER_PREFIX_TIME    2  /* include N seconds of video after trigger */
 #define TRIGGER_SUFFIX_TIME    4  /* include N seconds of video after trigger has gone away */
 
@@ -58,8 +57,8 @@
 #define TRIGGER_MIN_PATH_LENGTH 4 /* The minimum number of pixels that the moving object must move across the frame */
 #define TRIGGER_MAX_MOVEMENT_PER_FRAME 70 /* The maximum distance a moving object may move from one frame to next */
 
-#define TRIGGER_MIN_SIGNIFICANCE 40 /* The number of standard deviations above the noise level for a moving object */
-#define TRIGGER_MIN_SIGNIFICANCE_INITIAL 50 /* As above, but specifically for the initial detection of an object */
+#define TRIGGER_MIN_SIGNIFICANCE 20 /* The number of standard deviations above the noise level for a moving object */
+#define TRIGGER_MIN_SIGNIFICANCE_INITIAL 30 /* As above, but specifically for the initial detection of an object */
 
 
 // Processing of background map

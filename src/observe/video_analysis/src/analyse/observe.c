@@ -132,7 +132,6 @@ int read_frame(observe_status *os, unsigned char *buffer, int *stack2) {
 //! brightening must be to trigger the motion sensor for the first time. This is summed over all the pixels which
 //! brighten.
 //! \param VIDEO_BUFFER_LEN - The number of seconds of video that we hold in a rolling buffer
-//! \param TRIGGER_MAX_DURATION - The maximum duration for which we track a single moving object.
 //! \param TRIGGER_THROTTLE_PERIOD - The time period over which we throttle the allowed number of object detections.
 //! \param TRIGGER_THROTTLE_MAXEVT - The maximum number of moving objects we can track in each
 //! <TRIGGER_THROTTLE_PERIOD>.
@@ -157,8 +156,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
             const double TRIGGER_SUFFIX_TIME_INITIAL, const int TRIGGER_MIN_DETECTIONS,
             const double TRIGGER_MIN_PATH_LENGTH, const double TRIGGER_MAX_MOVEMENT_PER_FRAME,
             const double TRIGGER_MIN_SIGNIFICANCE, const double TRIGGER_MIN_SIGNIFICANCE_INITIAL,
-            const int VIDEO_BUFFER_LEN, const int TRIGGER_MAX_DURATION,
-            const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT,
+            const int VIDEO_BUFFER_LEN, const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT,
             const int TIMELAPSE_EXPOSURE, const int TIMELAPSE_INTERVAL, const int STACK_TARGET_BRIGHTNESS,
             const int BACKGROUND_MAP_FRAMES, const int BACKGROUND_MAP_SAMPLES,
             const int BACKGROUND_MAP_REDUCTION_CYCLES,
@@ -204,7 +202,6 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     os->TRIGGER_MAX_MOVEMENT_PER_FRAME = TRIGGER_MAX_MOVEMENT_PER_FRAME;
     os->TRIGGER_MIN_SIGNIFICANCE = TRIGGER_MIN_SIGNIFICANCE;
     os->TRIGGER_MIN_SIGNIFICANCE_INITIAL = TRIGGER_MIN_SIGNIFICANCE_INITIAL;
-    os->TRIGGER_MAX_DURATION = TRIGGER_MAX_DURATION;
     os->TRIGGER_THROTTLE_PERIOD = TRIGGER_THROTTLE_PERIOD;
     os->TRIGGER_THROTTLE_MAXEVT = TRIGGER_THROTTLE_MAXEVT;
     os->TIMELAPSE_EXPOSURE = TIMELAPSE_EXPOSURE;
@@ -277,11 +274,11 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
     // For each object that we are tracking, we compile a stacked image of its appearance,
     // and the maximum value of each pixel.
     for (i = 0; i < MAX_EVENTS; i++) {
-        os->event_list[i].stacked_image = malloc(os->frame_size * channel_count * sizeof(int));
+        //os->event_list[i].stacked_image = malloc(os->frame_size * channel_count * sizeof(int));
         os->event_list[i].max_stack = malloc(os->frame_size * channel_count * sizeof(int));
         os->event_list[i].max_trigger = malloc(os->frame_size);
 
-        if ((!os->event_list[i].stacked_image) ||
+        if (  // (!os->event_list[i].stacked_image) ||
             (!os->event_list[i].max_stack) || (!os->event_list[i].max_trigger)) {
             snprintf(temp_err_string, FNAME_LENGTH, "ERROR: malloc fail in observe.");
             logging_fatal(__FILE__, __LINE__, temp_err_string);
@@ -320,7 +317,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
 
     // Clean up all the buffers we allocated
     for (i = 0; i < MAX_EVENTS; i++) {
-        free(os->event_list[i].stacked_image);
+        //free(os->event_list[i].stacked_image);
         free(os->event_list[i].max_stack);
         free(os->event_list[i].max_trigger);
     }
@@ -377,11 +374,17 @@ void observing_loop(observe_status *os, const double utc_stop,
                 logging_info(line);
             }
 
-            // Rewind the tape to the beginning if we can
-            (*rewind_video)(os->video_handle, &os->utc);
+            // Test if this is the first run-in period, or a subsequent one after writing video
+            const int first_run_in_period = os->timelapse_utc_start > 1e20;
 
-            // Start making time lapse video; set the start time for the first frame at a round number of seconds
-            os->timelapse_utc_start = ceil(os->utc / os->TIMELAPSE_EXPOSURE) * os->TIMELAPSE_EXPOSURE + 0.5;
+            // After initial run-in period, we need to start process of taking time-lapse exposures
+            if (first_run_in_period) {
+                // Rewind the tape to the beginning if we can
+                (*rewind_video)(os->video_handle, &os->utc);
+
+                // Start making time lapse video; set the start time for the first frame at a round number of seconds
+                os->timelapse_utc_start = ceil(os->utc / os->TIMELAPSE_EXPOSURE) * os->TIMELAPSE_EXPOSURE + 0.5;
+            }
         }
 
         // Calculate position in the rolling buffer where we will store the next video frame
@@ -493,6 +496,9 @@ void observing_loop(observe_status *os, const double utc_stop,
             }
         }
 
+        // Consider stopping everything to write video files out, if we have triggers which have now ended
+        consider_writing_video(os);
+
         // Test whether triggering is allowed (we are not in run-in period, and trigger throttle not active)
         os->triggering_allowed = ((os->run_in_frame_countdown == 0) &&
                                   (os->trigger_throttle_counter < os->TRIGGER_THROTTLE_MAXEVT));
@@ -531,52 +537,67 @@ void observing_loop(observe_status *os, const double utc_stop,
 
 void register_trigger(observe_status *os, const int block_id, const int x_pos, const int y_pos, const int pixel_count,
                       const int amplitude, const unsigned char *image1, const unsigned char *image2) {
+
+    // Do not proceed if triggering is not enabled
     if (!os->triggering_allowed) return;
 
-    // Re-normalise the integrated brightness of this object as a number of standard deviations of random noise
+    // Calculate the pixel-integrated brightness of this trigger in units of standard deviations of random noise
     const double significance = amplitude / os->noise_level;
 
+    // The maximum distance a moving object may move from one frame to next
     const int trigger_maximum_movement_per_frame = os->TRIGGER_MAX_MOVEMENT_PER_FRAME;
+
+    // The minimum number of frames in which a moving object must be detected
     const int minimum_detections_for_event = os->TRIGGER_MIN_DETECTIONS;
+
+    // The minimum number of pixels that the moving object must move across the frame
     const int minimum_object_path_length = os->TRIGGER_MIN_PATH_LENGTH;
 
+    // Are we dealing with single-channel greyscale frames, or RGB video?
     const int channel_count = GREYSCALE_IMAGING ? 1 : 3;
 
     // Cycle through objects we are already tracking to find nearest one
-    int i;
-    int closest_trigger = -1;
-    int closest_trigger_dist = 9999;
-    for (i = 0; i < MAX_EVENTS; i++)
-        if (os->event_list[i].active) {
-            const int N = os->event_list[i].detection_count - 1;
-            const int dist = (int) hypot(x_pos - os->event_list[i].detections[N].x,
-                                         y_pos - os->event_list[i].detections[N].y);
-            if (dist < closest_trigger_dist) {
-                closest_trigger_dist = dist;
-                closest_trigger = i;
+    int closest_trigger_index = -1;
+    int closest_trigger_distance = 9999;
+    for (int trigger_index = 0; trigger_index < MAX_EVENTS; trigger_index++)
+        if (os->event_list[trigger_index].active) {
+            const int latest_detection_index = os->event_list[trigger_index].detection_count - 1;
+            const int distance = (int) hypot(x_pos - os->event_list[trigger_index].detections[latest_detection_index].x,
+                                             y_pos - os->event_list[trigger_index].detections[latest_detection_index].y
+                                             );
+            if (distance < closest_trigger_distance) {
+                closest_trigger_distance = distance;
+                closest_trigger_index = trigger_index;
             }
         }
 
-    // If it's relatively close, assume this detection is of that object
-    const int repeat_detection = (closest_trigger_dist < trigger_maximum_movement_per_frame);
+    // If there is an existing object that is close by, decide that this detection is of that object
+    const int repeat_detection = (closest_trigger_distance < trigger_maximum_movement_per_frame);
 
     // Check that this detection meets minimum significance threshold
+    // (lower for repeat detections than for a first detection)
     if (significance < (repeat_detection ? os->TRIGGER_MIN_SIGNIFICANCE : os->TRIGGER_MIN_SIGNIFICANCE_INITIAL)) {
         return;
     }
 
-    // Colour in block of pixels which have triggered in schematic trigger map
-    int k;
-    for (k = 1; k <= os->block_count; k++) {
-        int k2 = k;
-        while (os->trigger_block_redirect[k2] > 0) k2 = os->trigger_block_redirect[k2];
-        if (k2 == block_id) {
+    // Update trigger map to highlight the block of pixels which have triggered in schematic trigger map
+    int block_index;
+    for (block_index = 1; block_index <= os->block_count; block_index++) {
+        // Some blocks are aliases for other blocks, if they connect further down the image
+        int root_index = block_index;
+        while (os->trigger_block_redirect[root_index] > 0) root_index = os->trigger_block_redirect[root_index];
+
+        // Is this block an alias for the one which has just triggered the camera?
+        if (root_index == block_id) {
+            // Loop over all pixels in the frame, highlighting pixels in this block
             int j;
 #pragma omp parallel for private(j)
             for (j = 0; j < os->frame_size; j++)
-                if (os->trigger_map[j] == k2) {
+                if (os->trigger_map[j] == block_index) {
+                    // Make pixels belonging to this block brighter
                     os->trigger_map_frame[j] *= 4;
 
+                    // For all events that are currently active, flag this pixel in the <max_trigger> map
                     for (int i = 0; i < MAX_EVENTS; i++)
                         if (os->event_list[i].active == 1)
                             os->event_list[i].max_trigger[j] = os->trigger_map_frame[j];
@@ -584,47 +605,54 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
         }
     }
 
-    // If this is a repeat detection, then update that object's event structure to include the new detection
+    // If this is a repeat detection, update that object's event structure to include the new detection
     if (repeat_detection) {
-        const int i = closest_trigger;
-        const int n = os->event_list[i].detection_count - 1;
+        const int trigger_index = closest_trigger_index;
+        const int last_detection_index = os->event_list[trigger_index].detection_count - 1;
 
         // Has this object already been seen in this frame?
-        if (os->event_list[i].detections[n].frame_count == os->frame_counter) {
+        if (os->event_list[trigger_index].detections[last_detection_index].frame_count == os->frame_counter) {
             // If so, take position of object as average position of multiple amplitude peaks
-            detection *d = &os->event_list[i].detections[n];
-            d->x = (d->x * d->amplitude + x_pos * amplitude) / (d->amplitude + amplitude);
-            d->y = (d->y * d->amplitude + y_pos * amplitude) / (d->amplitude + amplitude);
-            d->amplitude += amplitude;
-            d->pixel_count += pixel_count;
+            
+            // Update structure describing existing detection
+            detection *detection = &os->event_list[trigger_index].detections[last_detection_index];
+            const int new_amplitude = detection->amplitude + amplitude;
+            detection->x = (detection->x * detection->amplitude + x_pos * amplitude) / new_amplitude;
+            detection->y = (detection->y * detection->amplitude + y_pos * amplitude) / new_amplitude;
+            detection->amplitude = new_amplitude;
+            detection->pixel_count += pixel_count;
         } else {
-            // Otherwise add new detection to list
-            os->event_list[i].detection_count++;
-            detection *d = &os->event_list[i].detections[n + 1];
-            d->frame_count = os->frame_counter;
-            d->x = x_pos;
-            d->y = y_pos;
-            d->utc = os->utc;
-            d->pixel_count = pixel_count;
-            d->amplitude = amplitude;
+            // No existing detection of this object, so add a new detection to list
+            os->event_list[trigger_index].detection_count++;
+            detection *detection = &os->event_list[trigger_index].detections[last_detection_index + 1];
+            detection->frame_count = os->frame_counter;
+            detection->x = x_pos;
+            detection->y = y_pos;
+            detection->utc = os->utc;
+            detection->pixel_count = pixel_count;
+            detection->amplitude = amplitude;
 
-            // If we've reached a threshold number of detections, we can start writing video
-            if (!os->event_list[i].video_output.active) {
-                // Detections which span the whole duration of this event so far
-                const int N0 = 0;
-                const int N2 = os->event_list[i].detection_count - 1;
+            // If we've reached a threshold number of detections, this detection is "confirmed"
+            if (!os->event_list[trigger_index].video_output.active) {
 
                 // Have we had enough detections of this object to confirm it as real?
-                const int sufficient_detections = (os->event_list[i].detection_count >= minimum_detections_for_event);
+                const int sufficient_detections = (os->event_list[trigger_index].detection_count >=
+                        minimum_detections_for_event);
 
-                // Has this object moved far enough to be a moving object, not a twinkling star?
-                double pixel_track_len = hypot(os->event_list[i].detections[N0].x - os->event_list[i].detections[N2].x,
-                                               os->event_list[i].detections[N0].y - os->event_list[i].detections[N2].y);
+                // Detections which span the whole duration of this event so far
+                const int N0 = 0;  // first detection
+                const int N2 = os->event_list[trigger_index].detection_count - 1;  // latest detection
+
+                // Has this object moved far enough across the frame to be a moving object, not a twinkling star?
+                double pixel_track_len = hypot(os->event_list[trigger_index].detections[N0].x -
+                        os->event_list[trigger_index].detections[N2].x,
+                                               os->event_list[trigger_index].detections[N0].y -
+                                               os->event_list[trigger_index].detections[N2].y);
 
                 // Reject events that don't move much -- probably a twinkling star
                 const int sufficient_movement = (pixel_track_len >= minimum_object_path_length);
 
-                // Start producing output files if this event looks plausible
+                // Start producing output files if this event has now achieved required number of detections
                 if (sufficient_movement && sufficient_detections) {
                     // We have detected a new object, seen in multiple frames
                     if (DEBUG) {
@@ -638,43 +666,34 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                         logging_info(temp_err_string);
                     }
 
-                    // Start producing output files describing this camera trigger
-                    filename_generate(os->event_list[i].filename_stub, os->obstory_id, os->utc,
+                    // Start producing output files associated with this camera trigger
+                    filename_generate(os->event_list[trigger_index].filename_stub, os->obstory_id, os->utc,
                                       "event", "triggers", os->label);
 
                     // Configuration for video file output
-                    snprintf(os->event_list[i].video_output.filename, FNAME_LENGTH,
-                             "%s%s", os->event_list[i].filename_stub, ".vid");
-                    os->event_list[i].video_output.active = 0;
-                    os->event_list[i].video_output.width = os->width;
-                    os->event_list[i].video_output.height = os->height;
-                    os->event_list[i].video_output.frames_written = 0;
-                    os->event_list[i].video_output.buffer_write_position = (
-                            (os->frame_counter - os->trigger_prefix_frame_count)
-                            % os->video_buffer_frames);
-                    os->event_list[i].video_output.buffer_end_position = -1;
+                    snprintf(os->event_list[trigger_index].video_output.filename, FNAME_LENGTH,
+                             "%s%s", os->event_list[trigger_index].filename_stub, ".vid");
+                    os->event_list[trigger_index].video_output.active = 1;
+                    os->event_list[trigger_index].video_output.width = os->width;
+                    os->event_list[trigger_index].video_output.height = os->height;
+                    os->event_list[trigger_index].video_output.buffer_write_position = os->frame_counter -
+                                                                                       os->trigger_prefix_frame_count;
+                    os->event_list[trigger_index].video_output.buffer_end_position = -1;
 
                     // Difference image, B-A, set by <check_for_triggers>
-                    write_trigger_difference_frame(os, i);
+                    write_trigger_difference_frame(os, trigger_index);
 
                     // Map of pixels which are currently excluded from triggering due to excessive variability
-                    write_trigger_mask_frame(os, i);
+                    write_trigger_mask_frame(os, trigger_index);
 
                     // Map of the pixels whose brightening caused this trigger
-                    write_trigger_map_frame(os, i);
+                    write_trigger_map_frame(os, trigger_index);
 
                     // The video frame in which this trigger was first detected
-                    write_trigger_frame(os, image1, channel_count, i);
+                    write_trigger_frame(os, image1, channel_count, trigger_index);
 
                     // The comparison frame which preceded the frame where the trigger was detected
-                    write_trigger_previous_frame(os, image2, channel_count, i);
-
-                    // Start writing video file
-                    os->event_list[i].video_output.active = 1;
-                    os->event_list[i].video_output.file_handle = dump_video_init(
-                            os->width, os->height,
-                            os->event_list[i].video_output.filename);
-
+                    write_trigger_previous_frame(os, image2, channel_count, trigger_index);
                 }
             }
         }
@@ -682,38 +701,45 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
     }
 
     // We have detected a new object. Create new event descriptor.
-    for (i = 0; i < MAX_EVENTS; i++) if (os->event_list[i].active == 0) break;
-    if (i >= MAX_EVENTS) {
+
+    // Search for first available trigger descriptor
+    int trigger_index;
+    for (trigger_index = 0; trigger_index < MAX_EVENTS; trigger_index++)
+        if (os->event_list[trigger_index].active == 0) break;
+
+    // If no descriptor available, we cannot continue
+    if (trigger_index >= MAX_EVENTS) {
         // No free event storage space
         logging_info("Ignoring trigger; no event descriptors available.");
         return;
     }
 
     // Register event in events table
-    os->event_list[i].active = 1;
-    os->event_list[i].detection_count = 1;
-    os->event_list[i].start_time = os->utc;
+    os->event_list[trigger_index].active = 1;
+    os->event_list[trigger_index].detection_count = 1;
+    os->event_list[trigger_index].start_time = os->utc;
 
     // Record first detection of this event
-    detection *d = &os->event_list[i].detections[0];
-    d->frame_count = os->frame_counter;
-    d->x = x_pos;
-    d->y = y_pos;
-    d->utc = os->utc;
-    d->pixel_count = pixel_count;
-    d->amplitude = amplitude;
+    detection *detection = &os->event_list[trigger_index].detections[0];
+    detection->frame_count = os->frame_counter;
+    detection->x = x_pos;
+    detection->y = y_pos;
+    detection->utc = os->utc;
+    detection->pixel_count = pixel_count;
+    detection->amplitude = amplitude;
 
-    // Copy the trigger frame into the stacked version of this trigger
+    // Copy the frame that triggered the camera as a starting point for the stacked frames associated with this trigger
     int j;
 #pragma omp parallel for private(j)
     for (j = 0; j < os->frame_size * channel_count; j++) {
-        os->event_list[i].stacked_image[j] = image1[j];
-        os->event_list[i].max_stack[j] = image1[j];
+        //os->event_list[trigger_index].stacked_image[j] = image1[j];
+        os->event_list[trigger_index].max_stack[j] = image1[j];
     }
 
+    // Copy the max of pixels which triggered the camera
 #pragma omp parallel for private(j)
     for (j = 0; j < os->frame_size; j++) {
-        os->event_list[i].max_trigger[j] = os->trigger_map_frame[j];
+        os->event_list[trigger_index].max_trigger[j] = os->trigger_map_frame[j];
     }
 }
 
@@ -722,110 +748,167 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
 //! \param os - Settings pertaining to the current observing run
 
 void register_trigger_ends(observe_status *os) {
-    int i;
+
+    // Pointer to the latest video frame in the rolling buffer
     unsigned char *current_frame = (os->video_buffer +
                                     (os->frame_counter % os->video_buffer_frames) * os->bytes_per_frame);
 
+    // Are we dealing with single-channel greyscale frames, or RGB video?
     const int channel_count = GREYSCALE_IMAGING ? 1 : 3;
 
-    for (i = 0; i < MAX_EVENTS; i++)
-        if (os->event_list[i].active == 1) {
-            int j;
+    // Loop through moving objects we're tracking, and see whether any of them have disappeared
+    for (int trigger_index = 0; trigger_index < MAX_EVENTS; trigger_index++)
+        if (os->event_list[trigger_index].active == 1) {
 
             // Detections which span the whole duration of this event
-            const int N0 = 0;
-            const int N2 = os->event_list[i].detection_count - 1;
+            const int N0 = 0;  // first detection
+            const int N2 = os->event_list[trigger_index].detection_count - 1;  // latest detection
 
-            // Create stack of the average brightness of each pixel over the duration of this event
-#pragma omp parallel for private(j)
-            for (j = 0; j < os->frame_size * channel_count; j++)
-                os->event_list[i].stacked_image[j] += current_frame[j];
+//            // Update the stack of the average brightness of each pixel over the duration of this event
+//#pragma omp parallel for private(j)
+//            for (j = 0; j < os->frame_size * channel_count; j++)
+//                os->event_list[trigger_index].stacked_image[j] += current_frame[j];
 
-            // Create record of the maximum brightness of each pixel over the duration of this event
+            // Update the maximum brightness of each pixel over the duration of this event
+            int j;
 #pragma omp parallel for private(j)
             for (j = 0; j < os->frame_size * channel_count; j++) {
                 const int x = current_frame[j];
-                if (x > os->event_list[i].max_stack[j]) os->event_list[i].max_stack[j] = x;
+                if (x > os->event_list[trigger_index].max_stack[j]) os->event_list[trigger_index].max_stack[j] = x;
             }
 
-            // Has event exceeded TRIGGER_MAX_DURATION?
-            const int max_event_frames = (int) (os->TRIGGER_MAX_DURATION * os->fps);
-            const int event_too_long = (os->frame_counter >
-                                        os->event_list[i].detections[N0].frame_count + max_event_frames);
-
-            // Has event disappeared?
-            const int suffix_frames = (os->event_list[i].detection_count > 1)
+            // How long must event disappear for, before we decide it has gone away?
+            const int suffix_frames = (os->event_list[trigger_index].detection_count > 1)
                                       ? os->trigger_suffix_frame_count
                                       : os->trigger_suffix_initial_frame_count;
+
+            // Has event disappeared?
             const int event_disappeared = (os->frame_counter >
-                                           os->event_list[i].detections[N2].frame_count +
-                                           suffix_frames);
+                    os->event_list[trigger_index].detections[N2].frame_count +
+                    suffix_frames);
 
-            // Test whether this event has ended
-            if (event_too_long || event_disappeared) {
-
-                // If event was not confirmed, take no further action
-                if (!os->event_list[i].video_output.active) {
-                    // logging_info("Detection not confirmed.");
-                    os->event_list[i].active = 0;
-                    continue;
-                }
-
-                // Event is now only writing video
-                os->event_list[i].active = 2;
-
-                // Work out duration of event
-                const double duration = os->event_list[i].detections[N2].utc - os->event_list[i].detections[N0].utc;
-
-                // Update counter for trigger rate throttling
-                os->trigger_throttle_counter++;
-
-                // Write path of event as JSON string
-                int amplitude_peak = 0, amplitude_time_integrated = 0;
-                {
-                    for (int j = 0; j < os->event_list[i].detection_count; j++) {
-                        const detection *d = &os->event_list[i].detections[j];
-                        amplitude_time_integrated += d->amplitude;
-                        if (d->amplitude > amplitude_peak) amplitude_peak = d->amplitude;
-                    }
-                }
-
-                // Dump stacked images of entire duration of event
-                int coAddedFrames = (os->frame_counter - os->event_list[i].detections[0].frame_count);
-
-                // Time-averaged value of each pixel over the duration of the event
-                write_trigger_time_average_frame(os, i, channel_count, duration, amplitude_peak,
-                                                 amplitude_time_integrated, coAddedFrames);
-
-                // Maximum brightness of each pixel over the duration of the event
-                write_trigger_max_brightness_frame(os, i, channel_count, duration, amplitude_peak,
-                                                   amplitude_time_integrated, coAddedFrames);
-
-                // Map of all pixels which triggered motion sensor over the duration of the event
-                write_trigger_integrated_trigger_map(os, i, duration, amplitude_peak, amplitude_time_integrated,
-                                                     coAddedFrames);
-
-                // Make sure that video of this event ends at the right time
-                os->event_list[i].video_output.buffer_end_position = os->frame_counter % os->video_buffer_frames;
-
-                write_video_metadata(os, i);
-            }
+            // If this object has disappeared, update its status accordingly
+            if (event_disappeared) moving_object_disappeared(os, trigger_index);
         }
+}
 
-    for (i = 0; i < MAX_EVENTS; i++)
-        if (os->event_list[i].video_output.active) {
-            const int still_going = dump_video_frame(
-                    os->event_list[i].video_output.width, os->event_list[i].video_output.height,
-                    os->video_buffer, os->video_buffer_frames,
-                    &os->event_list[i].video_output.buffer_write_position,
-                    &os->event_list[i].video_output.frames_written,
-                    os->event_list[i].video_output.buffer_end_position,
-                    os->event_list[i].video_output.file_handle
-            );
+//! moving_object_disappeared - Called when a moving object has disappeared, in order to mark its event descriptor
+//! accordingly.
+//! \param os - The current observing status.
+//! \param trigger_index - The number of the moving object trigger within the array <os->event_list>
 
-            if (!still_going) {
-                os->event_list[i].video_output.active = 0;
-                os->event_list[i].active = 0;
-            }
+void moving_object_disappeared(observe_status *os, int trigger_index) {
+    // Are we dealing with single-channel greyscale frames, or RGB video?
+    const int channel_count = GREYSCALE_IMAGING ? 1 : 3;
+
+    // Detections which span the whole duration of this event
+    const int N0 = 0;  // first detection
+    const int N2 = os->event_list[trigger_index].detection_count - 1;  // latest detection
+
+    // If event was not confirmed, take no further action
+    if (!os->event_list[trigger_index].video_output.active) {
+        // logging_info("Detection not confirmed.");
+        os->event_list[trigger_index].active = 0;
+        return;
+    }
+
+    // Event is now only writing video
+    os->event_list[trigger_index].active = 2;
+
+    // Work out duration of event
+    const double duration = os->event_list[trigger_index].detections[N2].utc -
+                            os->event_list[trigger_index].detections[N0].utc;
+
+    // Update counter for trigger rate throttling
+    os->trigger_throttle_counter++;
+
+    // Write path of event as JSON string
+    int amplitude_peak = 0, amplitude_time_integrated = 0;
+    {
+        for (int j = 0; j < os->event_list[trigger_index].detection_count; j++) {
+            const detection *d = &os->event_list[trigger_index].detections[j];
+            amplitude_time_integrated += d->amplitude;
+            if (d->amplitude > amplitude_peak) amplitude_peak = d->amplitude;
         }
+    }
+
+    // Dump stacked images of entire duration of event
+    int stacked_frame_count = (os->frame_counter - os->event_list[trigger_index].detections[0].frame_count);
+
+    // Time-averaged value of each pixel over the duration of the event
+//write_trigger_time_average_frame(os, trigger_index, channel_count, duration, amplitude_peak,
+//                                 amplitude_time_integrated, stacked_frame_count);
+
+    // Maximum brightness of each pixel over the duration of the event
+    write_trigger_max_brightness_frame(os, trigger_index, channel_count, duration, amplitude_peak,
+                                       amplitude_time_integrated, stacked_frame_count);
+
+    // Map of all pixels which triggered motion sensor over the duration of the event
+    write_trigger_integrated_trigger_map(os, trigger_index, duration, amplitude_peak, amplitude_time_integrated,
+                                         stacked_frame_count);
+
+    // Make sure that video of this event ends at the right time
+    os->event_list[trigger_index].video_output.buffer_end_position = os->frame_counter;
+
+    // Write metadata to associate with this video file
+    write_video_metadata(os, trigger_index);
+}
+
+//! consider_writing_video - Check whether we have moving objects waiting to write video files, in which case we may
+//! want to write them if nothing is currently moving.
+//! \param os - The current observing status.
+
+void consider_writing_video(observe_status *os) {
+    // Do we have any events whose start points will soon get over-written?
+    int about_to_overwrite = 0;
+    const int overwrite_position = os->frame_counter - os->video_buffer_frames + 5;
+    for (int trigger_index = 0; trigger_index < MAX_EVENTS; trigger_index++)
+        if (os->event_list[trigger_index].video_output.active)
+            if (os->event_list[trigger_index].video_output.buffer_write_position < overwrite_position)
+                about_to_overwrite = 1;
+
+    // Do we have any events which are active?
+    int have_active_events = 0;
+    for (int trigger_index = 0; trigger_index < MAX_EVENTS; trigger_index++)
+        if (os->event_list[trigger_index].active == 1)
+            have_active_events = 1;
+
+    // Do we have any events which need to write video?
+    int have_events_to_write = 0;
+    for (int trigger_index = 0; trigger_index < MAX_EVENTS; trigger_index++)
+        if (os->event_list[trigger_index].video_output.active)
+            have_events_to_write = 1;
+
+    // If we're about to overwrite video we want to record, then sadly we need to stop tracking objects
+    if (about_to_overwrite && have_active_events) {
+        for (int trigger_index = 0; trigger_index < MAX_EVENTS; trigger_index++)
+            if (os->event_list[trigger_index].active == 1)
+                moving_object_disappeared(os, trigger_index);
+
+        // We don't have any active events any longer!
+        have_active_events = 0;
+    }
+
+    // If we have video to record, and no active events, write the video now!
+    if (have_events_to_write && !have_active_events) {
+        // Loop over events to see which ones need to write video
+        for (int trigger_index = 0; trigger_index < MAX_EVENTS; trigger_index++)
+            if (os->event_list[trigger_index].video_output.active) {
+                dump_video(
+                        os->event_list[trigger_index].video_output.width,
+                        os->event_list[trigger_index].video_output.height,
+                        os->event_list[trigger_index].video_output.filename,
+                        os->video_buffer, os->video_buffer_frames,
+                        os->event_list[trigger_index].video_output.buffer_write_position,
+                        os->event_list[trigger_index].video_output.buffer_end_position
+                );
+
+                // Mark that this video no longer needs writing
+                os->event_list[trigger_index].video_output.active = 0;
+                os->event_list[trigger_index].active = 0;
+            }
+
+        // We should now do a new video run-in period, because the video buffer is probably quite screwed up...
+        os->run_in_frame_countdown = 100;
+    }
 }

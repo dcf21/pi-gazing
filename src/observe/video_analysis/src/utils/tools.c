@@ -268,8 +268,8 @@ void background_calculate(const int width, const int height, const int channels,
     const int i_stop = MIN(i_max, i_start + i_step);
 
     // Routine for sorting ints
-    int compare_int(const void* a, const void* b) {
-        return *((int*)a)-*((int*)b);
+    int compare_int(const void *a, const void *b) {
+        return *((int *) a) - *((int *) b);
     }
 
     // Find the mean value of each cell in the background grid
@@ -284,7 +284,7 @@ void background_calculate(const int width, const int height, const int channels,
         }
 
         // This is a slight under-estimate of the 16-bit background sky brightness
-        int mean_brightness = (sum_x / samples) - 3*256;
+        int mean_brightness = (sum_x / samples) - 3 * 256;
         if (mean_brightness < 0) mean_brightness = 0;
         background_maps[background_buffer_current + 1][i] = mean_brightness;
 
@@ -294,7 +294,7 @@ void background_calculate(const int width, const int height, const int channels,
         int sorted_values[background_buffer_count];
         for (j = 0; j < background_buffer_count; j++) {
             int v = background_maps[j + 1][i];
-            sorted_values[j] = (v>0) ? v : mean_brightness;
+            sorted_values[j] = (v > 0) ? v : mean_brightness;
         }
         qsort(sorted_values, background_buffer_count, sizeof(int), compare_int);
         background_maps[0][i] = sorted_values[2];
@@ -449,7 +449,7 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
 
     // Renormalise image data, dividing by the number of frames which have been stacked, and multiplying by gain factor
     // Producing 16-bit output, so amplify output by factor 256
-    #pragma omp parallel for private(i, d)
+#pragma omp parallel for private(i, d)
     for (i = 0; i < frame_size * channels; i++) {
         tmp_frame[i] = CLIP65536((buffer[i] * 256 - frame_count * buffer2[i]) * gain / frame_count);
     }
@@ -465,65 +465,60 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
     return 0;
 }
 
-//! dump_video_init - Open a file handle for writing a raw video to disk. Use <dump_video_frame> to write frames.
+//! dump_video - Write a video of a moving object to a binary file on disk.
 //! \param width The width of the new video
 //! \param height The height of the new video
 //! \param filename The filename for the new video file
-//! \return File handle
-
-FILE *dump_video_init(int width, int height, const char *filename) {
-
-    const int buffer_len = 0;
-
-    FILE *outfile;
-    if ((outfile = fopen(filename, "wb")) == NULL) {
-        snprintf(temp_err_string, FNAME_LENGTH, "ERROR: Cannot open output RAW video file %s.\n", filename);
-        logging_error(ERR_GENERAL, temp_err_string);
-        return NULL;
-    }
-
-    fwrite(&buffer_len, 1, sizeof(int), outfile);
-    fwrite(&width, 1, sizeof(int), outfile);
-    fwrite(&height, 1, sizeof(int), outfile);
-    return outfile;
-}
-
-//! dump_video_frame - Write a single video frame to a raw video file
-//! \param width The width of the new video
-//! \param height The height of the new video
 //! \param video_buffer The video buffer, containing YUV video, from which we should write a frame
 //! \param video_buffer_frames The size of the video buffer (number of frames)
-//! \param write_position The frame number within <video_buffer> that we should write. We advance this by one.
-//! \param frames_written The number of frames written to the raw video file so far. We advance this by one.
+//! \param write_position The frame number within <video_buffer> that we should write from.
 //! \param write_end_position Finish writing the video file if write_position == write_end_position
-//! \param output The file handle to the raw video file
-//! \return Boolean flag indicating whether the raw video file is still open
+//! \return File handle
 
-int dump_video_frame(int width, int height, const unsigned char *video_buffer, const int video_buffer_frames,
-                     int *write_position, int *frames_written, const int write_end_position,
-                     FILE *output) {
-    // Bytes per frame
-    const size_t frame_size = (size_t) (width * height * 3 / 2);
+void dump_video(int width, int height, const char *filename,
+                const unsigned char *video_buffer, const int video_buffer_frames,
+                const int write_position, const int write_end_position) {
 
-    // Write one frame
-    fseek(output, 3 * sizeof(int) + (*frames_written) * frame_size, SEEK_SET);
+    // Number of frames in this video
+    const int frame_pixels = width * height;
+    const int frame_bytes = frame_pixels * 3 / 2;
+    const int video_frames = write_end_position - write_position;
+    const int video_bytes = video_frames * frame_bytes;
 
-    fwrite(video_buffer + (*write_position) * frame_size, frame_size, 1, output);
-
-    // Update frame counter
-    (*frames_written)++;
-    *write_position = ((*write_position) + 1) % video_buffer_frames;
-
-    // Update file's metadata about how many frames it contains
-    const int buffer_len = (*frames_written) * frame_size;
-    fseek(output, 0, SEEK_SET);
-    fwrite(&buffer_len, 1, sizeof(int), output);
-
-    // Have we finished
-    if (*write_position == write_end_position) {
-        // Close output file
-        fclose(output);
-        return 0;
+    // Open a binary output file to write this video into
+    FILE *output_file;
+    if ((output_file = fopen(filename, "wb")) == NULL) {
+        snprintf(temp_err_string, FNAME_LENGTH, "ERROR: Cannot open output RAW video file %s.\n", filename);
+        logging_error(ERR_GENERAL, temp_err_string);
+        return;
     }
-    return 1;
+
+    // File headers
+    fwrite(&video_bytes, 1, sizeof(int), output_file);
+    fwrite(&width, 1, sizeof(int), output_file);
+    fwrite(&height, 1, sizeof(int), output_file);
+
+    // Work out length of video
+    int write_from = write_position % video_buffer_frames;  // frame index within buffer
+    int frames_to_go = video_frames;  // how many frames do we still have to write?
+
+    // Write chunks of video
+    while (frames_to_go > 0) {
+        // How many frames can we write without encountering buffer wrap-around?
+        const int frames_in_chunk = MIN(frames_to_go, video_buffer_frames - write_from);
+
+        // pointer to first video frame to write
+        const unsigned char *data = video_buffer + write_from * frame_bytes;
+
+        // write data
+        fwrite(data, frames_in_chunk * frame_bytes, 1, output_file);
+
+        // Update status
+        write_from = 0;
+        frames_to_go -= frames_in_chunk;
+    }
+
+    // Close output file
+    fclose(output_file);
+    return;
 }

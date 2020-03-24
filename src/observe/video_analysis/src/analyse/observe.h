@@ -25,7 +25,7 @@
 #define OBSERVE_H 1
 
 #define MAX_DETECTIONS 4096 /* Maximum detections of a single event; about 160 seconds of frames */
-#define MAX_EVENTS        3 /* Number of simultaneous events */
+#define MAX_EVENTS        2 /* Number of simultaneous events */
 
 #define MAX_TRIGGER_BLOCKS 65536
 
@@ -44,8 +44,6 @@ typedef struct video_output {
     int buffer_write_position;
     int buffer_end_position;
     char filename[FNAME_LENGTH];
-    FILE *file_handle;
-    int frames_written;
 } video_output;
 
 typedef struct event {
@@ -61,7 +59,7 @@ typedef struct event {
     char filename_stub[FNAME_LENGTH];
 
     // Stacked image, averaged over whole duration of event
-    int *stacked_image;
+    // int *stacked_image;
 
     // Maximum pixel values over whole duration of event
     int *max_stack;
@@ -89,7 +87,6 @@ typedef struct observeStatus {
     double TRIGGER_MIN_SIGNIFICANCE;
     double TRIGGER_MIN_SIGNIFICANCE_INITIAL;
 
-    int TRIGGER_MAX_DURATION;
     int TRIGGER_THROTTLE_PERIOD;
     int TRIGGER_THROTTLE_MAXEVT;
     int TIMELAPSE_EXPOSURE;
@@ -195,8 +192,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
             const double TRIGGER_SUFFIX_TIME_INITIAL, const int TRIGGER_MIN_DETECTIONS,
             const double TRIGGER_MIN_PATH_LENGTH, const double TRIGGER_MAX_MOVEMENT_PER_FRAME,
             const double TRIGGER_MIN_SIGNIFICANCE, const double TRIGGER_MIN_SIGNIFICANCE_INITIAL,
-            const int VIDEO_BUFFER_LEN, const int TRIGGER_MAX_DURATION,
-            const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT,
+            const int VIDEO_BUFFER_LEN, const int TRIGGER_THROTTLE_PERIOD, const int TRIGGER_THROTTLE_MAXEVT,
             const int TIMELAPSE_EXPOSURE, const int TIMELAPSE_INTERVAL, const int STACK_TARGET_BRIGHTNESS,
             const int BACKGROUND_MAP_FRAMES, const int BACKGROUND_MAP_SAMPLES,
             const int BACKGROUND_MAP_REDUCTION_CYCLES,
@@ -210,6 +206,10 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
                       const int amplitude, const unsigned char *image1, const unsigned char *image2);
 
 void register_trigger_ends(observe_status *os);
+
+void moving_object_disappeared(observe_status *os, int trigger_index);
+
+void consider_writing_video(observe_status *os);
 
 #endif
 

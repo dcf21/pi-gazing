@@ -48,7 +48,6 @@
 
 // Trigger parameters
 #define VIDEO_BUFFER_LENGTH  200  /* maximum period of video to buffer in ram */
-#define TRIGGER_MAX_DURATION 200  /* maximum length of video to record after trigger */
 #define TRIGGER_PREFIX_TIME   16  /* include N seconds of video after trigger */
 #define TRIGGER_SUFFIX_TIME   16  /* include N seconds of video after trigger has gone away */
 

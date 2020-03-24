@@ -170,50 +170,68 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
                     for (int xo = -1; xo <= 1; xo++)
                         os->past_trigger_map[o + yo * os->width + xo] += 100;
 
-                // Search for pixels which have brightened by more than threshold since past image
+                // Search for pixels which have brightened by more than <threshold_trigger> since previous image
                 if (test_pixel(os, image1, image2, o, threshold_trigger)) {
 #pragma omp critical (add_trigger)
                     {
-                        // Put triggering pixel on map. Wait till be have <Npixels> connected pixels.
+                        // Put triggering pixel on map.
                         os->trigger_map_frame[o] = (os->past_trigger_map[o] < 3 * past_trigger_map_average) ? 63 : 31;
                         int block_id = 0;
+
+                        // Does this block connect to an existing block to its west?
                         if (os->trigger_map[o - 1]) {
                             if (!block_id) {
                                 block_id = os->trigger_map[o - 1];
                             } else { trigger_blocks_merge(os, os->trigger_map[o - 1], block_id); }
                         }
+
+                        // Does this block connect to an existing block to its north-east?
                         if (os->trigger_map[o + 1 - os->width]) {
                             if (!block_id) {
                                 block_id = os->trigger_map[o + 1 - os->width];
                             } else { trigger_blocks_merge(os, os->trigger_map[o + 1 - os->width], block_id); }
                         }
+
+                        // Does this block connect to an existing block to its north?
                         if (os->trigger_map[o - os->width]) {
                             if (!block_id) {
                                 block_id = os->trigger_map[o - os->width];
                             } else { trigger_blocks_merge(os, os->trigger_map[o - os->width], block_id); }
                         }
+
+                        // Does this block connect to an existing block to its north-west?
                         if (os->trigger_map[o - 1 - os->width]) {
                             if (!block_id) {
                                 block_id = os->trigger_map[o - 1 - os->width];
                             } else { trigger_blocks_merge(os, os->trigger_map[o - 1 - os->width], block_id); }
                         }
+
+                        // Does this block connect to an existing block to its south-east?
                         if (os->trigger_map[o + 1 + os->width]) {
                             if (!block_id) {
                                 block_id = os->trigger_map[o + 1 + os->width];
                             } else { trigger_blocks_merge(os, os->trigger_map[o + 1 + os->width], block_id); }
                         }
+
+                        // Does this block connect to an existing block to its south?
                         if (os->trigger_map[o + os->width]) {
                             if (!block_id) {
                                 block_id = os->trigger_map[o + os->width];
                             } else { trigger_blocks_merge(os, os->trigger_map[o + os->width], block_id); }
                         }
+
+                        // Does this block connect to an existing block to its south-west?
                         if (os->trigger_map[o - 1 + os->width]) {
                             if (!block_id) {
                                 block_id = os->trigger_map[o - 1 + os->width];
                             } else { trigger_blocks_merge(os, os->trigger_map[o - 1 + os->width], block_id); }
                         }
+
+                        // If we have connected to a pre-existing block, see if it is an alias for another block
                         while (block_id && (os->trigger_block_redirect[block_id] > 0))
                             block_id = os->trigger_block_redirect[block_id];
+
+                        // If we have not connected to an existing block, make a new block
                         if (block_id == 0) {
                             if (os->block_count < MAX_TRIGGER_BLOCKS - 1) os->block_count++;
                             block_id = os->block_count;
@@ -226,6 +244,7 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
                             os->trigger_block_redirect[block_id] = 0;
                         }
 
+                        // If this pixel is not masked out, then add it to the trigger block's statistics
                         if (os->past_trigger_map[o] < 2.3 * past_trigger_map_average) {
                             os->trigger_block_count[block_id]++;
                             os->trigger_block_top[block_id] = MIN(os->trigger_block_top[block_id], y);
@@ -234,6 +253,8 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
                             os->trigger_block_sumy[block_id] += y;
                             os->trigger_block_suml[block_id] += image1[o] - image2[o];
                         }
+
+                        // Label this pixel with its appropriate block number
                         os->trigger_map[o] = block_id;
                     }
                 }
@@ -247,19 +268,18 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
     }
 
     // Loop over blocks of pixels which have brightened and see if any are large enough to be interesting
-    int i;
-    for (i = 1; i <= os->block_count; i++) {
-        if (i == MAX_TRIGGER_BLOCKS - 1) break;
-        if ((os->trigger_block_suml[i] > threshold_intensity) &&
-            (os->trigger_block_count[i] > threshold_blockSize) &&
-            (os->trigger_block_bot[i] - os->trigger_block_top[i] >= 2)
+    for (int block_index = 1; block_index <= os->block_count; block_index++) {
+        if (block_index == MAX_TRIGGER_BLOCKS - 1) break;
+        if ((os->trigger_block_suml[block_index] > threshold_intensity) &&
+            (os->trigger_block_count[block_index] > threshold_blockSize) &&
+            (os->trigger_block_bot[block_index] - os->trigger_block_top[block_index] >= 2)
                 ) {
-            const int n = os->trigger_block_count[i];
-            const int x = (os->trigger_block_sumx[i] / n); // average x position of moving object
-            const int y = (os->trigger_block_sumy[i] / n); // average y position of moving object
-            const int l = os->trigger_block_suml[i]; // total excess brightness
+            const int n = os->trigger_block_count[block_index];
+            const int x = (os->trigger_block_sumx[block_index] / n); // average x position of moving object
+            const int y = (os->trigger_block_sumy[block_index] / n); // average y position of moving object
+            const int l = os->trigger_block_suml[block_index]; // total excess brightness
             output = 1; // We have triggered!
-            register_trigger(os, i, x, y, n, l, image1, image2);
+            register_trigger(os, block_index, x, y, n, l, image1, image2);
         }
     }
     past_trigger_map_average = past_trigger_map_average_new / pixel_count_within_mask + 1;
