@@ -760,9 +760,8 @@ void register_trigger_ends(observe_status *os) {
     for (int trigger_index = 0; trigger_index < MAX_EVENTS; trigger_index++)
         if (os->event_list[trigger_index].active == 1) {
 
-            // Detections which span the whole duration of this event
-            const int N0 = 0;  // first detection
-            const int N2 = os->event_list[trigger_index].detection_count - 1;  // latest detection
+            // Latest detection of this event
+            const int N2 = os->event_list[trigger_index].detection_count - 1;
 
 //            // Update the stack of the average brightness of each pixel over the duration of this event
 //#pragma omp parallel for private(j)
