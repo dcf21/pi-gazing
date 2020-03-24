@@ -81,32 +81,39 @@ inline void trigger_blocks_merge(observe_status *os, int id_old, int id_new) {
 //! \param os - Settings pertaining to the current observing run
 //! \param image1 - The video frame which we are analysing for triggers
 //! \param image2 - The previous video frame which image1 is being compared against
-//! \param o - The offset of the pixel from the beginning of the video buffer
+//! \param buffer_offset - The offset of the pixel from the beginning of the video buffer
 //! \param threshold - The threshold increase in brightness which triggers the camera
 //! \return Boolean flag indicating whether this pixel has brightened by an interesting amount
 
 static inline int test_pixel(observe_status *os,
                              const unsigned char *image1, const unsigned char *image2,
-                             const int o, const int threshold) {
+                             const int buffer_offset, const int threshold) {
     // Pixel must be brighter than test pixels this distance away
     const int radius = 16;
 
     // Search for pixels which have brightened by more than threshold since past image
-    if (image1[o] - image2[o] > threshold) {
+    if (image1[buffer_offset] - image2[buffer_offset] > threshold) {
         // Make a 3x3 grid of pixels of pixels at a spacing of radius pixels.
-        // This pixel must be brighter than 6/9 of these pixels were
-        int i, j, c = 0;
-        for (i = -1; i <= 1; i++)
-            for (j = -1; j <= 1; j++)
-                if (image1[o] - image2[o + (j + i * os->width) * radius] > threshold)c++;
-        if (c > 7) {
+        // This pixel must be brighter than 8/9 of these pixels were before
+        int pixel_count = 0;
+        for (int y_offset = -1; y_offset <= 1; y_offset++)
+            for (int x_offset = -1; x_offset <= 1; x_offset++)
+                if (image1[buffer_offset] -
+                    image2[buffer_offset + (x_offset + y_offset * os->width) * radius] > threshold) {
+                    pixel_count++;
+                }
+
+        if (pixel_count > 7) {
             // Make a 3x3 grid of pixels of pixels at a spacing of radius pixels.
-            // This pixel must be brighter than 6/9 of these pixels were
-            int i, j, c = 0;
-            for (i = -1; i <= 1; i++)
-                for (j = -1; j <= 1; j++)
-                    if (image1[o] - image1[o + (j + i * os->width) * radius] > threshold)c++;
-            if (c > 6) return 1;
+            // This pixel must be brighter than 7/9 of these pixels are now
+            int pixel_count_b = 0;
+            for (int y_offset = -1; y_offset <= 1; y_offset++)
+                for (int x_offset = -1; x_offset <= 1; x_offset++)
+                    if (image1[buffer_offset] -
+                        image1[buffer_offset + (x_offset + y_offset * os->width) * radius] > threshold) {
+                        pixel_count_b++;
+                    }
+            if (pixel_count_b > 6) return 1;
         }
     }
     return 0;
@@ -126,7 +133,7 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
     const int margin = 20;
 
     // To trigger this number of pixels connected together must have brightened
-    const int threshold_blockSize = 7;
+    const int threshold_block_size = 7;
 
     // Total brightness excess must be 50 standard deviations
     const int threshold_intensity = (int) (os->TRIGGER_MIN_SIGNIFICANCE * os->noise_level);
@@ -141,26 +148,32 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
     memset(os->trigger_map, 0, os->frame_size * sizeof(int));
     os->block_count = 0;
 
+    // Work out the sum of the pixel values in <past_trigger_map>. Use this to work out required significance level
+    // next time this routine is run.
     static unsigned long long past_trigger_map_average = 1;
     unsigned int pixel_count_within_mask = 1;
     unsigned long long past_trigger_map_average_new = 0;
 
+    // Loop over pixels in the image, searching for triggers
 #pragma omp parallel for private(y)
     for (y = margin; y < os->height - margin; y++) {
         int x, d;
+
+        // Work out the sum of the pixel values in <past_trigger_map> along this line
         int trigger_map_line_sum = 0, pixel_count_within_mask_line_sum = 0;
+
         for (x = margin; x < os->width - margin; x++) {
             const int o = x + y * os->width;
             trigger_map_line_sum += os->past_trigger_map[o];
             if (os->mask[o]) pixel_count_within_mask_line_sum++;
 
-            // Difference between images B and A
+            // Compile a difference between images B and A
             os->difference_frame[o] = CLIP256((image1[o] - image2[o]) * 64 / threshold_trigger);
 
-            // Map of pixels which are excluded for triggering too often
+            // Compile a map of pixels which are excluded for triggering too often
             os->trigger_mask_frame[o] = CLIP256(os->past_trigger_map[o] * 256 / (2.3 * past_trigger_map_average));
 
-            // Blank for now; will put spots where triggers happen
+            // Compile a blank image for now; will put spots where triggers happen
             os->trigger_map_frame[o] = 0;
 
             if ((os->mask[o]) && test_pixel(os, image1, image2, o, threshold_monitor)) {
@@ -262,6 +275,8 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
         }
 #pragma omp critical (trigger_cleanup)
         {
+            // Work out average value of <past_trigger_map>. We do the accumulation in an <omp critical> block to
+            // avoid race conditions.
             past_trigger_map_average_new += trigger_map_line_sum;
             pixel_count_within_mask += pixel_count_within_mask_line_sum;
         }
@@ -271,7 +286,7 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
     for (int block_index = 1; block_index <= os->block_count; block_index++) {
         if (block_index == MAX_TRIGGER_BLOCKS - 1) break;
         if ((os->trigger_block_suml[block_index] > threshold_intensity) &&
-            (os->trigger_block_count[block_index] > threshold_blockSize) &&
+            (os->trigger_block_count[block_index] > threshold_block_size) &&
             (os->trigger_block_bot[block_index] - os->trigger_block_top[block_index] >= 2)
                 ) {
             const int n = os->trigger_block_count[block_index];
@@ -282,6 +297,8 @@ int check_for_triggers(observe_status *os, const unsigned char *image1, const un
             register_trigger(os, block_index, x, y, n, l, image1, image2);
         }
     }
+
+    // Update the past trigger map average with the newly computed value
     past_trigger_map_average = past_trigger_map_average_new / pixel_count_within_mask + 1;
     return output;
 }

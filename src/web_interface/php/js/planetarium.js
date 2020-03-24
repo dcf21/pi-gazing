@@ -25,14 +25,6 @@ function Planetarium(settings, context) {
         }
     );
 
-    // Fade overlay into place
-    setTimeout(function () {
-        self.resize();
-        if (self.getInputSwitch("chkoverlay", true)) {
-            $(".PLbuf0").stop().fadeIn(2500);
-        }
-    }, 1000);
-
     // Styling information
     this.styling = {
         "radecol": "rgba(255,128,0,0.75)",
@@ -93,13 +85,23 @@ Planetarium.prototype.setup_2 = function () {
     // Draw Planetarium
     this.resize();
 
+    // Fade overlay into place
+    setTimeout(function () {
+        self.resize();
+        if (self.getInputSwitch("chkoverlay", true)) {
+            $(".PLbuf0").stop().fadeIn(2500);
+        }
+    }, 1000);
+
+    // Update display when the window is resized
     $(window).resize(function () {
         self.resize()
     });
 
+    // Poll for configuration changes 4 times a second
     setInterval(function () {
         self.updateAlarm();
-    }, 200); // poll for mouse moves at 5fps
+    }, 250);
 };
 
 Planetarium.prototype.rotate_xy = function (a, theta) {
@@ -201,6 +203,11 @@ Planetarium.prototype.inv_gnom_project = function (x, y) {
 };
 
 Planetarium.prototype.updateAlarm = function () {
+    // Check if the image has been resized
+    var current_width = $(".planetarium_image", this.context).width();
+    if (current_width !== this.width) this.resize();
+
+    // Check if we need to update display
     if (!this.refresh) return;
     this.refresh = this.draw();
 };
