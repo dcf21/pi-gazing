@@ -30,8 +30,10 @@ import logging
 import math
 import os
 import re
+import dask
 import subprocess
 import time
+import operator
 from math import pi, floor
 from operator import itemgetter
 
@@ -41,6 +43,7 @@ from pigazing_helpers.dcf_ast import date_string
 from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 from pigazing_helpers.sunset_times import alt_az, get_zenith_position, mean_angle, mean_angle_2d
+from pigazing_helpers.gnomonic_project import ang_dist
 
 
 def image_dimensions(in_file):
@@ -140,9 +143,9 @@ ORDER BY obsTime DESC LIMIT 1
     results = conn.fetchall()
     utc_max = results[0]['obsTime'] + 1
 
-    # Divide up time interval into 15 minute blocks
+    # Divide up time interval into 7.5 minute blocks
     logging.info("Searching for images within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
-    block_size = 900
+    block_size = 450
     minimum_sky_clarity = 400
     time_blocks = list(np.arange(start=utc_min, stop=utc_max, step=block_size))
 
@@ -197,23 +200,10 @@ ORDER BY am.floatValue DESC LIMIT 1
     # Path the binary barrel-correction tool
     barrel_correct = os.path.join(settings['imageProcessorPath'], "lensCorrect")
 
-    # Analyse each image in turn
-    for item_index, item in enumerate(images_for_analysis):
+    @dask.delayed
+    def analyse_image(item_index, item, obstory_status, lens_props):
         logging.info("Working on image {:32s} ({:4d}/{:4d})".format(item['repositoryFname'],
                                                                     item_index + 1, len(images_for_analysis)))
-
-        # Fetch observatory status
-        obstory_info = db.get_obstory_from_id(obstory_id)
-        obstory_status = None
-        if obstory_info and ('name' in obstory_info):
-            obstory_status = db.get_obstory_status(obstory_id=obstory_id, time=item['utc'])
-        if not obstory_status:
-            logging.info("Aborting -- no observatory status available.")
-            continue
-
-        # Fetch observatory status
-        lens_name = obstory_status['lens']
-        lens_props = hw.lens_data[lens_name]
 
         # This is an estimate of the *maximum* angular width we expect images to have.
         # It should be within a factor of two of correct!
@@ -221,18 +211,16 @@ ORDER BY am.floatValue DESC LIMIT 1
 
         # Make a temporary directory to store files in.
         # This is necessary as astrometry.net spams the cwd with lots of temporary junk
-        cwd = os.getcwd()
         tmp = "/tmp/dcf21_orientationCalc_{}".format(item['repositoryFname'])
         # logging.info("Created temporary directory <{}>".format(tmp))
         os.system("mkdir %s" % tmp)
-        os.chdir(tmp)
 
         # Find image orientation orientation
         filename = os.path.join(settings['dbFilestore'], item['repositoryFname'])
 
         if not os.path.exists(filename):
             logging.info("Error: File <{}> is missing!".format(item['repositoryFname']))
-            continue
+            return
 
         # Look up barrel distortion
         lens_barrel_k1 = obstory_status.get('calibration:lens_barrel_k1', lens_props.barrel_k1)
@@ -241,50 +229,57 @@ ORDER BY am.floatValue DESC LIMIT 1
         # 1. Copy image into working directory
         # logging.info("Copying file")
         img_name = item['repositoryFname']
-        command = "cp {} {}_tmp.png".format(filename, img_name)
+        command = "cp {} {}/{}_tmp.png".format(filename, tmp, img_name)
         # logging.info(command)
         os.system(command)
 
         # 2. Barrel-correct image
         # logging.info("Lens-correcting image")
-        command = "{} -i {}_tmp.png --barrel-k1 {:.6f} --barrel-k2 {:.6f} -o {}_tmp2".format(barrel_correct, img_name,
-                                                                                             lens_barrel_k1,
-                                                                                             lens_barrel_k2,
-                                                                                             img_name)
+        command = """
+cd {5} ; \
+{0} -i {1}_tmp.png --barrel-k1 {2:.6f} --barrel-k2 {3:.6f} -o {4}_tmp2
+""".format(barrel_correct, img_name, lens_barrel_k1, lens_barrel_k2, img_name, tmp)
         # logging.info(command)
         os.system(command)
 
         # 3. Pass only central portion of image to astrometry.net. It's not very reliable with wide-field images
         # logging.info("Extracting central portion of image")
-        d = image_dimensions("%s_tmp2.png" % img_name)
+        d = image_dimensions("{}/{}_tmp2.png".format(tmp, img_name))
         command = """
-convert {}_tmp2.png -colorspace sRGB -define png:format=png24 -crop {:d}x{:d}+{:d}+{:d} +repage {}_tmp3.png
+cd {6} ; \
+rm -f {5}_tmp3.png ; \
+convert {0}_tmp2.png -colorspace sRGB -define png:format=png24 -crop {1:d}x{2:d}+{3:d}+{4:d} +repage {5}_tmp3.png
 """.format(img_name,
            int(fraction_x * d[0]), int(fraction_y * d[1]),
            int((1 - fraction_x) * d[0] / 2), int((1 - fraction_y) * d[1] / 2),
-           img_name)
+           img_name,
+           tmp)
         # logging.info(command)
         os.system(command)
 
         # Check that we've not run out of time
         if utc_must_stop and (time.time() > utc_must_stop):
             logging.info("We have run out of time! Aborting.")
-            continue
+            return
 
         # How long should we allow astrometry.net to run for?
         timeout = "1m" if settings['i_am_a_rpi'] else "15s"
 
         # Run astrometry.net. Insert --no-plots on the command line to speed things up.
-        logging.info("Running astrometry.net")
+        # logging.info("Running astrometry.net")
         astrometry_start_time = time.time()
+        astrometry_output = os.path.join(tmp, "txt")
         estimated_width = 2 * math.atan(math.tan(estimated_image_scale / 2 * deg) * fraction_x) * rad
         command = """
-timeout {} solve-field --no-plots --crpix-center --scale-low {:.1f} \
-        --scale-high {:.1f} --overwrite {}_tmp3.png > txt 2> /dev/null \
+cd {5} ; \
+timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
+        --scale-high {2:.1f} --overwrite {3}_tmp3.png > {4} 2> /dev/null \
 """.format(timeout,
            estimated_width * 0.6,
            estimated_width * 1.2,
-           img_name)
+           img_name,
+           astrometry_output,
+           tmp)
         # logging.info(command)
         os.system(command)
 
@@ -293,12 +288,43 @@ timeout {} solve-field --no-plots --crpix-center --scale-low {:.1f} \
         log_msg = "Astrometry.net took {:.0f} sec. ".format(astrometry_time_taken)
 
         # Parse the output from astrometry.net
-        fit_text = open("txt").read()
+        assert os.path.exists(astrometry_output), "Path <{}> doesn't exist".format(astrometry_output)
+        fit_text = open(astrometry_output).read()
         # logging.info(fit_text)
 
         # Clean up
-        os.chdir(cwd)
         os.system("rm -Rf {}".format(tmp))
+
+        # Return output from astrometry.net
+        return fit_text, log_msg
+
+    # Fetch observatory's database record
+    obstory_info = db.get_obstory_from_id(obstory_id)
+
+    # Analyse each image in turn
+    dask_tasks = []
+    for item_index, item in enumerate(images_for_analysis):
+        # Fetch observatory status at time of observation
+        obstory_status = None
+        if obstory_info and ('name' in obstory_info):
+            obstory_status = db.get_obstory_status(obstory_id=obstory_id, time=item['utc'])
+        if not obstory_status:
+            logging.info("Aborting -- no observatory status available.")
+            return
+
+        # Fetch properties of the lens being used at the time of the observation
+        lens_name = obstory_status['lens']
+        lens_props = hw.lens_data[lens_name]
+
+        dask_tasks.append(analyse_image(item_index=item_index, item=item,
+                                        obstory_status=obstory_status, lens_props=lens_props))
+    fit_text_list = dask.compute(*dask_tasks)
+
+    # Clean up
+    os.system("rm -Rf /tmp/tmp.*")
+
+    # Extract results from astrometry.net
+    for item_index, (item, (fit_text, log_msg)) in enumerate(zip(images_for_analysis, fit_text_list)):
 
         # Extract celestial coordinates of the centre of the frame from astrometry.net output
         test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",
@@ -450,25 +476,41 @@ WHERE
             logging.info("Insufficient images to reliably average.")
             continue
 
+        # Convert alt-az fits into radians and average
+        alt_az_list_r = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results]
+        [alt_az_best, alt_az_error] = mean_angle_2d(alt_az_list_r)
+
+        # Work out the offset of each fit from the average
+        fit_offsets = [ang_dist(ra0=alt_az_best[1], dec0=alt_az_best[0],
+                                ra1=fitted_alt_az[1], dec1=fitted_alt_az[1])
+                       for fitted_alt_az in alt_az_list_r]
+
+        # Reject the 10% of fits which are further from the average
+        rejection_count = int(len(results) * 0.10)
+        fits_with_weights = list(zip(fit_offsets, results))
+        fits_with_weights.sort(key=operator.itemgetter(0))
+        fits_with_weights.reverse()
+        results_filtered = [item[1] for item in fits_with_weights[rejection_count:]]
+
+        # Convert alt-az fits into radians and average
+        alt_az_list_r = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results_filtered]
+        [alt_az_best, alt_az_error] = mean_angle_2d(alt_az_list_r)
+
         # Average camera tilt measurements
-        tilt_list = [i['tilt'] * deg for i in results]
+        tilt_list = [i['tilt'] * deg for i in results_filtered]
         camera_tilt_best = mean_angle(tilt_list)[0]
 
         # Average position angle measurements
-        pa_list = [i['pa'] * deg for i in results]
+        pa_list = [i['pa'] * deg for i in results_filtered]
         position_angle_best = mean_angle(pa_list)[0]
 
         # Average field-width measurements
-        scale_x_list = [i['width_x_field'] * deg for i in results]
+        scale_x_list = [i['width_x_field'] * deg for i in results_filtered]
         scale_x_best = mean_angle(scale_x_list)[0]
 
         # Average field-height measurements
-        scale_y_list = [i['width_y_field'] * deg for i in results]
+        scale_y_list = [i['width_y_field'] * deg for i in results_filtered]
         scale_y_best = mean_angle(scale_y_list)[0]
-
-        # Convert alt-az fits into radians
-        alt_az_list_r = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results]
-        [alt_az_best, alt_az_error] = mean_angle_2d(alt_az_list_r)
 
         # Print fit information
         success = (alt_az_error * rad < 0.6)
@@ -476,7 +518,7 @@ WHERE
         logging.info("""\
 {} ORIENTATION FIT from {:2d} images: Alt: {:.2f} deg. Az: {:.2f} deg. PA: {:.2f} deg. \
 ScaleX: {:.2f} deg. ScaleY: {:.2f} deg. Uncertainty: {:.2f} deg.\
-""".format(adjective, len(results),
+""".format(adjective, len(results_filtered),
            alt_az_best[0] * rad,
            alt_az_best[1] * rad,
            camera_tilt_best * rad,

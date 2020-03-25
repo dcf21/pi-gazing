@@ -290,7 +290,6 @@ ORDER BY am.floatValue DESC LIMIT 1
         tmp0 = "/tmp/dcf21_orientationCalc_{}".format(item['repositoryFname'])
         # logging.info("Created temporary directory <{}>".format(tmp))
         os.system("mkdir {}".format(tmp0))
-        os.chdir(tmp0)
 
         # Fetch observatory status
         obstory_info = db.get_obstory_from_id(obstory_id)
@@ -319,7 +318,7 @@ ORDER BY am.floatValue DESC LIMIT 1
         # 1. Copy image into working directory
         # logging.info("Copying file")
         img_name = item['repositoryFname']
-        command = "cp {} {}_tmp.png".format(filename, img_name)
+        command = "cp {} {}/{}_tmp.png".format(filename, tmp0, img_name)
         # logging.info(command)
         os.system(command)
 
@@ -357,7 +356,7 @@ ORDER BY am.floatValue DESC LIMIT 1
             portion_centres.append({'x': z, 'y': 0.5})
 
         # Fetch the pixel dimensions of the image we are working on
-        d = image_dimensions("{}_tmp.png".format(img_name))
+        d = image_dimensions("{}/{}_tmp.png".format(tmp0, img_name))
 
         @dask.delayed
         def analyse_image_portion(image_portion):
@@ -417,6 +416,8 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
             assert os.path.exists(astrometry_output), "Path <{}> doesn't exist".format(astrometry_output)
             fit_text = open(astrometry_output).read()
             # logging.info(fit_text)
+
+            # Extract celestial coordinates of the centre of the frame from astrometry.net output
             test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",
                              fit_text)
             if not test:
@@ -462,7 +463,6 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         fit_list = [i for i in fit_list if i is not None]
 
         # Clean up
-        os.chdir(cwd0)
         os.system("rm -Rf {}".format(tmp0))
 
         # Make histogram of fits as a function of radius
