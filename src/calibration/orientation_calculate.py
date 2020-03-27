@@ -44,6 +44,7 @@ from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 from pigazing_helpers.sunset_times import alt_az, get_zenith_position, mean_angle, mean_angle_2d
 from pigazing_helpers.gnomonic_project import ang_dist
+from pigazing_helpers.obsarchive.obsarchive_sky_area import get_sky_area
 
 
 def image_dimensions(in_file):
@@ -296,7 +297,7 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         os.system("rm -Rf {}".format(tmp))
 
         # Return output from astrometry.net
-        return fit_text, log_msg
+        return fit_text, log_msg, astrometry_time_taken
 
     # Fetch observatory's database record
     obstory_info = db.get_obstory_from_id(obstory_id)
@@ -324,7 +325,8 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
     os.system("rm -Rf /tmp/tmp.*")
 
     # Extract results from astrometry.net
-    for item_index, (item, (fit_text, log_msg)) in enumerate(zip(images_for_analysis, fit_text_list)):
+    for item_index, (item, (fit_text, log_msg, astrometry_time_taken)) \
+            in enumerate(zip(images_for_analysis, fit_text_list)):
 
         # Extract celestial coordinates of the centre of the frame from astrometry.net output
         test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",
@@ -397,9 +399,28 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
                      (ra, dec, celestial_pa, scale_x, scale_y, ra_zenith, dec_zenith, zenith_pa,
                       alt_az_pos[0], alt_az_pos[1], camera_tilt))
 
+        # Get a polygon representing the sky area of this image
+        sky_area = get_sky_area(ra=ra, dec=dec, pa=celestial_pa, scale_x=scale_x, scale_y=scale_y)
+
+        # Update observation database record
+        timestamp = time.time()
+        conn.execute("""
+UPDATE archive_observations SET position=POINT(%s,%s), positionAngle=%s,
+                                altAz=POINT(%s,%s), altAzPositionAngle=%s,
+                                fieldWidth=%s, fieldHeight=%s,
+                                astrometryProcessed=%s, astrometryProcessingTime=%s,
+                                skyArea=ST_GEOMFROMTEXT(%s)
+WHERE publicId=%s;
+                     """, (ra, dec, celestial_pa,
+                           alt_az_pos[1], alt_az_pos[0], camera_tilt,
+                           scale_x, scale_y,
+                           timestamp, astrometry_time_taken,
+                           sky_area,
+                           item['observationId']))
+        db0.commit()
+
         # Update observation status
         user = settings['pigazingUser']
-        timestamp = time.time()
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:ra", value=ra))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
@@ -416,6 +437,7 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
                                     meta=mp.Meta(key="orientation:width_x_field", value=scale_x))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:width_y_field", value=scale_y))
+        db.commit()
 
     # Commit metadata changes
     db.commit()

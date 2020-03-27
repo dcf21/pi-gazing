@@ -53,6 +53,9 @@ $tmax = $getargs->readTime('year2', 'month2', 'day2', 'hour2', 'min2', null, $co
 // Which observatory are we searching for images from?
 $obstory = $getargs->readObservatory("obstory");
 
+// Which category of objects are we to show
+$item_category = $getargs->readCategory("category");
+
 // Swap times if they are the wrong way round
 if ($tmax['utc'] < $tmin['utc']) {
     $tmp = $tmax;
@@ -110,7 +113,12 @@ $pageTemplate->header($pageInfo);
                         <?php
                         $getargs->makeFormSelect("day1", $tmin['day'], range(1, 31), 0);
                         $getargs->makeFormSelect("month1", $tmin['mc'], $getargs->months, 0);
-                        $getargs->makeFormSelect("year1", $tmin['year'], range($const->yearMin, $const->yearMax), 0);
+                        ?>
+                        <input name="year1" class="year" style="max-width:80px;"
+                               type="number" step="1"
+                               min="<?php echo $const->yearMin; ?>" max="<?php echo $const->yearMax; ?>"
+                               value="<?php echo $tmin['year']; ?>"/>
+                        <?php
                         print "</span><span>";
                         $getargs->makeFormSelect("hour1", $tmin['hour'], $getargs->hours, 0);
                         print "&nbsp;<b>:</b>&nbsp;";
@@ -131,7 +139,12 @@ $pageTemplate->header($pageInfo);
                         <?php
                         $getargs->makeFormSelect("day2", $tmax['day'], range(1, 31), 0);
                         $getargs->makeFormSelect("month2", $tmax['mc'], $getargs->months, 0);
-                        $getargs->makeFormSelect("year2", $tmax['year'], range($const->yearMin, $const->yearMax), 0);
+                        ?>
+                        <input name="year2" class="year" style="max-width:80px;"
+                               type="number" step="1"
+                               min="<?php echo $const->yearMin; ?>" max="<?php echo $const->yearMax; ?>"
+                               value="<?php echo $tmax['year']; ?>"/>
+                        <?php
                         print "</span><span>";
                         $getargs->makeFormSelect("hour2", $tmax['hour'], $getargs->hours, 0);
                         print "&nbsp;<b>:</b>&nbsp;";
@@ -158,7 +171,7 @@ $pageTemplate->header($pageInfo);
             </div>
             <div class="search-form-column col-lg-6">
 
-                <div style="margin-top:25px;"><span class="formlabel">Duration of appearance</span></div>
+                <div><span class="formlabel">Duration of appearance</span></div>
                 <div class="tooltip-holder"><span
                             data-toggle="tooltip" data-pos="tooltip-above"
                             title="Search for objects visible for longer than this period. Set to around 5 sec to see only planes and satellites."
@@ -185,6 +198,19 @@ $pageTemplate->header($pageInfo);
                     />&nbsp;seconds
                 </span></div>
 
+                <div style="margin-top:25px;"><span class="formlabel">Categorised as</span></div>
+                <div class="tooltip-holder">
+                    <span class="formlabel2"></span>
+
+                    <div class="form-group-dcf"
+                         data-toggle="tooltip" data-pos="tooltip-below"
+                         title="Use this to display only events which have already been categorised as being of particular types of object."
+                    >
+                        <?php
+                        $getargs->makeFormSelect("category", $item_category, $getargs->category_list, 1);
+                        ?>
+                    </div>
+                </div>
 
             </div>
         </div>
@@ -209,7 +235,17 @@ if ($searching) {
 
     $where = ["o.obsTime BETWEEN {$tmin['utc']} AND {$tmax['utc']}"];
 
-    if ($obstory != "Any") $where[] = 'l.publicId="' . $obstory . '"';
+    if ($obstory != "Any") {
+        $where[] = 'l.publicId="' . $obstory . '"';
+    }
+
+    if ($item_category != "Any") {
+        if ($item_category == "Not set") {
+            $where[] = 'd5.stringValue IS NULL';
+        } else {
+            $where[] = 'd5.stringValue="' . $item_category . '"';
+        }
+    }
 
     $search = ("
 archive_observations o

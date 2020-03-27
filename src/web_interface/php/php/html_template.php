@@ -269,50 +269,78 @@ __HTML__;
 
                     <ul class="nav navbar-nav">
                         <li class="nav-item <?php if ($pageInfo["activeTab"] == "home") echo "active "; ?>">
-                            <a class="nav-link" href="/">Home</a>
+                            <a class="nav-link" href="<?php echo $server; ?>">
+                                Home
+                            </a>
                         </li>
                         <li class="nav-item <?php if ($pageInfo["activeTab"] == "whattodo") echo "active "; ?>">
-                            <a class="nav-link" href="/whattodo.php">What to do</a>
+                            <a class="nav-link" href="<?php echo $server; ?>whattodo.php">
+                                What to do
+                            </a>
                         </li>
                         <li class="nav-item dropdown <?php if ($pageInfo["activeTab"] == "search") echo "active "; ?>">
-                            <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">Search the sky<span
-                                        class="caret"></span></a>
+                            <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">
+                                Search the sky<span class="caret"></span>
+                            </a>
                             <div class="dropdown-menu">
-                                <a class="dropdown-item" href="<?php echo $server; ?>search_moving.php">Moving
-                                    objects</a>
-                                <a class="dropdown-item" href="<?php echo $server; ?>search_still.php">Still
-                                    photography</a>
-                                <a class="dropdown-item" href="<?php echo $server; ?>search_multi.php">Multi-camera
-                                    detections</a>
-                                <a class="dropdown-item" href="<?php echo $server; ?>search_highlights.php">Featured
-                                    images</a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>search_moving.php">
+                                    Moving objects
+                                </a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>search_still.php">
+                                    Still photography
+                                </a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>search_multi.php">
+                                    Multi-camera detections
+                                </a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>search_highlights.php">
+                                    Featured images
+                                </a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>sky_coverage.php">
+                                    Sky coverage chart
+                                </a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>sky_clarity.php">
+                                    Sky clarity charts
+                                </a>
                             </div>
                         </li>
                         <li class="nav-item <?php if ($pageInfo["activeTab"] == "projects") echo "active "; ?>">
-                            <a class="nav-link" href="/projects.php">Projects</a>
+                            <a class="nav-link" href="<?php echo $server; ?>projects.php">
+                                Projects
+                            </a>
                         </li>
                         <li class="nav-item <?php if ($pageInfo["activeTab"] == "howitworks") echo "active "; ?>">
-                            <a class="nav-link" href="/howitworks.php">How it works</a>
+                            <a class="nav-link" href="<?php echo $server; ?>howitworks.php">
+                                How it works
+                            </a>
                         </li>
                         <li class="nav-item dropdown <?php if ($pageInfo["activeTab"] == "cameras") echo "active "; ?>">
-                            <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">Cameras<span
-                                        class="caret"></span></a>
+                            <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">
+                                Cameras<span class="caret"></span>
+                            </a>
                             <div class="dropdown-menu">
-                                <a class="dropdown-item" href="<?php echo $server; ?>map.php">Locations</a>
-                                <a class="dropdown-item" href="<?php echo $server; ?>observatory_activity_all.php">Activity
-                                    tracker</a>
-                                <a class="dropdown-item" href="<?php echo $server; ?>observatory_metadata.php">Status
-                                    information</a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>map.php">
+                                    Locations
+                                </a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>observatory_activity_all.php">
+                                    Activity tracker
+                                </a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>observatory_metadata.php">
+                                    Status information
+                                </a>
                             </div>
                         </li>
                         <li class="nav-item <?php if ($pageInfo["activeTab"] == "faqs") echo "active "; ?>">
-                            <a class="nav-link" href="/faqs.php">FAQs</a>
+                            <a class="nav-link" href="<?php echo $server; ?>faqs.php">
+                                FAQs
+                            </a>
                         </li>
                         <li class="nav-item <?php if ($pageInfo["activeTab"] == "about") echo "active "; ?>">
-                            <a class="nav-link" href="/about.php">About</a>
+                            <a class="nav-link" href="<?php echo $server; ?>about.php">
+                                About
+                            </a>
                         </li>
                         <li class="nav-item <?php if ($pageInfo["activeTab"] == "login") echo "active "; ?>">
-                            <a class="nav-link" href="/user/login.php">
+                            <a class="nav-link" href="<?php echo $server; ?>user/login.php">
                                 <?php if (is_null($user->username)): ?>
                                     <i class="fa fa-user-plus" aria-hidden="true"></i>&nbsp;Log in
                                 <?php else: ?>

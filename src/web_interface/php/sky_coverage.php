@@ -1,6 +1,6 @@
 <?php
 
-// search_still.php
+// sky_coverage.php
 // Pi Gazing
 // Dominic Ford
 
@@ -29,7 +29,7 @@ require_once "php/html_getargs.php";
 $getargs = new html_getargs(true);
 
 $pageInfo = [
-    "pageTitle" => "Search for still images",
+    "pageTitle" => "Sky coverage charts",
     "pageDescription" => "Pi Gazing",
     "activeTab" => "search",
     "teaserImg" => null,
@@ -39,14 +39,9 @@ $pageInfo = [
     "options" => []
 ];
 
-// Paging options
-$pageSize = 24;
-$pageNum = 1;
-if (array_key_exists("page", $_GET) && is_numeric($_GET["page"])) $pageNum = $_GET["page"];
-
 // Read which time range to cover
 $t2 = time();
-$t1 = $t2 - 3600 * 24 * 365;
+$t1 = $t2 - 2 * 3600 * 24;
 $tmin = $getargs->readTime('year1', 'month1', 'day1', 'hour1', 'min1', null, $const->yearMin, $const->yearMax, $t1);
 $tmax = $getargs->readTime('year2', 'month2', 'day2', 'hour2', 'min2', null, $const->yearMin, $const->yearMax, $t2);
 
@@ -61,36 +56,16 @@ if ($tmax['utc'] < $tmin['utc']) {
 }
 
 // Read image options
-$flag_bgsub = 0;
 $flag_highlights = 1;
-
-if (array_key_exists("flag_bgsub", $_GET)) $flag_bgsub = 1;
-if (array_key_exists("flag_highlights", $_GET)) $flag_highlights = 1;
-if (array_key_exists("defaults", $_GET)) $flag_highlights = 1;
-
-// Read sky clarity options
-$sky_clarity_min = 400;
-
-if (array_key_exists("clarity", $_GET) && is_numeric($_GET["clarity"])) {
-    $sky_clarity_min = intval($_GET["clarity"]);
-    if ($sky_clarity_min < 0) $sky_clarity_min = 0;
-    if ($sky_clarity_min > 3000) $sky_clarity_min = 3000;
-}
-
-// Set default options for if we are not searching
-if (!array_key_exists('obstory', $_GET)) {
-    $flag_highlights = 1;
-}
 
 $pageTemplate->header($pageInfo);
 
 ?>
 
     <p>
-        Our cameras take long 30-second exposures of the sky every 30 seconds, and you can use this form to browse
-        through these still images and discover what the sky looked like at any time in the past.
+        Use this form to generate charts of sky areas covered by Pi Gazing cameras.
     </p>
-    <form class="form-horizontal search-form" method="get" action="search_still.php#results">
+    <form class="form-horizontal search-form" method="get" action="sky_coverage.php#results">
 
         <div style="cursor:pointer;text-align:right;">
             <button type="button" class="btn btn-secondary btn-sm help-toggle">
@@ -99,7 +74,7 @@ $pageTemplate->header($pageInfo);
             </button>
         </div>
         <div class="row">
-            <div class="search-form-column col-lg-6">
+            <div class="search-form-column col-lg-12">
 
                 <div><span class="formlabel">Time of observation</span></div>
                 <div class="tooltip-holder">
@@ -174,51 +149,6 @@ $pageTemplate->header($pageInfo);
                 </div>
 
             </div>
-            <div class="search-form-column col-lg-6">
-
-                <div style="margin-top:25px;"><span class="formlabel">Image options</span></div>
-
-                <div class="tooltip-holder" style="display:inline-block;">
-                    <div class="checkbox" data-toggle="tooltip" data-pos="tooltip-top"
-                         title="Automatically remove light pollution. In clear conditions this makes more stars visible, but it can lead to strange artifacts when cloudy."
-                    >
-                        <label>
-                            <input type="checkbox" name="flag_bgsub"
-                                <?php if ($flag_bgsub) echo 'checked="checked"'; ?> >
-                            Remove light pollution
-                        </label>
-                    </div>
-                </div>
-                <br/>
-                <div class="tooltip-holder" style="display:inline-block; padding:0;">
-                    <div class="checkbox" data-toggle="tooltip" data-pos="tooltip-right"
-                         title="Show only one image per ten-minute interval. Without this, you will see large numbers of similar images."
-                    >
-                        <label>
-                            <input type="checkbox" name="flag_highlights"
-                                <?php if ($flag_highlights) echo 'checked="checked"'; ?> >
-                            Show fewer results
-                        </label>
-                    </div>
-                </div>
-
-                <div style="margin-bottom:30px;">
-                    <div style="margin-top:25px;"><span class="formlabel">Sky clarity</span></div>
-                    <div class="tooltip-holder"><span
-                            data-toggle="tooltip" data-pos="tooltip-right"
-                            title="Search for images with a sky clarity rating better than a certain value."
-                        >
-                        <span class="formlabel2">Minimum</span>
-                    <input class="form-control-dcf form-inline-number"
-                           name="clarity"
-                           style="width:70px;"
-                           type="number" min="0" max="3000" step="10"
-                           value="<?php echo $sky_clarity_min; ?>"
-                    />&nbsp;(scale 0&ndash;3000)
-                </span></div>
-                </div>
-
-            </div>
         </div>
 
     </form>
@@ -232,17 +162,13 @@ $searching = true;
 if ($searching) {
 
     // Work out which semantic type to search for
-    if ($flag_bgsub) $semantic_type = "pigazing:timelapse/backgroundSubtracted";
-    else $semantic_type = "pigazing:timelapse";
+    $semantic_type = "pigazing:timelapse";
 
     // Search for results
     $where = ["o.obsTime BETWEEN {$tmin['utc']} AND {$tmax['utc']}"];
 
     if ($flag_highlights)
         $where[] = "o.featured";
-
-    if ($sky_clarity_min > 0)
-        $where[] = "d2.floatValue>{$sky_clarity_min}";
 
     if ($obstory != "Any") $where[] = 'l.publicId="' . $obstory . '"';
 
@@ -251,39 +177,17 @@ archive_observations o
 INNER JOIN archive_files f ON f.observationId = o.uid
            AND f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name=\"{$semantic_type}\")
 INNER JOIN archive_observatories l ON o.observatory = l.uid
-INNER JOIN archive_metadata d2 ON f.uid = d2.fileId
-           AND d2.fieldId = (SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:skyClarity\")
 WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:timelapse/\")
-    AND " . implode(' AND ', $where));
+      AND o.positionAngle IS NOT NULL
+      AND " . implode(' AND ', $where));
 
-    $stmt = $const->db->prepare("SELECT COUNT(*) FROM ${search};");
-    $stmt->execute([]);
-    $result_count = $stmt->fetchAll()[0]['COUNT(*)'];
-    $result_list = [];
-
-    $lastPage = ceil($result_count / $pageSize);
-    if ($pageNum < 1) $pageNum = 1;
-    if ($pageNum > $lastPage) $pageNum = $lastPage;
-    $pageSkip = ($pageNum - 1) * $pageSize;
-
-    if ($result_count > 0) {
-        $stmt = $const->db->prepare("
-SELECT f.repositoryFname, f.fileName, o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType
+    $stmt = $const->db->prepare("
+SELECT o.obsTime, ST_AsText(o.skyArea) AS skyPolygon
 FROM ${search}
-ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
-        $stmt->execute([]);
-        $result_list = $stmt->fetchAll();
-    }
-
-    $gallery_items = [];
-    foreach ($result_list as $item) {
-        $gallery_items[] = ["fileId" => $item['repositoryFname'],
-            "filename" => $item["fileName"],
-            "caption" => $item['obstoryName'] . "<br/>" . date("d M Y \\a\\t H:i", $item['obsTime']),
-            "hover" => null,
-            "linkId" => $item['repositoryFname'],
-            "mimeType" => $item['mimeType']];
-    }
+ORDER BY o.obsTime LIMIT 5000;");
+    $stmt->execute([]);
+    $result_list = $stmt->fetchAll();
+    $result_count = count($result_list);
 
     // Display result counter
     if ($result_count == 0):
@@ -292,42 +196,31 @@ ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
             <p><b>No results found</b></p>
 
             <p>
-                The query completed, but no files were found matching the constraints you specified. Try altering values
-                in the form above and re-running the query.
+                The query completed, but no observations were found matching the constraints you specified.
+                Try altering values in the form above and re-running the query.
             </p>
         </div>
-        <?php
-    elseif ($result_count == count($result_list)):
-        ?>
-        <div class="alert alert-success">
-            <p>Showing all <?php echo $result_count; ?> results.</p>
-        </div>
-        <?php
+    <?php
     else:
         ?>
-        <div class="alert alert-success">
-            <p>
-                Showing results <?php echo $pageSkip + 1; ?> to <?php echo $pageSkip + 1 + count($result_list); ?>
-                of <?php echo $result_count; ?>.
-            </p>
-        </div>
-        <?php
+        <table class="stripy bordered bordered_slim">
+            <thead>
+            <tr>
+                <td>Date</td>
+                <td>Sky area</td>
+            </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($result_list as $result): ?>
+                <tr>
+                    <td><?php echo date("d M Y - H:i", $result['obsTime']); ?></td>
+                    <td><?php echo $result['skyPolygon'] ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php
     endif;
-
-    // Display results
-    $pageTemplate->imageGallery($gallery_items,"/image.php?highlights={$flag_highlights}&id=",false);
-
-    // Display pager
-    if (count($result_list) < $result_count) {
-        $self_url = "search_still.php?obstory={$obstory}&year1={$tmin['year']}&month1={$tmin['mc']}&day1={$tmin['day']}&" .
-            "hour1={$tmin['hour']}&min1={$tmin['min']}&" .
-            "year2={$tmax['year']}&month2={$tmax['mc']}&day2={$tmax['day']}&" .
-            "hour2={$tmax['hour']}&min2={$tmax['min']}";
-        if ($flag_bgsub) $self_url .= "&flag_bgsub=1";
-        if ($flag_highlights) $self_url .= "&flag_highlights=1";
-        if ($sky_clarity_min) $self_url .= "&clarity={$sky_clarity_min}";
-        $pageTemplate->showPager($result_count, $pageNum, $pageSize, $self_url);
-    }
 
 }
 

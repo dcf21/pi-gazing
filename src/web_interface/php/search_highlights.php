@@ -142,7 +142,12 @@ $pageTemplate->header($pageInfo);
                         <?php
                         $getargs->makeFormSelect("day1", $tmin['day'], range(1, 31), 0);
                         $getargs->makeFormSelect("month1", $tmin['mc'], $getargs->months, 0);
-                        $getargs->makeFormSelect("year1", $tmin['year'], range($const->yearMin, $const->yearMax), 0);
+                        ?>
+                        <input name="year1" class="year" style="max-width:80px;"
+                               type="number" step="1"
+                               min="<?php echo $const->yearMin; ?>" max="<?php echo $const->yearMax; ?>"
+                               value="<?php echo $tmin['year']; ?>"/>
+                        <?php
                         print "</span><span>";
                         $getargs->makeFormSelect("hour1", $tmin['hour'], $getargs->hours, 0);
                         print "&nbsp;<b>:</b>&nbsp;";
@@ -163,7 +168,12 @@ $pageTemplate->header($pageInfo);
                         <?php
                         $getargs->makeFormSelect("day2", $tmax['day'], range(1, 31), 0);
                         $getargs->makeFormSelect("month2", $tmax['mc'], $getargs->months, 0);
-                        $getargs->makeFormSelect("year2", $tmax['year'], range($const->yearMin, $const->yearMax), 0);
+                        ?>
+                        <input name="year2" class="year" style="max-width:80px;"
+                               type="number" step="1"
+                               min="<?php echo $const->yearMin; ?>" max="<?php echo $const->yearMax; ?>"
+                               value="<?php echo $tmax['year']; ?>"/>
+                        <?php
                         print "</span><span>";
                         $getargs->makeFormSelect("hour2", $tmax['hour'], $getargs->hours, 0);
                         print "&nbsp;<b>:</b>&nbsp;";

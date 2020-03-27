@@ -60,6 +60,9 @@ class html_getargs
         for ($i=1; $i<=12; $i++) $output[$i] = [$i, $const->shortMonthNames[$i]];
         $this->months = $output;
 
+        // Create list of event categories
+        $this->category_list = ["Any", "Not set"] + $const->item_categories;
+
         // Fetch list of observatories from database
         $stmt = $const->db->prepare("
 SELECT publicId, name, ST_X(location) AS longitude, ST_Y(location) AS latitude FROM archive_observatories;
@@ -71,6 +74,7 @@ SELECT publicId, name, ST_X(location) AS longitude, ST_Y(location) AS latitude F
         $this->obstory_objlist = [];
         $this->obstory_objs = [];
         $this->obstories = [];
+
         if ($allow_any_camera)
         {
             $this->obstory_list[] = "Any";
@@ -105,6 +109,15 @@ SELECT publicId, name, ST_X(location) AS longitude, ST_Y(location) AS latitude F
         if (!array_key_exists($obs, $this->obstories)) $obs = $this->obstory_list[0];
         if (!array_key_exists($obs, $this->obstories)) die ("Could not find any observatories.");
         return $obs;
+    }
+
+    public function readCategory($argName)
+    {
+        if (array_key_exists($argName, $_GET)) $category = $_GET[$argName];
+        else $category = "Any";
+        if (!in_array($category, $this->category_list)) $category = $this->category_list[0];
+        if (!in_array($category, $this->category_list)) die ("Could not find any event categories.");
+        return $category;
     }
 
     public function readTime($argYear, $argMonth, $argDay, $argHour, $argMinute, $argSecond, $yearMin, $yearMax, $defaultUTC=null)
