@@ -71,7 +71,7 @@
 
 // Time-lapse
 #define TIMELAPSE_EXPOSURE  60 /* Exposure length for time-lapse photography */
-#define TIMELAPSE_INTERVAL 120 /* Interval between time-lapse frames */
+#define TIMELAPSE_INTERVAL 240 /* Interval between time-lapse frames */
 
 #endif
 

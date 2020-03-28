@@ -462,9 +462,9 @@ void observing_loop(observe_status *os, const double utc_stop,
             write_timelapse_bs_frame(channel_count, os, frame_count, filename_stub);
 
             // Every little while, dump an image of the sky background map for diagnostic purposes
-            if (floor(fmod(os->timelapse_utc_start, 1)) == 0) {
-                write_timelapse_bg_model(BACKGROUND_MAP_FRAMES, channel_count, os, filename_stub);
-            }
+            //if (floor(fmod(os->timelapse_utc_start, 1)) == 0) {
+            //    write_timelapse_bg_model(BACKGROUND_MAP_FRAMES, channel_count, os, filename_stub);
+            //}
 
             // Schedule the next time-lapse exposure
             os->timelapse_utc_start += os->TIMELAPSE_INTERVAL;
