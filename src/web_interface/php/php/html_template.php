@@ -371,7 +371,8 @@ __HTML__;
         <div class="bannerfade"></div>
 
         <?php
-        print "<div class='container mainpage'>";
+        print '<div class="mainpage container' .
+            ((isset($pageInfo["fluid"]) && $pageInfo["fluid"]) ? "-fluid" : "") . '">';
         HTMLtemplate::breadcrumb($pageInfo["breadcrumb"], $pageInfo["activeTab"], $pageInfo["postbreadcrumb"]);
         ?>
 

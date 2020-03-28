@@ -31,6 +31,7 @@ $getargs = new html_getargs(true);
 $pageInfo = [
     "pageTitle" => "Sky coverage charts",
     "pageDescription" => "Pi Gazing",
+    "fluid" => true,
     "activeTab" => "search",
     "teaserImg" => null,
     "cssextra" => null,
@@ -38,6 +39,8 @@ $pageInfo = [
     "linkRSS" => null,
     "options" => []
 ];
+
+$sky_chart_metadata = [];
 
 // Read which time range to cover
 $t2 = time();
@@ -56,7 +59,7 @@ if ($tmax['utc'] < $tmin['utc']) {
 }
 
 // Read image options
-$flag_highlights = 1;
+$flag_highlights = 0;
 
 $pageTemplate->header($pageInfo);
 
@@ -182,7 +185,7 @@ WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:t
       AND " . implode(' AND ', $where));
 
     $stmt = $const->db->prepare("
-SELECT o.obsTime, ST_AsText(o.skyArea) AS skyPolygon
+SELECT o.obsTime, f.repositoryFname, ST_AsText(o.skyArea) AS skyPolygon
 FROM ${search}
 ORDER BY o.obsTime LIMIT 5000;");
     $stmt->execute([]);
@@ -202,7 +205,35 @@ ORDER BY o.obsTime LIMIT 5000;");
         </div>
     <?php
     else:
+        $sky_polygons = [];
+        foreach ($result_list as $result) {
+            $date_string = date("d M Y - H:i", $result['obsTime']);
+            $html_hover_text = "
+            <p>{$date_string}</p>
+            ";
+            preg_match('/MULTIPOLYGON\(\(\((.*?)\)\)\)/', $result['skyPolygon'], $match);
+            $multipolygon_string = $match[1];
+            $multipolygon_points = explode(',', $multipolygon_string);
+            $point_list = [[$html_hover_text, "{$const->server}image.php?id={$result['repositoryFname']}"]];
+            foreach ($multipolygon_points as $multipolygon_point) {
+                $multipolygon_coordinates = explode(' ', $multipolygon_point);
+                array_push($point_list, [floatval($multipolygon_coordinates[0]),
+                    floatval($multipolygon_coordinates[1])]);
+            }
+            array_push($sky_polygons, $point_list);
+        }
         ?>
+
+        <div class="sky_coverage_chart" style="text-align: center;"
+             data-meta='<?php echo json_encode($sky_chart_metadata); ?>'
+             data-polygons='<?php echo json_encode($sky_polygons); ?>'>
+            <div style="display: inline-block; position: relative;">
+                <div class="annotation-hover PLhover" style="position:absolute;top:0;left:0;display:none;text-align:left;z-index:195;"></div>
+                <canvas class="sky_chart_canvas" width="1" height="1"></canvas>
+            </div>
+        </div>
+
+    <!--
         <table class="stripy bordered bordered_slim">
             <thead>
             <tr>
@@ -211,14 +242,18 @@ ORDER BY o.obsTime LIMIT 5000;");
             </tr>
             </thead>
             <tbody>
-            <?php foreach ($result_list as $result): ?>
+            <?php
+            for ($index = 0; $index < count($result_list); $index++):
+                $result = $result_list[$index];
+                ?>
                 <tr>
                     <td><?php echo date("d M Y - H:i", $result['obsTime']); ?></td>
-                    <td><?php echo $result['skyPolygon'] ?></td>
+                    <td><?php echo json_encode($sky_polygons[$index]); ?></td>
                 </tr>
-            <?php endforeach; ?>
+            <?php endfor; ?>
             </tbody>
         </table>
+        -->
     <?php
     endif;
 

@@ -69,7 +69,7 @@ def wrap_celestial_path(outline_ra_dec):
     return outline_ra_dec_with_wrapping
 
 
-def get_sky_area(ra, dec, pa, scale_x, scale_y, points_per_size=5, margin_fraction=0.05):
+def get_sky_area(ra, dec, pa, scale_x, scale_y, points_per_size=20, margin_fraction=0.05):
     """
     Return a MySQL MULTIPOLYGON specifier for the sky area covered by an image.
 
