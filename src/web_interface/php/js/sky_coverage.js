@@ -99,7 +99,7 @@ SkyCoverageChart.prototype.stroke_line = function (co, hover_key, ra0, dec0, ra1
     var w_sum, w0, w1;
 
     if ((ra0 < Math.PI * 0.5) && (ra1 > Math.PI * 1.5)) {
-        w_sum = ra0 + (2 * Math.PI - ra1);
+        w_sum = ra0 + (2 * Math.PI - ra1) + 1e-8;
         w1 = ra0 / w_sum;
         w0 = 1 - w1;
 
@@ -115,7 +115,7 @@ SkyCoverageChart.prototype.stroke_line = function (co, hover_key, ra0, dec0, ra1
             this.hoverman.hoverLine(hover_key, this.margin_left, p0[1] * w0 + p1[1] * w1, p1[0], p1[1]);
         }
     } else if ((ra1 < Math.PI * 0.5) && (ra0 > Math.PI * 1.5)) {
-        w_sum = ra1 + (2 * Math.PI - ra0);
+        w_sum = ra1 + (2 * Math.PI - ra0) + 1e-8;
         w1 = ra1 / w_sum;
         w0 = 1 - w1;
 
@@ -363,9 +363,9 @@ SkyCoverageChart.prototype.draw = function () {
 
     // Draw frame around images
     co.lineWidth = 2;
-    co.strokeStyle = "#ff0000";
     for (i = 0; i < this.polygons.length; i++) {
         for (j = 2; j < this.polygons[i].length; j++) {
+            co.strokeStyle = this.polygons[i][0][2];
             this.hovermankeys[this.hovermannextkey] = this.polygons[i][0];
             this.stroke_line(co, this.hovermannextkey,
                 this.polygons[i][j - 1][0] * Math.PI / 12,

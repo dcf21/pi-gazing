@@ -39,21 +39,36 @@ $pageInfo = [
     "options" => []
 ];
 
+// Look up duration of graph
+$durationList = [
+    [0, "1 day", 1, 1],
+    [1, "2 days", 2, 1],
+    [2, "1 week", 7, 1],
+    [3, "2 weeks", 14, 1],
+    [4, "1 month", 30, 1],
+    [5, "2 months", 60, 1],
+    [6, "3 months", 90, 1],
+    [7, "6 months", 180, 2],
+    [8, "1 year", 365, 4]
+];
+
+if (array_key_exists('duration', $_GET)) $durationCode = $_GET['duration'];
+else                                     $durationCode = 2;
+if (!array_key_exists($durationCode, $durationList)) {
+    $durationCode = 2;
+}
+if (!array_key_exists($durationCode, $durationList)) {
+    die ("Could not find a suitable duration.");
+}
+$durationInfo = $durationList[$durationCode];
+
 // Read which time range to cover
-$t2 = time();
-$t1 = $t2 - 2 * 3600 * 24;
+$t1 = time() - 7 * 3600 * 24;
 $tmin = $getargs->readTime('year1', 'month1', 'day1', 'hour1', 'min1', null, $const->yearMin, $const->yearMax, $t1);
-$tmax = $getargs->readTime('year2', 'month2', 'day2', 'hour2', 'min2', null, $const->yearMin, $const->yearMax, $t2);
+$utc_max = $tmin['utc'] + $durationList[$durationInfo[0]][2] * 3600 * 24;
 
 // Which observatory are we searching for images from?
 $obstory = $getargs->readObservatory("obstory");
-
-// Swap times if they are the wrong way round
-if ($tmax['utc'] < $tmin['utc']) {
-    $tmp = $tmax;
-    $tmax = $tmin;
-    $tmin = $tmp;
-}
 
 // Read image options
 $flag_bgsub = 0;
@@ -69,108 +84,53 @@ $pageTemplate->header($pageInfo);
         Use this form to generate charts of sky clarity estimates based on still images recorded by Pi Gazing cameras.
     </p>
     <form class="form-horizontal search-form" method="get" action="sky_clarity.php#results">
-
-        <div style="cursor:pointer;text-align:right;">
-            <button type="button" class="btn btn-secondary btn-sm help-toggle">
-                <i class="fa fa-info-circle" aria-hidden="true"></i>
-                Show tips
-            </button>
-        </div>
-        <div class="row">
-            <div class="search-form-column col-lg-6">
-
-                <div><span class="formlabel">Time of observation</span></div>
-                <div class="tooltip-holder">
-                    <span class="formlabel2">Between</span>
-
-                    <div class="form-group-dcf"
-                         data-toggle="tooltip" data-pos="tooltip-above"
-                         title="Search for objects seen after this date and time."
-                    >
-                        <span style="display:inline-block; padding-right:20px;">
-                        <?php
-                        $getargs->makeFormSelect("day1", $tmin['day'], range(1, 31), 0);
-                        $getargs->makeFormSelect("month1", $tmin['mc'], $getargs->months, 0);
-                        ?>
-                        <input name="year1" class="year" style="max-width:80px;"
-                               type="number" step="1"
-                               min="<?php echo $const->yearMin; ?>" max="<?php echo $const->yearMax; ?>"
-                               value="<?php echo $tmin['year']; ?>"/>
-                        <?php
-                        print "</span><span>";
-                        $getargs->makeFormSelect("hour1", $tmin['hour'], $getargs->hours, 0);
-                        print "&nbsp;<b>:</b>&nbsp;";
-                        $getargs->makeFormSelect("min1", $tmin['min'], $getargs->mins, 0);
-                        ?>
-                        </span>
-                    </div>
-                </div>
-
-                <div class="tooltip-holder">
-                    <span class="formlabel2">and</span>
-
-                    <div class="form-group-dcf"
-                         data-toggle="tooltip" data-pos="tooltip-below"
-                         title="Search for objects seen before this date and time."
-                    >
-                        <span style="display:inline-block; padding-right:20px;">
-                        <?php
-                        $getargs->makeFormSelect("day2", $tmax['day'], range(1, 31), 0);
-                        $getargs->makeFormSelect("month2", $tmax['mc'], $getargs->months, 0);
-                        ?>
-                        <input name="year2" class="year" style="max-width:80px;"
-                               type="number" step="1"
-                               min="<?php echo $const->yearMin; ?>" max="<?php echo $const->yearMax; ?>"
-                               value="<?php echo $tmax['year']; ?>"/>
-                        <?php
-                        print "</span><span>";
-                        $getargs->makeFormSelect("hour2", $tmax['hour'], $getargs->hours, 0);
-                        print "&nbsp;<b>:</b>&nbsp;";
-                        $getargs->makeFormSelect("min2", $tmax['min'], $getargs->mins, 0);
-                        ?>
-                        </span>
-                    </div>
-                </div>
-
-                <div style="margin-top:25px;"><span class="formlabel">Observed by camera</span></div>
-                <div class="tooltip-holder">
-                    <span class="formlabel2"></span>
-
-                    <div class="form-group-dcf"
-                         data-toggle="tooltip" data-pos="tooltip-below"
-                         title="Use this to display images from only one camera in the Pi Gazing network. Set to 'Any' to display images from all Pi Gazing cameras."
-                    >
-                        <?php
-                        $getargs->makeFormSelect("obstory", $obstory, $getargs->obstories, 1);
-                        ?>
-                    </div>
-                </div>
-
-                <div style="padding:40px 0 40px 0;">
-                    <span class="formlabel2"></span>
-                    <button type="submit" class="btn btn-primary" data-bind="click: performSearch">Search</button>
-                </div>
-
+        <div class="form-item-holder">
+            <div class="form-item" style="margin: 0 16px 16px 0;">
+                <p class="formlabel">Time of observation</p>
+                <b>From</b>
+                <?php
+                $getargs->makeFormSelect("day1", $tmin['day'], range(1, 31), 0);
+                $getargs->makeFormSelect("month1", $tmin['mc'], $getargs->months, 0);
+                ?>
+                <input name="year1" class="year" style="max-width:80px;"
+                       type="number" step="1"
+                       min="<?php echo $const->yearMin; ?>" max="<?php echo $const->yearMax; ?>"
+                       value="<?php echo $tmin['year']; ?>"/>
+                <?php
+                print "</span><span>";
+                $getargs->makeFormSelect("hour1", $tmin['hour'], $getargs->hours, 0);
+                print "&nbsp;<b>:</b>&nbsp;";
+                $getargs->makeFormSelect("min1", $tmin['min'], $getargs->mins, 0);
+                ?>
             </div>
-            <div class="search-form-column col-lg-6">
-
-                <div style="margin-top:25px;"><span class="formlabel">Image options</span></div>
-
-                <div class="tooltip-holder" style="display:inline-block;">
-                    <div class="checkbox" data-toggle="tooltip" data-pos="tooltip-top"
-                         title="Automatically remove light pollution. In clear conditions this makes more stars visible, but it can lead to strange artifacts when cloudy."
-                    >
-                        <label>
-                            <input type="checkbox" name="flag_bgsub"
-                                <?php if ($flag_bgsub) echo 'checked="checked"'; ?> >
-                            Use images with light pollution removed
-                        </label>
-                    </div>
-                </div>
+            <div class="form-item" style="margin: 0 16px 16px 0;">
+                <p class="formlabel">Time span</p>
+                <b>Spanning</b>
+                <?php
+                html_getargs::makeFormSelect("duration", $durationInfo[0], $durationList, 0);
+                ?>
+            </div>
+            <div class="form-item" style="margin: 0 16px 16px 0;">
+                <p class="formlabel">Observed by camera</p>
+                <?php
+                $getargs->makeFormSelect("obstory", $obstory, $getargs->obstories, 1);
+                ?>
+            </div>
+            <div class="form-item" style="margin: 0 16px 16px 0;">
+                <p class="formlabel">Image options</p>
+                <label>
+                    <input type="checkbox" name="flag_bgsub"
+                        <?php if ($flag_bgsub) echo 'checked="checked"'; ?> >
+                    Use images with light pollution removed
+                </label>
+            </div>
+            <div class="form-item-notitle">
+                <input class="btn btn-sm btn-primary" type="submit" value="Update chart"/>
             </div>
         </div>
-
     </form>
+
+    <hr />
 
     <div id="results"></div>
 
@@ -185,7 +145,7 @@ if ($searching) {
     else $semantic_type = "pigazing:timelapse";
 
     // Search for results
-    $where = ["o.obsTime BETWEEN {$tmin['utc']} AND {$tmax['utc']}"];
+    $where = ["o.obsTime BETWEEN {$tmin['utc']} AND {$utc_max}"];
 
     if ($flag_highlights)
         $where[] = "o.featured";
