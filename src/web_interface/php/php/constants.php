@@ -71,7 +71,7 @@ class constants
         $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
         // Categories of image
-        $this->item_categories = ["Not set", "Bird", "Plane", "Satellite", "Meteor", "Junk", "Pretty sky"];
+        $this->item_categories = ["Not set", "Bird", "Plane", "Satellite", "Meteor", "Junk", "Pretty sky", "Bin"];
 
         // Known mime types
         $this->mimeTypes = ["image/png" => "Image",
