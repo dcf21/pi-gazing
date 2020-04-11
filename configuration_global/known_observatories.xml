@@ -17,4 +17,13 @@
         <defaultCamera>watec_902h2_ultimate</defaultCamera>
         <defaultLens>siemens_f1.2</defaultLens>
     </observatory>
+    <observatory>
+        <latitude>52.208</latitude>
+        <longitude>0.166</longitude>
+        <observatoryId>cambridge-east-0</observatoryId>
+        <observatoryName>Cambridge-East</observatoryName>
+        <owner>dcf21</owner>
+        <defaultCamera>watec_902h2_ultimate</defaultCamera>
+        <defaultLens>fujinon_YV10x5B-SA2</defaultLens>
+    </observatory>
 </observatories>

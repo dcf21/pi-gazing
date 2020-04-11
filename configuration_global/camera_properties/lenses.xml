@@ -20,6 +20,13 @@
   <barrel_k2>0</barrel_k2>
  </lens>
  <lens>
+  <name>fujinon_YV10x5B-SA2</name>
+  <comment>Fujinon YV10x5B-SA2 - Installed April 2020</comment>
+  <fov>65</fov>
+  <barrel_k1>0</barrel_k1>
+  <barrel_k2>0</barrel_k2>
+ </lens>
+ <lens>
   <name>eos1000d</name>
   <comment>Canon 1000D DSLR kit lens</comment>
   <fov>53</fov>
