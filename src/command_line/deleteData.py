@@ -51,7 +51,7 @@ def delete_data(utc_min, utc_max, obstory):
               format(obstory))
         sys.exit(0)
 
-    s = db.get_obstory_status(obstory_id=obstory_info['id'])
+    s = db.get_obstory_status(obstory_id=obstory)
     if not s:
         print("Unknown observatory <{}>.\nRun ./listObservatories.py to see a list of available options.".
               format(obstory))
