@@ -88,4 +88,3 @@ if __name__ == "__main__":
     logger.info(__doc__.strip())
 
     empty_bin(dry_run=args.dry_run)
-
