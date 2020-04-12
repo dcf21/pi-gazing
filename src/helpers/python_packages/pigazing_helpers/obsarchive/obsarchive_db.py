@@ -14,11 +14,11 @@ import MySQLdb
 import passlib.hash
 
 from . import obsarchive_model as mp
+from .dcf_ast import inv_julian_day, jd_from_unix
 from .generators import first_from_generator, ObservationDatabaseGenerators
 from .obsarchive_sky_area import get_sky_area
 from .sql_builder import search_observations_sql_builder, search_files_sql_builder, \
     search_metadata_sql_builder, search_obsgroups_sql_builder
-from .dcf_ast import inv_julian_day, jd_from_unix
 
 SOFTWARE_VERSION = 2
 
@@ -242,7 +242,7 @@ VALUES
             obstory_id = self.obstory_id
 
         output = {}
-        
+
         # See when this observatory was last serviced. Do not report any metadata set before this time.
         last_serviced = 0
         self.con.execute("""
@@ -266,18 +266,18 @@ WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s) AND 
 ORDER BY time DESC LIMIT 1
 """, (obstory_id, item['uid'], last_serviced, time))
             results = self.con.fetchall()
-            
+
             # See if this metadata field has ever been set for this observatory
             if len(results) > 0:
                 result = results[0]
-                
+
                 # If so, return it as a floating-point value if possible, otherwise as a string
                 if result['stringValue'] is None:
                     value = result['floatValue']
                 else:
                     value = result['stringValue']
                 output[item['metaKey']] = value
-                
+
         # Return dictionary of results
         if 'refresh' in output:
             del output['refresh']

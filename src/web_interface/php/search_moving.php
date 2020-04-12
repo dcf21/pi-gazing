@@ -309,8 +309,8 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
             <p><b>No results found</b></p>
 
             <p>
-                The query completed, but no files were found matching the constraints you specified. Try altering values
-                in the form above and re-running the query.
+                The query completed, but no events were found matching the constraints you specified. Try altering
+                values in the form above and re-running the query.
             </p>
         </div>
     <?php

@@ -53,6 +53,9 @@ $tmax = $getargs->readTime('year2', 'month2', 'day2', 'hour2', 'min2', null, $co
 // Which observatory are we searching for images from?
 $obstory = $getargs->readObservatory("obstory");
 
+// Which category of objects are we to show
+$item_category = $getargs->readCategory("category");
+
 // Swap times if they are the wrong way round
 if ($tmax['utc'] < $tmin['utc']) {
     $tmp = $tmax;
@@ -93,7 +96,12 @@ $pageTemplate->header($pageInfo);
                         <?php
                         $getargs->makeFormSelect("day1", $tmin['day'], range(1, 31), 0);
                         $getargs->makeFormSelect("month1", $tmin['mc'], $getargs->months, 0);
-                        $getargs->makeFormSelect("year1", $tmin['year'], range($const->yearMin, $const->yearMax), 0);
+                        ?>
+                        <input name="year1" class="year" style="max-width:80px;"
+                               type="number" step="1"
+                               min="<?php echo $const->yearMin; ?>" max="<?php echo $const->yearMax; ?>"
+                               value="<?php echo $tmin['year']; ?>"/>
+                        <?php
                         print "</span><span>";
                         $getargs->makeFormSelect("hour1", $tmin['hour'], $getargs->hours, 0);
                         print "&nbsp;<b>:</b>&nbsp;";
@@ -114,7 +122,12 @@ $pageTemplate->header($pageInfo);
                         <?php
                         $getargs->makeFormSelect("day2", $tmax['day'], range(1, 31), 0);
                         $getargs->makeFormSelect("month2", $tmax['mc'], $getargs->months, 0);
-                        $getargs->makeFormSelect("year2", $tmax['year'], range($const->yearMin, $const->yearMax), 0);
+                        ?>
+                        <input name="year2" class="year" style="max-width:80px;"
+                               type="number" step="1"
+                               min="<?php echo $const->yearMin; ?>" max="<?php echo $const->yearMax; ?>"
+                               value="<?php echo $tmax['year']; ?>"/>
+                        <?php
                         print "</span><span>";
                         $getargs->makeFormSelect("hour2", $tmax['hour'], $getargs->hours, 0);
                         print "&nbsp;<b>:</b>&nbsp;";
@@ -140,6 +153,21 @@ $pageTemplate->header($pageInfo);
 
             </div>
             <div class="search-form-column col-lg-6">
+
+                <div style="margin-top:25px;"><span class="formlabel">Categorised as</span></div>
+                <div class="tooltip-holder">
+                    <span class="formlabel2"></span>
+
+                    <div class="form-group-dcf"
+                         data-toggle="tooltip" data-pos="tooltip-below"
+                         title="Use this to display only events which have already been categorised as being of particular types of object."
+                    >
+                        <?php
+                        $getargs->makeFormSelect("category", $item_category, $getargs->category_list, 1);
+                        ?>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -159,16 +187,28 @@ $searching = true;
 if ($searching) {
 
     // Search for results
-    $where = ['s.name="simultaneous"', "g.time>={$tmin['utc']}", "g.time<={$tmax['utc']}"];
+    $where = ['s.name="pigazing:simultaneous"', "g.time BETWEEN {$tmin['utc']} AND {$tmax['utc']}"];
 
-    if ($obstory != "Any") $where[] = 'EXISTS (SELECT 1 FROM archive_obs_group_members x1
+    if ($obstory != "Any") {
+        $where[] = 'EXISTS (SELECT 1 FROM archive_obs_group_members x1
 INNER JOIN archive_observations x2 ON x2.uid=x1.observationId
 INNER JOIN archive_observatories x3 ON x3.uid=x2.observatory
 WHERE x1.groupId=g.uid AND x3.publicId=%s)' % $obstory;
+    }
+
+    if ($item_category != "Any") {
+        if ($item_category == "Not set") {
+            $where[] = 'd5.stringValue IS NULL';
+        } else {
+            $where[] = 'd5.stringValue="' . $item_category . '"';
+        }
+    }
 
     $search = ('
 archive_obs_groups g
 INNER JOIN archive_semanticTypes s ON g.semanticType=s.uid
+LEFT OUTER JOIN archive_metadata d5 ON g.uid = d5.groupId AND
+    d5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="web:category")
 WHERE ' . implode(' AND ', $where));
 
     $stmt = $const->db->prepare("SELECT COUNT(*) FROM ${search};");
@@ -196,8 +236,8 @@ FROM ${search} ORDER BY g.time DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
             <p><b>No results found</b></p>
 
             <p>
-                The query completed, but no files were found matching the constraints you specified. Try altering values
-                in the form above and re-running the query.
+                The query completed, but no events were found matching the constraints you specified. Try altering
+                values in the form above and re-running the query.
             </p>
         </div>
     <?php
@@ -224,7 +264,7 @@ FROM ${search} ORDER BY g.time DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
 
         $search = ("
 archive_obs_group_members gm
-INNER JOIN archive_observations o ON gm.observationId = o.uid
+INNER JOIN archive_observations o ON gm.childObservation = o.uid
 INNER JOIN archive_files f ON f.observationId = o.uid
 INNER JOIN archive_observatories l ON o.observatory = l.uid
 LEFT OUTER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
@@ -233,14 +273,16 @@ LEFT OUTER JOIN archive_metadata d3 ON o.uid = d3.observationId AND
     d3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:width\")
 LEFT OUTER JOIN archive_metadata d4 ON o.uid = d4.observationId AND
     d4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:height\")
-WHERE f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:triggers/event/maxBrightness/lensCorr\")
-   AND o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"movingObject\")
+LEFT OUTER JOIN archive_metadata d5 ON o.uid = d5.observationId AND
+    d5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"web:category\")
+WHERE f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:movingObject/maximumBrightness\")
+   AND o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:movingObject/\")
    AND gm.groupId = {$grp['uid']}");
 
         $stmt = $const->db->prepare("
 SELECT f.repositoryFname, f.fileName, o.publicId AS observationId,
 o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType,
-d2.stringValue AS path, d3.floatValue AS width, d4.floatValue AS height
+d2.stringValue AS path, d3.floatValue AS width, d4.floatValue AS height, d5.stringValue AS classification
 FROM ${search} ORDER BY obstoryId;");
         $stmt->execute([]);
         $obs_list = $stmt->fetchAll();
@@ -256,6 +298,7 @@ FROM ${search} ORDER BY obstoryId;");
                 "path" => $obs['path'],
                 "image_width" => $obs['width'],
                 "image_height" => $obs['height'],
+                "classification" => $obs['classification'],
                 "linkId" => $obs['observationId'],
                 "mimeType" => $obs['mimeType']];
         }

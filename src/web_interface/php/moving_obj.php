@@ -73,7 +73,7 @@ ORDER BY o.obsTime {$sort[2]} LIMIT 1;");
     $stmt->bindParam(':t', $t, PDO::PARAM_STR, 32);
     $stmt->bindParam(':o', $o, PDO::PARAM_INT);
     $stmt->execute([
-            'o' => $observation['observatory'],
+        'o' => $observation['observatory'],
         't' => $observation['obsTime'],
         's' => $observation['semanticType']
     ]);
@@ -128,7 +128,7 @@ foreach ($file_list as $item) {
 // Get list of simultaneous detections
 $stmt = $const->db->prepare("
 SELECT m.childObservation, l.name AS obstory, f.repositoryFname, f.mimeType, f.fileName,
-d2.stringValue AS path
+d2.stringValue AS path, d3.floatValue AS width, d4.floatValue AS height, d5.stringValue AS classification
 FROM archive_obs_group_members m
 INNER JOIN archive_observations o ON m.childObservation = o.uid
 INNER JOIN archive_files f ON f.observationId=m.childObservation
@@ -137,9 +137,11 @@ INNER JOIN archive_observatories l ON o.observatory = l.uid
 LEFT OUTER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
     d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:pathBezier\")
 LEFT OUTER JOIN archive_metadata d3 ON o.uid = d3.observationId AND
-    d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:width\")
+    d3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:width\")
 LEFT OUTER JOIN archive_metadata d4 ON o.uid = d4.observationId AND
-    d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:height\")
+    d4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:height\")
+LEFT OUTER JOIN archive_metadata d5 ON o.uid = d5.observationId AND
+    d5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"web:category\")
 WHERE m.groupId IN
     (SELECT groupId FROM archive_obs_groups g
      INNER JOIN archive_obs_group_members m2 ON m2.groupId=g.uid AND m2.childObservation=:i);
@@ -150,7 +152,7 @@ $simultaneous_events = $stmt->fetchAll();
 
 // Build metadata for planetarium overlay
 $planetarium_metadata = [
-        'active' => false
+    'active' => false
 ];
 
 // Get observatory metadata
@@ -169,7 +171,7 @@ if (array_key_exists('orientation:altitude', $obstory_metadata) &&
 
     // Create planetarium overlay metadata
     $planetarium_metadata = [
-            'active' => true,
+        'active' => true,
         'barrel_k1' => 0,
         'barrel_k2' => 0,
         'dec0' => $ra_dec[1] * pi() / 180,
@@ -202,26 +204,26 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
-<table style="width:100%; margin:4px 0;">
-    <tr>
-        <?php if ($related['prev']): ?>
-            <td style="text-align:left;">
-                <form method="get" action="<?php echo $const->server; ?>moving_obj.php">
-                    <input type="hidden" name="id" value="<?php echo $related['prev'][0]['uid']; ?>"/>
-                    <input class="btn btn-sm btn-success" type="submit" value="Previous"/>
-                </form>
-            </td>
-        <?php endif; ?>
-        <?php if ($related['next']): ?>
-            <td style="text-align:right;">
-                <form method="get" action="<?php echo $const->server; ?>moving_obj.php">
-                    <input type="hidden" name="id" value="<?php echo $related['next'][0]['uid']; ?>"/>
-                    <input class="btn btn-sm btn-success" type="submit" value="Next"/>
-                </form>
-            </td>
-        <?php endif; ?>
-    </tr>
-</table>
+    <table style="width:100%; margin:4px 0;">
+        <tr>
+            <?php if ($related['prev']): ?>
+                <td style="text-align:left;">
+                    <form method="get" action="<?php echo $const->server; ?>moving_obj.php">
+                        <input type="hidden" name="id" value="<?php echo $related['prev'][0]['uid']; ?>"/>
+                        <input class="btn btn-sm btn-success" type="submit" value="Previous"/>
+                    </form>
+                </td>
+            <?php endif; ?>
+            <?php if ($related['next']): ?>
+                <td style="text-align:right;">
+                    <form method="get" action="<?php echo $const->server; ?>moving_obj.php">
+                        <input type="hidden" name="id" value="<?php echo $related['next'][0]['uid']; ?>"/>
+                        <input class="btn btn-sm btn-success" type="submit" value="Next"/>
+                    </form>
+                </td>
+            <?php endif; ?>
+        </tr>
+    </table>
 
 <?php
 
@@ -254,47 +256,47 @@ if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
                         <input class="chk chkoverlay" type="checkbox" name="chkoverlay" checked="checked">
                         Planetarium overlay
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkss" type="checkbox" name="chkss" checked="checked">
                         Show stars
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkls" type="checkbox" name="chkls" checked="checked">
                         Label stars
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chksn" type="checkbox" name="chksn">
                         Show deep sky objects
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkln" type="checkbox" name="chkln">
                         Label deep sky objects
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkcb" type="checkbox" name="chkcb">
                         Show constellation boundaries
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkcl" type="checkbox" name="chkcl" checked="checked">
                         Show constellation sticks
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkcn" type="checkbox" name="chkcn" checked="checked">
                         Show constellation labels
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkragrid" type="checkbox" name="chkragrid" checked="checked">
                         Show RA/Dec grid
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkbarrel" type="checkbox" name="chkbarrel" checked="checked">
                         Include lens correction
@@ -354,6 +356,7 @@ if (count($simultaneous_events) > 0) {
             "path" => $item['path'],
             "image_width" => $item['width'],
             "image_height" => $item['height'],
+            "classification" => $item['classification'],
             "linkId" => $item['repositoryFname'],
             "mimeType" => $item['mimeType']
         ];
@@ -380,7 +383,7 @@ if (count($simultaneous_events) > 0) {
                 $caption = [$semantic_type, ""];
             if ($caption == null) continue;
             $gallery_items[] = [
-                    "fileId" => $item['repositoryFname'],
+                "fileId" => $item['repositoryFname'],
                 "filename" => $item["fileName"],
                 "caption" => $caption[0],
                 "hover" => $caption[1],

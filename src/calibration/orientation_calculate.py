@@ -40,7 +40,7 @@ from operator import itemgetter
 import numpy as np
 from pigazing_helpers import connect_db, gnomonic_project, hardware_properties
 from pigazing_helpers.dcf_ast import date_string
-from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
+from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db, obsarchive_sky_area
 from pigazing_helpers.settings_read import settings, installation_info
 from pigazing_helpers.sunset_times import alt_az, get_zenith_position, mean_angle, mean_angle_2d
 from pigazing_helpers.gnomonic_project import ang_dist
@@ -164,13 +164,11 @@ FROM archive_files f
 INNER JOIN archive_observations ao on f.observationId = ao.uid
 INNER JOIN archive_metadata am ON f.uid = am.fileId AND
     am.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:skyClarity")
-LEFT OUTER JOIN archive_metadata am2 ON f.uid = am2.fileId AND
-    am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:altitude")
 WHERE ao.obsTime BETWEEN %s AND %s
     AND ao.observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
     AND f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name="pigazing:timelapse/backgroundSubtracted")
     AND am.floatValue > %s
-    AND am2.uid IS NULL
+    AND ao.astrometryProcessed IS NULL
 ORDER BY am.floatValue DESC LIMIT 1
 """, (utc_block_min, utc_block_max, obstory_id, minimum_sky_clarity))
         results = conn.fetchall()
@@ -619,6 +617,16 @@ WHERE
     o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
     o.obsTime BETWEEN %s AND %s;
 """, (obstory_id, utc_min, utc_max))
+
+    # Clear astrometryProcessed fields
+    conn.execute("""
+UPDATE archive_observations
+SET astrometryProcessed=NULL, astrometryProcessingTime=NULL, astrometrySource=NULL,
+    fieldWidth=NULL, fieldHeight=NULL, positionAngle=NULL, centralConstellation=NULL,
+    skyArea=ST_GEOMFROMTEXT(%s), position=POINT(-999,-999)
+WHERE observatory = (SELECT x.uid FROM archive_observatories x WHERE x.publicId=%s) AND
+      obsTime BETWEEN %s AND %s;
+""", (obsarchive_sky_area.null_polygon, obstory_id, utc_min, utc_max))
 
     # Commit changes to database
     db0.commit()

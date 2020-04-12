@@ -24,6 +24,6 @@
         <observatoryName>Cambridge-East</observatoryName>
         <owner>dcf21</owner>
         <defaultCamera>watec_902h2_ultimate</defaultCamera>
-        <defaultLens>fujinon_YV10x5B-SA2</defaultLens>
+        <defaultLens>erintec</defaultLens>
     </observatory>
 </observatories>

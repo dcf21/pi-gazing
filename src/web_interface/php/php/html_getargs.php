@@ -120,6 +120,15 @@ SELECT publicId, name, ST_X(location) AS longitude, ST_Y(location) AS latitude F
         return $category;
     }
 
+    public function readMetadataField($argName)
+    {
+        global $const;
+        $field = "0";
+        if (array_key_exists($argName, $_GET)) $field = $_GET[$argName];
+        if (!array_key_exists($field, $const->metadataFields)) $field = "0";
+        return $field;
+    }
+
     public function readTime($argYear, $argMonth, $argDay, $argHour, $argMinute, $argSecond, $yearMin, $yearMax, $defaultUTC=null)
     {
 

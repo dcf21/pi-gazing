@@ -200,7 +200,7 @@ WHERE m.groupId=%s
             # Fetch subgroup objects
             sql = """SELECT o.publicId
 FROM archive_obs_group_members m
-INNER JOIN archive_obs_group o ON m.childGroup=o.uid
+INNER JOIN archive_obs_groups o ON m.childGroup=o.uid
 WHERE m.groupId=%s
 """
             self.con.execute(sql, (result['uid'],))
