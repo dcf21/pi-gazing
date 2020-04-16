@@ -182,6 +182,9 @@ def calibrate_lens(obstory_id, utc_min, utc_max, utc_must_stop=None):
     deg = pi / 180
     rad = 180 / pi
 
+    # Count how many successful fits we achieve
+    successful_fits = 0
+
     # Read properties of known lenses
     hw = hardware_properties.HardwareProps(
         path=os.path.join(settings['pythonPath'], "..", "configuration_global", "camera_properties")
@@ -388,12 +391,11 @@ convert {0}_tmp.png -colorspace sRGB -define png:format=png24 -crop {1:d}x{2:d}+
                 return None
 
             # How long should we allow astrometry.net to run for?
-            timeout = "30s" if settings['i_am_a_rpi'] else "15s"
+            timeout = "40s"
 
             # Run astrometry.net. Insert --no-plots on the command line to speed things up.
             # logging.info("Running astrometry.net")
             estimated_width = 2 * math.atan(math.tan(estimated_image_scale / 2 * deg) * fraction_x) * rad
-            astrometry_start_time = time.time()
             astrometry_output = os.path.join(tmp, "txt")
             command = """
 cd {5} ; \
@@ -407,10 +409,6 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
                        tmp)
             # logging.info(command)
             os.system(command)
-
-            # Report how long astrometry.net took
-            # astrometry_time_taken = time.time() - astrometry_start_time
-            # log_msg = "Astrometry.net took {:.0f} sec. ".format(astrometry_time_taken)
 
             # Parse the output from astrometry.net
             assert os.path.exists(astrometry_output), "Path <{}> doesn't exist".format(astrometry_output)
@@ -512,6 +510,7 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
             continue
 
         # Update observation status
+        successful_fits += 1
         user = settings['pigazingUser']
         timestamp = time.time()
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
@@ -527,31 +526,35 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
     db.commit()
     db0.commit()
 
-    # Now determine mean lens calibration each day
-    logging.info("Averaging daily fits within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
-    block_size = 86400
-    utc_min = (floor(utc_min / block_size + 0.5) - 0.5) * block_size  # Make sure that blocks start at noon
-    time_blocks = list(np.arange(start=utc_min, stop=utc_max + block_size, step=block_size))
+    # Report how many fits we achieved
+    logging.info("Total of {:d} images successfully fitted.".format(successful_fits))
 
-    # Start new block whenever we have a hardware refresh
-    conn.execute("""
+    if successful_fits > 0:
+        # Now determine mean lens calibration each day
+        logging.info("Averaging daily fits within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
+        block_size = 86400
+        utc_min = (floor(utc_min / block_size + 0.5) - 0.5) * block_size  # Make sure that blocks start at noon
+        time_blocks = list(np.arange(start=utc_min, stop=utc_max + block_size, step=block_size))
+
+        # Start new block whenever we have a hardware refresh
+        conn.execute("""
 SELECT time FROM archive_metadata
 WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
       AND fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey='refresh')
       AND time BETWEEN %s AND %s
 """, (obstory_id, utc_min, utc_max))
-    results = conn.fetchall()
-    for item in results:
-        time_blocks.append(item['time'])
+        results = conn.fetchall()
+        for item in results:
+            time_blocks.append(item['time'])
 
-    # Make sure that start points for time blocks are in order
-    time_blocks.sort()
+        # Make sure that start points for time blocks are in order
+        time_blocks.sort()
 
-    for block_index, utc_block_min in enumerate(time_blocks[:-1]):
-        utc_block_max = time_blocks[block_index + 1]
+        for block_index, utc_block_min in enumerate(time_blocks[:-1]):
+            utc_block_max = time_blocks[block_index + 1]
 
-        # Select observations with calibration fits
-        conn.execute("""
+            # Select observations with calibration fits
+            conn.execute("""
 SELECT am1.floatValue AS k1, am2.floatValue AS k2
 FROM archive_observations o
 INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
@@ -563,36 +566,39 @@ WHERE
     o.obsTime BETWEEN %s AND %s
 ORDER BY k1 ASC;
 """, (obstory_id, utc_block_min, utc_block_max))
-        results = conn.fetchall()
+            results = conn.fetchall()
 
-        logging.info("Averaging fits within period {} to {}: Found {} fits.".format(date_string(utc_block_min),
-                                                                                    date_string(utc_block_max),
-                                                                                    len(results)))
+            logging.info("Averaging fits within period {} to {}: Found {} fits.".format(date_string(utc_block_min),
+                                                                                        date_string(utc_block_max),
+                                                                                        len(results)))
 
-        # Average the fits we found
-        if len(results) < 3:
-            logging.info("Insufficient images to reliably average.")
-            continue
+            # Average the fits we found
+            if len(results) < 3:
+                logging.info("Insufficient images to reliably average.")
+                continue
 
-        # Pick the median fit
-        median_fit = results[len(results) // 2]
+            # Pick the median fit
+            median_fit = results[len(results) // 2]
 
-        # Print fit information
-        logging.info("""\
+            # Print fit information
+            logging.info("""\
 CALIBRATION FIT from {:2d} images: K1: {:.6f}. K2: {:.6f} deg. \
 """.format(len(results),
            median_fit['k1'],
            median_fit['k2']))
 
-        # Update observatory status
-        user = settings['pigazingUser']
-        timestamp = time.time()
-        db.register_obstory_metadata(obstory_id=obstory_id, key="calibration:lens_barrel_k1",
-                                     value=median_fit['k1'], time_created=timestamp,
-                                     metadata_time=utc_block_min, user_created=user)
-        db.register_obstory_metadata(obstory_id=obstory_id, key="calibration:lens_barrel_k2",
-                                     value=median_fit['k2'], time_created=timestamp,
-                                     metadata_time=utc_block_min, user_created=user)
+            # Flush any previous observation status
+            flush_calibration(obstory_id=obstory_id, utc_min=utc_block_min - 1, utc_max=utc_block_min + 1)
+
+            # Update observatory status
+            user = settings['pigazingUser']
+            timestamp = time.time()
+            db.register_obstory_metadata(obstory_id=obstory_id, key="calibration:lens_barrel_k1",
+                                         value=median_fit['k1'], time_created=timestamp,
+                                         metadata_time=utc_block_min, user_created=user)
+            db.register_obstory_metadata(obstory_id=obstory_id, key="calibration:lens_barrel_k2",
+                                         value=median_fit['k2'], time_created=timestamp,
+                                         metadata_time=utc_block_min, user_created=user)
 
     # Clean up and exit
     db.commit()

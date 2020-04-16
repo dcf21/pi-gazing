@@ -812,6 +812,10 @@ class AnalyseRawVideos(TaskRunner):
 
 
 class TimelapseRawImages(TaskRunner):
+    """
+    A Task Runner which converts raw RGB image files generated during each night's observation into PNG images.
+    """
+
     @staticmethod
     def glob_patterns():
         return [
@@ -851,7 +855,11 @@ class TimelapseRawImages(TaskRunner):
             return []
 
 
-class TriggerRawImages1(TaskRunner):
+class TriggerRawImages(TaskRunner):
+    """
+    A Task Runner which converts raw RGB image files generated during each night's observation into PNG images.
+    """
+
     @staticmethod
     def glob_patterns():
         return [
@@ -884,40 +892,12 @@ class TriggerRawImages1(TaskRunner):
         ]
 
 
-class TriggerRawImages2(TaskRunner):
-    @staticmethod
-    def glob_patterns():
-        return [
-            {
-                'wildcard': 'analysis_products/triggers_nonlive/*.sep',
-                'obs_type': 'pigazing:movingObject/'
-            }, {
-                'wildcard': 'analysis_products/triggers_live/*.sep',
-                'obs_type': 'pigazing:movingObject/'
-            }
-        ]
-
-    @staticmethod
-    def shell_command():
-        return """
-{settings[imageProcessorPath]}/debug/rawimg2png3 \
-         --input \"{input_file}\" \
-         --output \"{data_dir}/analysis_products_reduced/triggers_img2/{input_file_without_extension}\" \
-         --noise {input_metadata[stackNoiseLevel]}
-         """
-
-    @staticmethod
-    def output_file_wildcards(input_file):
-        input_file_without_extension = os.path.splitext(os.path.split(input_file)[1])[0]
-        return [
-            {
-                'wildcard': 'analysis_products_reduced/triggers_img2/{}_?.png'.format(input_file_without_extension),
-                'mime_type': 'image/png'
-            }
-        ]
-
-
 class TriggerRawVideos(TaskRunner):
+    """
+    A TaskRunner which converts raw .vid files generated during each night's observation, and compresses them into mp4
+    files.
+    """
+
     @staticmethod
     def glob_patterns():
         return [
@@ -960,6 +940,10 @@ class TriggerRawVideos(TaskRunner):
 
 
 class SelectBestImages(TaskRunner):
+    """
+    A TaskRunner which picks the best image from every 30 minute period, and flags it as a featured observation.
+    """
+
     def fetch_job_list_by_time_stamp(self):
         return {0: True}
 
@@ -1020,6 +1004,10 @@ ORDER BY m.floatValue DESC LIMIT 1;
 
 
 class ExportData(TaskRunner):
+    """
+    A TaskRunner which calls the script <exportData.py> to export all observations and metadata to an external server.
+    """
+
     def fetch_job_list_by_time_stamp(self):
         return {0: True}
 
@@ -1044,6 +1032,10 @@ class ExportData(TaskRunner):
 
 
 class DetermineLensCorrection(TaskRunner):
+    """
+    A TaskRunner which calls the script <calibrate_lens.py> to work out the radial distortion of the lens.
+    """
+
     def fetch_job_list_by_time_stamp(self):
         return {0: True}
 
@@ -1068,6 +1060,10 @@ class DetermineLensCorrection(TaskRunner):
 
 
 class DeterminePointing(TaskRunner):
+    """
+    A TaskRunner which calls the script <orientation_calculate.py> to work out which direction the camera is pointing.
+    """
+
     def fetch_job_list_by_time_stamp(self):
         return {0: True}
 
@@ -1091,16 +1087,35 @@ class DeterminePointing(TaskRunner):
         os.system(command)
 
 
+class Snooze(TaskRunner):
+    """
+    A TaskRunning which sleeps until we next want to start observing.
+    """
+
+    def fetch_job_list_by_time_stamp(self):
+        return {0: True}
+
+    def execute_tasks(self):
+
+        # Snooze until we next want to start observing
+        if (self.must_quit_by is not None):
+            sleep_period = self.must_quit_by - time.time()
+            if sleep_period > 0:
+                logging.info("Sleeping for {} seconds".format(sleep_period))
+                time.sleep(sleep_period)
+
+
 # A list of all the tasks we need to perform, in order
 task_running_order = [
     AnalyseRawVideos,
     MergeOutputIntoSingleObservations(
-        sub_task_classes=(TriggerRawImages1, TriggerRawImages2, TriggerRawVideos),
+        sub_task_classes=(TriggerRawImages, TriggerRawVideos),
         must_have_semantic_types=('pigazing:movingObject/video',)
     ),
     TimelapseRawImages,
     SelectBestImages,
     DetermineLensCorrection,
     DeterminePointing,
-    ExportData
+    ExportData,
+    Snooze
 ]
