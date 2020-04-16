@@ -289,8 +289,7 @@ ORDER BY am.floatValue DESC LIMIT 1
 
         # Make a temporary directory to store files in.
         # This is necessary as astrometry.net spams the cwd with lots of temporary junk
-        cwd0 = os.getcwd()
-        tmp0 = "/tmp/dcf21_orientationCalc_{}".format(item['repositoryFname'])
+        tmp0 = "/tmp/dcf21_calibrateLens_{}".format(item['repositoryFname'])
         # logging.info("Created temporary directory <{}>".format(tmp))
         os.system("mkdir {}".format(tmp0))
 
@@ -366,7 +365,7 @@ ORDER BY am.floatValue DESC LIMIT 1
 
             # Make a temporary directory to store files in.
             # This is necessary as astrometry.net spams the cwd with lots of temporary junk
-            tmp = "/tmp/dcf21_orientationCalc_{}_{}".format(item['repositoryFname'], image_portion['index'])
+            tmp = "/tmp/dcf21_calibrateLens_{}_{}".format(item['repositoryFname'], image_portion['index'])
             # logging.info("Created temporary directory <{}>".format(tmp))
             os.system("mkdir {}".format(tmp))
 
@@ -388,6 +387,7 @@ convert {0}_tmp.png -colorspace sRGB -define png:format=png24 -crop {1:d}x{2:d}+
             # Check that we've not run out of time
             if utc_must_stop and (time.time() > utc_must_stop):
                 logging.info("We have run out of time! Aborting.")
+                os.system("rm -Rf {}".format(tmp))
                 return None
 
             # How long should we allow astrometry.net to run for?
@@ -415,6 +415,10 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
             fit_text = open(astrometry_output).read()
             # logging.info(fit_text)
 
+            # Clean up
+            # logging.info("Removing temporary directory <{}>".format(tmp))
+            os.system("rm -Rf {}".format(tmp))
+
             # Extract celestial coordinates of the centre of the frame from astrometry.net output
             test = re.search(r"\(RA H:M:S, Dec D:M:S\) = \(([\d-]*):(\d\d):([\d.]*), [+]?([\d-]*):(\d\d):([\d\.]*)\)",
                              fit_text)
@@ -435,10 +439,6 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
             logging.info("FIT: RA: {:7.2f}h. Dec {:7.2f} deg. Point ({:.2f},{:.2f}).".format(ra, dec,
                                                                                              image_portion['x'],
                                                                                              image_portion['y']))
-
-            # Clean up
-            # logging.info("Removing temporary directory <{}>".format(tmp))
-            os.system("rm -Rf {}".format(tmp))
 
             # Also, populate <fit_list> with a list of the central points of the image fragments, and their (RA, Dec)
             # coordinates.
