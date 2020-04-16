@@ -695,7 +695,7 @@ if __name__ == "__main__":
                             logging.StreamHandler()
                         ])
     logger = logging.getLogger(__name__)
-    logger.info(__doc__.strip())
+    # logger.info(__doc__.strip())
 
     # If flush option was specified, then delete all existing alignment information
     if args.flush:
