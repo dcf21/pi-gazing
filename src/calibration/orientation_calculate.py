@@ -219,7 +219,7 @@ ORDER BY am.floatValue DESC LIMIT 1
         # This is necessary as astrometry.net spams the cwd with lots of temporary junk
         tmp = "/tmp/dcf21_orientationCalc_{}".format(item['repositoryFname'])
         # logging.info("Created temporary directory <{}>".format(tmp))
-        os.system("mkdir %s" % tmp)
+        os.system("mkdir {}".format(tmp))
 
         # Find image orientation orientation
         filename = os.path.join(settings['dbFilestore'], item['repositoryFname'])

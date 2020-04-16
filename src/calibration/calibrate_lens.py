@@ -462,6 +462,7 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
 
         # Clean up
         os.system("rm -Rf {}".format(tmp0))
+        os.system("rm -Rf /tmp/tmp.*")
 
         # Make histogram of fits as a function of radius
         radius_histogram = [0] * 10
