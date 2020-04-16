@@ -600,6 +600,7 @@ CALIBRATION FIT from {:2d} images: K1: {:.6f}. K2: {:.6f} deg. \
             db.register_obstory_metadata(obstory_id=obstory_id, key="calibration:lens_barrel_k2",
                                          value=median_fit['k2'], time_created=timestamp,
                                          metadata_time=utc_block_min, user_created=user)
+            db.commit()
 
     # Clean up and exit
     db.commit()

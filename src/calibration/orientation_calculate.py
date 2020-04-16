@@ -572,11 +572,12 @@ ScaleX: {:.2f} deg. ScaleY: {:.2f} deg. Uncertainty: {:.2f} deg.\
            scale_y_best * rad,
            alt_az_error * rad))
 
-            # Flush any previous observation status
-            flush_orientation(obstory_id=obstory_id, utc_min=utc_block_min - 1, utc_max=utc_block_min + 1)
-
             # Update observatory status
             if success:
+
+                # Flush any previous observation status
+                flush_orientation(obstory_id=obstory_id, utc_min=utc_block_min - 1, utc_max=utc_block_min + 1)
+
                 user = settings['pigazingUser']
                 timestamp = time.time()
                 db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:altitude",
@@ -600,6 +601,7 @@ ScaleX: {:.2f} deg. ScaleY: {:.2f} deg. Uncertainty: {:.2f} deg.\
                 db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:uncertainty",
                                              value=alt_az_error * rad, time_created=timestamp,
                                              metadata_time=utc_block_min, user_created=user)
+                db.commit()
 
     # Clean up and exit
     db.commit()
