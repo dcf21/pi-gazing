@@ -308,7 +308,7 @@ FROM ${search} ORDER BY obstoryId;");
 
     // Display pager
     if (count($result_list) < $result_count) {
-        $self_url = "search_multi.php?obstory={$obstory}&category={$item_category}" .
+        $self_url = "search_multi.php?obstory={$obstory}&category={$item_category}&" .
             "year1={$tmin['year']}&month1={$tmin['mc']}&day1={$tmin['day']}&" .
             "hour1={$tmin['hour']}&min1={$tmin['min']}&" .
             "year2={$tmax['year']}&month2={$tmax['mc']}&day2={$tmax['day']}&" .
