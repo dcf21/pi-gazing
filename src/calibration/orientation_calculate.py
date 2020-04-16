@@ -115,7 +115,7 @@ def orientation_calc(obstory_id, utc_min, utc_max, utc_must_stop=None):
     rad = 180 / pi
 
     # Fetch source Id for this python script
-    source_id = connect_db.fetch_source_id(c=conn, source_info="astrometry.net")
+    source_id = connect_db.fetch_source_id(c=conn, source_info=("astrometry.net", "astrometry.net", "astrometry.net"))
     db0.commit()
 
     # Count how many successful fits we achieve
