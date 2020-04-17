@@ -158,16 +158,24 @@ $planetarium_metadata = [
 // Get observatory metadata
 $obstory_metadata = observatory_info::obstory_metadata($observation['obsTime'], $obstory['publicId']);
 
-if (array_key_exists('orientation:altitude', $obstory_metadata) &&
-    array_key_exists('latitude_gps', $obstory_metadata)) {
+if (array_key_exists('orientation:altitude', $obstory_metadata)) {
+
+    // Get geographic location of camera
+    if (array_key_exists('latitude_gps', $obstory_metadata)) {
+        $latitude = $obstory_metadata['latitude_gps'];
+        $longitude = $obstory_metadata['longitude_gps'];
+    } else {
+       $latitude = $getargs->obstory_objs[$obstory['publicId']]['latitude'];
+       $longitude = $getargs->obstory_objs[$obstory['publicId']]['longitude'];
+    }
 
     // Get image RA/Dec
     $ra_dec = sphericalAst::RaDec(
         floatval($obstory_metadata['orientation:altitude']),
         floatval($obstory_metadata['orientation:azimuth']),
         $observation['obsTime'] + 40, // Mid-point of exposure
-        floatval($obstory_metadata['latitude_gps']),
-        floatval($obstory_metadata['longitude_gps']));
+        floatval($latitude),
+        floatval($longitude));
 
     // Create planetarium overlay metadata
     $planetarium_metadata = [

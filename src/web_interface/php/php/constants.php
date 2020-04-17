@@ -131,6 +131,7 @@ class constants
             "obstory_name" => "Observatory name",
             "orientation:altitude" => "Orientation: Altitude above horizon (deg)",
             "orientation:azimuth" => "Orientation: Azimuth east of north (deg)",
+            "orientation:pa" => "Orientation: Positional angle of field (deg)",
             "orientation:tilt" => "Tilt of camera, clockwise from vertical (deg)",
             "orientation:width_x_field" => "Calculated horizontal field of view (deg)",
             "orientation:width_y_field" => "Calculated vertical field of view (deg)",
