@@ -46,16 +46,16 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
-<div class="row camera_map" data-meta='<?php echo json_encode($obstories); ?>'>
-    <div class="col-md-10">
-        <div class="map_holder"
-             style="width:100%; height:550px; background-color:#eee; display:inline-block; margin: 12px auto;">
-            <div class="map_canvas" style="width:100%; height:100%;"></div>
+    <div class="row camera_map" data-meta='<?php echo json_encode($obstories); ?>'>
+        <div class="col-md-10">
+            <div class="map_holder"
+                 style="width:100%; height:550px; background-color:#eee; display:inline-block; margin: 12px auto;">
+                <div class="map_canvas" style="width:100%; height:100%;"></div>
+            </div>
         </div>
-    </div>
-    <div class="col-md-2">
-        <?php $pageTemplate->listObstories($obstories, "/observatory.php?id="); ?>
-    </div>
+        <div class="col-md-2">
+            <?php $pageTemplate->listObstories($obstories, "/observatory.php?id="); ?>
+        </div>
     </div>
 
 <?php

@@ -47,7 +47,7 @@ class html_getargs
     {
         global $const;
 
-        if (!isset($allow_any_camera)) $allow_any_camera=false;
+        if (!isset($allow_any_camera)) $allow_any_camera = false;
 
         // Create list of hours and minutes
         $this->hours = [];
@@ -57,7 +57,7 @@ class html_getargs
 
         // Create list of months
         $output = [];
-        for ($i=1; $i<=12; $i++) $output[$i] = [$i, $const->shortMonthNames[$i]];
+        for ($i = 1; $i <= 12; $i++) $output[$i] = [$i, $const->shortMonthNames[$i]];
         $this->months = $output;
 
         // Create list of event categories
@@ -75,13 +75,11 @@ SELECT publicId, name, ST_X(location) AS longitude, ST_Y(location) AS latitude F
         $this->obstory_objs = [];
         $this->obstories = [];
 
-        if ($allow_any_camera)
-        {
+        if ($allow_any_camera) {
             $this->obstory_list[] = "Any";
-            $this->obstories["Any"] = ["Any","Any"];
+            $this->obstories["Any"] = ["Any", "Any"];
         }
-        foreach ($results as $r)
-        {
+        foreach ($results as $r) {
             $this->obstory_list[] = $r["publicId"];
             $this->obstory_objlist[] = $r;
             $this->obstory_objs[$r["publicId"]] = $r;
@@ -129,7 +127,7 @@ SELECT publicId, name, ST_X(location) AS longitude, ST_Y(location) AS latitude F
         return $field;
     }
 
-    public function readTime($argYear, $argMonth, $argDay, $argHour, $argMinute, $argSecond, $yearMin, $yearMax, $defaultUTC=null)
+    public function readTime($argYear, $argMonth, $argDay, $argHour, $argMinute, $argSecond, $yearMin, $yearMax, $defaultUTC = null)
     {
 
         if (is_null($defaultUTC)) $defaultUTC = time();

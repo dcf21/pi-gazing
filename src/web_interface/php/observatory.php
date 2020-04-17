@@ -51,26 +51,26 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
-<div class="row camera_map" data-meta='<?php echo json_encode([$getargs->obstory_objs[$obstory]]); ?>'>
-    <div class="col-md-10">
-        <div class="map_holder"
-             style="width:100%; height:550px; background-color:#eee; display:inline-block; margin: 12px auto;">
-            <div class="map_canvas" style="width:100%; height:100%;"></div>
+    <div class="row camera_map" data-meta='<?php echo json_encode([$getargs->obstory_objs[$obstory]]); ?>'>
+        <div class="col-md-10">
+            <div class="map_holder"
+                 style="width:100%; height:550px; background-color:#eee; display:inline-block; margin: 12px auto;">
+                <div class="map_canvas" style="width:100%; height:100%;"></div>
+            </div>
         </div>
-    </div>
-    <div class="col-md-2">
-        <h5>Latest images</h5>
-        <p class="purple-text"><?php echo $obstory_info['newest_obs_date']; ?></p>
-        <h5>First active</h5>
-        <p class="purple-text"><?php echo $obstory_info['oldest_obs_date']; ?></p>
-        <h5>Total images</h5>
-        <p class="purple-text"><?php echo $obstory_info['image_count']; ?></p>
-        <h5>Total moving objects</h5>
-        <p class="purple-text"><?php echo $obstory_info['moving_count']; ?></p>
-        <h5>More information</h5>
-        <p><a href="/observatory_activity_year.php?id=<?php echo $obstory; ?>">Calendar of observations</a></p>
-        <p><a href="/observatory_metadata.php?id=<?php echo $obstory; ?>">Status messages</a></p>
-    </div>
+        <div class="col-md-2">
+            <h5>Latest images</h5>
+            <p class="purple-text"><?php echo $obstory_info['newest_obs_date']; ?></p>
+            <h5>First active</h5>
+            <p class="purple-text"><?php echo $obstory_info['oldest_obs_date']; ?></p>
+            <h5>Total images</h5>
+            <p class="purple-text"><?php echo $obstory_info['image_count']; ?></p>
+            <h5>Total moving objects</h5>
+            <p class="purple-text"><?php echo $obstory_info['moving_count']; ?></p>
+            <h5>More information</h5>
+            <p><a href="/observatory_activity_year.php?id=<?php echo $obstory; ?>">Calendar of observations</a></p>
+            <p><a href="/observatory_metadata.php?id=<?php echo $obstory; ?>">Status messages</a></p>
+        </div>
     </div>
 
 <?php

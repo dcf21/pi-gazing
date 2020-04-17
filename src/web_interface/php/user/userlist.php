@@ -53,7 +53,7 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
-<?php if (in_array("obstory_admin",$user->roles)): ?>
+<?php if (in_array("obstory_admin", $user->roles)): ?>
 
     <p>The following users are registered on this server:</p>
 
@@ -67,33 +67,33 @@ FROM pigazing_users u ORDER BY u.userId LIMIT 500;");
     if (count($user_list) > 0):
         ?>
         <div class="scrolltable">
-        <div class="scrolltable_thead">
-            <table class="stripy bordered">
-                <?php ob_start(); ?>
-                <thead>
-                <tr>
-                    <td>Username</td>
-                    <td>Last Seen</td>
-                </tr>
-                </thead>
-                <?php $scrolltable_thead = ob_get_contents();
-                ob_end_clean();
-                echo $scrolltable_thead; ?>
-            </table>
-        </div>
-        <div class="scrolltable_tbody">
-            <table class="stripy bordered bordered2">
-                <?php echo $scrolltable_thead; ?>
-                <tbody>
-                <?php foreach ($user_list as $item): ?>
+            <div class="scrolltable_thead">
+                <table class="stripy bordered">
+                    <?php ob_start(); ?>
+                    <thead>
                     <tr>
-                        <td><?php echo $item['username']; ?></td>
-                        <td><?php echo $item['lastSeen'] ? date("d M Y H:i", $item['lastSeen']) : "Never"; ?></td>
+                        <td>Username</td>
+                        <td>Last Seen</td>
                     </tr>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <?php $scrolltable_thead = ob_get_contents();
+                    ob_end_clean();
+                    echo $scrolltable_thead; ?>
+                </table>
+            </div>
+            <div class="scrolltable_tbody">
+                <table class="stripy bordered bordered2">
+                    <?php echo $scrolltable_thead; ?>
+                    <tbody>
+                    <?php foreach ($user_list as $item): ?>
+                        <tr>
+                            <td><?php echo $item['username']; ?></td>
+                            <td><?php echo $item['lastSeen'] ? date("d M Y H:i", $item['lastSeen']) : "Never"; ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     <?php else: ?>
         <div class="newsbody">

@@ -43,7 +43,7 @@ $pageInfo = [
 $pageTemplate->header($pageInfo);
 
 $pwhash = "&ndash;";
-if (isset($_POST['pw'])) $pwhash = password_hash($_POST['pw'],PASSWORD_DEFAULT);
+if (isset($_POST['pw'])) $pwhash = password_hash($_POST['pw'], PASSWORD_DEFAULT);
 
 ?>
 

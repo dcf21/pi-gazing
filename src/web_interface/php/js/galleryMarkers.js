@@ -39,7 +39,7 @@ function GalleryMarkers(parent) {
     this.bezier_index = 0;
 
     // Wire up button to toggle whether to display paths
-    $(".paths-toggle",this.parent).click(function () {
+    $(".paths-toggle", this.parent).click(function () {
         self.show_paths = !self.show_paths;
         self.update();
     });
@@ -101,14 +101,13 @@ GalleryMarkers.prototype.setPositions = function (bezierIndex, animate) {
         var image_ysize = image.height();
 
         // Hide crosshair if image has not loaded yet!
-        if (image_ysize<50) {
+        if (image_ysize < 50) {
             return true;
         }
 
         // If the crosshair was not previously visible, we gently fade it in
-        if (!crosshair.is(":visible"))
-        {
-            animate_this=false;
+        if (!crosshair.is(":visible")) {
+            animate_this = false;
             crosshair.fadeIn(400);
         }
 
@@ -122,8 +121,7 @@ GalleryMarkers.prototype.setPositions = function (bezierIndex, animate) {
         var crosshair_y = image_ysize * object_ypos / raw_height - 15;
         if (animate_this) {
             crosshair.animate({"left": crosshair_x, "top": crosshair_y}, 1500)
-        }
-        else {
+        } else {
             crosshair.css("left", crosshair_x).css("top", crosshair_y);
         }
     });
@@ -134,9 +132,8 @@ GalleryMarkers.prototype.update = function () {
     if (self.show_paths) {
         this.bezier_index = 0;
         this.setPositions(this.bezier_index, false);
-    }
-    else {
-        $(".gallery_path_marker",this.parent).stop().fadeOut(400);
+    } else {
+        $(".gallery_path_marker", this.parent).stop().fadeOut(400);
     }
 };
 

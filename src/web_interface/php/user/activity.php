@@ -53,7 +53,7 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
-<?php if (in_array("obstory_admin",$user->roles)): ?>
+<?php if (in_array("obstory_admin", $user->roles)): ?>
 
     <p>Recent log ins to this server:</p>
 
@@ -67,39 +67,39 @@ ORDER BY logIn LIMIT 10;");
     if (count($activity) > 0):
         ?>
         <div class="scrolltable">
-        <div class="scrolltable_thead">
-            <table class="stripy bordered">
-                <?php ob_start(); ?>
-                <thead>
-                <tr>
-                    <td>Username</td>
-                    <td>Log in</td>
-                    <td>Log off</td>
-                    <td>IP address</td>
-                </tr>
-                </thead>
-                <?php $scrolltable_thead = ob_get_contents();
-                ob_end_clean();
-                echo $scrolltable_thead; ?>
-            </table>
-        </div>
-        <div class="scrolltable_tbody">
-            <table class="stripy bordered bordered2">
-                <?php echo $scrolltable_thead; ?>
-                <tbody>
-                <?php foreach ($activity as $item): ?>
+            <div class="scrolltable_thead">
+                <table class="stripy bordered">
+                    <?php ob_start(); ?>
+                    <thead>
                     <tr>
-                        <td><?php echo $item['username']; ?></td>
-                        <td><?php echo date("d M Y H:i", $item['logIn']); ?></td>
-                        <td><?php echo $item['logOut'] ? date("d M Y H:i", $item['logOut']) : "Still logged in"; ?></td>
-                        <td><?php printf("%d.%d.%d.%d", ($item['ip'] / 256 / 256 / 256) & 255,
-                                ($item['ip'] / 256 / 256) & 255, ($item['ip'] / 256) % 256, ($item['ip']) & 255); ?>
-                        </td>
+                        <td>Username</td>
+                        <td>Log in</td>
+                        <td>Log off</td>
+                        <td>IP address</td>
                     </tr>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <?php $scrolltable_thead = ob_get_contents();
+                    ob_end_clean();
+                    echo $scrolltable_thead; ?>
+                </table>
+            </div>
+            <div class="scrolltable_tbody">
+                <table class="stripy bordered bordered2">
+                    <?php echo $scrolltable_thead; ?>
+                    <tbody>
+                    <?php foreach ($activity as $item): ?>
+                        <tr>
+                            <td><?php echo $item['username']; ?></td>
+                            <td><?php echo date("d M Y H:i", $item['logIn']); ?></td>
+                            <td><?php echo $item['logOut'] ? date("d M Y H:i", $item['logOut']) : "Still logged in"; ?></td>
+                            <td><?php printf("%d.%d.%d.%d", ($item['ip'] / 256 / 256 / 256) & 255,
+                                    ($item['ip'] / 256 / 256) & 255, ($item['ip'] / 256) % 256, ($item['ip']) & 255); ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     <?php else: ?>
         <div class="newsbody">

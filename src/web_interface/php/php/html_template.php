@@ -110,17 +110,17 @@ foreach ($postbreadcrumb as $c) {
         ?>
         <div>
             <div class="tallright2">
-            <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-            <!-- pigazing.dcford.org.uk -->
-            <ins class="adsbygoogle"
-                 style="display:block"
-                 data-ad-client="ca-pub-0140009944980327"
-                 data-ad-slot="9542057108"
-                 data-ad-format="auto"
-                 data-full-width-responsive="true"></ins>
-            <script>
-            (adsbygoogle = window.adsbygoogle || []).push({});
-            </script>
+                <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                <!-- pigazing.dcford.org.uk -->
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-client="ca-pub-0140009944980327"
+                     data-ad-slot="9542057108"
+                     data-ad-format="auto"
+                     data-full-width-responsive="true"></ins>
+                <script>
+                    (adsbygoogle = window.adsbygoogle || []).push({});
+                </script>
             </div>
         </div>
         <?php
@@ -131,17 +131,17 @@ foreach ($postbreadcrumb as $c) {
         ?>
         <div>
             <div class="tallright1 centerblock">
-            <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-            <!-- pigazing.dcford.org.uk -->
-            <ins class="adsbygoogle"
-                 style="display:block"
-                 data-ad-client="ca-pub-0140009944980327"
-                 data-ad-slot="9542057108"
-                 data-ad-format="auto"
-                 data-full-width-responsive="true"></ins>
-            <script>
-            (adsbygoogle = window.adsbygoogle || []).push({});
-            </script>
+                <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                <!-- pigazing.dcford.org.uk -->
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-client="ca-pub-0140009944980327"
+                     data-ad-slot="9542057108"
+                     data-ad-format="auto"
+                     data-full-width-responsive="true"></ins>
+                <script>
+                    (adsbygoogle = window.adsbygoogle || []).push({});
+                </script>
             </div>
         </div>
         <?php
@@ -188,10 +188,14 @@ __HTML__;
             <!-- Global site tag (gtag.js) - Google Analytics -->
             <script async src="https://www.googletagmanager.com/gtag/js?id=UA-22395429-8"></script>
             <script>
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'UA-22395429-8');
+                window.dataLayer = window.dataLayer || [];
+
+                function gtag() {
+                    dataLayer.push(arguments);
+                }
+
+                gtag('js', new Date());
+                gtag('config', 'UA-22395429-8');
             </script>
 
             <?php if ($settings['includeGoogleMaps']): ?>
@@ -472,19 +476,19 @@ __HTML__;
                         <div class="mp-img mp-img-rightB slidingPane_next"></div>
                     </div>
                     <?php if ($itemList): ?>
-                    <img src="/<?php echo $itemList[0]['teaser']; ?>" alt="" style="width:100%; z-index:-999;"/>
-                    <?php
-                    foreach ($itemList as $item) {
-                        ?>
-                        <div class="slidingPane_item" style="visibility:hidden;">
-                            <a href="<?php echo $item['link']; ?>"><img
-                                        src="/<?php echo $item['teaser']; ?>"
-                                        alt="" style="width:100%;"/></a>
-
-                            <div class="img_overcaption"><?php echo $item['caption']; ?></div>
-                        </div>
+                        <img src="/<?php echo $itemList[0]['teaser']; ?>" alt="" style="width:100%; z-index:-999;"/>
                         <?php
-                    }
+                        foreach ($itemList as $item) {
+                            ?>
+                            <div class="slidingPane_item" style="visibility:hidden;">
+                                <a href="<?php echo $item['link']; ?>"><img
+                                            src="/<?php echo $item['teaser']; ?>"
+                                            alt="" style="width:100%;"/></a>
+
+                                <div class="img_overcaption"><?php echo $item['caption']; ?></div>
+                            </div>
+                            <?php
+                        }
                     endif;
                     ?>
                 </div>

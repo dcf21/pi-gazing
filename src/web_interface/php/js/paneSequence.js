@@ -53,7 +53,7 @@ function SequentialPanes(parent) {
         '<div style="display:inline-block;padding:10px;">' +
         '<button type="button" class="spprev btn">&#171; Back</button>' +
         '</div><div style="display:inline-block;padding:10px;">' +
-        '<button type="button" class="spnext2 btn btn-primary">'+this.final_next[1]+' &#187;</button>' +
+        '<button type="button" class="spnext2 btn btn-primary">' + this.final_next[1] + ' &#187;</button>' +
         '</div>');
     $(".spprev", parent).click(function () {
         self.prev();
@@ -80,7 +80,9 @@ SequentialPanes.prototype.next = function () {
 
 // This is a hack to retain the values of x and i in a closure
 SequentialPanes.prototype.gotoPane = function (x, i) {
-    return function() { x.selectPane(i); }
+    return function () {
+        x.selectPane(i);
+    }
 }
 
 SequentialPanes.prototype.selectPane = function (i) {
@@ -96,17 +98,17 @@ SequentialPanes.prototype.selectPane = function (i) {
     $(j).fadeOut(400, function () {
         $(k).fadeIn(400);
     });
-    this.current=i;
+    this.current = i;
 
     // Highlight the appropriate item in the contents list
     $(".goto", self.parent).css("font-weight", "normal");
-    $(".goto"+this.current, self.parent).css("font-weight", "bold");
+    $(".goto" + this.current, self.parent).css("font-weight", "bold");
 
     // Disable or enable previous / next buttons as required
-    if (i==0) $(".spprev", self.parent).prop("disabled",true);
-    else $(".spprev", self.parent).prop("disabled",false);
-    if (i==this.number-1) $(".spnext", self.parent).prop("disabled",true);
-    else $(".spnext", self.parent).prop("disabled",false);
+    if (i == 0) $(".spprev", self.parent).prop("disabled", true);
+    else $(".spprev", self.parent).prop("disabled", false);
+    if (i == this.number - 1) $(".spnext", self.parent).prop("disabled", true);
+    else $(".spnext", self.parent).prop("disabled", false);
 };
 
 // Initialise all HTML elements with class pane-sequence

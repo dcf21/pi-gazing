@@ -31,7 +31,7 @@ function ObstoryMap(parent) {
     // Set up Google Map
     self.mapOptions = {
         center: new google.maps.LatLng(52.20, 0.12),
-        zoom: (self.obstories.length>1) ? 7 : 9,
+        zoom: (self.obstories.length > 1) ? 7 : 9,
         mapTypeId: google.maps.MapTypeId.HYBRID,
         streetViewControl: false,
         mapTypeControl: false
@@ -47,7 +47,7 @@ function ObstoryMap(parent) {
             title: obstory['name']
         });
         marker.addListener('click', function () {
-            window.location = "/observatory.php?id="+obstory['publicId'];
+            window.location = "/observatory.php?id=" + obstory['publicId'];
         });
         self.markers[obstory['publicId']] = marker;
     });

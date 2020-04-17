@@ -165,8 +165,8 @@ if (array_key_exists('orientation:altitude', $obstory_metadata)) {
         $latitude = $obstory_metadata['latitude_gps'];
         $longitude = $obstory_metadata['longitude_gps'];
     } else {
-       $latitude = $getargs->obstory_objs[$obstory['publicId']]['latitude'];
-       $longitude = $getargs->obstory_objs[$obstory['publicId']]['longitude'];
+        $latitude = $getargs->obstory_objs[$obstory['publicId']]['latitude'];
+        $longitude = $getargs->obstory_objs[$obstory['publicId']]['longitude'];
     }
 
     // Get image RA/Dec

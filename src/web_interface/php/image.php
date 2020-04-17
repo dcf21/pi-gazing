@@ -159,7 +159,7 @@ $other_files = $stmt->fetchAll();
 
 // Build metadata for planetarium overlay
 $planetarium_metadata = [
-        'active' => false
+    'active' => false
 ];
 
 // Get observatory metadata
@@ -172,8 +172,8 @@ if (array_key_exists('orientation:altitude', $obstory_metadata)) {
         $latitude = $obstory_metadata['latitude_gps'];
         $longitude = $obstory_metadata['longitude_gps'];
     } else {
-       $latitude = $getargs->obstory_objs[$obstory['publicId']]['latitude'];
-       $longitude = $getargs->obstory_objs[$obstory['publicId']]['longitude'];
+        $latitude = $getargs->obstory_objs[$obstory['publicId']]['latitude'];
+        $longitude = $getargs->obstory_objs[$obstory['publicId']]['longitude'];
     }
 
     // Get image RA/Dec
@@ -186,7 +186,7 @@ if (array_key_exists('orientation:altitude', $obstory_metadata)) {
 
     // Create planetarium overlay metadata
     $planetarium_metadata = [
-            'active' => true,
+        'active' => true,
         'barrel_k1' => 0,
         'barrel_k2' => 0,
         'dec0' => $ra_dec[1] * pi() / 180,
@@ -299,47 +299,47 @@ $pageTemplate->header($pageInfo);
                         <input class="chk chkoverlay" type="checkbox" name="chkoverlay" checked="checked">
                         Planetarium overlay
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkss" type="checkbox" name="chkss" checked="checked">
                         Show stars
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkls" type="checkbox" name="chkls" checked="checked">
                         Label stars
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chksn" type="checkbox" name="chksn">
                         Show deep sky objects
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkln" type="checkbox" name="chkln">
                         Label deep sky objects
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkcb" type="checkbox" name="chkcb">
                         Show constellation boundaries
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkcl" type="checkbox" name="chkcl" checked="checked">
                         Show constellation sticks
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkcn" type="checkbox" name="chkcn" checked="checked">
                         Show constellation labels
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkragrid" type="checkbox" name="chkragrid" checked="checked">
                         Show RA/Dec grid
                     </label>
-                    <br />
+                    <br/>
                     <label>
                         <input class="chk chkbarrel" type="checkbox" name="chkbarrel" checked="checked">
                         Include lens correction

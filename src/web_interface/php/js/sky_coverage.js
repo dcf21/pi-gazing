@@ -393,13 +393,13 @@ SkyCoverageChart.prototype.hoverHover = function (id, x, y) {
     var el = $(".annotation-hover", this.context);
 
     if (this.hovermankeys.hasOwnProperty(id)) {
-            el.css("width", "160px");
-            el.css("left", (x - 80) + "px");
-            el.css("top", (y + 12) + "px");
-            el.css("display", "block");
-            el.html(this.hovermankeys[id][0]);
-            this.context.css("cursor", "pointer");
-        } else {
+        el.css("width", "160px");
+        el.css("left", (x - 80) + "px");
+        el.css("top", (y + 12) + "px");
+        el.css("display", "block");
+        el.html(this.hovermankeys[id][0]);
+        this.context.css("cursor", "pointer");
+    } else {
         // If we are not hovering over a marker, remove the hover text box now
         el.css("display", "none");
         this.context.css("cursor", "auto");
@@ -410,7 +410,7 @@ SkyCoverageChart.prototype.hoverHover = function (id, x, y) {
 SkyCoverageChart.prototype.hoverClick = function (id, x, y) {
     // Call any hook functions for a click event on a marker
     if (this.hovermankeys.hasOwnProperty(id)) {
-        window.open(this.hovermankeys[id][1],'_blank');
+        window.open(this.hovermankeys[id][1], '_blank');
     }
 };
 
