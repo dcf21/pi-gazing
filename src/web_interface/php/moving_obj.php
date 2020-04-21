@@ -150,13 +150,18 @@ $stmt->bindParam(':i', $i, PDO::PARAM_INT);
 $stmt->execute(['i' => $uid]);
 $simultaneous_events = $stmt->fetchAll();
 
+// Get observatory metadata
+$obstory_metadata = observatory_info::obstory_metadata($observation['obsTime'], $obstory['publicId']);
+
+// Get metadata about lenses
+$lens_data = observatory_info::fetch_lenses();
+$lens_name = $obstory_metadata['lens'];
+$lens_this = $lens_data[$lens_name];
+
 // Build metadata for planetarium overlay
 $planetarium_metadata = [
     'active' => false
 ];
-
-// Get observatory metadata
-$obstory_metadata = observatory_info::obstory_metadata($observation['obsTime'], $obstory['publicId']);
 
 if (array_key_exists('orientation:altitude', $obstory_metadata)) {
 
@@ -180,8 +185,8 @@ if (array_key_exists('orientation:altitude', $obstory_metadata)) {
     // Create planetarium overlay metadata
     $planetarium_metadata = [
         'active' => true,
-        'barrel_k1' => 0,
-        'barrel_k2' => 0,
+        'barrel_k1' => $lens_this['barrel_k1'],
+        'barrel_k2' => $lens_this['barrel_k2'],
         'dec0' => $ra_dec[1] * pi() / 180,
         'pos_ang' => $obstory_metadata['orientation:pa'] * pi() / 180,
         'ra0' => $ra_dec[0] * pi() / 12,

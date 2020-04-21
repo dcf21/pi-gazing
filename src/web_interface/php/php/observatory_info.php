@@ -159,4 +159,23 @@ ORDER BY time DESC LIMIT 1");
         }
         return $output;
     }
+
+    // This function returns an array of all the lenses we have models for
+    public static function fetch_lenses()
+    {
+        $xml = file_get_contents("../../../configuration_global/camera_properties/lenses.xml");
+        $xml_data = simplexml_load_string($xml) or die("Error: Cannot create object");
+
+        $lens_data = [];
+        foreach ($xml_data->lens as $lens_item) {
+            $lens_data[(string)$lens_item->name] = [
+                "name" => (string)$lens_item->name,
+                "fov" => (float)$lens_item->fov,
+                "barrel_k1" => (float)$lens_item->barrel_k1,
+                "barrel_k2" => (float)$lens_item->barrel_k2
+            ];
+        }
+
+        return $lens_data;
+    }
 }

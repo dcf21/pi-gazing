@@ -1,11 +1,5 @@
 <lenses>
  <lens>
-  <name>null</name>
-  <fov>0</fov>
-  <barrel_k1>0</barrel_k1>
-  <barrel_k2>0</barrel_k2>
- </lens>
- <lens>
   <name>f1.6_cctv_lens</name>
   <comment>Lens in use on test camera</comment>
   <fov>65</fov>
