@@ -138,8 +138,8 @@ def mismatch(params):
     # Sort offsets into order of magnitude
     offset_list.sort()
 
-    # Reject the two worst-matching points
-    accumulator = sum(offset_list[:-2])
+    # Reject the one worst-matching point
+    accumulator = sum(offset_list[:-1])
 
     # Debugging
     # logging.info("{:10e} -- {}".format(accumulator, list(params)))
@@ -217,8 +217,8 @@ ORDER BY obsTime DESC LIMIT 1
 
     # Divide up time interval into day-long blocks
     logging.info("Searching for images within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
-    block_size = 3600
-    minimum_sky_clarity = 1500
+    block_size = 1800
+    minimum_sky_clarity = 1200
     utc_min = (floor(utc_min / block_size + 0.5) - 0.5) * block_size  # Make sure that blocks start at noon
     time_blocks = list(np.arange(start=utc_min, stop=utc_max + block_size, step=block_size))
 
@@ -483,7 +483,7 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
 
         ra0 = fit_list[0]['ra']
         dec0 = fit_list[0]['dec']
-        parameter_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 0.005, 0.005]
+        parameter_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 5e-2, 5e-6]
         parameters_default = [ra0, dec0, pi / 4, pi / 4, 0,
                               lens_props.barrel_k1, lens_props.barrel_k2]
         parameters_initial = [parameters_default[i] / parameter_scales[i] for i in range(len(parameters_default))]
