@@ -485,7 +485,7 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         dec0 = fit_list[0]['dec']
         parameter_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 5e-2, 5e-6]
         parameters_default = [ra0, dec0, pi / 4, pi / 4, 0,
-                              lens_props.barrel_k1, lens_props.barrel_k2]
+                              lens_props.barrel_k1, 0]
         parameters_initial = [parameters_default[i] / parameter_scales[i] for i in range(len(parameters_default))]
         fitting_result = scipy.optimize.minimize(mismatch, parameters_initial, method='nelder-mead',
                                                  options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}

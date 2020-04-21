@@ -31,8 +31,8 @@
   <name>kvr0412</name>
   <comment>Kenko KVR 0412 DC 4mm F1.2 - Installed in Cambridge-East-0 20 April 2020</comment>
   <fov>65</fov>
-  <barrel_k1>0</barrel_k1>
-  <barrel_k2>0</barrel_k2>
+  <barrel_k1>0.1164</barrel_k1>
+  <barrel_k2>-0.0188</barrel_k2>
  </lens>
  <lens>
   <name>eos1000d</name>
