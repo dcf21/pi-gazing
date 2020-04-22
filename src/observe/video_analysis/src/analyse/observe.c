@@ -301,7 +301,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
 
     // Let the camera run for a period before triggering, as it takes this long to make first background map
     // This counts down to zero. When it reaches zero, we start observing.
-    os->run_in_frame_countdown = 100 + BACKGROUND_MAP_FRAMES;
+    os->run_in_frame_countdown = 15000 + BACKGROUND_MAP_FRAMES;
 
     // Noise level if frames, estimated from the standard deviation of pixel values between successive frames
     os->noise_level = 128;

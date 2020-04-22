@@ -217,8 +217,8 @@ ORDER BY obsTime DESC LIMIT 1
 
     # Divide up time interval into day-long blocks
     logging.info("Searching for images within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
-    block_size = 1800
-    minimum_sky_clarity = 1200
+    block_size = 3600
+    minimum_sky_clarity = 1400
     utc_min = (floor(utc_min / block_size + 0.5) - 0.5) * block_size  # Make sure that blocks start at noon
     time_blocks = list(np.arange(start=utc_min, stop=utc_max + block_size, step=block_size))
 
@@ -508,6 +508,11 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         # Reject fit if objective function too large
         if fitting_result.fun > 1e-4:
             logging.info("Rejecting fit as chi-squared too large.")
+            continue
+
+        # Reject fit if k1/k2 values are too extreme
+        if (abs(parameters_final[5]) > 0.3) or (abs(parameters_final[6]) > 0.1):
+            logging.info("Rejecting fit as parameters seem extreme.")
             continue
 
         # Update observation status

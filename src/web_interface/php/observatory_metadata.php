@@ -131,12 +131,12 @@ $pageTemplate->header($pageInfo);
     <hr style="margin: 20px 0;"/>
 
     <p class="centred">
-        The table below lists various status information reported by the observatory in the course of its
-        observations.
+        The table below lists status information reported by each observatory.
     </p>
     <p class="centred">
-        Most nights, each observatory returns a new estimate of its location, based on GPS. Other information,
-        such as the model of camera and lens installed are reported less frequently.
+        Some information, such as the direction the camera is pointing in, is often updated on a nightly
+        basis. Other information, such as the model of camera and lens installed are generally only
+        updated whenever a camera is serviced.
     </p>
     <p class="centred">
         Items shown in green are still current. Items shown in red have been superseded by newer updates.

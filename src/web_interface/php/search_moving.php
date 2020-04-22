@@ -291,7 +291,7 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
         $gallery_items[] = [
             "fileId" => $item['repositoryFname'],
             "filename" => $item['fileName'],
-            "caption" => $item['obstoryName'] . "<br/>" . date("d M Y \\a\\t H:i", $item['obsTime']),
+            "caption" => $item['obstoryName'] . "<br/>" . date("d M Y \\a\\t H:i:s", $item['obsTime']),
             "hover" => null,
             "path" => $item['path'],
             "image_width" => $item['width'],

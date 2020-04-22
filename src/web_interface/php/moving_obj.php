@@ -261,7 +261,18 @@ if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
             <h5>Observatory</h5>
             <p><a href="observatory.php?id=<?php echo $obstory['publicId']; ?>"><?php echo $obstory['name']; ?></a></p>
             <h5>Time</h5>
-            <p><?php echo date("d M Y - H:i", $observation['obsTime']); ?></p>
+            <p>
+                <b>Start</b>
+                <br />
+                <?php echo date("d M Y - H:i:s", $observation['obsTime']); ?>
+            </p>
+            <p>
+                <b>End</b>
+                <br />
+                <?php echo date("d M Y - H:i:s", $observation['obsTime'] + $metadata_by_key['pigazing:duration']); ?>
+            </p>
+            <h5>Duration</h5>
+               <p><?php printf("%.1f", $metadata_by_key['pigazing:duration']); ?> sec</p>
             <h5>Display options</h5>
             <form method="get" action="javascript:void(0);">
                 <p>
