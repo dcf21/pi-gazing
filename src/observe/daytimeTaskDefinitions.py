@@ -1087,9 +1087,29 @@ class DeterminePointing(TaskRunner):
         os.system(command)
 
 
+class CleanDatabase(TaskRunner):
+    """
+    A TaskRunner which removes any observations older than <dataLocalLifetime> from the database, to ensure that
+    the SD cards in observatories don't run out of space
+    """
+
+    def fetch_job_list_by_time_stamp(self):
+        return {0: True}
+
+    def execute_tasks(self):
+
+        # This makes sure that we have a valid task list
+        self.fetch_job_list()
+
+        command = "{python_path}/command_line/deleteData.py".format(
+            python_path=settings['pythonPath'])
+        print(command)
+        os.system(command)
+
+
 class Snooze(TaskRunner):
     """
-    A TaskRunning which sleeps until we next want to start observing.
+    A TaskRunner which sleeps until we next want to start observing.
     """
 
     def fetch_job_list_by_time_stamp(self):
@@ -1117,5 +1137,6 @@ task_running_order = [
     DetermineLensCorrection,
     DeterminePointing,
     ExportData,
+    CleanDatabase,
     Snooze
 ]

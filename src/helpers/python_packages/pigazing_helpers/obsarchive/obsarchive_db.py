@@ -1427,9 +1427,9 @@ VALUES (%s, %s, %s, %s, %s, %s, (SELECT uid FROM archive_obs_groups WHERE public
             obstory = self.get_obstory_from_id(obstory_id)
             # Purge tables - other tables are deleted by foreign key cascades from these ones.
             self.con.execute('SELECT publicId FROM archive_observations '
-                             'WHERE obsTime>%s AND obsTime<%s AND observatory=%s',
+                             'WHERE (obsTime BETWEEN %s AND %s) AND observatory=%s',
                              (tmin, tmax, obstory['uid']))
             for obs in self.con.fetchall():
                 self.delete_observation(obs['publicId'])
-            self.con.execute('DELETE FROM archive_metadata WHERE time>%s AND time<%s AND observatory=%s',
+            self.con.execute('DELETE FROM archive_metadata WHERE (time BETWEEN %s AND %s) AND observatory=%s',
                              (tmin, tmax, obstory['uid']))

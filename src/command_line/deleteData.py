@@ -23,86 +23,73 @@
 
 
 """
-Deletes all of the observations and files recorded by a particular observatory between two times.
+Delete all observations and files recorded by a particular observatory between two times.
 """
 
+import os
 import argparse
-import sys
+import logging
 import time
 
-from pigazing_helpers import dcf_ast
-from pigazing_helpers.obsarchive import obsarchive_db
-from pigazing_helpers.obsarchive import obsarchive_model as mp
+from pigazing_helpers import connect_db
 from pigazing_helpers.settings_read import settings, installation_info
 
 
-def delete_data(utc_min, utc_max, obstory):
-    # Open connection to image archive
-    db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                           db_host=installation_info['mysqlHost'],
-                                           db_user=installation_info['mysqlUser'],
-                                           db_password=installation_info['mysqlPassword'],
-                                           db_name=installation_info['mysqlDatabase'],
-                                           obstory_id=installation_info['observatoryId'])
+def delete_data(utc_min, utc_max, obstory, dry_run):
+    # Open connection to database
+    [db0, conn] = connect_db.connect_db()
 
-    obstory_info = db.get_obstory_from_id(obstory_id=obstory)
-    if not obstory_info:
-        print("Unknown observatory <{}>.\nRun ./listObservatories.py to see a list of available options.".
-              format(obstory))
-        sys.exit(0)
+    # Search for observations
+    conn.execute("""
+SELECT o.publicId
+FROM archive_observations o
+INNER JOIN archive_observatories ao on o.observatory = ao.uid
+WHERE (o.obsTime BETWEEN %s AND %s) AND ao.publicId=%s;
+""", (utc_min, utc_max, obstory))
+    results_observations = conn.fetchall()
 
-    s = db.get_obstory_status(obstory_id=obstory)
-    if not s:
-        print("Unknown observatory <{}>.\nRun ./listObservatories.py to see a list of available options.".
-              format(obstory))
-        sys.exit(0)
+    # Delete each observation in turn
+    for observation in results_observations:
+        command = """
+./deleteObservation.py --id {}
+""".format(observation['publicId']).strip()
 
-    search = mp.FileRecordSearch(obstory_ids=[obstory],
-                                 time_min=utc_min,
-                                 time_max=utc_max,
-                                 limit=1000000)
-    files = db.search_files(search)
-    files = [i for i in files['files']]
-    files.sort(key=lambda x: x.file_time)
+        logging.info(command)
 
-    search = mp.ObservationSearch(obstory_ids=[obstory],
-                                  time_min=utc_min,
-                                  time_max=utc_max,
-                                  limit=1000000)
-    observations = db.search_observations(search)
-    observations = observations['obs']
-    observations.sort(key=lambda x: x.obs_time)
-
-    print("Observatory <{}>".format(obstory))
-    print("  * {:6d} matching files in time range {} --> {}".format(len(files),
-                                                                    dcf_ast.date_string(utc_min),
-                                                                    dcf_ast.date_string(utc_max)))
-    print("  * {:6d} matching observations in time range".format(len(observations)))
-
-    confirmation = input('Delete these files? (Y/N) ')
-    if confirmation not in 'Yy':
-        sys.exit(0)
-
-    db.clear_database(tmin=utc_min, tmax=utc_max, obstory_ids=[obstory_info['id']])
-
-    # Commit changes to database
-    db.commit()
+        if not dry_run:
+            os.system(command)
 
 
 if __name__ == "__main__":
     # Read input parameters
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--t-min', dest='utc_min', default=time.time() - 3600 * 24,
+    parser.add_argument('--t-min', dest='utc_min', default=0,
                         type=float,
                         help="Only delete observations made after the specified unix time")
-    parser.add_argument('--t-max', dest='utc_max', default=time.time(),
+    parser.add_argument('--t-max', dest='utc_max', default=(time.time() -
+                                                            3600 * 24 * installation_info['dataLocalLifetime']),
                         type=float,
                         help="Only delete observations made before the specified unix time")
     parser.add_argument('--observatory', dest='observatory', default=installation_info['observatoryId'],
                         help="ID of the observatory we are to delete observations from")
+    parser.add_argument('--dry-run', dest='dry_run', action='store_true')
+    parser.add_argument('--no-dry-run', dest='dry_run', action='store_false')
+    parser.set_defaults(dry_run=False)
     args = parser.parse_args()
+
+    # Set up logging
+    logging.basicConfig(level=logging.INFO,
+                        format='[%(asctime)s] %(levelname)s:%(filename)s:%(message)s',
+                        datefmt='%d/%m/%Y %H:%M:%S',
+                        handlers=[
+                            logging.FileHandler(os.path.join(settings['pythonPath'], "../datadir/pigazing.log")),
+                            logging.StreamHandler()
+                        ])
+    logger = logging.getLogger(__name__)
+    logger.info(__doc__.strip())
 
     delete_data(utc_min=args.utc_min,
                 utc_max=args.utc_max,
-                obstory=args.observatory
+                obstory=args.observatory,
+                dry_run=args.dry_run
                 )
