@@ -1097,12 +1097,13 @@ class CleanDatabase(TaskRunner):
         return {0: True}
 
     def execute_tasks(self):
-
         # This makes sure that we have a valid task list
         self.fetch_job_list()
 
-        command = "{python_path}/command_line/deleteData.py".format(
-            python_path=settings['pythonPath'])
+        command = """
+cd {python_path}/command_line ;
+./deleteData.py
+""".format(python_path=settings['pythonPath'])
         print(command)
         os.system(command)
 
