@@ -3,7 +3,7 @@
         <latitude>52.222</latitude>
         <longitude>0.078</longitude>
         <observatoryId>obs0</observatoryId>
-        <observatoryName>Test-Observatory-1</observatoryName>
+        <observatoryName>Test-Observatory-0</observatoryName>
         <owner>dcf21</owner>
         <defaultCamera>watec_902h2_supreme</defaultCamera>
         <defaultLens>f1.6_cctv_lens</defaultLens>
@@ -12,7 +12,7 @@
         <latitude>52.222</latitude>
         <longitude>0.078</longitude>
         <observatoryId>eddington0</observatoryId>
-        <observatoryName>Eddington-Observatory-1</observatoryName>
+        <observatoryName>Eddington-Observatory-0</observatoryName>
         <owner>dcf21</owner>
         <defaultCamera>watec_902h2_ultimate</defaultCamera>
         <defaultLens>siemens_f1.2</defaultLens>
@@ -21,7 +21,7 @@
         <latitude>52.208</latitude>
         <longitude>0.166</longitude>
         <observatoryId>cambridge-east-0</observatoryId>
-        <observatoryName>Cambridge-East</observatoryName>
+        <observatoryName>Cambridge-East-0</observatoryName>
         <owner>dcf21</owner>
         <defaultCamera>watec_902h2_ultimate</defaultCamera>
         <defaultLens>kvr0412</defaultLens>
