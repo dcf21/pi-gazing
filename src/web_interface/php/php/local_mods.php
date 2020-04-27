@@ -27,7 +27,7 @@
 
 class local_mods
 {
-    // This function returns a dictionary of settings that effect the headers of each page
+    // This function returns a dictionary of settings that affect the headers of each page
     // You can disable the import of the Google Maps JS files if you don't have a valid API key
     // or you can insert your own API key here
     public static function get_settings()

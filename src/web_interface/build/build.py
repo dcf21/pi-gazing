@@ -107,7 +107,7 @@ def makehtml():
                     print("Compiling LESS file <%s>" % fname)
                     css_minify = ""
                     if minify:
-                        css_minify = "--clean-css=\"--s1 --advanced --compatibility=ie8\"";
+                        css_minify = "--clean-css=\"--s1 --advanced --compatibility=ie8\""
                     cmd = "lessc %s %s %s" % (infile, css_minify, outfile[:-4] + "css")
                     print(cmd)
                     os.system(cmd)
