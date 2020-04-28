@@ -410,7 +410,7 @@ __HTML__;
                         <p class="copyright">
                             <span style="font-size:15px;">
                             &copy;
-                                <a href="https://dcford.org.uk/about.php">Dominic Ford</a>
+                                <a href="https://dcford.org.uk/">Dominic Ford</a>
                                     2015&ndash;<?php echo date("Y"); ?>
                             </span>
                         </p>
