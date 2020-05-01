@@ -18,7 +18,6 @@
     "jquery": "~1.11.3",
     "jquery-ui": "~1.11.4",
     "font-awesome": "fontawesome#^4.6.1",
-    "vis": "^4.16.1",
     "tether": "^1.4.1"
   }
 }

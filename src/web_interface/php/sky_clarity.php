@@ -72,7 +72,7 @@ $obstory = $getargs->readObservatory("obstory");
 
 // Read image options
 $flag_bgsub = 0;
-$flag_highlights = 1;
+$flag_highlights = 0;
 
 if (array_key_exists("flag_bgsub", $_GET)) $flag_bgsub = 1;
 
@@ -130,7 +130,7 @@ $pageTemplate->header($pageInfo);
         </div>
     </form>
 
-    <hr />
+    <hr/>
 
     <div id="results"></div>
 
@@ -163,7 +163,7 @@ WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:t
       AND " . implode(' AND ', $where));
 
     $stmt = $const->db->prepare("
-SELECT o.obsTime, d2.floatValue AS skyClarity
+SELECT o.obsTime, d2.floatValue AS skyClarity, l.publicId AS obstoryId, l.name AS obstoryName
 FROM ${search}
 ORDER BY o.obsTime LIMIT 5000;");
     $stmt->execute([]);
@@ -183,11 +183,38 @@ ORDER BY o.obsTime LIMIT 5000;");
         </div>
     <?php
     else:
+        $obstory_ids = [];
+        $obstory_names = [];
+        $graph_data = [];
+
+        foreach ($result_list as $result) {
+            $obstory_index = array_search($result['obstoryId'], $obstory_ids);
+            if ($obstory_index === false) {
+                $obstory_ids[] = $result['obstoryId'];
+                $obstory_names[] = $result['obstoryName'];
+                $graph_data[] = [];
+                $obstory_index = array_search($result['obstoryId'], $obstory_ids);
+            }
+            $graph_data[$obstory_index][] = [$result['obsTime'], $result['skyClarity']];
+        };
+
+        $graph_metadata = [
+            'y-axis' => 'Sky clarity',
+            'data' => $graph_data,
+            'data_set_titles' => $obstory_names
+        ];
+
         ?>
+
+        <div class="chart_holder" data-meta='<?php echo json_encode($graph_metadata); ?>'>
+            <div class="chart_div"></div>
+        </div>
+
         <table class="stripy bordered bordered_slim">
             <thead>
             <tr>
                 <td>Date</td>
+                <td>Observatory</td>
                 <td>Sky clarity</td>
             </tr>
             </thead>
@@ -195,6 +222,7 @@ ORDER BY o.obsTime LIMIT 5000;");
             <?php foreach ($result_list as $result): ?>
                 <tr>
                     <td><?php echo date("d M Y - H:i", $result['obsTime']); ?></td>
+                    <td><?php echo $result['obstoryName']; ?></td>
                     <td style="text-align:right;"><?php printf("%.1f", $result['skyClarity']); ?></td>
                 </tr>
             <?php endforeach; ?>

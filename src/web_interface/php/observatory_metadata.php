@@ -130,6 +130,33 @@ $pageTemplate->header($pageInfo);
 
     <hr style="margin: 20px 0;"/>
 
+<?php
+
+if (($metadata_field !== "0") && (count($metadata) > 1) && (!$metadata[0]['stringValue'])):
+            $key = $metadata[0]['metaKey'];
+            if (array_key_exists($key, $const->metadataFields)) {
+                $key = $const->metadataFields[$key];
+            }
+        $graph_data = [];
+
+        foreach ($metadata as $result) {
+            $graph_data[] = [$result['time'], floor($result['floatValue'] * 100) / 100];
+        };
+
+        $graph_metadata = [
+            'y-axis' => $key,
+            'data' => [$graph_data],
+            'data_set_titles' => [$obstory_name]
+        ];
+
+        ?>
+
+        <div class="chart_holder" data-meta='<?php echo json_encode($graph_metadata); ?>'>
+            <div class="chart_div"></div>
+        </div>
+
+<?php endif; ?>
+
     <p class="centred">
         The table below lists status information reported by each observatory.
     </p>

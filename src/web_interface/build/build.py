@@ -53,7 +53,7 @@ def makehtml():
 
     # Walk through source directory structure
     for root in root_list:
-        for in_dir in os.walk(root):
+        for in_dir in os.walk(root, followlinks=True):
 
             # Separate out tuple containing subdirs and files
             assert in_dir[0][0:len(root)] == root
@@ -125,7 +125,7 @@ def makehtml():
     # Compress Javascript
     javascripts = glob.glob(os.path.join(output, "js/*.js")) + glob.glob(os.path.join(output, "js/*/*.js"))
     if minify:
-        cmd = "cd %s ; uglifyjs *.js " % (os.path.join(output, "js"))
+        cmd = "cd %s ; uglifyjs *.js */*.js" % (os.path.join(output, "js"))
         cmd += " --compress --mangle --mangle-props "
         # cmd += " --source-map " + os.path.join(output, "js", "pigazing.min.map")
         cmd += " --output " + os.path.join(output, "js", "pigazing.min.js")
