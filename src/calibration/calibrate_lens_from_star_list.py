@@ -50,33 +50,12 @@ import logging
 import os
 import sys
 import json
-import subprocess
 from math import hypot, pi, isfinite
 import scipy.optimize
-from pigazing_helpers import connect_db, hardware_properties
-from pigazing_helpers.dcf_ast import date_string
 from pigazing_helpers.gnomonic_project import gnomonic_project
-from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db, obsarchive_sky_area
-from pigazing_helpers.settings_read import settings, installation_info
+from pigazing_helpers.settings_read import settings
 
 degrees = pi / 180
-
-
-# Return the dimensions of an image
-def image_dimensions(in_file):
-    """
-    Return the pixel dimensions of an image.
-
-    :param in_file:
-        The filename of the image to measure
-    :type in_file:
-        str
-    :return:
-        List of the horizontal and vertical pixel dimensions
-    """
-    d = subprocess.check_output(["identify", "-quiet", in_file]).decode('utf-8').split()[2].split("x")
-    d = [int(i) for i in d]
-    return d
 
 # Read Hipparcos catalogue of stars brighter than mag 5.5
 hipparcos_catalogue = json.loads(open("hipparcos_catalogue.json").read())
@@ -117,7 +96,7 @@ def mismatch(params):
             pos[0] = -999
         if not isfinite(pos[1]):
             pos[1] = -999
-        offset = pow(hypot(star['x'] - pos[0], star['y'] - pos[1]), 2)
+        offset = pow(hypot(star['xpos'] - pos[0], star['ypos'] - pos[1]), 2)
         offset_list.append(offset)
 
     # Sort offsets into order of magnitude
@@ -136,6 +115,10 @@ def calibrate_lens():
     # Read input list of stars whose positions we know
     input_config = sys.stdin.read()
 
+    # Get dimensions of the image we are dealing with
+    img_size_x = input_config['size_x']
+    img_size_y = input_config['size_y']
+
     # Look up positions of each star, based on listed Hipparcos catalogue numbers
     star_list = []
     for star in input_config['star_list']:
@@ -144,11 +127,12 @@ def calibrate_lens():
             logging.info("Could not find star {:d}".format(hipp))
             continue
         [ra, dec] = hipparcos_catalogue[hipp]
-        star_list.append({'xpos': int(star[0]), 'ypos': int(star[1]), 'ra': ra * degrees, 'dec': dec * degrees})
-
-    # Get dimensions of the image we are dealing with
-    image_file = input_config['image_file']
-    [img_size_x, img_size_y] = image_dimensions(image_file)
+        star_list.append({
+            'xpos': int(star[0]) / img_size_x,
+            'ypos': int(star[1]) / img_size_y,
+            'ra': ra * degrees,
+            'dec': dec * degrees
+        })
 
     # Solve system of equations to give best fit barrel correction
     # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/> for more information about how this works
@@ -173,13 +157,13 @@ def calibrate_lens():
         logging.info("{:30s} : {:s}".format(headings[i][0], parameter_final[i] * headings[i][1]))
 
     # Print information about how well each star was fitted
-    [ra0, dec0, scale_x, scale_y, pos_ang, bca, bcb, bcc] = parameter_final
+    [ra0, dec0, scale_x, scale_y, pos_ang, bc_k1, bc_k2] = parameter_final
     if True:
         logging.info("Stars used in fitting process:")
         for star in star_list:
-            pos = gnomonic_project(star['ra'], star['dec'], ra0, dec0,
-                                   img_size_x, img_size_y, scale_x, scale_y, pos_ang,
-                                   bca, bcb, bcc)
+            pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
+                                   size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
+                                   barrel_k1=bc_k1, barrel_k2=bc_k2)
             distance = hypot(star['xpos'] - pos[0], star['ypos'] - pos[1])
             logging.info("""
 User-supplied position ({:4d},{:4d}). Model position ({:4.0f},{:4.0f}). Mismatch {:5.0f} pixels.
