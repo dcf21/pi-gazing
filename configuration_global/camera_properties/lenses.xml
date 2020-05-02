@@ -3,15 +3,15 @@
   <name>f1.6_cctv_lens</name>
   <comment>Lens in use on test camera</comment>
   <fov>65</fov>
-  <barrel_k1>0.22</barrel_k1>
-  <barrel_k2>0</barrel_k2>
+  <barrel_k1>0.15288972</barrel_k1>
+  <barrel_k2>-0.00013305</barrel_k2>
  </lens>
  <lens>
   <name>siemens_f1.2</name>
   <comment>Siemens 1/2" F1.2 4-12mm Varifocal Auto Iris C Mount CCTV Lens - Installed Feb 2020</comment>
   <fov>65</fov>
-  <barrel_k1>0.189</barrel_k1>
-  <barrel_k2>-0.0024</barrel_k2>
+  <barrel_k1>0.15662611</barrel_k1>
+  <barrel_k2>-0.00336340</barrel_k2>
  </lens>
  <lens>
   <name>fujinon_YV10x5B-SA2</name>
@@ -24,15 +24,15 @@
   <name>erintec</name>
   <comment>Erintec lens - Installed in Cambridge-East-0 12 April 2020</comment>
   <fov>65</fov>
-  <barrel_k1>0.182</barrel_k1>
-  <barrel_k2>0</barrel_k2>
+  <barrel_k1>0.15062146</barrel_k1>
+  <barrel_k2>-0.00253314</barrel_k2>
  </lens>
  <lens>
   <name>kvr0412</name>
   <comment>Kenko KVR 0412 DC 4mm F1.2 - Installed in Cambridge-East-0 20 April 2020</comment>
   <fov>65</fov>
-  <barrel_k1>0.1164</barrel_k1>
-  <barrel_k2>-0.0188</barrel_k2>
+  <barrel_k1>0.03284274</barrel_k1>
+  <barrel_k2>0.00587815</barrel_k2>
  </lens>
  <lens>
   <name>eos1000d</name>

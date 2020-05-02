@@ -111,9 +111,12 @@ def mismatch(params):
     # Return result
     return accumulator
 
+
 def calibrate_lens():
+    global parameter_scales, star_list
+
     # Read input list of stars whose positions we know
-    input_config = sys.stdin.read()
+    input_config = json.loads(sys.stdin.read())
 
     # Get dimensions of the image we are dealing with
     img_size_x = input_config['size_x']
@@ -122,11 +125,11 @@ def calibrate_lens():
     # Look up positions of each star, based on listed Hipparcos catalogue numbers
     star_list = []
     for star in input_config['star_list']:
-        hipp = str(star[2])
-        if hipp not in hipparcos_catalogue:
-            logging.info("Could not find star {:d}".format(hipp))
+        hipparcos_id = str(star[2])
+        if hipparcos_id not in hipparcos_catalogue:
+            logging.info("Could not find star {:s}".format(hipparcos_id))
             continue
-        [ra, dec] = hipparcos_catalogue[hipp]
+        [ra, dec] = hipparcos_catalogue[hipparcos_id]
         star_list.append({
             'xpos': int(star[0]) / img_size_x,
             'ypos': int(star[1]) / img_size_y,
@@ -142,7 +145,7 @@ def calibrate_lens():
     parameter_defaults = [ra0, dec0, pi / 4, pi / 4, 0, 0, 0]
     parameter_initial = [parameter_defaults[i] / parameter_scales[i] for i in range(len(parameter_defaults))]
     parameter_optimised = scipy.optimize.minimize(mismatch, parameter_initial, method='nelder-mead',
-                                               options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}).x
+                                                  options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}).x
     parameter_final = [parameter_optimised[i] * parameter_scales[i] for i in range(len(parameter_defaults))]
 
     # Display best fit numbers
@@ -152,9 +155,10 @@ def calibrate_lens():
                 ["barrel_k1", 1], ["barrel_k2", 1]
                 ]
 
+    logging.info("Lens: {}".format(input_config['lens']))
     logging.info("Best fit parameters were:")
     for i in range(len(parameter_defaults)):
-        logging.info("{:30s} : {:s}".format(headings[i][0], parameter_final[i] * headings[i][1]))
+        logging.info("{:30s} : {:.8f}".format(headings[i][0], parameter_final[i] * headings[i][1]))
 
     # Print information about how well each star was fitted
     [ra0, dec0, scale_x, scale_y, pos_ang, bc_k1, bc_k2] = parameter_final
@@ -164,10 +168,13 @@ def calibrate_lens():
             pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
                                    size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
                                    barrel_k1=bc_k1, barrel_k2=bc_k2)
-            distance = hypot(star['xpos'] - pos[0], star['ypos'] - pos[1])
+            distance = hypot((star['xpos'] - pos[0]) * img_size_x, (star['ypos'] - pos[1]) * img_size_y)
             logging.info("""
-User-supplied position ({:4d},{:4d}). Model position ({:4.0f},{:4.0f}). Mismatch {:5.0f} pixels.
-""".format(star['xpos'], star['ypos'], pos[0], pos[1], distance).strip())
+User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mismatch {:5.1f} pixels.
+""".format(star['xpos'] * img_size_x,
+           star['ypos'] * img_size_y,
+           pos[0] * img_size_x,
+           pos[1] * img_size_y, distance).strip())
 
 
 # If we're called as a script, run the function calibrate_lens()
