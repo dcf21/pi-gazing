@@ -218,7 +218,7 @@ ORDER BY obsTime DESC LIMIT 1
     # Divide up time interval into day-long blocks
     logging.info("Searching for images within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
     block_size = 3600
-    minimum_sky_clarity = 1400
+    minimum_sky_clarity = 1e6 + 1400
     utc_min = (floor(utc_min / block_size + 0.5) - 0.5) * block_size  # Make sure that blocks start at noon
     time_blocks = list(np.arange(start=utc_min, stop=utc_max + block_size, step=block_size))
 
@@ -669,7 +669,7 @@ WHERE observatory = (SELECT x.uid FROM archive_observatories x WHERE x.publicId=
     db0.close()
 
 
-# If we're called as a script, run the method orientationCalc()
+# If we're called as a script, run the function calibrate_lens()
 if __name__ == "__main__":
     # Read commandline arguments
     parser = argparse.ArgumentParser(description=__doc__)

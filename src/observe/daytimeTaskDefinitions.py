@@ -1033,7 +1033,8 @@ class ExportData(TaskRunner):
 
 class DetermineLensCorrection(TaskRunner):
     """
-    A TaskRunner which calls the script <calibrate_lens.py> to work out the radial distortion of the lens.
+    A TaskRunner which calls the script <calibrate_lens_with_subimages.py> to work out the radial distortion of the
+    lens.
     """
 
     def fetch_job_list_by_time_stamp(self):
@@ -1052,7 +1053,7 @@ class DetermineLensCorrection(TaskRunner):
         if self.must_quit_by is not None:
             must_quit_string = "--stop-by {must_quit_by}".format(must_quit_by=self.must_quit_by)
 
-        command = "{python_path}/calibration/calibrate_lens.py {must_quit_string}".format(
+        command = "{python_path}/calibration/calibrate_lens_with_subimages.py {must_quit_string}".format(
             python_path=settings['pythonPath'],
             must_quit_string=must_quit_string)
         print(command)
@@ -1135,7 +1136,7 @@ task_running_order = [
     ),
     TimelapseRawImages,
     SelectBestImages,
-    DetermineLensCorrection,
+    # DetermineLensCorrection,
     DeterminePointing,
     ExportData,
     CleanDatabase,

@@ -666,7 +666,7 @@ WHERE observatory = (SELECT x.uid FROM archive_observatories x WHERE x.publicId=
     db0.close()
 
 
-# If we're called as a script, run the method orientationCalc()
+# If we're called as a script, run the function orientation_calc()
 if __name__ == "__main__":
     # Read command-line arguments
     parser = argparse.ArgumentParser(description=__doc__)
