@@ -69,7 +69,7 @@ if (array_key_exists("flag_highlights", $_GET)) $flag_highlights = 1;
 if (array_key_exists("defaults", $_GET)) $flag_highlights = 1;
 
 // Read sky clarity options
-$sky_clarity_min = 400;
+$sky_clarity_min = 0;
 
 if (array_key_exists("clarity", $_GET) && is_numeric($_GET["clarity"])) {
     $sky_clarity_min = intval($_GET["clarity"]);
