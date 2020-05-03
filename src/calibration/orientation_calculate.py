@@ -151,10 +151,10 @@ ORDER BY obsTime DESC LIMIT 1
     results = conn.fetchall()
     utc_max = results[0]['obsTime'] + 1
 
-    # Divide up time interval into 7.5 minute blocks
+    # Divide up time interval into 2-minute blocks
     logging.info("Searching for images within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
-    block_size = 450
-    minimum_sky_clarity = 400
+    block_size = 120
+    minimum_sky_clarity = 300
     time_blocks = list(np.arange(start=utc_min, stop=utc_max, step=block_size))
 
     # Build list of images we are to analyse
@@ -199,9 +199,9 @@ ORDER BY am.floatValue DESC LIMIT 1
                                                      item['skyClarity'],
                                                      item['repositoryFname']))
 
-    # When passing images to astrometry.net, only work on the central portion, as this will have least bad distortion
-    fraction_x = 0.4
-    fraction_y = 0.4
+    # When passing images to astrometry.net, only work on the central portion, as corners may be distorted
+    fraction_x = 0.8
+    fraction_y = 0.8
 
     # Path the binary barrel-correction tool
     barrel_correct = os.path.join(settings['imageProcessorPath'], "lensCorrect")
