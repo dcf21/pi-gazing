@@ -32,5 +32,8 @@
 // Are we working with greyscale images, or three colour channels?
 #define GREYSCALE_IMAGING 1
 
+// Cut off event videos after this duration (seconds) to save disk space
+#define VIDEO_CUTOFF_TIME 8
+
 #endif
 

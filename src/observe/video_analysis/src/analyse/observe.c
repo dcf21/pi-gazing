@@ -279,7 +279,7 @@ int observe(void *video_handle, const char *obstory_id, const double utc_start, 
         os->event_list[i].max_trigger = malloc(os->frame_size);
 
         if (  // (!os->event_list[i].stacked_image) ||
-            (!os->event_list[i].max_stack) || (!os->event_list[i].max_trigger)) {
+                (!os->event_list[i].max_stack) || (!os->event_list[i].max_trigger)) {
             snprintf(temp_err_string, FNAME_LENGTH, "ERROR: malloc fail in observe.");
             logging_fatal(__FILE__, __LINE__, temp_err_string);
         }
@@ -437,7 +437,7 @@ void observing_loop(observe_status *os, const double utc_stop,
             os->timelapse_frame_count++;
         }
 
-        // We are not making a time-lapse exposure, but is it time to start a new one?
+            // We are not making a time-lapse exposure, but is it time to start a new one?
         else if (os->utc > os->timelapse_utc_start) {
             // Clear buffer to hold new exposure, and reset frame counter
             memset(os->stack_timelapse, 0, os->frame_size * channel_count * sizeof(int));
@@ -564,7 +564,7 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
             const int latest_detection_index = os->event_list[trigger_index].detection_count - 1;
             const int distance = (int) hypot(x_pos - os->event_list[trigger_index].detections[latest_detection_index].x,
                                              y_pos - os->event_list[trigger_index].detections[latest_detection_index].y
-                                             );
+            );
             if (distance < closest_trigger_distance) {
                 closest_trigger_distance = distance;
                 closest_trigger_index = trigger_index;
@@ -613,7 +613,7 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
         // Has this object already been seen in this frame?
         if (os->event_list[trigger_index].detections[last_detection_index].frame_count == os->frame_counter) {
             // If so, take position of object as average position of multiple amplitude peaks
-            
+
             // Update structure describing existing detection
             detection *detection = &os->event_list[trigger_index].detections[last_detection_index];
             const int new_amplitude = detection->amplitude + amplitude;
@@ -637,7 +637,7 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
 
                 // Have we had enough detections of this object to confirm it as real?
                 const int sufficient_detections = (os->event_list[trigger_index].detection_count >=
-                        minimum_detections_for_event);
+                                                   minimum_detections_for_event);
 
                 // Detections which span the whole duration of this event so far
                 const int N0 = 0;  // first detection
@@ -645,7 +645,7 @@ void register_trigger(observe_status *os, const int block_id, const int x_pos, c
 
                 // Has this object moved far enough across the frame to be a moving object, not a twinkling star?
                 double pixel_track_len = hypot(os->event_list[trigger_index].detections[N0].x -
-                        os->event_list[trigger_index].detections[N2].x,
+                                               os->event_list[trigger_index].detections[N2].x,
                                                os->event_list[trigger_index].detections[N0].y -
                                                os->event_list[trigger_index].detections[N2].y);
 
@@ -783,8 +783,8 @@ void register_trigger_ends(observe_status *os) {
 
             // Has event disappeared?
             const int event_disappeared = (os->frame_counter >
-                    os->event_list[trigger_index].detections[N2].frame_count +
-                    suffix_frames);
+                                           os->event_list[trigger_index].detections[N2].frame_count +
+                                           suffix_frames);
 
             // If this object has disappeared, update its status accordingly
             if (event_disappeared) moving_object_disappeared(os, trigger_index);
@@ -899,7 +899,8 @@ void consider_writing_video(observe_status *os) {
                         os->event_list[trigger_index].video_output.filename,
                         os->video_buffer, os->video_buffer_frames,
                         os->event_list[trigger_index].video_output.buffer_write_position,
-                        os->event_list[trigger_index].video_output.buffer_end_position
+                        os->event_list[trigger_index].video_output.buffer_end_position,
+                        (int) (VIDEO_CUTOFF_TIME * os->fps)
                 );
 
                 // Mark that this video no longer needs writing

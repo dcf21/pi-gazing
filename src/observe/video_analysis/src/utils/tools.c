@@ -473,16 +473,16 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
 //! \param video_buffer_frames The size of the video buffer (number of frames)
 //! \param write_position The frame number within <video_buffer> that we should write from.
 //! \param write_end_position Finish writing the video file if write_position == write_end_position
-//! \return File handle
+//! \param max_frames The maximum number of frames to write to a video file before cutting it off to save disk space
 
-void dump_video(int width, int height, const char *filename,
-                const unsigned char *video_buffer, const int video_buffer_frames,
-                const int write_position, const int write_end_position) {
+void dump_video(int width, int height, const char *filename, const unsigned char *video_buffer,
+                const int video_buffer_frames, const int write_position, const int write_end_position,
+                const int max_frames) {
 
     // Number of frames in this video
     const int frame_pixels = width * height;
     const int frame_bytes = frame_pixels * 3 / 2;
-    const int video_frames = write_end_position - write_position;
+    const int video_frames = MIN(write_end_position - write_position, max_frames);
     const int video_bytes = video_frames * frame_bytes;
 
     // Open a binary output file to write this video into
@@ -520,5 +520,4 @@ void dump_video(int width, int height, const char *filename,
 
     // Close output file
     fclose(output_file);
-    return;
 }
