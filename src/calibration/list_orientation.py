@@ -119,13 +119,13 @@ WHERE
 
     # Display column headings
     print("""\
-{:1s} {:16s} {:7s} {:7s} {:7s} {:6s} {:6s}\
+{:1s} {:16s} {:9s} {:9s} {:9s} {:8s} {:8s}\
 """.format("", "Time", "Alt", "Az", "Tilt", "FoV X", "FoV Y"))
 
     # Display fixes
     for item in orientation_fixes:
         print("""\
-{:s} {:16s} {:7.2f} {:7.2f} {:7.2f} {:6.1f} {:6.1f} {:s}\
+{:s} {:16s} {:9.4f} {:9.4f} {:9.4f} {:8.3f} {:8.3f} {:s}\
 """.format("\n>" if item['average'] else " ",
            date_string(item['time']),
            item['fit']['altitude'], item['fit']['azimuth'], item['fit']['tilt'],

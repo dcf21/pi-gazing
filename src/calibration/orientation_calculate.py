@@ -522,41 +522,66 @@ WHERE
                 logging.info("Insufficient images to reliably average.")
                 continue
 
+            # What fraction of the worst fits do we reject?
+            rejection_fraction = 0.25
+
+            # Reject the 25% of fits which are further from the average
+            rejection_count = int(len(results) * rejection_fraction)
+
             # Convert alt-az fits into radians and average
-            alt_az_list_r = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results]
-            [alt_az_best, alt_az_error] = mean_angle_2d(alt_az_list_r)
+            # Iteratively remove the point furthest from the mean
+            results_filtered = results
 
-            # Work out the offset of each fit from the average
-            fit_offsets = [ang_dist(ra0=alt_az_best[1], dec0=alt_az_best[0],
-                                    ra1=fitted_alt_az[1], dec1=fitted_alt_az[1])
-                           for fitted_alt_az in alt_az_list_r]
+            for iteration in range(rejection_count):
+                alt_az_list_r = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results_filtered]
+                alt_az_best = mean_angle_2d(alt_az_list_r)[0]
 
-            # Reject the 10% of fits which are further from the average
-            rejection_count = int(len(results) * 0.10)
-            fits_with_weights = list(zip(fit_offsets, results))
-            fits_with_weights.sort(key=operator.itemgetter(0))
-            fits_with_weights.reverse()
-            results_filtered = [item[1] for item in fits_with_weights[rejection_count:]]
+                # Work out the offset of each fit from the average
+                fit_offsets = [ang_dist(ra0=alt_az_best[1], dec0=alt_az_best[0],
+                                        ra1=fitted_alt_az[1], dec1=fitted_alt_az[0])
+                               for fitted_alt_az in alt_az_list_r]
+
+                # Reject the worst fit which is further from the average
+                fits_with_weights = list(zip(fit_offsets, results_filtered))
+                fits_with_weights.sort(key=operator.itemgetter(0))
+                fits_with_weights.reverse()
+                results_filtered = [item[1] for item in fits_with_weights[1:]]
 
             # Convert alt-az fits into radians and average
             alt_az_list_r = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results_filtered]
             [alt_az_best, alt_az_error] = mean_angle_2d(alt_az_list_r)
 
-            # Average camera tilt measurements
-            tilt_list = [i['tilt'] * deg for i in results_filtered]
-            camera_tilt_best = mean_angle(tilt_list)[0]
+            # Average other angles
+            output_values = {}
+            for quantity in ['tilt', 'pa', 'width_x_field', 'width_y_field']:
+                # Iteratively remove the point furthest from the mean
+                results_filtered = results
 
-            # Average position angle measurements
-            pa_list = [i['pa'] * deg for i in results_filtered]
-            position_angle_best = mean_angle(pa_list)[0]
+                for iteration in range(rejection_count):
+                    # Average quantity measurements
+                    quantity_values = [i[quantity] * deg for i in results_filtered]
+                    quantity_mean = mean_angle(quantity_values)[0]
 
-            # Average field-width measurements
-            scale_x_list = [i['width_x_field'] * deg for i in results_filtered]
-            scale_x_best = mean_angle(scale_x_list)[0]
+                    # Work out the offset of each fit from the average
+                    fit_offsets = []
+                    for index, quantity_value in enumerate(quantity_values):
+                        offset = quantity_value - quantity_mean
+                        if offset < -pi:
+                            offset += 2 * pi
+                        if offset > pi:
+                            offset -= 2 * pi
+                        fit_offsets.append(abs(offset))
 
-            # Average field-height measurements
-            scale_y_list = [i['width_y_field'] * deg for i in results_filtered]
-            scale_y_best = mean_angle(scale_y_list)[0]
+                    # Reject the worst fit which is furthest from the average
+                    fits_with_weights = list(zip(fit_offsets, results_filtered))
+                    fits_with_weights.sort(key=operator.itemgetter(0))
+                    fits_with_weights.reverse()
+                    results_filtered = [item[1] for item in fits_with_weights[1:]]
+
+                # Filtering finished; now convert each fit into radians and average
+                values_filtered = [i[quantity] * deg for i in results_filtered]
+                value_best = mean_angle(values_filtered)[0]
+                output_values[quantity] = value_best * rad
 
             # Print fit information
             success = (alt_az_error * rad < 0.6)
@@ -567,14 +592,13 @@ ScaleX: {:.2f} deg. ScaleY: {:.2f} deg. Uncertainty: {:.2f} deg.\
 """.format(adjective, len(results_filtered),
            alt_az_best[0] * rad,
            alt_az_best[1] * rad,
-           camera_tilt_best * rad,
-           scale_x_best * rad,
-           scale_y_best * rad,
+           output_values['tilt'],
+           output_values['width_x_field'],
+           output_values['width_y_field'],
            alt_az_error * rad))
 
             # Update observatory status
             if success:
-
                 # Flush any previous observation status
                 flush_orientation(obstory_id=obstory_id, utc_min=utc_block_min - 1, utc_max=utc_block_min + 1)
 
@@ -587,16 +611,16 @@ ScaleX: {:.2f} deg. ScaleY: {:.2f} deg. Uncertainty: {:.2f} deg.\
                                              value=alt_az_best[1] * rad, time_created=timestamp,
                                              metadata_time=utc_block_min, user_created=user)
                 db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:pa",
-                                             value=position_angle_best * rad, time_created=timestamp,
+                                             value=output_values['pa'], time_created=timestamp,
                                              metadata_time=utc_block_min, user_created=user)
                 db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:tilt",
-                                             value=camera_tilt_best * rad, time_created=timestamp,
+                                             value=output_values['tilt'], time_created=timestamp,
                                              metadata_time=utc_block_min, user_created=user)
                 db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:width_x_field",
-                                             value=scale_x_best * rad, time_created=timestamp,
+                                             value=output_values['width_x_field'], time_created=timestamp,
                                              metadata_time=utc_block_min, user_created=user)
                 db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:width_y_field",
-                                             value=scale_y_best * rad, time_created=timestamp,
+                                             value=output_values['width_y_field'], time_created=timestamp,
                                              metadata_time=utc_block_min, user_created=user)
                 db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:uncertainty",
                                              value=alt_az_error * rad, time_created=timestamp,
