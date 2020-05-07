@@ -92,7 +92,7 @@ def orientation_calc(obstory_id, utc_min, utc_max, utc_must_stop=None):
     :param utc_max:
         The end of the time period in which we should determine the observatory's orientation.
     :param utc_must_stop:
-        The time by which we must finish work
+        The time by which we must finish work.
     :return:
         None
     """
@@ -110,6 +110,93 @@ def orientation_calc(obstory_id, utc_min, utc_max, utc_must_stop=None):
 
     logging.info("Starting calculation of camera alignment for <{}>".format(obstory_id))
 
+    # Reduce time window to where observations are present
+    utc_max, utc_min = reduce_time_window(conn=conn, obstory_id=obstory_id, utc_max=utc_max, utc_min=utc_min)
+
+    # Divide up time interval into 2-minute blocks
+    successful_fits = analyse_observations(conn=conn, db=db, db0=db0,
+                                           obstory_id=obstory_id, utc_max=utc_max, utc_min=utc_min,
+                                           utc_must_stop=utc_must_stop)
+
+    # Report how many fits we achieved
+    logging.info("Total of {:d} images successfully fitted.".format(successful_fits))
+
+    if successful_fits > 0:
+        # Now determine mean orientation each day
+        average_daily_fits(conn=conn, db=db, obstory_id=obstory_id, utc_max=utc_max, utc_min=utc_min)
+
+    # Clean up and exit
+    db.commit()
+    db.close_db()
+    db0.commit()
+    conn.close()
+    db0.close()
+    return
+
+
+def reduce_time_window(conn, obstory_id, utc_max, utc_min):
+    """
+    Reduce the time period we are asked to analyse, to remove any time at the start or end with no observations.
+
+    :param conn:
+        Database connection object.
+    :param obstory_id:
+        Observatory publicId.
+    :param utc_max:
+        Unix time of the end of the time period.
+    :param utc_min:
+        Unix time of the beginning of the time period.
+    :return:
+        The new time span we are to analyse.
+    """
+
+    conn.execute("""
+SELECT obsTime
+FROM archive_observations
+WHERE obsTime BETWEEN %s AND %s
+    AND observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
+ORDER BY obsTime ASC LIMIT 1
+""", (utc_min, utc_max, obstory_id))
+    results = conn.fetchall()
+    if len(results) == 0:
+        logging.warning("No observations within requested time window.")
+        raise IndexError
+    utc_min = results[0]['obsTime'] - 1
+    conn.execute("""
+SELECT obsTime
+FROM archive_observations
+WHERE obsTime BETWEEN %s AND %s
+    AND observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
+ORDER BY obsTime DESC LIMIT 1
+""", (utc_min, utc_max, obstory_id))
+    results = conn.fetchall()
+    utc_max = results[0]['obsTime'] + 1
+    return utc_max, utc_min
+
+
+def analyse_observations(conn, db, db0, obstory_id, utc_max, utc_min, utc_must_stop):
+    """
+    Analyse still images recorded by the camera with publicId <obstoryId> within the specified time period, to
+    determine the orientation of the camera on the sky.
+
+    :param conn:
+        Database connection object.
+    :param db:
+        Database object.
+    :param db0:
+        Database object.
+    :param obstory_id:
+        Observatory publicId.
+    :param utc_max:
+        Unix time of the end of the time period.
+    :param utc_min:
+        Unix time of the beginning of the time period.
+    :param utc_must_stop:
+        The time by which we must finish work.
+    :return:
+        The number of images successfully fitted.
+    """
+
     # Mathematical constants
     deg = pi / 180
     rad = 180 / pi
@@ -126,40 +213,12 @@ def orientation_calc(obstory_id, utc_min, utc_max, utc_must_stop=None):
         path=os.path.join(settings['pythonPath'], "..", "configuration_global", "camera_properties")
     )
 
-    # Reduce time window to where observations are present
-    conn.execute("""
-SELECT obsTime
-FROM archive_observations
-WHERE obsTime BETWEEN %s AND %s
-    AND observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
-ORDER BY obsTime ASC LIMIT 1
-""", (utc_min, utc_max, obstory_id))
-    results = conn.fetchall()
-
-    if len(results) == 0:
-        logging.warning("No observations within requested time window.")
-        return
-    utc_min = results[0]['obsTime'] - 1
-
-    conn.execute("""
-SELECT obsTime
-FROM archive_observations
-WHERE obsTime BETWEEN %s AND %s
-    AND observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
-ORDER BY obsTime DESC LIMIT 1
-""", (utc_min, utc_max, obstory_id))
-    results = conn.fetchall()
-    utc_max = results[0]['obsTime'] + 1
-
-    # Divide up time interval into 2-minute blocks
     logging.info("Searching for images within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
     block_size = 120
     minimum_sky_clarity = 300
     time_blocks = list(np.arange(start=utc_min, stop=utc_max, step=block_size))
-
     # Build list of images we are to analyse
     images_for_analysis = []
-
     for block_index, utc_block_min in enumerate(time_blocks[:-1]):
         utc_block_max = time_blocks[block_index + 1]
 
@@ -187,22 +246,18 @@ ORDER BY am.floatValue DESC LIMIT 1
                 'repositoryFname': results[0]['repositoryFname'],
                 'observationId': results[0]['observationId']
             })
-
     # Sort images into order of sky clarity
     images_for_analysis.sort(key=itemgetter("skyClarity"))
     images_for_analysis.reverse()
-
     # Display logging list of the images we are going to work on
     logging.info("Estimating the orientation of {:d} images:".format(len(images_for_analysis)))
     for item in images_for_analysis:
         logging.info("{:17s} {:04.0f} {:32s}".format(date_string(item['utc']),
                                                      item['skyClarity'],
                                                      item['repositoryFname']))
-
     # When passing images to astrometry.net, only work on the central portion, as corners may be distorted
     fraction_x = 0.8
     fraction_y = 0.8
-
     # Path the binary barrel-correction tool
     barrel_correct = os.path.join(settings['imageProcessorPath'], "lensCorrect")
 
@@ -307,7 +362,6 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
 
     # Fetch observatory's database record
     obstory_info = db.get_obstory_from_id(obstory_id)
-
     # Analyse each image in turn
     dask_tasks = []
     for item_index, item in enumerate(images_for_analysis):
@@ -317,7 +371,7 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
             obstory_status = db.get_obstory_status(obstory_id=obstory_id, time=item['utc'])
         if not obstory_status:
             logging.info("Aborting -- no observatory status available.")
-            return
+            continue
 
         # Fetch properties of the lens being used at the time of the observation
         lens_name = obstory_status['lens']
@@ -326,10 +380,8 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         dask_tasks.append(analyse_image(item_index=item_index, item=item,
                                         obstory_status=obstory_status, lens_props=lens_props))
     fit_text_list = dask.compute(*dask_tasks)
-
     # Clean up
     os.system("rm -Rf /tmp/tmp.*")
-
     # Extract results from astrometry.net
     for item_index, (item, (fit_text, log_msg, astrometry_time_taken)) \
             in enumerate(zip(images_for_analysis, fit_text_list)):
@@ -459,40 +511,56 @@ WHERE publicId=%s;
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:width_y_field", value=scale_y))
         db.commit()
-
     # Commit metadata changes
     db.commit()
     db0.commit()
+    return successful_fits
 
-    # Report how many fits we achieved
-    logging.info("Total of {:d} images successfully fitted.".format(successful_fits))
 
-    if successful_fits > 0:
-        # Now determine mean orientation each day
-        logging.info("Averaging daily fits within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
-        block_size = 86400
-        utc_min = (floor(utc_min / block_size + 0.5) - 0.5) * block_size  # Make sure that blocks start at noon
-        time_blocks = list(np.arange(start=utc_min, stop=utc_max + block_size, step=block_size))
+def average_daily_fits(conn, db, obstory_id, utc_max, utc_min):
+    """
+    Average all of the orientation fixes within a given time period, excluding extreme fits. Update the observatory's
+    status with a altitude and azimuth of the average fit.
 
-        # Start new block whenever we have a hardware refresh
-        conn.execute("""
+    :param conn:
+        Database connection object.
+    :param db:
+        Database object.
+    :param obstory_id:
+        Observatory publicId.
+    :param utc_max:
+        Unix time of the end of the time period.
+    :param utc_min:
+        Unix time of the beginning of the time period.
+    :return:
+        None
+    """
+
+    # Mathematical constants
+    deg = pi / 180
+    rad = 180 / pi
+
+    logging.info("Averaging daily fits within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
+    block_size = 86400
+    utc_min = (floor(utc_min / block_size + 0.5) - 0.5) * block_size  # Make sure that blocks start at noon
+    time_blocks = list(np.arange(start=utc_min, stop=utc_max + block_size, step=block_size))
+    # Start new block whenever we have a hardware refresh
+    conn.execute("""
 SELECT time FROM archive_metadata
 WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
       AND fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey='refresh')
       AND time BETWEEN %s AND %s
 """, (obstory_id, utc_min, utc_max))
-        results = conn.fetchall()
-        for item in results:
-            time_blocks.append(item['time'])
+    results = conn.fetchall()
+    for item in results:
+        time_blocks.append(item['time'])
+    # Make sure that start points for time blocks are in order
+    time_blocks.sort()
+    for block_index, utc_block_min in enumerate(time_blocks[:-1]):
+        utc_block_max = time_blocks[block_index + 1]
 
-        # Make sure that start points for time blocks are in order
-        time_blocks.sort()
-
-        for block_index, utc_block_min in enumerate(time_blocks[:-1]):
-            utc_block_max = time_blocks[block_index + 1]
-
-            # Select observations with orientation fits
-            conn.execute("""
+        # Select observations with orientation fits
+        conn.execute("""
 SELECT am1.floatValue AS altitude, am2.floatValue AS azimuth, am3.floatValue AS pa, am4.floatValue AS tilt,
        am5.floatValue AS width_x_field, am6.floatValue AS width_y_field
 FROM archive_observations o
@@ -512,82 +580,82 @@ WHERE
     o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
     o.obsTime BETWEEN %s AND %s;
 """, (obstory_id, utc_block_min, utc_block_max))
-            results = conn.fetchall()
+        results = conn.fetchall()
 
-            logging.info("Averaging fits within period {} to {}: Found {} fits.".format(date_string(utc_block_min),
-                                                                                        date_string(utc_block_max),
-                                                                                        len(results)))
+        logging.info("Averaging fits within period {} to {}: Found {} fits.".format(date_string(utc_block_min),
+                                                                                    date_string(utc_block_max),
+                                                                                    len(results)))
 
-            # Average the fits we found
-            if len(results) < 4:
-                logging.info("Insufficient images to reliably average.")
-                continue
+        # Average the fits we found
+        if len(results) < 4:
+            logging.info("Insufficient images to reliably average.")
+            continue
 
-            # What fraction of the worst fits do we reject?
-            rejection_fraction = 0.25
+        # What fraction of the worst fits do we reject?
+        rejection_fraction = 0.25
 
-            # Reject the 25% of fits which are further from the average
-            rejection_count = int(len(results) * rejection_fraction)
+        # Reject the 25% of fits which are further from the average
+        rejection_count = int(len(results) * rejection_fraction)
 
-            # Convert alt-az fits into radians and average
+        # Convert alt-az fits into radians and average
+        # Iteratively remove the point furthest from the mean
+        results_filtered = results
+
+        for iteration in range(rejection_count):
+            alt_az_list_r = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results_filtered]
+            alt_az_best = mean_angle_2d(alt_az_list_r)[0]
+
+            # Work out the offset of each fit from the average
+            fit_offsets = [ang_dist(ra0=alt_az_best[1], dec0=alt_az_best[0],
+                                    ra1=fitted_alt_az[1], dec1=fitted_alt_az[0])
+                           for fitted_alt_az in alt_az_list_r]
+
+            # Reject the worst fit which is further from the average
+            fits_with_weights = list(zip(fit_offsets, results_filtered))
+            fits_with_weights.sort(key=operator.itemgetter(0))
+            fits_with_weights.reverse()
+            results_filtered = [item[1] for item in fits_with_weights[1:]]
+
+        # Convert alt-az fits into radians and average
+        alt_az_list_r = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results_filtered]
+        [alt_az_best, alt_az_error] = mean_angle_2d(alt_az_list_r)
+
+        # Average other angles
+        output_values = {}
+        for quantity in ['tilt', 'pa', 'width_x_field', 'width_y_field']:
             # Iteratively remove the point furthest from the mean
             results_filtered = results
 
             for iteration in range(rejection_count):
-                alt_az_list_r = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results_filtered]
-                alt_az_best = mean_angle_2d(alt_az_list_r)[0]
+                # Average quantity measurements
+                quantity_values = [i[quantity] * deg for i in results_filtered]
+                quantity_mean = mean_angle(quantity_values)[0]
 
                 # Work out the offset of each fit from the average
-                fit_offsets = [ang_dist(ra0=alt_az_best[1], dec0=alt_az_best[0],
-                                        ra1=fitted_alt_az[1], dec1=fitted_alt_az[0])
-                               for fitted_alt_az in alt_az_list_r]
+                fit_offsets = []
+                for index, quantity_value in enumerate(quantity_values):
+                    offset = quantity_value - quantity_mean
+                    if offset < -pi:
+                        offset += 2 * pi
+                    if offset > pi:
+                        offset -= 2 * pi
+                    fit_offsets.append(abs(offset))
 
-                # Reject the worst fit which is further from the average
+                # Reject the worst fit which is furthest from the average
                 fits_with_weights = list(zip(fit_offsets, results_filtered))
                 fits_with_weights.sort(key=operator.itemgetter(0))
                 fits_with_weights.reverse()
                 results_filtered = [item[1] for item in fits_with_weights[1:]]
 
-            # Convert alt-az fits into radians and average
-            alt_az_list_r = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results_filtered]
-            [alt_az_best, alt_az_error] = mean_angle_2d(alt_az_list_r)
+            # Filtering finished; now convert each fit into radians and average
+            values_filtered = [i[quantity] * deg for i in results_filtered]
+            value_best = mean_angle(values_filtered)[0]
+            output_values[quantity] = value_best * rad
 
-            # Average other angles
-            output_values = {}
-            for quantity in ['tilt', 'pa', 'width_x_field', 'width_y_field']:
-                # Iteratively remove the point furthest from the mean
-                results_filtered = results
-
-                for iteration in range(rejection_count):
-                    # Average quantity measurements
-                    quantity_values = [i[quantity] * deg for i in results_filtered]
-                    quantity_mean = mean_angle(quantity_values)[0]
-
-                    # Work out the offset of each fit from the average
-                    fit_offsets = []
-                    for index, quantity_value in enumerate(quantity_values):
-                        offset = quantity_value - quantity_mean
-                        if offset < -pi:
-                            offset += 2 * pi
-                        if offset > pi:
-                            offset -= 2 * pi
-                        fit_offsets.append(abs(offset))
-
-                    # Reject the worst fit which is furthest from the average
-                    fits_with_weights = list(zip(fit_offsets, results_filtered))
-                    fits_with_weights.sort(key=operator.itemgetter(0))
-                    fits_with_weights.reverse()
-                    results_filtered = [item[1] for item in fits_with_weights[1:]]
-
-                # Filtering finished; now convert each fit into radians and average
-                values_filtered = [i[quantity] * deg for i in results_filtered]
-                value_best = mean_angle(values_filtered)[0]
-                output_values[quantity] = value_best * rad
-
-            # Print fit information
-            success = (alt_az_error * rad < 0.6)
-            adjective = "SUCCESSFUL" if success else "REJECTED"
-            logging.info("""\
+        # Print fit information
+        success = (alt_az_error * rad < 0.6)
+        adjective = "SUCCESSFUL" if success else "REJECTED"
+        logging.info("""\
 {} ORIENTATION FIT from {:2d} images: Alt: {:.2f} deg. Az: {:.2f} deg. PA: {:.2f} deg. \
 ScaleX: {:.2f} deg. ScaleY: {:.2f} deg. Uncertainty: {:.2f} deg.\
 """.format(adjective, len(results_filtered),
@@ -598,43 +666,35 @@ ScaleX: {:.2f} deg. ScaleY: {:.2f} deg. Uncertainty: {:.2f} deg.\
            output_values['width_y_field'],
            alt_az_error * rad))
 
-            # Update observatory status
-            if success:
-                # Flush any previous observation status
-                flush_orientation(obstory_id=obstory_id, utc_min=utc_block_min - 1, utc_max=utc_block_min + 1)
+        # Update observatory status
+        if success:
+            # Flush any previous observation status
+            flush_orientation(obstory_id=obstory_id, utc_min=utc_block_min - 1, utc_max=utc_block_min + 1)
 
-                user = settings['pigazingUser']
-                timestamp = time.time()
-                db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:altitude",
-                                             value=alt_az_best[0] * rad, time_created=timestamp,
-                                             metadata_time=utc_block_min, user_created=user)
-                db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:azimuth",
-                                             value=alt_az_best[1] * rad, time_created=timestamp,
-                                             metadata_time=utc_block_min, user_created=user)
-                db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:pa",
-                                             value=output_values['pa'], time_created=timestamp,
-                                             metadata_time=utc_block_min, user_created=user)
-                db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:tilt",
-                                             value=output_values['tilt'], time_created=timestamp,
-                                             metadata_time=utc_block_min, user_created=user)
-                db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:width_x_field",
-                                             value=output_values['width_x_field'], time_created=timestamp,
-                                             metadata_time=utc_block_min, user_created=user)
-                db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:width_y_field",
-                                             value=output_values['width_y_field'], time_created=timestamp,
-                                             metadata_time=utc_block_min, user_created=user)
-                db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:uncertainty",
-                                             value=alt_az_error * rad, time_created=timestamp,
-                                             metadata_time=utc_block_min, user_created=user)
-                db.commit()
-
-    # Clean up and exit
-    db.commit()
-    db.close_db()
-    db0.commit()
-    conn.close()
-    db0.close()
-    return
+            user = settings['pigazingUser']
+            timestamp = time.time()
+            db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:altitude",
+                                         value=alt_az_best[0] * rad, time_created=timestamp,
+                                         metadata_time=utc_block_min, user_created=user)
+            db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:azimuth",
+                                         value=alt_az_best[1] * rad, time_created=timestamp,
+                                         metadata_time=utc_block_min, user_created=user)
+            db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:pa",
+                                         value=output_values['pa'], time_created=timestamp,
+                                         metadata_time=utc_block_min, user_created=user)
+            db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:tilt",
+                                         value=output_values['tilt'], time_created=timestamp,
+                                         metadata_time=utc_block_min, user_created=user)
+            db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:width_x_field",
+                                         value=output_values['width_x_field'], time_created=timestamp,
+                                         metadata_time=utc_block_min, user_created=user)
+            db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:width_y_field",
+                                         value=output_values['width_y_field'], time_created=timestamp,
+                                         metadata_time=utc_block_min, user_created=user)
+            db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:uncertainty",
+                                         value=alt_az_error * rad, time_created=timestamp,
+                                         metadata_time=utc_block_min, user_created=user)
+            db.commit()
 
 
 def flush_orientation(obstory_id, utc_min, utc_max):
