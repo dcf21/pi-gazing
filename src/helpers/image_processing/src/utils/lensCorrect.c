@@ -36,12 +36,13 @@
 //! \param image_in The input image
 //! \param [in] barrel_k1 The barrel distortion parameter K1
 //! \param [in] barrel_k2 The barrel distortion parameter K2
+//! \param [in] barrel_k3 The barrel distortion parameter K3
 //! \return A pointer to an image with barrel-correction applied
 
-image_ptr lens_correct(image_ptr *image_in, double barrel_k1, double barrel_k2) {
+image_ptr lens_correct(image_ptr *image_in, double barrel_k1, double barrel_k2, double barrel_k3) {
     const int width = image_in->xsize;
     const int height = image_in->ysize;
-    const double barrel_kn = 1 - barrel_k1 - barrel_k2;
+    const double barrel_kn = 1 - barrel_k1 - barrel_k2 - barrel_k3;
 
     int x, y;
 
@@ -60,7 +61,7 @@ image_ptr lens_correct(image_ptr *image_in, double barrel_k1, double barrel_k2) 
             double t = atan2(x2, y2);
 
             // Apply barrel correction to radial component of position
-            double r2 = r / (barrel_kn + barrel_k1 * gsl_pow_2(r) + barrel_k2 * gsl_pow_4(r)) * (width / 2);
+            double r2 = r / (barrel_kn + barrel_k1 * gsl_pow_2(r) + barrel_k2 * gsl_pow_4(r) + barrel_k3 * gsl_pow_6(r)) * (width / 2);
 
             // Calculate offset of pixel in the original (uncorrected) pixel array
             int x3 = r2 * sin(t) + width / 2;

@@ -36,8 +36,8 @@ free parameters) to work out the position of the centre of the image in the
 sky, the image's rotation, scale on the sky, and the radial distortion factors.
 
 The best-fit parameter values are returned to the user. If they are believed to
-be good, you should set a status update on the observatory setting barrel_k1
-and barrel_k1. Then future observations will correct for this lens distortion.
+be good, you should set a status update on the observatory settings barrel_k1,
+etc. Then future observations will correct for this lens distortion.
 
 You may also changed the values for your lens in the XML file
 <src/configuration_global/camera_properties> which means that future
@@ -74,6 +74,7 @@ def mismatch(params):
             4) The position angle of the image; i.e. the angle of celestial north to the vertical (radians)
             5) The barrel-distortion coefficient K1
             6) The barrel-distortion coefficient K2
+            7) The barrel-distortion coefficient K3
     :return:
         A measure of the mismatch of this proposed image orientation, based on the list of pixel positions and
         calculated (RA, Dec) positions contained within <fit_list>.
@@ -86,12 +87,13 @@ def mismatch(params):
     pos_ang = params[4] * parameter_scales[4]
     bc_k1 = params[5] * parameter_scales[5]
     bc_k2 = params[6] * parameter_scales[6]
+    bc_k3 = params[7] * parameter_scales[7]
 
     offset_list = []
     for star in star_list:
         pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
                                size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
-                               barrel_k1=bc_k1, barrel_k2=bc_k2)
+                               barrel_k1=bc_k1, barrel_k2=bc_k2, barrel_k3=bc_k3)
         if not isfinite(pos[0]):
             pos[0] = -999
         if not isfinite(pos[1]):
@@ -141,18 +143,19 @@ def calibrate_lens():
     # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/> for more information about how this works
     ra0 = star_list[0]['ra']
     dec0 = star_list[0]['dec']
-    parameter_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 0.05, 0.0005]
-    parameter_defaults = [ra0, dec0, pi / 4, pi / 4, 0, 0, 0]
+    parameter_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 5e-2, 5e-4, 5e-6]
+    parameter_defaults = [ra0, dec0, pi / 4, pi / 4, 0, 0, 0, 0]
     parameter_initial = [parameter_defaults[i] / parameter_scales[i] for i in range(len(parameter_defaults))]
     parameter_optimised = scipy.optimize.minimize(mismatch, parameter_initial, method='nelder-mead',
-                                                  options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}).x
+                                                  options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}
+                                                  ).x
     parameter_final = [parameter_optimised[i] * parameter_scales[i] for i in range(len(parameter_defaults))]
 
     # Display best fit numbers
     headings = [["Central RA / hr", 12 / pi], ["Central Decl / deg", 180 / pi],
                 ["Image width / deg", 180 / pi], ["Image height / deg", 180 / pi],
                 ["Position angle / deg", 180 / pi],
-                ["barrel_k1", 1], ["barrel_k2", 1]
+                ["barrel_k1", 1], ["barrel_k2", 1], ["barrel_k3", 1]
                 ]
 
     logging.info("Lens: {}".format(input_config['lens']))
@@ -161,13 +164,13 @@ def calibrate_lens():
         logging.info("{:30s} : {:.8f}".format(headings[i][0], parameter_final[i] * headings[i][1]))
 
     # Print information about how well each star was fitted
-    [ra0, dec0, scale_x, scale_y, pos_ang, bc_k1, bc_k2] = parameter_final
+    [ra0, dec0, scale_x, scale_y, pos_ang, bc_k1, bc_k2, bc_k3] = parameter_final
     if True:
         logging.info("Stars used in fitting process:")
         for star in star_list:
             pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
                                    size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
-                                   barrel_k1=bc_k1, barrel_k2=bc_k2)
+                                   barrel_k1=bc_k1, barrel_k2=bc_k2, barrel_k3=bc_k3)
             distance = hypot((star['xpos'] - pos[0]) * img_size_x, (star['ypos'] - pos[1]) * img_size_y)
             logging.info("""
 User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mismatch {:5.1f} pixels.

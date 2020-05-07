@@ -203,7 +203,7 @@ def find_mean_position(ra0, dec0, ra1, dec1, ra2, dec2):
     return [ra_mean, dec_mean]
 
 
-def gnomonic_project(ra, dec, ra0, dec0, size_x, size_y, scale_x, scale_y, pos_ang, barrel_k1, barrel_k2):
+def gnomonic_project(ra, dec, ra0, dec0, size_x, size_y, scale_x, scale_y, pos_ang, barrel_k1, barrel_k2, barrel_k3):
     """
     Project a pair of celestial coordinates (RA, Dec) into pixel coordinates (x,y)
 
@@ -229,6 +229,8 @@ def gnomonic_project(ra, dec, ra0, dec0, size_x, size_y, scale_x, scale_y, pos_a
         The barrel distortion parameter K1
     :param barrel_k2:
         The barrel distortion parameter K2
+    :param barrel_k3:
+        The barrel distortion parameter K3
     :return:
         The (x,y) coordinates of the projected point
     """
@@ -246,8 +248,8 @@ def gnomonic_project(ra, dec, ra0, dec0, size_x, size_y, scale_x, scale_y, pos_a
 
     # Correction for barrel distortion
     r = radius / tan(scale_x / 2)
-    bc_kn = 1. - barrel_k1 - barrel_k2
-    r2 = r / (bc_kn + barrel_k1 * (r ** 2) + barrel_k2 * (r ** 4))
+    bc_kn = 1. - barrel_k1 - barrel_k2 - barrel_k3
+    r2 = r / (bc_kn + barrel_k1 * (r ** 2) + barrel_k2 * (r ** 4) + barrel_k3 * (r ** 6))
     radius = r2 * tan(scale_x / 2)
 
     yd = radius * cos(az) * (size_y / 2. / tan(scale_y / 2.)) + size_y / 2.
@@ -256,7 +258,7 @@ def gnomonic_project(ra, dec, ra0, dec0, size_x, size_y, scale_x, scale_y, pos_a
     return [xd, yd]
 
 
-def inv_gnom_project(ra0, dec0, size_x, size_y, scale_x, scale_y, x, y, pos_ang, barrel_k1, barrel_k2):
+def inv_gnom_project(ra0, dec0, size_x, size_y, scale_x, scale_y, x, y, pos_ang, barrel_k1, barrel_k2, barrel_k3):
     """
     Project a pair of pixel coordinates (x,y) into a celestial position (RA, Dec). This includes a correction for
     barrel distortion.
@@ -283,6 +285,8 @@ def inv_gnom_project(ra0, dec0, size_x, size_y, scale_x, scale_y, x, y, pos_ang,
         The barrel distortion parameter K1
     :param barrel_k2:
         The barrel distortion parameter K2
+    :param barrel_k3:
+        The barrel distortion parameter K3
     :return:
         The (RA, Dec) coordinates of the projected point
     """
@@ -307,7 +311,9 @@ def inv_gnom_project(ra0, dec0, size_x, size_y, scale_x, scale_y, x, y, pos_ang,
     # Correction for barrel distortion
     def mismatch_slave(parameters):
         [ra, dec] = parameters
-        pos = gnomonic_project(ra, dec, ra0, dec0, size_x, size_y, scale_x, scale_y, pos_ang, barrel_k1, barrel_k2)
+        pos = gnomonic_project(ra=ra, dec=dec, ra0=ra0, dec0=dec0,
+                               size_x=size_x, size_y=size_y, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
+                               barrel_k1=barrel_k1, barrel_k2=barrel_k2, barrel_k3=barrel_k3)
         return hypot(pos[0] - x, pos[1] - y)
 
     params_initial = [ra, dec]

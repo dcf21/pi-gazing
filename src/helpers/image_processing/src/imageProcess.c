@@ -64,7 +64,7 @@ void StackImage(image_ptr image_input, image_ptr image_output, image_ptr *cloud_
                                      -s->pa);
                 gnomonic_project(theta, phi, si->ra0_in, si->dec0_in, image_input.xsize, image_input.ysize,
                                  si->x_scale_in, si->y_scale_in, &x, &y, -si->rotation_in,
-                                 si->barrel_k1, si->barrel_k2);
+                                 si->barrel_k1, si->barrel_k2, si->barrel_k3);
             }
             double x2 = x - s->x_off - image_output.xsize / 2.;
             double y2 = y - s->y_off - image_output.ysize / 2.;
@@ -115,7 +115,7 @@ double image_offset(image_ptr image_input, image_ptr image_output, settings *s, 
                                      -s->pa);
                 gnomonic_project(theta, phi, si->ra0_in, si->dec0_in, image_input.xsize, image_input.ysize,
                                  si->x_scale_in, si->y_scale_in, &x, &y, -si->rotation_in,
-                                 si->barrel_k1, si->barrel_k2);
+                                 si->barrel_k1, si->barrel_k2, si->barrel_k3);
             }
             double x2 = x - s->x_off - image_output.xsize / 2.;
             double y2 = y - s->y_off - image_output.ysize / 2.;

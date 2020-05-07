@@ -42,6 +42,7 @@ int main(int argc, const char *argv[]) {
     const char *output_filename = "\0";
     double barrel_k1 = 0;
     double barrel_k2 = 0;
+    double barrel_k3 = 0;
 
     struct argparse_option options[] = {
             OPT_HELP(),
@@ -50,6 +51,7 @@ int main(int argc, const char *argv[]) {
             OPT_STRING('o', "output", &output_filename, "output filename"),
             OPT_FLOAT('k', "barrel-k1", &barrel_k1, "barrel correction coefficient K1"),
             OPT_FLOAT('l', "barrel-k2", &barrel_k2, "barrel correction coefficient K2"),
+            OPT_FLOAT('m', "barrel-k3", &barrel_k3, "barrel correction coefficient K3"),
             OPT_END(),
     };
 
@@ -76,7 +78,7 @@ int main(int argc, const char *argv[]) {
     char product_filename[FNAME_LENGTH];
     sprintf(product_filename, "%s.png", output_filename);
 
-    image_ptr image_corrected = lens_correct(&input_image, barrel_k1, barrel_k2);
+    image_ptr image_corrected = lens_correct(&input_image, barrel_k1, barrel_k2, barrel_k3);
     image_put(product_filename, image_corrected, 0);
     image_dealloc(&image_corrected);
 

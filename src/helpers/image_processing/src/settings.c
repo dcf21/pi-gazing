@@ -42,7 +42,7 @@ void default_settings(settings *s, settings_input *si) {
     si->x_off_in = si->y_off_in = 0;
     s->cloud_mask = 0;
 
-    si->barrel_k1 = si->barrel_k2 = 0;
+    si->barrel_k1 = si->barrel_k2 = si->barrel_k3 = 0;
     si->background_subtract = 0;
 }
 

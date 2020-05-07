@@ -142,11 +142,12 @@ void find_mean_position(double *ra_out, double *dec_out, const double *ra_list, 
 //! \param [in] pa The position angle of the frame on the sky
 //! \param [in] barrel_k1 The barrel distortion parameter K1
 //! \param [in] barrel_k2 The barrel distortion parameter K2
+//! \param [in] barrel_k3 The barrel distortion parameter K3
 
 void gnomonic_project(double ra, double dec, double ra0, double dec0, int x_size, int y_size,
                       double x_scale, double y_scale,
                       double *x_out, double *y_out, double pa,
-                      double barrel_k1, double barrel_k2) {
+                      double barrel_k1, double barrel_k2, double barrel_k3) {
     double dist = angular_distance(ra, dec, ra0, dec0);
     double za, az, radius, xd, yd;
 
@@ -161,8 +162,8 @@ void gnomonic_project(double ra, double dec, double ra0, double dec0, int x_size
 
     // Correction for barrel distortion
     double r = radius / tan(x_scale / 2);
-    double barrel_kn = 1. - barrel_k1 - barrel_k2;
-    double R = r / (barrel_kn + barrel_k1 * gsl_pow_2(r) + barrel_k2 * gsl_pow_4(r));
+    double barrel_kn = 1. - barrel_k1 - barrel_k2 - barrel_k3;
+    double R = r / (barrel_kn + barrel_k1 * gsl_pow_2(r) + barrel_k2 * gsl_pow_4(r) + barrel_k3 * gsl_pow_6(r));
     radius = R * tan(x_scale / 2);
 
     yd = radius * cos(az) * (y_size / 2. / tan(y_scale / 2.)) + y_size / 2.;

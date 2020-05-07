@@ -169,8 +169,11 @@ Planetarium.prototype.gnomonic_project = function (ra, dec) {
         if (radius / Math.tan(max_scale / 2) > 1.4) return null;
 
         var r = radius / Math.tan(this.settings['scale_x'] / 2);
-        var bc_kn = 1. - this.settings['barrel_k1'] - this.settings['barrel_k2'];
-        var r2 = r / (bc_kn + this.settings['barrel_k1'] * (r ** 2) + this.settings['barrel_k2'] * (r ** 4));
+        var bc_kn = 1. - this.settings['barrel_k1'] - this.settings['barrel_k2'] - this.settings['barrel_k3'];
+        var r2 = r / (bc_kn + this.settings['barrel_k1'] * (r ** 2) +
+            this.settings['barrel_k2'] * (r ** 4) +
+            this.settings['barrel_k3'] * (r ** 6)
+        );
         radius = r2 * Math.tan(this.settings['scale_x'] / 2);
     }
 

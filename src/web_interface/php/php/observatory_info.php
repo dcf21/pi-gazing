@@ -172,7 +172,8 @@ ORDER BY time DESC LIMIT 1");
                 "name" => (string)$lens_item->name,
                 "fov" => (float)$lens_item->fov,
                 "barrel_k1" => (float)$lens_item->barrel_k1,
-                "barrel_k2" => (float)$lens_item->barrel_k2
+                "barrel_k2" => (float)$lens_item->barrel_k2,
+                "barrel_k3" => (float)$lens_item->barrel_k3
             ];
         }
 

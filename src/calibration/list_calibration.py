@@ -58,8 +58,8 @@ def list_calibration_fixes(obstory_id, utc_min, utc_max):
 
     # Select observations with calibration fits
     conn.execute("""
-SELECT am1.floatValue AS barrel_k1, am2.floatValue AS barrel_k2,
-       am3.floatValue AS chi_squared, am4.stringValue AS point_count,
+SELECT am1.floatValue AS barrel_k1, am2.floatValue AS barrel_k2, am3.floatValue AS barrel_k3,
+       am4.floatValue AS chi_squared, am5.stringValue AS point_count,
        o.obsTime AS time
 FROM archive_observations o
 INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
@@ -67,9 +67,11 @@ INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
 INNER JOIN archive_metadata am2 ON o.uid = am2.observationId AND
     am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k2")
 INNER JOIN archive_metadata am3 ON o.uid = am3.observationId AND
-    am3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:chi_squared")
+    am3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k3")
 INNER JOIN archive_metadata am4 ON o.uid = am4.observationId AND
-    am4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:point_count")
+    am4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:chi_squared")
+INNER JOIN archive_metadata am5 ON o.uid = am5.observationId AND
+    am5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:point_count")
 WHERE
     o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
     o.obsTime BETWEEN %s AND %s;
@@ -115,8 +117,8 @@ WHERE
 
     # Display column headings
     print("""\
-{:1s} {:16s} {:8s} {:8s} {:10s} {:6s}\
-""".format("", "Time", "barrelK1", "barrelK2", "chi2", "points"))
+{:1s} {:16s} {:8s} {:8s} {:10s} {:12s} {:6s}\
+""".format("", "Time", "barrelK1", "barrelK2", "barrelK3", "chi2", "points"))
 
     # Display fixes
     for item in calibration_fixes:
@@ -128,10 +130,10 @@ WHERE
 
         # Display calibration fix
         print("""\
-{:s} {:16s} {:8.4f} {:8.4f} {:10.7f} {:s} {:s}\
+{:s} {:16s} {:8.4f} {:8.4f} {:10.7f} {:12.9f} {:s} {:s}\
 """.format("\n>" if item['average'] else " ",
            date_string(item['time']),
-           item['fit']['barrel_k1'], item['fit']['barrel_k2'],
+           item['fit']['barrel_k1'], item['fit']['barrel_k2'], item['fit']['barrel_k3'],
            item['fit']['chi_squared'], item['fit']['point_count'],
            "\n" if item['average'] else ""))
 

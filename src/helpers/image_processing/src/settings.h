@@ -47,7 +47,7 @@ typedef struct settings_input {
     int x_size_in, y_size_in;
     double exposure_compensation_in, ra0_in, dec0_in, x_scale_in, y_scale_in, rotation_in, weight_in;
     double x_off_in, y_off_in, linear_rotation_in;
-    double barrel_k1, barrel_k2;
+    double barrel_k1, barrel_k2, barrel_k3;
     int background_subtract;
 } settings_input;
 

@@ -26,8 +26,8 @@ This script is used to estimate the degree of lens distortion present in an
 image.
 
 The best-fit parameter values are returned to the user. If they are believed to
-be good, you should set a status update on the observatory setting barrel_k1
-and barrel_k1. Then future observations will correct for this lens distortion.
+be good, you should set a status update on the observatory settings barrel_k1,
+etc. Then future observations will correct for this lens distortion.
 
 You may also changed the values for your lens in the XML file
 <src/configuration_global/camera_properties> which means that future
@@ -127,7 +127,7 @@ def mismatch(params):
     for point in fit_list:
         pos = gnomonic_project(ra=point['ra'], dec=point['dec'], ra0=ra0, dec0=dec0,
                                size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
-                               barrel_k1=bc_k1, barrel_k2=bc_k2)
+                               barrel_k1=bc_k1, barrel_k2=bc_k2, barrel_k3=0)
         if not isfinite(pos[0]):
             pos[0] = -999
         if not isfinite(pos[1]):
@@ -484,8 +484,7 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         ra0 = fit_list[0]['ra']
         dec0 = fit_list[0]['dec']
         parameter_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 5e-2, 5e-6]
-        parameters_default = [ra0, dec0, pi / 4, pi / 4, 0,
-                              lens_props.barrel_k1, 0]
+        parameters_default = [ra0, dec0, pi / 4, pi / 4, 0, lens_props.barrel_k1, 0]
         parameters_initial = [parameters_default[i] / parameter_scales[i] for i in range(len(parameters_default))]
         fitting_result = scipy.optimize.minimize(mismatch, parameters_initial, method='nelder-mead',
                                                  options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}
@@ -524,6 +523,8 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="calibration:lens_barrel_k2", value=parameters_final[6]))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
+                                    meta=mp.Meta(key="calibration:lens_barrel_k3", value=0))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="calibration:chi_squared", value=fitting_result.fun))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="calibration:point_count", value=str(radius_histogram)))
@@ -561,12 +562,14 @@ WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
 
             # Select observations with calibration fits
             conn.execute("""
-SELECT am1.floatValue AS k1, am2.floatValue AS k2
+SELECT am1.floatValue AS k1, am2.floatValue AS k2, am3.floatValue AS k3
 FROM archive_observations o
 INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
     am1.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k1")
 INNER JOIN archive_metadata am2 ON o.uid = am2.observationId AND
     am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k2")
+INNER JOIN archive_metadata am3 ON o.uid = am3.observationId AND
+    am3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k3")
 WHERE
     o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
     o.obsTime BETWEEN %s AND %s
@@ -588,10 +591,11 @@ ORDER BY k1 ASC;
 
             # Print fit information
             logging.info("""\
-CALIBRATION FIT from {:2d} images: K1: {:.6f}. K2: {:.6f} deg. \
+CALIBRATION FIT from {:2d} images: K1: {:.6f}. K2: {:.6f} deg.. K3: {:.6f} deg. \
 """.format(len(results),
            median_fit['k1'],
-           median_fit['k2']))
+           median_fit['k2'],
+           median_fit['k3']))
 
             # Flush any previous observation status
             flush_calibration(obstory_id=obstory_id, utc_min=utc_block_min - 1, utc_max=utc_block_min + 1)
@@ -604,6 +608,9 @@ CALIBRATION FIT from {:2d} images: K1: {:.6f}. K2: {:.6f} deg. \
                                          metadata_time=utc_block_min, user_created=user)
             db.register_obstory_metadata(obstory_id=obstory_id, key="calibration:lens_barrel_k2",
                                          value=median_fit['k2'], time_created=timestamp,
+                                         metadata_time=utc_block_min, user_created=user)
+            db.register_obstory_metadata(obstory_id=obstory_id, key="calibration:lens_barrel_k3",
+                                         value=median_fit['k3'], time_created=timestamp,
                                          metadata_time=utc_block_min, user_created=user)
             db.commit()
 
