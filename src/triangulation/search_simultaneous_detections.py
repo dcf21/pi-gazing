@@ -37,6 +37,8 @@ from pigazing_helpers.obsarchive import obsarchive_model as mp
 from pigazing_helpers.settings_read import settings, installation_info
 from pigazing_helpers.vector_algebra import Point
 
+simultaneous_event_type = "pigazing:simultaneous"
+
 
 def search_simultaneous_detections(utc_min, utc_max, utc_must_stop):
     db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
@@ -45,8 +47,6 @@ def search_simultaneous_detections(utc_min, utc_max, utc_must_stop):
                                            db_password=installation_info['mysqlPassword'],
                                            db_name=installation_info['mysqlDatabase'],
                                            obstory_id=installation_info['observatoryId'])
-
-    simultaneous_event_type = "pigazing:simultaneous"
 
     # Search for moving objects within time span
     search = mp.ObservationSearch(observation_type="pigazing:movingObject/",
@@ -202,9 +202,9 @@ WHERE grp.semanticType = (SELECT y.uid FROM archive_semanticTypes y WHERE y.name
         logging.info("""
 {time} -- {count:3d} stations; max baseline {baseline:5.0f} m; time spread {spread:4.1f} sec; type <{category}>
 """.format(time=dcf_ast.date_string(item['time']),
-                            count=len(item['obstory_list']),
-                            baseline=item['geographic_spacing'],
-                            spread=item['time_spread'],
+           count=len(item['obstory_list']),
+           baseline=item['geographic_spacing'],
+           spread=item['time_spread'],
            category=item['category']).strip())
 
     # Start triangulation process
@@ -215,7 +215,8 @@ WHERE grp.semanticType = (SELECT y.uid FROM archive_semanticTypes y WHERE y.name
     # Loop over list of simultaneous event detections
     for item in groups:
         # Create new observation group
-        group = db.register_obsgroup(title="Multi-station detection", user_id="system", semantic_type=simultaneous_event_type,
+        group = db.register_obsgroup(title="Multi-station detection", user_id="system",
+                                     semantic_type=simultaneous_event_type,
                                      obs_time=item['time'], set_time=time.time(),
                                      obs=item['ids'])
         logging.info("Simultaneous detection at {time} by {count:3d} stations (time spread {spread:.1f} sec)".
@@ -476,10 +477,8 @@ def flush_simultaneous_detections(utc_min, utc_max):
                                            db_name=installation_info['mysqlDatabase'],
                                            obstory_id=installation_info['observatoryId'])
 
-    semantic_type = "simultaneous"
-
     # Search for existing observation groups representing simultaneous events
-    search = mp.ObservationGroupSearch(semantic_type=semantic_type,
+    search = mp.ObservationGroupSearch(semantic_type=simultaneous_event_type,
                                        time_min=utc_min, time_max=utc_max, limit=1000000)
     existing_groups = db.search_obsgroups(search)
     existing_groups = existing_groups['obsgroups']
