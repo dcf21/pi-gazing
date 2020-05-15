@@ -61,7 +61,7 @@ class html_getargs
         $this->months = $output;
 
         // Create list of event categories
-        $this->category_list = ["Any", "Not set"] + $const->item_categories;
+        $this->category_list = array_merge(["Any"], $const->item_categories);
 
         // Fetch list of observatories from database
         $stmt = $const->db->prepare("
