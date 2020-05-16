@@ -29,6 +29,7 @@ import argparse
 import logging
 import os
 import time
+import json
 from operator import itemgetter
 
 from pigazing_helpers import connect_db
@@ -56,18 +57,14 @@ def list_calibration_fixes(obstory_id, utc_min, utc_max):
     # Start compiling list of calibration fixes
     calibration_fixes = []
 
-    # Select observations with calibration fits
+    # Select observatory with calibration fits
     conn.execute("""
-SELECT am1.floatValue AS barrel_k1, am2.floatValue AS barrel_k2, am3.floatValue AS barrel_k3,
+SELECT am1.stringValue AS barrel_parameters,
        am4.floatValue AS chi_squared, am5.stringValue AS point_count,
        o.obsTime AS time
 FROM archive_observations o
 INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
-    am1.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k1")
-INNER JOIN archive_metadata am2 ON o.uid = am2.observationId AND
-    am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k2")
-INNER JOIN archive_metadata am3 ON o.uid = am3.observationId AND
-    am3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k3")
+    am1.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_parameters")
 INNER JOIN archive_metadata am4 ON o.uid = am4.observationId AND
     am4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:chi_squared")
 INNER JOIN archive_metadata am5 ON o.uid = am5.observationId AND
@@ -85,16 +82,14 @@ WHERE
             'fit': item
         })
 
-    # Select observatory calibration fits
+    # Select observation calibration fits
     conn.execute("""
-SELECT am1.floatValue AS barrel_k1, am2.floatValue AS barrel_k2,
+SELECT am1.stringValue AS barrel_parameters,
        am3.floatValue AS chi_squared, am4.stringValue AS point_count,
        am1.time AS time
 FROM archive_observatories o
 INNER JOIN archive_metadata am1 ON o.uid = am1.observatory AND
-    am1.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k1")
-INNER JOIN archive_metadata am2 ON o.uid = am2.observatory AND am2.time=am1.time AND
-    am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k2")
+    am1.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_parameters")
 LEFT OUTER JOIN archive_metadata am3 ON o.uid = am3.observatory AND am3.time=am1.time AND
     am3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:chi_squared")
 LEFT OUTER JOIN archive_metadata am4 ON o.uid = am4.observatory AND am4.time=am1.time AND
@@ -129,11 +124,12 @@ WHERE
             item['fit']['point_count'] = "-"
 
         # Display calibration fix
+        barrel_parameters = json.loads(item['fit']['barrel_parameters'])
         print("""\
 {:s} {:16s} {:8.4f} {:8.4f} {:10.7f} {:12.9f} {:s} {:s}\
 """.format("\n>" if item['average'] else " ",
            date_string(item['time']),
-           item['fit']['barrel_k1'], item['fit']['barrel_k2'], item['fit']['barrel_k3'],
+           barrel_parameters[2], barrel_parameters[3], barrel_parameters[4],
            item['fit']['chi_squared'], item['fit']['point_count'],
            "\n" if item['average'] else ""))
 

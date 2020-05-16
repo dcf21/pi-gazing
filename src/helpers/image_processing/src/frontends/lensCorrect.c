@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <unistd.h>
 #include "argparse/argparse.h"
 #include "png/image.h"
@@ -43,6 +44,8 @@ int main(int argc, const char *argv[]) {
     double barrel_k1 = 0;
     double barrel_k2 = 0;
     double barrel_k3 = 0;
+    double scale_x = 0;
+    double scale_y = 0;
 
     struct argparse_option options[] = {
             OPT_HELP(),
@@ -52,6 +55,8 @@ int main(int argc, const char *argv[]) {
             OPT_FLOAT('k', "barrel-k1", &barrel_k1, "barrel correction coefficient K1"),
             OPT_FLOAT('l', "barrel-k2", &barrel_k2, "barrel correction coefficient K2"),
             OPT_FLOAT('m', "barrel-k3", &barrel_k3, "barrel correction coefficient K3"),
+            OPT_FLOAT('x', "scale-x", &barrel_k3, "horizontal field width / deg"),
+            OPT_FLOAT('y', "scale-y", &barrel_k3, "vertical field width / deg"),
             OPT_END(),
     };
 
@@ -78,7 +83,8 @@ int main(int argc, const char *argv[]) {
     char product_filename[FNAME_LENGTH];
     sprintf(product_filename, "%s.png", output_filename);
 
-    image_ptr image_corrected = lens_correct(&input_image, barrel_k1, barrel_k2, barrel_k3);
+    image_ptr image_corrected = lens_correct(&input_image, barrel_k1, barrel_k2, barrel_k3,
+                                             scale_x * M_PI / 180, scale_y * M_PI / 180);
     image_put(product_filename, image_corrected, 0);
     image_dealloc(&image_corrected);
 

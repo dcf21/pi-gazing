@@ -185,9 +185,9 @@ if (array_key_exists('orientation:altitude', $obstory_metadata)) {
     // Create planetarium overlay metadata
     $planetarium_metadata = [
         'active' => true,
-        'barrel_k1' => $lens_this['barrel_k1'],
-        'barrel_k2' => $lens_this['barrel_k2'],
-        'barrel_k3' => $lens_this['barrel_k3'],
+        'barrel_k1' => $lens_this['barrel_parameters'][2],
+        'barrel_k2' => $lens_this['barrel_parameters'][3],
+        'barrel_k3' => $lens_this['barrel_parameters'][4],
         'dec0' => $ra_dec[1] * pi() / 180,
         'pos_ang' => $obstory_metadata['orientation:pa'] * pi() / 180,
         'ra0' => $ra_dec[0] * pi() / 12,
@@ -195,10 +195,11 @@ if (array_key_exists('orientation:altitude', $obstory_metadata)) {
         'scale_y' => $obstory_metadata['orientation:width_y_field'] * pi() / 180
     ];
 
-    if (array_key_exists('calibration:lens_barrel_k1', $obstory_metadata)) {
-        $planetarium_metadata['barrel_k1'] = $obstory_metadata['calibration:lens_barrel_k1'];
-        $planetarium_metadata['barrel_k2'] = $obstory_metadata['calibration:lens_barrel_k2'];
-        $planetarium_metadata['barrel_k3'] = $obstory_metadata['calibration:lens_barrel_k3'];
+    if (array_key_exists('calibration:lens_barrel_parameters', $obstory_metadata)) {
+        $barrel_parameters = json_decode($obstory_metadata['calibration:lens_barrel_parameters'], true);
+        $planetarium_metadata['barrel_k1'] = $barrel_parameters[2];
+        $planetarium_metadata['barrel_k2'] = $barrel_parameters[3];
+        $planetarium_metadata['barrel_k3'] = $barrel_parameters[4];
     }
 }
 

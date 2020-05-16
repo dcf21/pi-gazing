@@ -197,7 +197,7 @@ if (($metadata_field !== "0") && (count($metadata) > 1) && (!$metadata[0]['strin
                 </tr>
             <?php else: ?>
                 <tr class="<?php echo $superseded ? 'superseded' : 'active'; ?>">
-                    <td>
+                    <td style="vertical-align:top;white-space:nowrap;">
                         <?php
                         if ($item['time'] > 0)
                             echo date("d M Y - H:i", $item['time']);
@@ -208,7 +208,9 @@ if (($metadata_field !== "0") && (count($metadata) > 1) && (!$metadata[0]['strin
                     <td style="vertical-align:top;white-space:nowrap;" title="<?php echo $item['metaKey']; ?>">
                         <?php echo $key; ?>
                     </td>
-                    <td><?php echo $value; ?></td>
+                    <td style="max-width: 350px;">
+                        <?php echo $value; ?>
+                    </td>
                 </tr>
             <?php endif; ?>
         <?php endforeach; ?>

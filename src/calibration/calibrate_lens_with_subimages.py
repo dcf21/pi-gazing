@@ -26,8 +26,9 @@ This script is used to estimate the degree of lens distortion present in an
 image.
 
 The best-fit parameter values are returned to the user. If they are believed to
-be good, you should set a status update on the observatory settings barrel_k1,
-etc. Then future observations will correct for this lens distortion.
+be good, you should set a status update on the observatory setting
+<barrel_parameters>. Then future observations will correct for this lens
+distortion.
 
 You may also changed the values for your lens in the XML file
 <src/configuration_global/camera_properties> which means that future
@@ -40,6 +41,7 @@ import logging
 import math
 import os
 import re
+import json
 import subprocess
 import time
 from math import pi, floor, hypot, isfinite
@@ -252,7 +254,7 @@ INNER JOIN archive_observations ao on f.observationId = ao.uid
 INNER JOIN archive_metadata am ON f.uid = am.fileId AND
     am.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:skyClarity")
 LEFT OUTER JOIN archive_metadata am2 ON f.uid = am2.fileId AND
-    am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k1")
+    am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_parameters")
 WHERE ao.obsTime BETWEEN %s AND %s
     AND ao.observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
     AND f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name="pigazing:timelapse/backgroundSubtracted")
@@ -484,7 +486,7 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         ra0 = fit_list[0]['ra']
         dec0 = fit_list[0]['dec']
         parameter_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 5e-2, 5e-6]
-        parameters_default = [ra0, dec0, pi / 4, pi / 4, 0, lens_props.barrel_k1, 0]
+        parameters_default = [ra0, dec0, pi / 4, pi / 4, 0, lens_props.barrel_parameters[2], 0]
         parameters_initial = [parameters_default[i] / parameter_scales[i] for i in range(len(parameters_default))]
         fitting_result = scipy.optimize.minimize(mismatch, parameters_initial, method='nelder-mead',
                                                  options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}
@@ -518,12 +520,16 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         successful_fits += 1
         user = settings['pigazingUser']
         timestamp = time.time()
+        barrel_parameters = [
+            parameters_final[2] * 180 / pi,
+            parameters_final[3] * 180 / pi,
+            parameters_final[5],
+            parameters_final[6],
+            0
+        ]
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="calibration:lens_barrel_k1", value=parameters_final[5]))
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="calibration:lens_barrel_k2", value=parameters_final[6]))
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="calibration:lens_barrel_k3", value=0))
+                                    meta=mp.Meta(key="calibration:lens_barrel_parameters",
+                                                 value=json.dumps(barrel_parameters)))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="calibration:chi_squared", value=fitting_result.fun))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
@@ -562,18 +568,13 @@ WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
 
             # Select observations with calibration fits
             conn.execute("""
-SELECT am1.floatValue AS k1, am2.floatValue AS k2, am3.floatValue AS k3
+SELECT am1.stringValue AS barrel_parameters
 FROM archive_observations o
 INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
-    am1.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k1")
-INNER JOIN archive_metadata am2 ON o.uid = am2.observationId AND
-    am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k2")
-INNER JOIN archive_metadata am3 ON o.uid = am3.observationId AND
-    am3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_k3")
+    am1.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="calibration:lens_barrel_parameters")
 WHERE
     o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
-    o.obsTime BETWEEN %s AND %s
-ORDER BY k1 ASC;
+    o.obsTime BETWEEN %s AND %s;
 """, (obstory_id, utc_block_min, utc_block_max))
             results = conn.fetchall()
 
@@ -587,15 +588,31 @@ ORDER BY k1 ASC;
                 continue
 
             # Pick the median fit
-            median_fit = results[len(results) // 2]
+            value_list = {
+                'scale_x': [],
+                'scale_y': [],
+                'barrel_k1': [],
+                'barrel_k2': [],
+                'barrel_k3': []
+            }
+            for item in results:
+                barrel_parameters = json.loads(item['barrel_parameters'])
+                value_list['scale_x'].append(barrel_parameters[0])
+                value_list['scale_y'].append(barrel_parameters[1])
+                value_list['barrel_k1'].append(barrel_parameters[2])
+                value_list['barrel_k2'].append(barrel_parameters[3])
+                value_list['barrel_k3'].append(barrel_parameters[4])
+
+            median_values = {}
+            for key, values in value_list.items():
+                values.sort()
+                median_values[key] = values[len(values) // 2]
 
             # Print fit information
             logging.info("""\
-CALIBRATION FIT from {:2d} images: K1: {:.6f}. K2: {:.6f} deg.. K3: {:.6f} deg. \
+CALIBRATION FIT from {:2d} images: %s. \
 """.format(len(results),
-           median_fit['k1'],
-           median_fit['k2'],
-           median_fit['k3']))
+           "; ".join(["{}: {}".format(key, median) for key, median in median_values.items()])))
 
             # Flush any previous observation status
             flush_calibration(obstory_id=obstory_id, utc_min=utc_block_min - 1, utc_max=utc_block_min + 1)
@@ -603,15 +620,16 @@ CALIBRATION FIT from {:2d} images: K1: {:.6f}. K2: {:.6f} deg.. K3: {:.6f} deg. 
             # Update observatory status
             user = settings['pigazingUser']
             timestamp = time.time()
-            db.register_obstory_metadata(obstory_id=obstory_id, key="calibration:lens_barrel_k1",
-                                         value=median_fit['k1'], time_created=timestamp,
-                                         metadata_time=utc_block_min, user_created=user)
-            db.register_obstory_metadata(obstory_id=obstory_id, key="calibration:lens_barrel_k2",
-                                         value=median_fit['k2'], time_created=timestamp,
-                                         metadata_time=utc_block_min, user_created=user)
-            db.register_obstory_metadata(obstory_id=obstory_id, key="calibration:lens_barrel_k3",
-                                         value=median_fit['k3'], time_created=timestamp,
-                                         metadata_time=utc_block_min, user_created=user)
+            barrel_parameters = [
+                median_values['scale_x'],
+                median_values['scale_y'],
+                median_values['barrel_k1'],
+                median_values['barrel_k2'],
+                median_values['barrel_k3']
+            ]
+            db.register_obstory_metadata(obstory_id=obstory_id, key="calibration:lens_barrel_parameters",
+                                         value=json.dumps(barrel_parameters),
+                                         time_created=timestamp, metadata_time=utc_block_min, user_created=user)
             db.commit()
 
     # Clean up and exit

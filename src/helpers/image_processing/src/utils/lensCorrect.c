@@ -37,9 +37,12 @@
 //! \param [in] barrel_k1 The barrel distortion parameter K1
 //! \param [in] barrel_k2 The barrel distortion parameter K2
 //! \param [in] barrel_k3 The barrel distortion parameter K3
+//! \param [in] scale_x horizontal field width / radians
+//! \param [in] scale_y vertical field width / radians
 //! \return A pointer to an image with barrel-correction applied
 
-image_ptr lens_correct(image_ptr *image_in, double barrel_k1, double barrel_k2, double barrel_k3) {
+image_ptr lens_correct(image_ptr *image_in, double barrel_k1, double barrel_k2, double barrel_k3,
+                       double scale_x, double scale_y) {
     const int width = image_in->xsize;
     const int height = image_in->ysize;
     const double barrel_kn = 1 - barrel_k1 - barrel_k2 - barrel_k3;
@@ -55,17 +58,19 @@ image_ptr lens_correct(image_ptr *image_in, double barrel_k1, double barrel_k2, 
             int offset_new = x + y * width;
 
             // Offset of pixel from center of image, expressed as position angle and radial distance
-            int x2 = x - width / 2;
-            int y2 = y - height / 2;
-            double r = hypot(x2, y2) / (width / 2);
+            double x2 = (x - width / 2.) / (width / 2. / tan(scale_x / 2.));
+            double y2 = (y - height / 2.) / (height / 2. / tan(scale_y / 2.));
+            double radius = hypot(x2, y2);
             double t = atan2(x2, y2);
 
             // Apply barrel correction to radial component of position
-            double r2 = r / (barrel_kn + barrel_k1 * gsl_pow_2(r) + barrel_k2 * gsl_pow_4(r) + barrel_k3 * gsl_pow_6(r)) * (width / 2);
+            double r = radius / tan(scale_x / 2.);
+            double R = r / (barrel_kn + barrel_k1 * gsl_pow_2(r) + barrel_k2 * gsl_pow_4(r) + barrel_k3 * gsl_pow_6(r));
+            radius = R * tan(scale_x / 2);
 
             // Calculate offset of pixel in the original (uncorrected) pixel array
-            int x3 = r2 * sin(t) + width / 2;
-            int y3 = r2 * cos(t) + height / 2;
+            int x3 = radius * sin(t) * (width / 2. / tan(scale_x / 2.)) + width / 2.;
+            int y3 = radius * cos(t) * (height / 2. / tan(scale_y / 2.)) + height / 2.;
             int offset_old = x3 + y3 * width;
 
             if ((x3 >= 0) && (x3 < width) && (y3 >= 0) && (y3 < height)) {

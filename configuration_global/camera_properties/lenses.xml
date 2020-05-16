@@ -3,48 +3,36 @@
   <name>f1.6_cctv_lens</name>
   <comment>Lens in use on test camera</comment>
   <fov>65</fov>
-  <barrel_k1>0.15098301</barrel_k1>
-  <barrel_k2>0.00120878</barrel_k2>
-  <barrel_k3>0.00000745</barrel_k3>
+  <radial_distortion>[285.39334831, 301.51883619, 0.15098301, 0.00120878, 0.00000745]</radial_distortion>
  </lens>
  <lens>
   <name>siemens_f1.2</name>
   <comment>Siemens 1/2" F1.2 4-12mm Varifocal Auto Iris C Mount CCTV Lens - Installed Feb 2020</comment>
-  <fov>65</fov>
-  <barrel_k1>0.15332677</barrel_k1>
-  <barrel_k2>-0.00136559</barrel_k2>
-  <barrel_k3>0.00000182</barrel_k3>
+  <fov>73</fov>
+  <radial_distortion>[73.52236278, 57.56414041, 0.15332677, -0.00136559, 0.00000182]</radial_distortion>
  </lens>
  <lens>
   <name>fujinon_YV10x5B-SA2</name>
   <comment>Fujinon YV10x5B-SA2 - Installed in Cambridge-East-0 11 April 2020</comment>
   <fov>65</fov>
-  <barrel_k1>0</barrel_k1>
-  <barrel_k2>0</barrel_k2>
-  <barrel_k3>0</barrel_k3>
+  <radial_distortion>[65, 65, 0, 0, 0]</radial_distortion>
  </lens>
  <lens>
   <name>erintec</name>
   <comment>Erintec lens - Installed in Cambridge-East-0 12 April 2020</comment>
-  <fov>65</fov>
-  <barrel_k1>0.19003283</barrel_k1>
-  <barrel_k2>-0.00310042</barrel_k2>
-  <barrel_k3>0.00000687</barrel_k3>
+  <fov>79</fov>
+  <radial_distortion>[79.09109147, 62.18805420, 0.19003283, -0.00310042, 0.00000687]</radial_distortion>
  </lens>
  <lens>
   <name>kvr0412</name>
   <comment>Kenko KVR 0412 DC 4mm F1.2 - Installed in Cambridge-East-0 20 April 2020</comment>
-  <fov>65</fov>
-  <barrel_k1>0.04671377</barrel_k1>
-  <barrel_k2>-0.00336072</barrel_k2>
-  <barrel_k3>0.00003896</barrel_k3>
+  <fov>78</fov>
+  <radial_distortion>[78.47719563, 61.68616982, 0.05941509, -0.00182800, 0.00003082]</radial_distortion>
  </lens>
  <lens>
   <name>eos1000d</name>
   <comment>Canon 1000D DSLR kit lens</comment>
   <fov>53</fov>
-  <barrel_k1>0</barrel_k1>
-  <barrel_k2>0</barrel_k2>
-  <barrel_k3>0</barrel_k3>
+  <radial_distortion>[53, 53, 0, 0, 0]</radial_distortion>
  </lens>
 </lenses>

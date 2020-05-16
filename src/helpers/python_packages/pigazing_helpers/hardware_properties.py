@@ -21,6 +21,7 @@
 # -------------------------------------------------
 
 import os
+import json
 
 from .vendor import xmltodict
 from .settings_read import settings
@@ -51,15 +52,13 @@ class Lens:
     associated with this particularly lens.
     """
 
-    def __init__(self, name, fov, barrel_k1, barrel_k2, barrel_k3):
+    def __init__(self, name, fov, barrel_parameters):
         self.name = name
         self.fov = fov
-        self.barrel_k1 = barrel_k1
-        self.barrel_k2 = barrel_k2
-        self.barrel_k3 = barrel_k3
+        self.barrel_parameters = barrel_parameters
 
     def __str__(self):
-        print("Lens({},{},{},{},{})".format(self.name, self.fov, self.barrel_k1, self.barrel_k2, self.barrel_k3))
+        print("Lens({},{},{})".format(self.name, self.fov, self.barrel_parameters))
 
 
 class HardwareProps:
@@ -87,9 +86,7 @@ class HardwareProps:
         for d in lens_xml:
             self.lens_data[d['name']] = Lens(name=d['name'],
                                              fov=float(d['fov']),
-                                             barrel_k1=float(d['barrel_k1']),
-                                             barrel_k2=float(d['barrel_k2']),
-                                             barrel_k3=float(d['barrel_k3'])
+                                             barrel_parameters=json.loads(d['radial_distortion'])
                                              )
 
     def update_camera(self, db, obstory_id, utc, name):

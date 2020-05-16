@@ -31,6 +31,7 @@ import math
 import os
 import re
 import dask
+import json
 import subprocess
 import time
 import operator
@@ -284,9 +285,8 @@ ORDER BY am.floatValue DESC LIMIT 1
             return
 
         # Look up barrel distortion
-        lens_barrel_k1 = obstory_status.get('calibration:lens_barrel_k1', lens_props.barrel_k1)
-        lens_barrel_k2 = obstory_status.get('calibration:lens_barrel_k2', lens_props.barrel_k2)
-        lens_barrel_k3 = obstory_status.get('calibration:lens_barrel_k3', lens_props.barrel_k3)
+        lens_barrel_parameters = obstory_status.get('calibration:lens_barrel_parameters', lens_props.barrel_parameters)
+        lens_barrel_parameters = json.loads(lens_barrel_parameters)
 
         # 1. Copy image into working directory
         # logging.info("Copying file")
@@ -298,9 +298,13 @@ ORDER BY am.floatValue DESC LIMIT 1
         # 2. Barrel-correct image
         # logging.info("Lens-correcting image")
         command = """
-cd {6} ; \
-{0} -i {1}_tmp.png --barrel-k1 {2:.12f} --barrel-k2 {3:.12f} --barrel-k3 {4:.12f} -o {5}_tmp2
-""".format(barrel_correct, img_name, lens_barrel_k1, lens_barrel_k2, lens_barrel_k3, img_name, tmp)
+cd {8} ; \
+{0} -i {1}_tmp.png --barrel-k1 {2:.12f} --barrel-k2 {3:.12f} --barrel-k3 {4:.12f} \
+                   --scale-x {5:.12f} --scale-y {6:.12f} -o {7}_tmp2
+""".format(barrel_correct, img_name,
+           lens_barrel_parameters[2], lens_barrel_parameters[3], lens_barrel_parameters[4],
+           lens_barrel_parameters[0], lens_barrel_parameters[1],
+           img_name, tmp)
         # logging.info(command)
         os.system(command)
 

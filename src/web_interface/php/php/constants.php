@@ -104,9 +104,7 @@ class constants
         // Known metadata fields
         $this->metadataFields = [
             "altitude_gps" => "Altitude (from GPS; m)",
-            "calibration:lens_barrel_k1" => "Lens calibration: Radial distortion term K1",
-            "calibration:lens_barrel_k2" => "Lens calibration: Radial distortion term K2",
-            "calibration:lens_barrel_k3" => "Lens calibration: Radial distortion term K3",
+            "calibration:lens_barrel_parameters" => "Lens calibration: Radial distortion parameters",
             "calibration:chi_squared" => "Lens calibration: Fitting error",
             "calibration:point_count" => "Lens calibration: Histogram of points used in matching",
             "camera" => "Camera model",

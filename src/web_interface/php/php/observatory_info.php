@@ -168,12 +168,11 @@ ORDER BY time DESC LIMIT 1");
 
         $lens_data = [];
         foreach ($xml_data->lens as $lens_item) {
+            $barrel_parameters = json_decode($lens_item->radial_distortion);
             $lens_data[(string)$lens_item->name] = [
                 "name" => (string)$lens_item->name,
                 "fov" => (float)$lens_item->fov,
-                "barrel_k1" => (float)$lens_item->barrel_k1,
-                "barrel_k2" => (float)$lens_item->barrel_k2,
-                "barrel_k3" => (float)$lens_item->barrel_k3
+                "barrel_parameters" => $barrel_parameters
             ];
         }
 

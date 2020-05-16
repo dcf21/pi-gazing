@@ -36,8 +36,9 @@ free parameters) to work out the position of the centre of the image in the
 sky, the image's rotation, scale on the sky, and the radial distortion factors.
 
 The best-fit parameter values are returned to the user. If they are believed to
-be good, you should set a status update on the observatory settings barrel_k1,
-etc. Then future observations will correct for this lens distortion.
+be good, you should set a status update on the observatory setting
+<barrel_parameters>. Then future observations will correct for this lens
+distortion.
 
 You may also changed the values for your lens in the XML file
 <src/configuration_global/camera_properties> which means that future
@@ -50,9 +51,9 @@ import logging
 import os
 import sys
 import json
-from math import hypot, pi, isfinite
+from math import hypot, pi, isfinite, tan
 import scipy.optimize
-from pigazing_helpers.gnomonic_project import gnomonic_project
+from pigazing_helpers.gnomonic_project import gnomonic_project, ang_dist
 from pigazing_helpers.settings_read import settings
 
 degrees = pi / 180
@@ -89,15 +90,17 @@ def mismatch(params):
     bc_k2 = params[6] * parameter_scales[6]
     bc_k3 = params[7] * parameter_scales[7]
 
+    # Check parameters are in range
+    if (scale_x > 0.75 * pi) or (scale_y > 0.75 * pi):
+        return float('NaN')
+
     offset_list = []
     for star in star_list:
         pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
                                size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
                                barrel_k1=bc_k1, barrel_k2=bc_k2, barrel_k3=bc_k3)
-        if not isfinite(pos[0]):
-            pos[0] = -999
-        if not isfinite(pos[1]):
-            pos[1] = -999
+        if not (isfinite(pos[0]) and isfinite(pos[1])):
+            return float('NaN')
         offset = pow(hypot(star['xpos'] - pos[0], star['ypos'] - pos[1]), 2)
         offset_list.append(offset)
 
@@ -177,7 +180,49 @@ User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mism
 """.format(star['xpos'] * img_size_x,
            star['ypos'] * img_size_y,
            pos[0] * img_size_x,
-           pos[1] * img_size_y, distance).strip())
+           pos[1] * img_size_y,
+           distance).strip())
+
+    # Debugging: print graph of radial distortion
+    with open("/tmp/radial_distortion.dat", "w") as output:
+        output.write(
+            "# x/pixel, y/pixel, offset/pixel, radius/pixel , Angular distance/rad , Tangent-space distance , Barrel-corrected tan-space dist")
+        for star in star_list:
+            pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
+                                   size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
+                                   barrel_k1=bc_k1, barrel_k2=bc_k2, barrel_k3=bc_k3)
+
+            # Error in the projected position of this star (pixels)
+            offset = hypot((star['xpos'] - pos[0]) * img_size_x, (star['ypos'] - pos[1]) * img_size_y)
+
+            # Angular distance of this star from the centre of the field (rad)
+            angular_distance = ang_dist(ra1=star['ra'], dec1=star['dec'], ra0=ra0, dec0=dec0)
+
+            # Pixel distance of this star from the centre of the field (pixels)
+            pixel_distance = hypot((star['xpos'] - 0.5) * img_size_x, (star['ypos'] - 0.5) * img_size_y)
+            pixel_distance_square_pixels = hypot((star['xpos'] - 0.5) * img_size_x,
+                                                 (star['ypos'] - 0.5) * img_size_x * tan(scale_y / 2.) / tan(
+                                                     scale_x / 2.))
+
+            # Distance of this star from the centre of the field (tangent space)
+            tan_distance = tan(angular_distance)
+
+            # Apply barrel correction to the radial distance of this star in tangent space
+            r = tan_distance / tan(scale_x / 2)
+            bc_kn = 1. - bc_k1 - bc_k2 - bc_k3
+            r2 = r / (bc_kn + bc_k1 * (r ** 2) + bc_k2 * (r ** 4) + bc_k3 * (r ** 6))
+
+            barrel_corrected_tan_dist = r2 * img_size_x / 2
+
+            output.write("{:4.0f} {:4.0f} {:8.4f} {:8.4f} {:8.4f} {:8.4f} {:8.4f}\n".format(
+                star['xpos'] * img_size_x,
+                star['ypos'] * img_size_y,
+                offset,
+                pixel_distance_square_pixels,
+                angular_distance * 180 / pi,
+                tan_distance / tan(scale_x / 2) * img_size_x / 2,
+                barrel_corrected_tan_dist
+            ))
 
 
 # If we're called as a script, run the function calibrate_lens()
