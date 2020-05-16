@@ -55,8 +55,8 @@ int main(int argc, const char *argv[]) {
             OPT_FLOAT('k', "barrel-k1", &barrel_k1, "barrel correction coefficient K1"),
             OPT_FLOAT('l', "barrel-k2", &barrel_k2, "barrel correction coefficient K2"),
             OPT_FLOAT('m', "barrel-k3", &barrel_k3, "barrel correction coefficient K3"),
-            OPT_FLOAT('x', "scale-x", &barrel_k3, "horizontal field width / deg"),
-            OPT_FLOAT('y', "scale-y", &barrel_k3, "vertical field width / deg"),
+            OPT_FLOAT('x', "scale-x", &scale_x, "horizontal field width / deg"),
+            OPT_FLOAT('y', "scale-y", &scale_y, "vertical field width / deg"),
             OPT_END(),
     };
 

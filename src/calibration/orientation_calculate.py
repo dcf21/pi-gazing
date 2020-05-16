@@ -286,7 +286,8 @@ ORDER BY am.floatValue DESC LIMIT 1
 
         # Look up barrel distortion
         lens_barrel_parameters = obstory_status.get('calibration:lens_barrel_parameters', lens_props.barrel_parameters)
-        lens_barrel_parameters = json.loads(lens_barrel_parameters)
+        if isinstance(lens_barrel_parameters, str):
+            lens_barrel_parameters = json.loads(lens_barrel_parameters)
 
         # 1. Copy image into working directory
         # logging.info("Copying file")
