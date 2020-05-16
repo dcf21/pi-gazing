@@ -250,14 +250,12 @@ def gnomonic_project(ra, dec, ra0, dec0, size_x, size_y, scale_x, scale_y, pos_a
     r = radius / tan(scale_x / 2)
     bc_kn = 1. - barrel_k1 - barrel_k2 - barrel_k3
     scaling = (bc_kn + barrel_k1 * (r ** 2) + barrel_k2 * (r ** 4) + barrel_k3 * (r ** 6))
-    r2 = r / scaling
+    r2 = r * scaling
     radius = r2 * tan(scale_x / 2)
 
     yd = radius * cos(az) * (size_y / 2. / tan(scale_y / 2.)) + size_y / 2.
     xd = radius * -sin(az) * (size_x / 2. / tan(scale_x / 2.)) + size_x / 2.
 
-    if (scaling < 0.75) or (scaling > 1.25):
-        return [float('NaN'), float('NaN')]
     return [xd, yd]
 
 

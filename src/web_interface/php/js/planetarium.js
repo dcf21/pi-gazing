@@ -170,7 +170,7 @@ Planetarium.prototype.gnomonic_project = function (ra, dec) {
 
         var r = radius / Math.tan(this.settings['scale_x'] / 2);
         var bc_kn = 1. - this.settings['barrel_k1'] - this.settings['barrel_k2'] - this.settings['barrel_k3'];
-        var r2 = r / (bc_kn + this.settings['barrel_k1'] * (r ** 2) +
+        var r2 = r * (bc_kn + this.settings['barrel_k1'] * (r ** 2) +
             this.settings['barrel_k2'] * (r ** 4) +
             this.settings['barrel_k3'] * (r ** 6)
         );

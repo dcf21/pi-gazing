@@ -163,7 +163,7 @@ void gnomonic_project(double ra, double dec, double ra0, double dec0, int x_size
     // Correction for barrel distortion
     double r = radius / tan(x_scale / 2);
     double barrel_kn = 1. - barrel_k1 - barrel_k2 - barrel_k3;
-    double R = r / (barrel_kn + barrel_k1 * gsl_pow_2(r) + barrel_k2 * gsl_pow_4(r) + barrel_k3 * gsl_pow_6(r));
+    double R = r * (barrel_kn + barrel_k1 * gsl_pow_2(r) + barrel_k2 * gsl_pow_4(r) + barrel_k3 * gsl_pow_6(r));
     radius = R * tan(x_scale / 2);
 
     yd = radius * cos(az) * (y_size / 2. / tan(y_scale / 2.)) + y_size / 2.;

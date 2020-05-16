@@ -90,10 +90,6 @@ def mismatch(params):
     bc_k2 = params[6] * parameter_scales[6]
     bc_k3 = params[7] * parameter_scales[7]
 
-    # Check parameters are in range
-    if (scale_x > 0.75 * pi) or (scale_y > 0.75 * pi):
-        return float('NaN')
-
     offset_list = []
     for star in star_list:
         pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
@@ -147,7 +143,7 @@ def calibrate_lens():
     ra0 = star_list[0]['ra']
     dec0 = star_list[0]['dec']
     parameter_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 5e-2, 5e-4, 5e-6]
-    parameter_defaults = [ra0, dec0, pi / 4, pi / 4, 0, 0, 0, 0]
+    parameter_defaults = [ra0, dec0, pi / 4, pi / 4, pi / 4, 0, 0, 0]
     parameter_initial = [parameter_defaults[i] / parameter_scales[i] for i in range(len(parameter_defaults))]
     parameter_optimised = scipy.optimize.minimize(mismatch, parameter_initial, method='nelder-mead',
                                                   options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}
@@ -166,6 +162,15 @@ def calibrate_lens():
     for i in range(len(parameter_defaults)):
         logging.info("{:30s} : {:.8f}".format(headings[i][0], parameter_final[i] * headings[i][1]))
 
+    # Print barrel_parameters JSON string
+    logging.info("Barrel parameters: {}".format(json.dumps([
+        parameter_final[2] * 180 / pi,
+        parameter_final[3] * 180 / pi,
+        parameter_final[5],
+        parameter_final[6],
+        parameter_final[7],
+    ])))
+
     # Print information about how well each star was fitted
     [ra0, dec0, scale_x, scale_y, pos_ang, bc_k1, bc_k2, bc_k3] = parameter_final
     if True:
@@ -182,6 +187,17 @@ User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mism
            pos[0] * img_size_x,
            pos[1] * img_size_y,
            distance).strip())
+
+    # Debugging: print list of point offsets
+    with open("/tmp/point_offsets.dat", "w") as output:
+        for star in star_list:
+            pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
+                                   size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
+                                   barrel_k1=bc_k1, barrel_k2=bc_k2, barrel_k3=bc_k3)
+            output.write("{:4.0f} {:4.0f}    {:4.0f} {:4.0f}\n".format(star['xpos'] * img_size_x,
+                                                                       star['ypos'] * img_size_y,
+                                                                       pos[0] * img_size_x,
+                                                                       pos[1] * img_size_y))
 
     # Debugging: print graph of radial distortion
     with open("/tmp/radial_distortion.dat", "w") as output:
@@ -210,7 +226,7 @@ User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mism
             # Apply barrel correction to the radial distance of this star in tangent space
             r = tan_distance / tan(scale_x / 2)
             bc_kn = 1. - bc_k1 - bc_k2 - bc_k3
-            r2 = r / (bc_kn + bc_k1 * (r ** 2) + bc_k2 * (r ** 4) + bc_k3 * (r ** 6))
+            r2 = r * (bc_kn + bc_k1 * (r ** 2) + bc_k2 * (r ** 4) + bc_k3 * (r ** 6))
 
             barrel_corrected_tan_dist = r2 * img_size_x / 2
 

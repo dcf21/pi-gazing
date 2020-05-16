@@ -65,7 +65,7 @@ image_ptr lens_correct(image_ptr *image_in, double barrel_k1, double barrel_k2, 
 
             // Apply barrel correction to radial component of position
             double r = radius / tan(scale_x / 2.);
-            double R = r / (barrel_kn + barrel_k1 * gsl_pow_2(r) + barrel_k2 * gsl_pow_4(r) + barrel_k3 * gsl_pow_6(r));
+            double R = r * (barrel_kn + barrel_k1 * gsl_pow_2(r) + barrel_k2 * gsl_pow_4(r) + barrel_k3 * gsl_pow_6(r));
             radius = R * tan(scale_x / 2);
 
             // Calculate offset of pixel in the original (uncorrected) pixel array
