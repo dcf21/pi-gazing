@@ -12,8 +12,7 @@ I_AM_A_RPI = os.uname()[4].startswith("arm")
 compileLibav = ARGUMENTS.get('libav', 1)
 
 # Build options to pass to gcc
-ccFlags = ['-O3', '-Wall', '-g', '-fopenmp', '-D_FILE_OFFSET_BITS=64']
-# ccFlags   = ['-O0','-Wall','-g','-D_FILE_OFFSET_BITS=64'] # Use this version for debugging only
+ccFlags = ['-O3', '-Wall', '-Wno-format-truncation', '-Wno-deprecated-declarations', '-Wno-unused-result', '-g', '-fopenmp', '-D_FILE_OFFSET_BITS=64']
 linkFlags = ['-fopenmp']
 ccDefines = ['DATE=\\"03/05/2019\\"', 'VERSION=\\"0.0.3\\"', 'SRCDIR=\\"%s\\"' % srcdir]
 

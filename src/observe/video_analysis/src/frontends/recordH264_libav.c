@@ -298,12 +298,10 @@ int main(int argc, const char *argv[]) {
     }
 
     while (1) {
-        int i;
-
         av_init_packet(&avpkt);
         avpkt.data = NULL;    // packet data will be allocated by the encoder
         avpkt.size = 0;
-        i = avcodec_encode_video2(ctxEncode, &avpkt, NULL, &got_packet_ptr);
+        avcodec_encode_video2(ctxEncode, &avpkt, NULL, &got_packet_ptr);
         // printf("! %d %d %d\n",got_packet_ptr,avpkt.flags,avpkt.size);
         // if (got_packet_ptr) fwrite(avpkt.data,1,avpkt.size,tmpout);
         // printf("encoding frame %3d (size=%5d)\n", frame_in, avpkt->size);
