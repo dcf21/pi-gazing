@@ -266,16 +266,23 @@ if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
             <h5>Time</h5>
             <p>
                 <b>Start</b>
-                <br />
-                <?php echo date("d M Y - H:i:s", $observation['obsTime']); ?>
+                <br/>
+                <?php
+                echo date("d M Y - H:i:s", $observation['obsTime']);
+                printf(".%02d", ($observation['obsTime'] * 100) % 100);
+                ?>
             </p>
             <p>
                 <b>End</b>
-                <br />
-                <?php echo date("d M Y - H:i:s", $observation['obsTime'] + $metadata_by_key['pigazing:duration']); ?>
+                <br/>
+                <?php
+                $end_time = $observation['obsTime'] + $metadata_by_key['pigazing:duration'];
+                echo date("d M Y - H:i:s", $end_time);
+                printf(".%02d", ($end_time * 100) % 100);
+                ?>
             </p>
             <h5>Duration</h5>
-               <p><?php printf("%.1f", $metadata_by_key['pigazing:duration']); ?> sec</p>
+            <p><?php printf("%.1f", $metadata_by_key['pigazing:duration']); ?> sec</p>
             <h5>Display options</h5>
             <form method="get" action="javascript:void(0);">
                 <p>
