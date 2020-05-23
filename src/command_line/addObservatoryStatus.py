@@ -72,7 +72,7 @@ def add_observatory_status(metadata):
         metadata['lens'] = known_observatories[metadata['obstory_id']]['defaultLens']
     if "software_version" not in metadata:
         metadata['software_version'] = settings['softwareVersion']
-    if "user" is None:
+    if ("username" not in metadata) or (metadata['username'] is None):
         metadata['username'] = known_observatories[metadata['obstory_id']]['owner']
 
     # If observatory doesn't exist yet, create a new observatory
