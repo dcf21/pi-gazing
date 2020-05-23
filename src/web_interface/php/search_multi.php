@@ -251,7 +251,7 @@ FROM ${search} ORDER BY g.time DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
         ?>
         <div class="alert alert-success">
             <p>
-                Showing results <?php echo $pageSkip + 1; ?> to <?php echo $pageSkip + 1 + count($result_list); ?>
+                Showing results <?php echo $pageSkip + 1; ?> to <?php echo $pageSkip + count($result_list); ?>
                 of <?php echo $result_count; ?>.
             </p>
         </div>
