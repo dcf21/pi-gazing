@@ -34,7 +34,6 @@
 
 #include "argparse/argparse.h"
 #include "png/image.h"
-#include "utils/asciiDouble.h"
 #include "utils/error.h"
 #include "utils/skyClarity.h"
 #include "png.h"
@@ -78,8 +77,7 @@ int main(int argc, const char *argv[]) {
     argc = argparse_parse(&argparse, argc, argv);
 
     if (argc != 0) {
-        int i;
-        for (i = 0; i < argc; i++) {
+        for (int i = 0; i < argc; i++) {
             printf("Error: unparsed argument <%s>\n", *(argv + i));
         }
         logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
@@ -92,10 +90,10 @@ int main(int argc, const char *argv[]) {
     }
 
     int width, height, channels, bit_width;
-    i = fread(&width, sizeof(int), 1, infile);
-    i = fread(&height, sizeof(int), 1, infile);
-    i = fread(&channels, sizeof(int), 1, infile);
-    i = fread(&bit_width, sizeof(int), 1, infile);
+    fread(&width, sizeof(int), 1, infile);
+    fread(&height, sizeof(int), 1, infile);
+    fread(&channels, sizeof(int), 1, infile);
+    fread(&bit_width, sizeof(int), 1, infile);
 
     if (channels != 3) {
         sprintf(temp_err_string, "ERROR: cannot generate separate RGB PNGs from a mono PNG.");
@@ -115,9 +113,9 @@ int main(int argc, const char *argv[]) {
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
-    i = fread(img_raw_r, 1, frame_size * bytes_per_pixel, infile);
-    i = fread(img_raw_g, 1, frame_size * bytes_per_pixel, infile);
-    i = fread(img_raw_b, 1, frame_size * bytes_per_pixel, infile);
+    fread(img_raw_r, 1, frame_size * bytes_per_pixel, infile);
+    fread(img_raw_g, 1, frame_size * bytes_per_pixel, infile);
+    fread(img_raw_b, 1, frame_size * bytes_per_pixel, infile);
 
     fclose(infile);
 

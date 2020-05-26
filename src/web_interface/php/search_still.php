@@ -62,7 +62,7 @@ if ($tmax['utc'] < $tmin['utc']) {
 
 // Read image options
 $flag_bgsub = 0;
-$flag_highlights = 1;
+$flag_highlights = 0;
 
 if (array_key_exists("flag_bgsub", $_GET)) $flag_bgsub = 1;
 if (array_key_exists("flag_highlights", $_GET)) $flag_highlights = 1;

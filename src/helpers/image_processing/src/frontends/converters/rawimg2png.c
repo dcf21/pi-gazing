@@ -30,13 +30,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <math.h>
 #include <unistd.h>
 
 #include "argparse/argparse.h"
 #include "png/image.h"
-#include "utils/asciiDouble.h"
 #include "utils/error.h"
-#include "utils/lensCorrect.h"
 #include "utils/skyClarity.h"
 
 #include "settings.h"
@@ -79,8 +78,7 @@ int main(int argc, const char *argv[]) {
     argc = argparse_parse(&argparse, argc, argv);
 
     if (argc != 0) {
-        int i;
-        for (i = 0; i < argc; i++) {
+        for (int i = 0; i < argc; i++) {
             printf("Error: unparsed argument <%s>\n", *(argv + i));
         }
         logging_fatal(__FILE__, __LINE__, "Unparsed arguments");
@@ -93,10 +91,10 @@ int main(int argc, const char *argv[]) {
     }
 
     int width, height, channels, bit_width;
-    i = fread(&width, sizeof(int), 1, infile);
-    i = fread(&height, sizeof(int), 1, infile);
-    i = fread(&channels, sizeof(int), 1, infile);
-    i = fread(&bit_width, sizeof(int), 1, infile);
+    fread(&width, sizeof(int), 1, infile);
+    fread(&height, sizeof(int), 1, infile);
+    fread(&channels, sizeof(int), 1, infile);
+    fread(&bit_width, sizeof(int), 1, infile);
 
     const int frame_size = width * height;
     const int bytes_per_pixel = bit_width / 8;
@@ -109,7 +107,7 @@ int main(int argc, const char *argv[]) {
         logging_fatal(__FILE__, __LINE__, temp_err_string);
     }
 
-    i = fread(image_data_raw, 1, channels * frame_size * bytes_per_pixel, infile);
+    fread(image_data_raw, 1, channels * frame_size * bytes_per_pixel, infile);
 
     fclose(infile);
 
@@ -147,9 +145,30 @@ int main(int argc, const char *argv[]) {
     char product_filename[FNAME_LENGTH];
     sprintf(product_filename, "%s.png", output_filename);
 
+    // Rescale all pixels to range 0-65535
     image_deweight(&output_image);
+
+    // Remove superfluous noise bits
+    const double noise_level_16bit = noise_level * 256;
+    const int noise_level_log2 = (int)(log(noise_level_16bit) / log(2));
+
+    int truncate_at = noise_level_log2 - 3;
+    if (truncate_at < 0) truncate_at = 0;
+    if (truncate_at > 15) truncate_at = 15;
+
+    const int inverse_mask = (1 << truncate_at) - 1;
+    const int mask = (1 << 16) - 1 - inverse_mask;
+
+    for (i = 0; i < frame_size; i++) {
+        output_image.data_red[i] = ((unsigned int)output_image.data_red[i]) & mask;
+        output_image.data_grn[i] = ((unsigned int)output_image.data_grn[i]) & mask;
+        output_image.data_blu[i] = ((unsigned int)output_image.data_blu[i]) & mask;
+    }
+
+    // Write PNG file to disk
     image_put(product_filename, output_image, (channels < 3));
 
+    // Add metadata about the sky clarity of this image
     sprintf(product_filename, "%s.txt", output_filename);
     FILE *f = fopen(product_filename, "w");
     if (f) {
