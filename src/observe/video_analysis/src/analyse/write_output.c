@@ -200,7 +200,7 @@ void write_timelapse_bs_frame(const int channel_count, const observe_status *os,
 
     // Write the frame to a binary RGB file
     dump_frame_from_int_subtraction(os->width, os->height, channel_count, os->stack_timelapse, frame_count,
-                                    os->STACK_TARGET_BRIGHTNESS, &gain_factor,
+                                    os->STACK_TARGET_BRIGHTNESS, os->mask, &gain_factor,
                                     os->background_maps[0], filename);
 
     // Store metadata about the time-lapse frame

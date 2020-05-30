@@ -211,12 +211,19 @@ double estimate_noise_level(int width, int height, unsigned char *buffer, int fr
     }
 
     double sd_sum = 0;
+    int sd_pixel_count = 0;
     double mean_sum = 0;
     for (i = 0; i < study_pixel_count; i++) {
         double mean = sum_y[i] / ((double) frame_count);
         double sd = sqrt(sum_y2[i] / ((double) frame_count) - mean * mean);
-        sd_sum += sd;
         mean_sum += mean;
+
+        // Only include pixels fainter than a brightness of 192 in the estimation of the noise level, but include
+        // all pixels in working out the mean level of the image.
+        if (mean < 192) {
+            sd_sum += sd;
+            sd_pixel_count++;
+        }
     }
 
     // Clean up
@@ -225,7 +232,9 @@ double estimate_noise_level(int width, int height, unsigned char *buffer, int fr
 
     // Return result
     *mean_level = mean_sum / study_pixel_count;
-    return sd_sum / study_pixel_count; // Average standard deviation of the studied pixels
+
+    // Average standard deviation of the studied pixels
+    return sd_sum / sd_pixel_count;
 }
 
 //! background_calculate - Estimate the sky background, using histograms of the past brightness of each pixel over the
@@ -402,13 +411,15 @@ int dump_frame_from_ints(int width, int height, int channels, const int *buffer,
 //! \param buffer Array of ints representing each RGB channel in turn, size (channels * width * height)
 //! \param frame_count The number of frames which have been co-added in <buffer>. We divide the pixels by this value.
 //! \param target_brightness If non-zero, we attempt to renormalise the image to this mean brightness
+//! \param mask Array of bits indicating the trigger mask in use; we also use this mask when determining the average
+//!             brightness of the frame.
 //! \param gain_out If non-NULL, write the gain which was applied to the image.
 //! \param buffer2 Array of ints which we subtract from the ints in buffer
 //! \param filename The filename of the raw file we are to generate
 //! \return Zero on success
 
 int dump_frame_from_int_subtraction(int width, int height, int channels, const int *buffer, int frame_count,
-                                    int target_brightness, double *gain_out,
+                                    int target_brightness, const unsigned char *mask, double *gain_out,
                                     const int *buffer2, char *filename) {
     FILE *outfile;
     int frame_size = width * height;
@@ -434,10 +445,12 @@ int dump_frame_from_int_subtraction(int width, int height, int channels, const i
         double brightness_sum = 32;
         int brightness_points = 1;
         for (i = 0; i < frame_size; i += 199) {
-            double level = buffer[i] - frame_count * buffer2[i] / 256.;
-            if (level < 0) level = 0;
-            brightness_sum += level;
-            brightness_points++;
+            if (mask[i]) {
+                double level = buffer[i] - frame_count * buffer2[i] / 256.;
+                if (level < 0) level = 0;
+                brightness_sum += level;
+                brightness_points++;
+            }
         }
         gain = target_brightness / (brightness_sum / frame_count / brightness_points);
         if (gain < 1) gain = 1;

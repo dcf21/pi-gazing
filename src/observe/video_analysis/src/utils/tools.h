@@ -60,7 +60,7 @@ int dump_frame_from_ints(int width, int height, int channels, const int *buffer,
                          double *gain_out, char *filename);
 
 int dump_frame_from_int_subtraction(int width, int height, int channels, const int *buffer, int frame_count,
-                                    int target_brightness, double *gain_out,
+                                    int target_brightness, const unsigned char *mask, double *gain_out,
                                     const int *buffer2, char *filename);
 
 void dump_video(int width, int height, const char *filename, const unsigned char *video_buffer,

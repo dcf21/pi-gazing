@@ -383,7 +383,7 @@ void observing_loop(observe_status *os, const double utc_stop,
                 (*rewind_video)(os->video_handle, &os->utc);
 
                 // Start making time lapse video; set the start time for the first frame at a round number of seconds
-                os->timelapse_utc_start = ceil(os->utc / os->TIMELAPSE_EXPOSURE) * os->TIMELAPSE_EXPOSURE + 0.5;
+                os->timelapse_utc_start = ceil(os->utc / os->TIMELAPSE_INTERVAL) * os->TIMELAPSE_INTERVAL + 0.5;
             }
         }
 
