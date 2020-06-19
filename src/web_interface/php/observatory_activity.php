@@ -137,7 +137,6 @@ WHERE l.publicId=:o AND f.metaKey=:k AND m.time BETWEEN :x AND :y;");
      title='This observatory achieved a positional fix'>
     <i class='fa fa-crosshairs'></i>
 </div>";
-            echo $a;
         } else {
             $text = "";
         }
