@@ -90,7 +90,7 @@ function get_activity_history($metaKey, $suffix, $url)
 SELECT COUNT(*) FROM archive_observations o
 INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_semanticTypes s ON o.obsType = s.uid
-WHERE l.publicId=:o AND s.name=:k AND o.obsTime>=:x AND o.obsTime<:y LIMIT 1");
+WHERE l.publicId=:o AND s.name=:k AND o.obsTime BETWEEN :x AND :y;");
         $stmt->bindParam(':o', $o, PDO::PARAM_STR, strlen($obstory));
         $stmt->bindParam(':k', $k, PDO::PARAM_STR, strlen($metaKey));
         $stmt->bindParam(':x', $x, PDO::PARAM_INT);
@@ -99,10 +99,45 @@ WHERE l.publicId=:o AND s.name=:k AND o.obsTime>=:x AND o.obsTime<:y LIMIT 1");
         $items = $stmt->fetchAll()[0]['COUNT(*)'];
         if ($items > 0) {
             $tomorrow = $count + 1;
-            $text = "<a href='{$url}?obstory={$obstory}&year1={$year}&month1={$month}&day1={$count}&hour1=12&minute1=0" .
-                "&year2={$year}&month2={$month}&day2={$tomorrow}&hour2=12&minute2=0" .
-                "&flag_lenscorr=1'>" .
-                "<span class='cal_number'>{$items}</span><span class='cal_type'>{$suffix}</span></a>";
+            $text = "<div style='height:55px;'>" .
+                "<a href='{$url}?obstory={$obstory}&year1={$year}&month1={$month}&day1={$count}&hour1=12&minute1=0" .
+                "&year2={$year}&month2={$month}&day2={$tomorrow}&hour2=12&minute2=0'>" .
+                "<span class='cal_number'>{$items}</span><span class='cal_type'>{$suffix}</span></a></div>";
+        } else {
+            $text = "";
+        }
+        $byday[$count][] = $text;
+    }
+}
+
+// Fetch observatory positional fix history
+function get_positional_fix_history($metaKey)
+{
+    global $byday, $const, $tmin, $period, $obstory, $days_in_month, $year, $month;
+    $count = 0;
+    while ($count < $days_in_month) {
+        $a = floor($tmin['utc'] / 86400) * 86400 + 43200 + $period * $count - 60;
+        $b = $a + $period;
+        $count++;
+        $stmt = $const->db->prepare("
+SELECT COUNT(*) FROM archive_metadata m
+INNER JOIN archive_observatories l ON m.observatory = l.uid
+INNER JOIN archive_metadataFields f ON m.fieldId = f.uid
+WHERE l.publicId=:o AND f.metaKey=:k AND m.time BETWEEN :x AND :y;");
+        $stmt->bindParam(':o', $o, PDO::PARAM_STR, strlen($obstory));
+        $stmt->bindParam(':k', $k, PDO::PARAM_STR, strlen($metaKey));
+        $stmt->bindParam(':x', $x, PDO::PARAM_INT);
+        $stmt->bindParam(':y', $y, PDO::PARAM_INT);
+        $stmt->execute(['o' => $obstory, 'k' => $metaKey, 'x' => $a, 'y' => $b]);
+        $items = $stmt->fetchAll()[0]['COUNT(*)'];
+        if ($items > 0) {
+            $text = "
+<div class='bg_medium_blue'
+     style='position: absolute; top: 14px; right: 10px; z-index:2; padding: 4px; border-radius: 2px;'
+     title='This observatory achieved a positional fix'>
+    <i class='fa fa-crosshairs'></i>
+</div>";
+            echo $a;
         } else {
             $text = "";
         }
@@ -112,6 +147,7 @@ WHERE l.publicId=:o AND s.name=:k AND o.obsTime>=:x AND o.obsTime<:y LIMIT 1");
 
 get_activity_history("pigazing:timelapse/", " still images", "search_still.php");
 get_activity_history("pigazing:movingObject/", " moving objects", "search_moving.php");
+get_positional_fix_history("orientation:pa");
 
 $pageInfo = [
     "pageTitle" => "Activity history for {$obstory_name}",
@@ -171,13 +207,13 @@ $pageTemplate->header($pageInfo);
                         $nowmc = intval(date("n", $nowutc));
                         $nowday = intval(date("j", $nowutc));
                         for ($day = 1; $day <= $days_in_month; $day++) {
-                            print "<td class='odd'>";
+                            print "<td class='odd' style='position:relative;'>";
                             print "<div class=\"cal_day\">${day}</div><div class=\"cal_body\">";
                             $all_blank = true;
                             $output = "";
                             foreach ($byday[$day] as $s) {
                                 if (strlen($s) > 0) $all_blank = false;
-                                $output .= "<div style='height:55px;'>{$s}</div>";
+                                $output .= $s;
                             }
                             if ($all_blank) $output = "<div style='height:55px;'><span class='cal_type'>No data</span></div>";
                             print "{$output}</div></td>";
