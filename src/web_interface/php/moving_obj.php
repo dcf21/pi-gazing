@@ -33,7 +33,7 @@ $getargs = new html_getargs(true);
 
 // Get ID for event to display
 $id = "";
-if (array_key_exists("id", $_GET)) $id = $_GET["id"];
+if (array_key_exists("id", $_GET) && is_string($_GET["id"])) $id = $_GET["id"];
 
 // Get the observation
 $stmt = $const->db->prepare("
@@ -82,7 +82,7 @@ ORDER BY o.obsTime {$sort[2]} LIMIT 1;");
 
 // Set categorisation of image based on get data
 if ($allow_item_to_be_featured && array_key_exists("update", $_GET)) {
-    if (array_key_exists("category", $_GET)) {
+    if (array_key_exists("category", $_GET) && is_string($_GET["category"])) {
         $new_category = $_GET["category"];
         if ($new_category == "Not set") $new_category = null;
         set_metadata("web:category", $new_category, $observation['obsTime'], $uid, "observationId");

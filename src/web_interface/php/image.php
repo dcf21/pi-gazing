@@ -33,7 +33,7 @@ $getargs = new html_getargs(true);
 
 // Get ID for event to display
 $id = "";
-if (array_key_exists("id", $_GET)) $id = $_GET["id"];
+if (array_key_exists("id", $_GET) && is_string($_GET["id"])) $id = $_GET["id"];
 
 // Look up details of file
 $stmt = $const->db->prepare("

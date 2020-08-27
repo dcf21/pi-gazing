@@ -55,7 +55,7 @@ $durationList = [
     [8, "1 year", 365, 4]
 ];
 
-if (array_key_exists('duration', $_GET)) $durationCode = $_GET['duration'];
+if (array_key_exists('duration', $_GET) && is_string($_GET['duration'])) $durationCode = $_GET['duration'];
 else                                     $durationCode = 6;
 if (!array_key_exists($durationCode, $durationList)) {
     $durationCode = 6;

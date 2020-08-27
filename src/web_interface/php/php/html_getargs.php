@@ -93,7 +93,7 @@ SELECT publicId, name, ST_X(location) AS longitude, ST_Y(location) AS latitude F
         $months = $const->shortMonthNames;
         if (is_null($utc_default)) $utc_default = time();
 
-        if (array_key_exists($argName, $_GET)) $mc = $_GET[$argName];
+        if (array_key_exists($argName, $_GET) && is_string($_GET[$argName])) $mc = $_GET[$argName];
         else                                   $mc = intval(date("m", $utc_default));
         if (!array_key_exists($mc, $months)) $mc = intval(date("m", $utc_default));
         return $mc;
@@ -101,7 +101,7 @@ SELECT publicId, name, ST_X(location) AS longitude, ST_Y(location) AS latitude F
 
     public function readObservatory($argName)
     {
-        if (array_key_exists($argName, $_GET)) $obs = $_GET[$argName];
+        if (array_key_exists($argName, $_GET) && is_string($_GET[$argName])) $obs = $_GET[$argName];
         else if ($this->allow_any_camera) $obs = "Any";
         else $obs = $this->obstory_list[0];
         if (!array_key_exists($obs, $this->obstories)) $obs = $this->obstory_list[0];
@@ -111,7 +111,7 @@ SELECT publicId, name, ST_X(location) AS longitude, ST_Y(location) AS latitude F
 
     public function readCategory($argName)
     {
-        if (array_key_exists($argName, $_GET)) $category = $_GET[$argName];
+        if (array_key_exists($argName, $_GET) && is_string($_GET[$argName])) $category = $_GET[$argName];
         else $category = "Any";
         if (!in_array($category, $this->category_list)) $category = $this->category_list[0];
         if (!in_array($category, $this->category_list)) die ("Could not find any event categories.");
@@ -122,7 +122,7 @@ SELECT publicId, name, ST_X(location) AS longitude, ST_Y(location) AS latitude F
     {
         global $const;
         $field = "0";
-        if (array_key_exists($argName, $_GET)) $field = $_GET[$argName];
+        if (array_key_exists($argName, $_GET) && is_string($_GET[$argName])) $field = $_GET[$argName];
         if (!array_key_exists($field, $const->metadataFields)) $field = "0";
         return $field;
     }

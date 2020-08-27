@@ -58,7 +58,7 @@ class userSession
         $time = time();
 
         // Check for valid session cookie
-        if (isset($_COOKIE[$this->key])) {
+        if (isset($_COOKIE[$this->key]) && is_string($_COOKIE[$this->key])) {
             $cookie = $_COOKIE[$this->key];
             $cookieLen = strlen($cookie);
             if ($cookieLen == 32) {
@@ -83,7 +83,7 @@ UPDATE pigazing_user_sessions SET lastSeen=:t WHERE cookie=:c;");
 
         // Check for valid login
         if (!$this->username) {
-            if (isset($_POST['un']) && isset($_POST['pw'])) {
+            if (isset($_POST['un']) && is_string($_POST['un']) && isset($_POST['pw']) && is_string($_POST['pw'])) {
                 $username = $_POST['un'];
                 $secret = $_POST['pw'];
                 $stmt = $const->db->prepare("SELECT * FROM pigazing_users WHERE username=:u;");
@@ -133,7 +133,7 @@ WHERE ur.userId=:u;");
     {
         global $const;
         $time = time();
-        if (isset($_COOKIE[$this->key])) {
+        if (isset($_COOKIE[$this->key]) && is_string($_COOKIE[$this->key])) {
             $cookie = $_COOKIE[$this->key];
             $cookieLen = strlen($cookie);
             if ($cookieLen == 32) {
