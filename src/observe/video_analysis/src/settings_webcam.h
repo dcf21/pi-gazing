@@ -44,10 +44,10 @@
 
 // Throttle the number of triggers which are allowed
 #define TRIGGER_THROTTLE_PERIOD 30 /* number of minutes */
-#define TRIGGER_THROTTLE_MAXEVT  5 /* number of triggers allowed in that time */
+#define TRIGGER_THROTTLE_MAXEVT  8 /* number of triggers allowed in that time */
 
 // Trigger parameters
-#define VIDEO_BUFFER_LENGTH   60  /* maximum period of video to buffer in ram */
+#define VIDEO_BUFFER_LENGTH  100  /* maximum period of video to buffer in ram */
 #define TRIGGER_PREFIX_TIME    2  /* include N seconds of video after trigger */
 #define TRIGGER_SUFFIX_TIME    4  /* include N seconds of video after trigger has gone away */
 

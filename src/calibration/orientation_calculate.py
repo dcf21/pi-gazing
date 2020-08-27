@@ -330,7 +330,7 @@ convert {0}_tmp2.png -colorspace sRGB -define png:format=png24 -crop {1:d}x{2:d}
             return
 
         # How long should we allow astrometry.net to run for?
-        timeout = "1m"
+        timeout = "2m"
 
         # Run astrometry.net. Insert --no-plots on the command line to speed things up.
         # logging.info("Running astrometry.net")
