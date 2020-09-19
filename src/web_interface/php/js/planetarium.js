@@ -496,7 +496,7 @@ Planetarium.prototype.draw = function () {
         // Loop over all of the tiles which we are going to display
         for (k = tileList.length - 1; k >= 0; k--) {
             var stars = this.stars[tileList[k]];
-            for (i = stars.length - 1; i >= 0; i--) {
+            for (i = 0; i < stars.length; i++) {
                 if (stars[i][4] > self.limitmag) continue;
                 p = this.gnomonic_project(stars[i][1], stars[i][2]);
                 if (p === null) continue;
