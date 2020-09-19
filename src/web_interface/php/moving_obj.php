@@ -260,11 +260,11 @@ if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
         </div>
         <div class="col-xl-4">
             <h5>Observation type</h5>
-            <p><?php echo $const->semanticTypes[$observation['semanticType']][1]; ?></p>
+            <p style="padding-left:10px;"><?php echo $const->semanticTypes[$observation['semanticType']][1]; ?></p>
             <h5>Observatory</h5>
-            <p><a href="observatory.php?id=<?php echo $obstory['publicId']; ?>"><?php echo $obstory['name']; ?></a></p>
+            <p style="padding-left:10px;"><a href="observatory.php?id=<?php echo $obstory['publicId']; ?>"><?php echo $obstory['name']; ?></a></p>
             <h5>Time</h5>
-            <p>
+            <p style="padding-left:10px;">
                 <b>Start</b>
                 <br/>
                 <?php
@@ -272,7 +272,7 @@ if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
                 printf(".%02d", ($observation['obsTime'] * 100) % 100);
                 ?>
             </p>
-            <p>
+            <p style="padding-left:10px;">
                 <b>End</b>
                 <br/>
                 <?php
@@ -282,58 +282,53 @@ if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
                 ?>
             </p>
             <h5>Duration</h5>
-            <p><?php printf("%.1f", $metadata_by_key['pigazing:duration']); ?> sec</p>
+            <p style="padding-left:10px;"><?php printf("%.1f", $metadata_by_key['pigazing:duration']); ?> sec</p>
             <h5>Display options</h5>
             <form method="get" action="javascript:void(0);">
-                <p>
+                <p style="padding-left:10px;">
                     <label>
-                        <input class="chk chkoverlay" type="checkbox" name="chkoverlay" checked="checked">
-                        Planetarium overlay
+                        <input class="chk chkoverlay" type="checkbox" name="chkoverlay">
+                        Enable overlay
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chkss" type="checkbox" name="chkss" checked="checked">
                         Show stars
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chkls" type="checkbox" name="chkls" checked="checked">
                         Label stars
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chksn" type="checkbox" name="chksn">
                         Show deep sky objects
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chkln" type="checkbox" name="chkln">
                         Label deep sky objects
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chkcb" type="checkbox" name="chkcb">
                         Show constellation boundaries
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chkcl" type="checkbox" name="chkcl" checked="checked">
                         Show constellation sticks
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chkcn" type="checkbox" name="chkcn" checked="checked">
                         Show constellation labels
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chkragrid" type="checkbox" name="chkragrid" checked="checked">
                         Show RA/Dec grid
-                    </label>
-                    <br/>
-                    <label>
-                        <input class="chk chkbarrel" type="checkbox" name="chkbarrel" checked="checked">
-                        Include lens correction
                     </label>
                 </p>
             </form>

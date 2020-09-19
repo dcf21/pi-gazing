@@ -287,70 +287,65 @@ $pageTemplate->header($pageInfo);
                 </label>
             <?php endif; ?>
             <h5>Observation type</h5>
-            <p><?php echo $const->semanticTypes[$observation['semanticType']][1]; ?></p>
+            <p style="padding-left:10px;"><?php echo $const->semanticTypes[$observation['semanticType']][1]; ?></p>
             <h5>Observatory</h5>
-            <p><a href="observatory.php?id=<?php echo $obstory['publicId']; ?>"><?php echo $obstory['name']; ?></a></p>
+            <p style="padding-left:10px;"><a href="observatory.php?id=<?php echo $obstory['publicId']; ?>"><?php echo $obstory['name']; ?></a></p>
             <h5>Time</h5>
-            <p><?php echo date("d M Y - H:i", $observation['obsTime']); ?></p>
+            <p style="padding-left:10px;"><?php echo date("d M Y - H:i", $observation['obsTime']); ?></p>
             <h5><?php echo $const->mimeTypes[$mime_type]; ?> type</h5>
             <?php
             $semantic_type = $result['semanticType'];
             if (array_key_exists($semantic_type, $const->semanticTypes)) {
-                print "<p><b>" . $const->semanticTypes[$semantic_type][0] . "</b>. ";
+                print "<p style='padding-left:10px;'><b>" . $const->semanticTypes[$semantic_type][0] . "</b>. ";
                 print $const->semanticTypes[$semantic_type][1] . "</p>";
             }
             ?>
             <h5>Display options</h5>
             <form method="get" action="javascript:void(0);">
-                <p>
+                <p style="padding-left:10px;">
                     <label>
-                        <input class="chk chkoverlay" type="checkbox" name="chkoverlay" checked="checked">
-                        Planetarium overlay
+                        <input class="chk chkoverlay" type="checkbox" name="chkoverlay">
+                        Enable overlay
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chkss" type="checkbox" name="chkss" checked="checked">
                         Show stars
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chkls" type="checkbox" name="chkls" checked="checked">
                         Label stars
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chksn" type="checkbox" name="chksn">
                         Show deep sky objects
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chkln" type="checkbox" name="chkln">
                         Label deep sky objects
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chkcb" type="checkbox" name="chkcb">
                         Show constellation boundaries
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chkcl" type="checkbox" name="chkcl" checked="checked">
                         Show constellation sticks
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chkcn" type="checkbox" name="chkcn" checked="checked">
                         Show constellation labels
                     </label>
                     <br/>
-                    <label>
+                    <label class="olctrl">
                         <input class="chk chkragrid" type="checkbox" name="chkragrid" checked="checked">
                         Show RA/Dec grid
-                    </label>
-                    <br/>
-                    <label>
-                        <input class="chk chkbarrel" type="checkbox" name="chkbarrel" checked="checked">
-                        Include lens correction
                     </label>
                 </p>
             </form>

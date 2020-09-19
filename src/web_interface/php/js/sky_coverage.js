@@ -8,6 +8,7 @@ function SkyCoverageChart(settings, polygons, context) {
     this.polygons = polygons;
     this.context = context;
     this.width = 1;
+    this.width_on_last_resize = 1;
     this.height = 1;
     this.refresh = 0;
     this.lock = 0;
@@ -89,7 +90,7 @@ SkyCoverageChart.prototype.setup_2 = function () {
 
 SkyCoverageChart.prototype.project = function (ra, dec) {
     var x = this.margin_left + (this.width - this.margin_left - this.margin_right) * (1 - ra / (2 * Math.PI));
-    var y = this.margin_top + (this.height - this.margin_top - this.margin_bottom) * (0.5 - dec / Math.PI);
+    var y = this.margin_top + (this.height - this.margin_top - this.margin_bottom) * (1 - Math.sin(dec)) / 2;
     return [x, y];
 };
 
@@ -145,7 +146,7 @@ SkyCoverageChart.prototype.stroke_line = function (co, hover_key, ra0, dec0, ra1
 SkyCoverageChart.prototype.updateAlarm = function () {
     // Check if the image has been resized
     var current_width = this.context.width();
-    if (current_width !== this.width) this.resize();
+    if (current_width !== this.width_on_last_resize) this.resize();
 
     // Check if we need to update display
     if (!this.refresh) return;
@@ -165,6 +166,7 @@ SkyCoverageChart.prototype.magnitudeRadius = function (mag) {
 SkyCoverageChart.prototype.resize = function () {
     this.height = Math.min(window.innerHeight * 0.9, this.context.width() * 0.5);
     this.width = this.height * 2;
+    this.width_on_last_resize = this.context.width();
 
     // Set element sizes
     $(".sky_chart_canvas", this.context).width(this.width).height(this.height);
@@ -410,7 +412,7 @@ SkyCoverageChart.prototype.hoverHover = function (id, x, y) {
 SkyCoverageChart.prototype.hoverClick = function (id, x, y) {
     // Call any hook functions for a click event on a marker
     if (this.hovermankeys.hasOwnProperty(id)) {
-        window.open(this.hovermankeys[id][1], '_blank');
+        window.location = this.hovermankeys[id][1];
     }
 };
 

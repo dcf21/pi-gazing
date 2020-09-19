@@ -16,14 +16,19 @@ function Planetarium(settings, context) {
     if (!this.settings['active']) return;
 
     // Buttons to show and hide overlay
-    $(".chkoverlay").click(function () {
-            if (self.getInputSwitch("chkoverlay", true)) {
-                $(".PLbuf0").stop().fadeIn();
-            } else {
-                $(".PLbuf0").stop().fadeOut();
-            }
+    var overlay_toggle = function () {
+        if (self.getInputSwitch("chkoverlay", true)) {
+            $(".PLbuf0").stop().fadeIn();
+            $(".olctrl").removeClass("olctrl_disabled");
+            $(".olctrl input").attr('disabled', false);
+        } else {
+            $(".PLbuf0").stop().fadeOut();
+            $(".olctrl").addClass("olctrl_disabled");
+            $(".olctrl input").attr('disabled', true);
         }
-    );
+    };
+    $(".chkoverlay").click(overlay_toggle);
+    overlay_toggle();
 
     // Styling information
     this.styling = {
@@ -268,6 +273,7 @@ Planetarium.prototype.draw = function () {
 
     // Limiting magnitude
     this.limitmag = 4;
+    var star_label_count = 0;
 
     // Fetch settings
     var showStars = this.getInputSwitch("chkss", true);
@@ -504,13 +510,15 @@ Planetarium.prototype.draw = function () {
 
                 names = [];
                 if (stars[i][0]) names.push(stars[i][0]);
-                if (stars[i][5]) names.push(stars[i][5]);
-                if (stars[i][6]) names.push(stars[i][6]);
+                if (stars[i][5]) names.push(stars[i][5] + "-" + stars[i][8]);
+                if (stars[i][6]) names.push(stars[i][6] + "-" + stars[i][8]);
+                if (stars[i][7]) names.push("HD" + stars[i][7])
 
-                if (labelStars && (stars[i][4] < (self.limitmag - 2.5))) {
+                if (labelStars && (names.length > 0) && (star_label_count < 20)) {
                     co.textAlign = "left";
                     co.textBaseline = "middle";
                     co.fillText(names[0], x + M + 4, y);
+                    star_label_count++;
                 }
             }
         }
