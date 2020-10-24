@@ -75,7 +75,7 @@ $pageTemplate->header($pageInfo);
 ?>
     <div class="row">
         <div class="col-md-4" style="padding:16px;">
-            <p class="text" style="font-size:18px;">
+            <p class="text" style="font-size:21px;">
                 Pi Gazing is a project to build meteor cameras using Raspberry Pi computers
                 connected to CCTV cameras which are directed upwards to record the night sky.
             </p>
@@ -111,7 +111,7 @@ $pageTemplate->header($pageInfo);
             </p>
 
             <div style="padding:10px 20px;text-align:right;">
-                <button type="button" class="btn btn-primary btn-sm" onclick="window.location='/whattodo.php';">
+                <button type="button" class="btn btn-primary" onclick="window.location='/whattodo.php';">
                     Browse the archive &#187;
                 </button>
             </div>

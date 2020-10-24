@@ -117,7 +117,7 @@ $pageTemplate->header($pageInfo);
                 ?>
             </div>
             <div class="form-item-notitle">
-                <input class="btn btn-sm btn-primary" type="submit" value="Update chart"/>
+                <input class="btn btn-primary" type="submit" value="Update chart"/>
             </div>
         </div>
     </form>

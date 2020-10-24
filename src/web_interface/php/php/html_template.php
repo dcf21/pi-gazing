@@ -539,7 +539,7 @@ __HTML__;
 
             <?php if ($show_paths): ?>
                 <div style="cursor:pointer;text-align:right;margin:16px 0;">
-                    <button type="button" class="btn btn-secondary btn-sm paths-toggle">
+                    <button type="button" class="btn btn-secondary paths-toggle">
                         <i class="fa fa-info-circle" aria-hidden="true"></i>
                         Show position markers
                     </button>

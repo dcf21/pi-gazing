@@ -76,7 +76,7 @@ $pageTemplate->header($pageInfo);
     <form class="form-horizontal search-form" method="get" action="/search_multi.php#results">
 
         <div style="cursor:pointer;text-align:right;">
-            <button type="button" class="btn btn-secondary btn-sm help-toggle">
+            <button type="button" class="btn btn-secondary help-toggle">
                 <i class="fa fa-info-circle" aria-hidden="true"></i>
                 Show tips
             </button>

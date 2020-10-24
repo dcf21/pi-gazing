@@ -160,7 +160,7 @@ SELECT * FROM pigazing_user_sessions WHERE userId=:u ORDER BY logIn LIMIT 10;");
                 </tr>
                 <tr>
                     <td>
-                        <span class="btn"><input class="btn btn-primary btn-sm" type="submit" value="Log in"/></span>
+                        <span class="btn"><input class="btn btn-primary" type="submit" value="Log in"/></span>
                     </td>
                 </tr>
             </table>

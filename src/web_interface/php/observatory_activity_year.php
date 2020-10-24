@@ -156,7 +156,7 @@ $pageTemplate->header($pageInfo);
             <div style="cursor:pointer;">
                 <form action="observatory_activity_all.php">
                     <input type="hidden" name="year" value="<?php echo $year; ?>"/>
-                    <button type="submit" class="btn btn-secondary btn-sm">
+                    <button type="submit" class="btn btn-secondary">
                         <i class="fa fa-calendar" aria-hidden="true"></i>
                         Show all cameras
                     </button>
@@ -170,7 +170,7 @@ $pageTemplate->header($pageInfo);
                 html_getargs::makeFormSelect("year", $year, range($const->yearMin, $const->yearMax), 0);
                 ?>
                 <br/>
-                <input class="btn btn-primary btn-sm" style="margin:12px;" type="submit" name="Update" value="Update">
+                <input class="btn btn-primary" style="margin:12px;" type="submit" name="Update" value="Update">
             </form>
 
             <div style="padding-top:25px;">

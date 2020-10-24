@@ -35,6 +35,8 @@
 
 .bg_medium_blue { background-color: @medium_blue; }
 
+body { font-size: 16px; }
+
 h2 { margin:12px 0; border-bottom: 1px solid #aaa; padding: 4px 0; }
 h3 { padding: 30px 0 10px 0; font-size:20px; color:#888; border-bottom: 1px solid #ddd; clear: both; }
 h4 { padding-top: 30px; }
@@ -44,7 +46,7 @@ h3 a { color: @dark_purple; font-weight: bold; }
 
 p.purple-heading { font-size:22px; font-weight:bold; color: @dark_purple;  a { color: @dark_purple } }
 p.purple-text { font-size: 16px; font-weight:bold; color: @dark_purple;  a { color: @dark_purple } }
-div.smallcaps { font-size: 13px; font-weight:bold; color: @dark_purple; text-transform: uppercase; padding-bottom:4px; a { color: @dark_purple } }
+div.smallcaps { font-size: 16px; font-weight:bold; color: @dark_purple; text-transform: uppercase; padding-bottom:4px; a { color: @dark_purple } }
 
 table.table table.table > tbody > tr > * {
     border: none;
@@ -113,7 +115,7 @@ table.table table.table {
     width: 100%;
     height: 34px;
     padding: 6px 12px;
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.42857143;
     color: #555;
     background-color: #fff;
@@ -159,7 +161,7 @@ div.contentwrapper p.smtext { margin: 0; }
 
 /* Tweak tooltips */
 .form-group-dcf { display: inline-block; }
-.tooltip-inner { min-width:300px; max-width:400px; font-size: 14px; padding: 5px; }
+.tooltip-inner { min-width:300px; max-width:400px; font-size: 15px; padding: 5px; }
 .tooltip-holder { padding-top: 10px; }
 
 /* Top banner formatting */
@@ -187,12 +189,12 @@ table.centred { margin-left: auto; margin-right: auto; }
 
 // Popups which appear when the mouse hovers on the planetarium
 .PLhover           { text-align:center; background:#000; color:#eee; font-weight:bold; border:1px solid #ccc; padding: 3px 6px; border-radius:3px; overflow: hidden; z-index:500; }
-.PLhover p         { font-size: 13px; text-align:center; margin: 3px 0; padding: 0; }
+.PLhover p         { font-size: 14px; text-align:center; margin: 3px 0; padding: 0; }
 
 /* Site footer */
-div.footer  { clear: both; width: 100%; margin: 10px 0 0 0; border: 0; padding: 20px 0; padding-top: 15px; background-color: #303030; color: #f0f0f0; text-align: left; font-size: 13px; }
+div.footer  { clear: both; width: 100%; margin: 10px 0 0 0; border: 0; padding: 20px 0; padding-top: 15px; background-color: #303030; color: #f0f0f0; text-align: left; font-size: 14px; }
 div.footer a { color: #f5f570; }
-p.copyright { margin-top: 4px; margin-bottom: 4px; font-size: 12px; line-height: 18px; }
+p.copyright { margin-top: 4px; margin-bottom: 4px; font-size: 14px; }
 p.copyright img     { vertical-align: middle; }
 p.copyright a       { color: #f5f570; }
 p.copyright a:hover { color: #ffffff; }
@@ -226,11 +228,12 @@ div.supporters img { height:100px; }
 
 // Chevron system
 @banner_shadow: rgba(0,0,0,0.3);
-.chevron_holder { font-size:13px; .chevron { color: #fff !important; } }
+.chevron_holder { .chevron { color: #fff !important; } }
 .chevron_holder:hover { a.chevron { color: #fff !important; } }
-a.chevron       { line-height: 18px; font-weight: bold; padding: 5px 20px 5px 9px; background-image: url(../img/chevron.png); background-repeat: no-repeat; background-position: right center; }
-span.chevronsep { margin-left: -14px; padding: 5px 6px; background-image: url(../img/chevron2.png); background-repeat: no-repeat; background-position: right center; }
-span.postchevron{ font-size: 12px; font-weight: bold; text-shadow: 2px 2px @banner_shadow; }
+a.chevron       { font-weight: bold; padding: 8px 20px 5px 8px; background-image: url(../img/chevron.png); background-repeat: no-repeat; background-position: right center; }
+span.chevronsep { margin-left: -14px; padding: 8px 5px 5px 6px; background-image: url(../img/chevron2.png); background-repeat: no-repeat; background-position: right center; }
+span.postchevron{ font-size: 13px; font-weight: bold; text-shadow: 2px 2px @banner_shadow; }
+p.smtext { margin-top: 4px; margin-bottom: 4px; text-align: left; font-size: 14px; }
 
 // Form labels
 span.formlabel { display:inline-block; padding: 3px 0; font-size:19px; color:#777; }
@@ -260,7 +263,7 @@ div.gallery_image { display:inline-block; min-height:176px; .position_relative; 
 div.gallery_image { box-shadow: 10px 10px 5px #ccc; transition:all 0.15s ease-out; }
 div.gallery_image:hover { transform:translate(6px,6px); box-shadow: 4px 4px 5px #ccc; }
 div.gallery_text { margin-top:8px; }
-div.gallery_extra { font-size: 13px; padding: 5px; color: #888; }
+div.gallery_extra { font-size: 14px; padding: 5px; color: #888; }
 div.gallery_still .gallery_still_img { box-shadow: 10px 10px 5px #ccc; }
 div.image_substitute { display: inline-block; width: 220px; height: 147px; background-color: #e0e0e0; border: 1px solid #aaa; }
 div.image_substitute div.mimetype { font-size: 20px; color:#aaa; font-weight: bold; text-align: center; position: relative; top: 50%; transform: translateY(-50%); }
@@ -328,7 +331,7 @@ div.overlay_host { .position_relative; display:block; border: 1px solid #c0c0c0;
 .chartsgalleryitem div.img_overcaption { bottom:@img_framewidth; right:@img_framewidth; }
 .chartsgalleryitem img { width:100%; }
 .img_overcaption  { background-color:#ddd; }
-.img_overcaption  { position:absolute;bottom:0;right:0;width:60%;background-color:rgba(232,232,232,0.9);color:#111;font-size:14px;padding: 8px 12px; border-top: 2px solid #4444ff; }
+.img_overcaption  { position:absolute;bottom:0;right:0;width:60%;background-color:rgba(232,232,232,0.9);color:#111;font-size:16px;padding: 8px 12px; border-top: 2px solid #4444ff; }
 
 // Sliding panes
 .slidingPane { margin:10px auto; width:100%; max-width:800px; }

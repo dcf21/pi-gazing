@@ -226,7 +226,7 @@ $pageTemplate->header($pageInfo);
                 <td style="text-align:left;">
                     <form method="get" action="<?php echo $const->server; ?>moving_obj.php">
                         <input type="hidden" name="id" value="<?php echo $related['prev'][0]['uid']; ?>"/>
-                        <input class="btn btn-sm btn-success" type="submit" value="Previous"/>
+                        <input class="btn btn-success" type="submit" value="Previous"/>
                     </form>
                 </td>
             <?php endif; ?>
@@ -234,7 +234,7 @@ $pageTemplate->header($pageInfo);
                 <td style="text-align:right;">
                     <form method="get" action="<?php echo $const->server; ?>moving_obj.php">
                         <input type="hidden" name="id" value="<?php echo $related['next'][0]['uid']; ?>"/>
-                        <input class="btn btn-sm btn-success" type="submit" value="Next"/>
+                        <input class="btn btn-success" type="submit" value="Next"/>
                     </form>
                 </td>
             <?php endif; ?>
@@ -361,7 +361,7 @@ if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
                 </div>
                 <div class="col-sm-4">
                     <div style="padding:40px 0 40px 0;">
-                        <button type="submit" class="btn btn-primary btn-sm">Update</button>
+                        <button type="submit" class="btn btn-primary">Update</button>
                     </div>
                 </div>
             </div>
