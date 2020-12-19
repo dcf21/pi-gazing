@@ -31,6 +31,7 @@ $getargs = new html_getargs(true);
 $pageInfo = [
     "pageTitle" => "Search for featured observations",
     "pageDescription" => "Pi Gazing",
+    "fluid" => true,
     "activeTab" => "search",
     "teaserImg" => null,
     "cssextra" => null,
@@ -116,28 +117,29 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
-    <p>
-        Use this form to search for highlights from the Pi Gazing archive, as picked by our expert observers.
-    </p>
-    <form class="form-horizontal search-form" method="get" action="/search_highlights.php#results">
+    <div class="non-fluid-block">
+        <p>
+            Use this form to search for highlights from the Pi Gazing archive, as picked by our expert observers.
+        </p>
+        <form class="form-horizontal search-form" method="get" action="/search_highlights.php#results">
 
-        <div style="cursor:pointer;text-align:right;">
-            <button type="button" class="btn btn-secondary help-toggle">
-                <i class="fa fa-info-circle" aria-hidden="true"></i>
-                Show tips
-            </button>
-        </div>
-        <div class="row">
-            <div class="search-form-column col-lg-6">
+            <div style="cursor:pointer;text-align:right;">
+                <button type="button" class="btn btn-secondary help-toggle">
+                    <i class="fa fa-info-circle" aria-hidden="true"></i>
+                    Show tips
+                </button>
+            </div>
+            <div class="row">
+                <div class="search-form-column col-lg-6">
 
-                <div><span class="formlabel">Time of observation</span></div>
-                <div class="tooltip-holder">
-                    <span class="formlabel2">Between</span>
+                    <div><span class="formlabel">Time of observation</span></div>
+                    <div class="tooltip-holder">
+                        <span class="formlabel2">Between</span>
 
-                    <div class="form-group-dcf"
-                         data-toggle="tooltip" data-pos="tooltip-above"
-                         title="Search for images recorded after this date and time."
-                    >
+                        <div class="form-group-dcf"
+                             data-toggle="tooltip" data-pos="tooltip-above"
+                             title="Search for images recorded after this date and time."
+                        >
                         <span style="display:inline-block; padding-right:20px;">
                         <?php
                         $getargs->makeFormSelect("day1", $tmin['day'], range(1, 31), 0);
@@ -154,16 +156,16 @@ $pageTemplate->header($pageInfo);
                         $getargs->makeFormSelect("min1", $tmin['min'], $getargs->mins, 0);
                         ?>
                         </span>
+                        </div>
                     </div>
-                </div>
 
-                <div class="tooltip-holder">
-                    <span class="formlabel2">and</span>
+                    <div class="tooltip-holder">
+                        <span class="formlabel2">and</span>
 
-                    <div class="form-group-dcf"
-                         data-toggle="tooltip" data-pos="tooltip-below"
-                         title="Search for images recorded before this date and time."
-                    >
+                        <div class="form-group-dcf"
+                             data-toggle="tooltip" data-pos="tooltip-below"
+                             title="Search for images recorded before this date and time."
+                        >
                         <span style="display:inline-block; padding-right:20px;">
                         <?php
                         $getargs->makeFormSelect("day2", $tmax['day'], range(1, 31), 0);
@@ -180,36 +182,37 @@ $pageTemplate->header($pageInfo);
                         $getargs->makeFormSelect("min2", $tmax['min'], $getargs->mins, 0);
                         ?>
                         </span>
+                        </div>
                     </div>
-                </div>
 
-                <div style="margin-top:25px;"><span class="formlabel">Observed by camera</span></div>
-                <div class="tooltip-holder">
-                    <span class="formlabel2"></span>
+                    <div style="margin-top:25px;"><span class="formlabel">Observed by camera</span></div>
+                    <div class="tooltip-holder">
+                        <span class="formlabel2"></span>
 
-                    <div class="form-group-dcf"
-                         data-toggle="tooltip" data-pos="tooltip-below"
-                         title="Use this to display images from only one camera in the Pi Gazing network. Set to 'Any' to display images from all Pi Gazing cameras."
-                    >
-                        <?php
-                        $getargs->makeFormSelect("obstory", $obstory, $getargs->obstories, 1);
-                        ?>
+                        <div class="form-group-dcf"
+                             data-toggle="tooltip" data-pos="tooltip-below"
+                             title="Use this to display images from only one camera in the Pi Gazing network. Set to 'Any' to display images from all Pi Gazing cameras."
+                        >
+                            <?php
+                            $getargs->makeFormSelect("obstory", $obstory, $getargs->obstories, 1);
+                            ?>
+                        </div>
                     </div>
+
                 </div>
-
+                <div class="search-form-column col-lg-6">
+                </div>
             </div>
-            <div class="search-form-column col-lg-6">
+
+            <div style="padding:30px 0 40px 0;">
+                <span class="formlabel2"></span>
+                <button type="submit" class="btn btn-primary" data-bind="click: performSearch">Search</button>
             </div>
-        </div>
 
-        <div style="padding:30px 0 40px 0;">
-            <span class="formlabel2"></span>
-            <button type="submit" class="btn btn-primary" data-bind="click: performSearch">Search</button>
-        </div>
+        </form>
+    </div>
 
-    </form>
-
-<div id="results"></div>
+    <div id="results"></div>
 
 <?php
 // Display result counter
@@ -223,13 +226,13 @@ if ($result_count == 0):
             in the form above and re-running the query.
         </p>
     </div>
-    <?php
+<?php
 elseif ($result_count == count($result_list)):
     ?>
     <div class="alert alert-success">
         <p>Showing all <?php echo $result_count; ?> results.</p>
     </div>
-    <?php
+<?php
 else:
     ?>
     <div class="alert alert-success">
@@ -238,24 +241,20 @@ else:
             of <?php echo $result_count; ?>.
         </p>
     </div>
-    <?php
+<?php
 endif;
 
 // Display results
 foreach ($paneList as $item) {
     ?>
-    <div class="grey_box" style="margin:16px 4px;padding:16px;">
-        <div class="row">
-            <div class="col-md-4" style="text-align:center;">
-                <div class="gallery_image">
-                    <a href="<?php echo $item['link']; ?>">
-                        <img src="/<?php echo $item['teaser']; ?>" alt=""/>
-                    </a>
-                </div>
-            </div>
-            <div class="col-md-8" style="font-size:17px;">
-                <?php echo $item['caption']; ?>
-            </div>
+    <div class="grey_box" style="display: inline-block; margin:8px; padding:8px;">
+        <div class="gallery_image" style="display: inline-block; margin:8px;">
+            <a href="<?php echo $item['link']; ?>">
+                <img style="width: 300px; min-height: 176px;" src="/<?php echo $item['teaser']; ?>" alt=""/>
+            </a>
+        </div>
+        <div style="display: inline-block; font-size:17px; width: 300px;">
+            <?php echo $item['caption']; ?>
         </div>
     </div>
     <?php

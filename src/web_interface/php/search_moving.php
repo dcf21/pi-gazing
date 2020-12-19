@@ -31,6 +31,7 @@ $getargs = new html_getargs(true);
 $pageInfo = [
     "pageTitle" => "Search for moving objects",
     "pageDescription" => "Pi Gazing",
+    "fluid" => true,
     "activeTab" => "search",
     "teaserImg" => null,
     "cssextra" => null,
@@ -86,6 +87,7 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
+<div class="non-fluid-block">
     <p>
         Use this form to search for bright moving objects spotted by our cameras. Most of the objects you'll see here
         are aircraft, satellites, shooting stars, and other airborne lights.
@@ -221,6 +223,7 @@ $pageTemplate->header($pageInfo);
         </div>
 
     </form>
+</div>
 
     <div id="results"></div>
 
@@ -332,7 +335,7 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
     endif;
 
     // Display results
-    $pageTemplate->imageGallery($gallery_items, "/moving_obj.php?id=", true);
+    $pageTemplate->imageGallery($gallery_items, "/moving_obj.php?id=", true, false);
 
     // Display pager
     if (count($result_list) < $result_count) {

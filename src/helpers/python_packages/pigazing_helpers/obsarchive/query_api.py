@@ -157,7 +157,7 @@ def add_routes(obsarchive_app, url_path=''):
         file_path = db.file_path_for_id(record.id)
         thumb_path = os.path.join(db.file_store_path, "../thumbnails", record.id)
         if not os.path.exists(thumb_path):
-            os.system("convert {} -scale 220 {}".format(file_path, thumb_path))
+            os.system("convert {} -scale 300 {}".format(file_path, thumb_path))
         db.close_db()
         return send_file(filename_or_fp=thumb_path, mimetype=record.mime_type)
 

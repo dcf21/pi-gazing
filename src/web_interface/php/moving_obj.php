@@ -390,7 +390,7 @@ if (count($simultaneous_events) > 0) {
             "mimeType" => $item['mimeType']
         ];
     }
-    $pageTemplate->imageGallery($gallery_items, "/image.php?id=", true);
+    $pageTemplate->imageGallery($gallery_items, "/image.php?id=", true, true);
 
 }
 ?>
@@ -422,7 +422,7 @@ if (count($simultaneous_events) > 0) {
                 "linkId" => $item['repositoryFname'],
                 "mimeType" => $item['mimeType']];
         }
-        $pageTemplate->imageGallery($gallery_items, "/image.php?id=", true);
+        $pageTemplate->imageGallery($gallery_items, "/image.php?id=", true, true);
         ?>
     </div>
 <?php else: ?>

@@ -427,7 +427,7 @@ $pageTemplate->header($pageInfo);
                 "linkId" => $item['repositoryFname'],
                 "mimeType" => $item['mimeType']];
         }
-        $pageTemplate->imageGallery($gallery_items, "/image.php?id=", false);
+        $pageTemplate->imageGallery($gallery_items, "/image.php?id=", false, true);
         ?>
     </div>
 <?php else: ?>

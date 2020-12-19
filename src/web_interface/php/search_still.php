@@ -31,6 +31,7 @@ $getargs = new html_getargs(true);
 $pageInfo = [
     "pageTitle" => "Search for still images",
     "pageDescription" => "Pi Gazing",
+    "fluid" => true,
     "activeTab" => "search",
     "teaserImg" => null,
     "cssextra" => null,
@@ -86,6 +87,7 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
+<div class="non-fluid-block">
     <p>
         Our cameras take long 30-second exposures of the sky every 30 seconds, and you can use this form to browse
         through these still images and discover what the sky looked like at any time in the past.
@@ -222,6 +224,7 @@ $pageTemplate->header($pageInfo);
         </div>
 
     </form>
+</div>
 
     <div id="results"></div>
 
@@ -315,7 +318,7 @@ ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
     endif;
 
     // Display results
-    $pageTemplate->imageGallery($gallery_items,"/image.php?highlights={$flag_highlights}&id=",false);
+    $pageTemplate->imageGallery($gallery_items,"/image.php?highlights={$flag_highlights}&id=",false, false);
 
     // Display pager
     if (count($result_list) < $result_count) {

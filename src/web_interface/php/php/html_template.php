@@ -527,9 +527,11 @@ __HTML__;
     }
 
 
-    static public function imageGallery($result_list, $url_stub, $show_paths)
+    static public function imageGallery($result_list, $url_stub, $show_paths, $four_column)
     {
         global $const;
+
+        $four_column = isset($four_column) && $four_column;
 
         $holder_class = "";
         if ($show_paths) $holder_class = "gallery_with_markers";
@@ -556,7 +558,7 @@ __HTML__;
                         $path_attribute .= "data-height=\"{$item['image_height']}\" ";
                     }
                     ?>
-                    <div class="col-md-3 gallery_item">
+                    <div class="gallery_item<?php if ($four_column) echo "_4col col-md-4"; ?>">
                         <a href="<?php echo $url_stub . $item['linkId']; ?>">
                             <div class="gallery_image" <?php echo $path_attribute; ?> >
                                 <?php if (array_key_exists('classification', $item) && $item['classification']): ?>
@@ -565,8 +567,8 @@ __HTML__;
                                     </div>
                                 <?php endif; ?>
                                 <?php if ($item['mimeType'] == 'image/png'): ?>
-                                    <img class="gallery_img" alt="" title="" src="/api/thumbnail/<?php
-                                    echo $item['fileId'] . "/" . $item['filename'];
+                                    <img class="gallery_img" alt="" title=""
+                                         src="/api/thumbnail/<?php echo $item['fileId'] . "/" . $item['filename'];
                                     ?>"/>
                                     <?php if ($show_paths): ?>
                                         <img class="gallery_path_marker" alt="" title="" src="/img/crosshair.gif"/>

@@ -31,6 +31,7 @@ $getargs = new html_getargs(true);
 $pageInfo = [
     "pageTitle" => "Search for multi-camera detections",
     "pageDescription" => "Pi Gazing",
+    "fluid" => true,
     "activeTab" => "search",
     "teaserImg" => null,
     "cssextra" => null,
@@ -40,7 +41,7 @@ $pageInfo = [
 ];
 
 // Paging options
-$pageSize = 5;
+$pageSize = 50;
 $pageNum = 1;
 if (array_key_exists("page", $_GET) && is_numeric($_GET["page"])) $pageNum = $_GET["page"];
 
@@ -68,6 +69,7 @@ $pageTemplate->header($pageInfo);
 
 ?>
 
+<div class="non-fluid-block">
     <p>
         Use this form to search for simultaneous detections of moving objects by multiple cameras at the same time. In
         some cases, the same object may have been seen by more than one camera, allowing its altitude and speed to be
@@ -177,6 +179,7 @@ $pageTemplate->header($pageInfo);
         </div>
 
     </form>
+</div>
 
     <div id="results"></div>
 
@@ -303,7 +306,7 @@ FROM ${search} ORDER BY obstoryId;");
                 "mimeType" => $obs['mimeType']];
         }
 
-        $pageTemplate->imageGallery($gallery_items, "/moving_obj.php?id=", true);
+        $pageTemplate->imageGallery($gallery_items, "/moving_obj.php?id=", true, false);
     }
 
     // Display pager
