@@ -47,11 +47,12 @@ coefficients.
 """
 
 import argparse
+import glob
+import json
 import logging
 import os
-import sys
-import json
 from math import hypot, pi, isfinite, tan
+
 import scipy.optimize
 from pigazing_helpers.gnomonic_project import gnomonic_project, ang_dist
 from pigazing_helpers.settings_read import settings
@@ -113,22 +114,19 @@ def mismatch(params):
     return accumulator
 
 
-def calibrate_lens():
-    global parameter_scales, star_list
-
+def read_input_data(filename: str, show_warnings: bool = True):
     # Read input list of stars whose positions we know
-    input_config = json.loads(sys.stdin.read())
-
+    input_config = json.loads(open(filename).read())
     # Get dimensions of the image we are dealing with
     img_size_x = input_config['size_x']
     img_size_y = input_config['size_y']
-
     # Look up positions of each star, based on listed Hipparcos catalogue numbers
     star_list = []
     for star in input_config['star_list']:
         hipparcos_id = str(star[2])
         if hipparcos_id not in hipparcos_catalogue:
-            logging.info("Could not find star {:s}".format(hipparcos_id))
+            if show_warnings:
+                logging.info("Could not find star {:s}".format(hipparcos_id))
             continue
         [ra, dec] = hipparcos_catalogue[hipparcos_id]
         star_list.append({
@@ -137,6 +135,52 @@ def calibrate_lens():
             'ra': ra * degrees,
             'dec': dec * degrees
         })
+    return img_size_x, img_size_y, input_config, star_list
+
+
+def list_calibration_files(fit_all: bool = False):
+    calibration_files = {}
+    inputs = glob.glob("calibration_examples/*.json")
+    inputs.sort()
+
+    for filename in inputs:
+        img_size_x, img_size_y, input_config, star_list = read_input_data(filename=filename, show_warnings=False)
+        setup = "{}/{}".format(input_config['observatory'], input_config['lens'])
+        star_count = len(star_list)
+
+        if setup not in calibration_files:
+            calibration_files[setup] = []
+
+        calibration_files[setup].append({
+            'filename': os.path.split(filename)[1],
+            'star_count': star_count
+        })
+
+    setups = list(calibration_files.keys())
+    setups.sort()
+
+    for setup in setups:
+        logging.info("* {}".format(setup))
+        for calibration_file in calibration_files[setup]:
+            logging.info("    {} ({:3d} stars)".format(calibration_file['filename'], calibration_file['star_count']))
+
+            if fit_all:
+                ra0, dec0, scale_x, scale_y, pos_ang, bc_k1, bc_k2, bc_k3 = calibrate_lens(
+                    filename=os.path.join("calibration_examples", calibration_file['filename']),
+                    verbose=False)
+                logging.info(
+                    "{:8.4f} {:8.4f} {:8.4f}  --  {:10.6f} {:10.6f} {:10.6f}".format(scale_x * 180 / pi,
+                                                                                     scale_y * 180 / pi,
+                                                                                     pos_ang * 180 / pi,
+                                                                                     bc_k1, bc_k2, bc_k3
+                                                                                     )
+                )
+
+
+def calibrate_lens(filename: str, verbose: bool = True):
+    global parameter_scales, star_list
+
+    img_size_x, img_size_y, input_config, star_list = read_input_data(filename=filename, show_warnings=verbose)
 
     # Solve system of equations to give best fit barrel correction
     # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/> for more information about how this works
@@ -146,7 +190,7 @@ def calibrate_lens():
     parameter_defaults = [ra0, dec0, pi / 4, pi / 4, pi / 4, 0, 0, 0]
     parameter_initial = [parameter_defaults[i] / parameter_scales[i] for i in range(len(parameter_defaults))]
     parameter_optimised = scipy.optimize.minimize(mismatch, parameter_initial, method='nelder-mead',
-                                                  options={'xtol': 1e-8, 'disp': True, 'maxiter': 1e8, 'maxfev': 1e8}
+                                                  options={'xtol': 1e-8, 'disp': verbose, 'maxiter': 1e8, 'maxfev': 1e8}
                                                   ).x
     parameter_final = [parameter_optimised[i] * parameter_scales[i] for i in range(len(parameter_defaults))]
 
@@ -157,23 +201,24 @@ def calibrate_lens():
                 ["barrel_k1", 1], ["barrel_k2", 1], ["barrel_k3", 1]
                 ]
 
-    logging.info("Lens: {}".format(input_config['lens']))
-    logging.info("Best fit parameters were:")
-    for i in range(len(parameter_defaults)):
-        logging.info("{:30s} : {:.8f}".format(headings[i][0], parameter_final[i] * headings[i][1]))
+    if verbose:
+        logging.info("Lens: {}".format(input_config['lens']))
+        logging.info("Best fit parameters were:")
+        for i in range(len(parameter_defaults)):
+            logging.info("{:30s} : {:.8f}".format(headings[i][0], parameter_final[i] * headings[i][1]))
 
-    # Print barrel_parameters JSON string
-    logging.info("Barrel parameters: {}".format(json.dumps([
-        parameter_final[2] * 180 / pi,
-        parameter_final[3] * 180 / pi,
-        parameter_final[5],
-        parameter_final[6],
-        parameter_final[7],
-    ])))
+        # Print barrel_parameters JSON string
+        logging.info("Barrel parameters: {}".format(json.dumps([
+            parameter_final[2] * 180 / pi,
+            parameter_final[3] * 180 / pi,
+            parameter_final[5],
+            parameter_final[6],
+            parameter_final[7],
+        ])))
 
     # Print information about how well each star was fitted
     [ra0, dec0, scale_x, scale_y, pos_ang, bc_k1, bc_k2, bc_k3] = parameter_final
-    if True:
+    if verbose:
         logging.info("Stars used in fitting process:")
         for star in star_list:
             pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
@@ -240,11 +285,23 @@ User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mism
                 barrel_corrected_tan_dist
             ))
 
+    # Return final best-fit parameters
+    return ra0, dec0, scale_x, scale_y, pos_ang, bc_k1, bc_k2, bc_k3
+
 
 # If we're called as a script, run the function calibrate_lens()
 if __name__ == "__main__":
     # Read commandline arguments
     parser = argparse.ArgumentParser(description=__doc__)
+
+    parser.add_argument('--filename', dest='filename', default=None,
+                        help="The filename of the calibration file we are to use")
+    parser.add_argument('--list', dest='list', action='store_true', help="List all available calibration files")
+    parser.add_argument('--no-list', dest='list', action='store_false')
+    parser.set_defaults(list=False)
+    parser.add_argument('--fit-all', dest='fit_all', action='store_true', help="Fit all available calibration files")
+    parser.add_argument('--no-fit-all', dest='fit_all', action='store_false')
+    parser.set_defaults(fit_all=False)
     args = parser.parse_args()
 
     # Set up logging
@@ -259,4 +316,9 @@ if __name__ == "__main__":
     # logger.info(__doc__.strip())
 
     # Calculate the orientation of images
-    calibrate_lens()
+    if args.list:
+        list_calibration_files(fit_all=False)
+    elif args.fit_all:
+        list_calibration_files(fit_all=True)
+    elif args.filename is not None:
+        calibrate_lens(filename=args.filename)
