@@ -158,7 +158,7 @@ def mismatch(params_unnormalised):
     """
     global fitting_filename_list, fitting_star_list, fitting_parameters, fitting_parameter_indices
 
-    parameters_scale = [fitting_parameters[key]['stap_size'] for key in fitting_parameter_names]
+    parameters_scale = [fitting_parameters[key]['step_size'] for key in fitting_parameter_names]
     params = [params_unnormalised[i] * parameters_scale[i] for i in range(len(fitting_parameter_names))]
 
     offset_list = []
@@ -245,11 +245,11 @@ def list_calibration_files(fit_all: bool = False):
     for setup in setups:
         logging.info("* {}".format(setup))
         for calibration_file in calibration_files[setup]:
-            filename = calibration_file['filename']
-            logging.info("    {} ({:3d} stars)".format(filename, calibration_file['star_count']))
+            logging.info("    {} ({:3d} stars)".format(calibration_file['filename'], calibration_file['star_count']))
 
             if fit_all:
-                calibrate_lens(filenames=[os.path.join("calibration_examples", calibration_file['filename'])],
+                filename = os.path.join("calibration_examples", calibration_file['filename'])
+                calibrate_lens(filenames=[filename],
                                verbose=False
                                )
 
@@ -323,9 +323,9 @@ def calibrate_lens(filenames: list, verbose: bool = True, diagnostics_run_id=Non
         fitting_parameters[key_dec]['default'] = dec0
 
     # Create list of parameters we are to fit
-    parameters_scale = [fitting_parameters[key]['stap_size'] for key in fitting_parameter_names]
+    parameters_scale = [fitting_parameters[key]['step_size'] for key in fitting_parameter_names]
 
-    parameters_initial = [fitting_parameters[key]['default'] / fitting_parameters[key]['stap_size']
+    parameters_initial = [fitting_parameters[key]['default'] / fitting_parameters[key]['step_size']
                           for key in fitting_parameter_names]
 
     # Solve system of equations to give best fit radial distortion
