@@ -53,53 +53,134 @@ import logging
 import os
 from math import hypot, pi, isfinite, tan
 
+import numpy
 import scipy.optimize
 from pigazing_helpers.gnomonic_project import gnomonic_project, ang_dist
 from pigazing_helpers.settings_read import settings
 
 degrees = pi / 180
 
+# Parameters we use to fit the radial distortion
+parameters_radial = [
+    {
+        'name': 'aspect',
+        'title': 'Aspect ratio',
+        'stored_unit': '',
+        'display_scale': 1,
+        'step_size': 0.1,
+        'default': 1
+
+    },
+    {
+        'name': 'k1',
+        'title': 'barrel_k1',
+        'stored_unit': '',
+        'display_scale': 1,
+        'step_size': 5e-2,
+        'default': 0
+    },
+    {
+        'name': 'k2',
+        'title': 'barrel_k2',
+        'stored_unit': '',
+        'display_scale': 1,
+        'step_size': 5e-4,
+        'default': 0
+    },
+    {
+        'name': 'k3',
+        'title': 'barrel_k3',
+        'stored_unit': '',
+        'display_scale': 1,
+        'step_size': 5e-6,
+        'default': 0
+    }
+]
+
+# Parameters we use to fit individual images
+parameters_image = [
+    {
+        'name': 'ra',
+        'title': 'Central RA / hr',
+        'stored_unit': 'rad',
+        'display_scale': 12 / pi,
+        'step_size': pi / 4,
+        'default': 0
+    },
+    {
+        'name': 'dec',
+        'title': 'Central Decl / deg',
+        'stored_unit': 'rad',
+        'display_scale': 180 / pi,
+        'step_size': pi / 4,
+        'default': 0
+    },
+    {
+        'name': 'width',
+        'title': 'Image width / deg',
+        'stored_unit': 'rad',
+        'display_scale': 180 / pi,
+        'step_size': pi / 8,
+        'default': pi / 2
+    },
+    {
+        'name': 'pa',
+        'title': 'Position angle / deg',
+        'stored_unit': 'rad',
+        'display_scale': 180 / pi,
+        'step_size': pi / 4,
+        'default': pi / 4
+    }
+]
+
+# Parameters we are using in this fitting run
+# fitting_parameter_indices[name] = index
+fitting_parameters = {}
+fitting_parameter_indices = {}
+fitting_parameter_names = []
+fitting_star_list = None
+fitting_filename_list = []
+parameters_final = []
+
 # Read Hipparcos catalogue of stars brighter than mag 5.5
 hipparcos_catalogue = json.loads(open("hipparcos_catalogue.json").read())
 
 
-def mismatch(params):
+def mismatch(params_unnormalised):
     """
     The objective function which is optimized to fit the barrel-distortion coefficients of the image.
 
     :param params:
-        A vector, containing values in order, each normalised in units of <param_scales>:
-            0) The central RA of the image (radians)
-            1) The central declination of the image (radians)
-            2) The horizontal field-of-view of the image (radians)
-            3) The vertical field-of-view of the image (radians)
-            4) The position angle of the image; i.e. the angle of celestial north to the vertical (radians)
-            5) The barrel-distortion coefficient K1
-            6) The barrel-distortion coefficient K2
-            7) The barrel-distortion coefficient K3
+        A vector, containing trial parameter values, each normalised in units of <param_scales>
     :return:
         A measure of the mismatch of this proposed image orientation, based on the list of pixel positions and
         calculated (RA, Dec) positions contained within <fit_list>.
     """
-    global parameter_scales, star_list
-    ra0 = params[0] * parameter_scales[0]
-    dec0 = params[1] * parameter_scales[1]
-    scale_x = params[2] * parameter_scales[2]
-    scale_y = params[3] * parameter_scales[3]
-    pos_ang = params[4] * parameter_scales[4]
-    bc_k1 = params[5] * parameter_scales[5]
-    bc_k2 = params[6] * parameter_scales[6]
-    bc_k3 = params[7] * parameter_scales[7]
+    global fitting_filename_list, fitting_star_list, fitting_parameters, fitting_parameter_indices
+
+    parameters_scale = [fitting_parameters[key]['stap_size'] for key in fitting_parameter_names]
+    params = [params_unnormalised[i] * parameters_scale[i] for i in range(len(fitting_parameter_names))]
 
     offset_list = []
-    for star in star_list:
-        pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
-                               size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
-                               barrel_k1=bc_k1, barrel_k2=bc_k2, barrel_k3=bc_k3)
-        if not (isfinite(pos[0]) and isfinite(pos[1])):
-            return float('NaN')
-        offset = pow(hypot(star['xpos'] - pos[0], star['ypos'] - pos[1]), 2)
-        offset_list.append(offset)
+
+    for index, filename in enumerate(fitting_filename_list):
+        ra0 = params[fitting_parameter_indices["{}_{}".format(filename, 'ra')]]
+        dec0 = params[fitting_parameter_indices["{}_{}".format(filename, 'dec')]]
+        scale_x = params[fitting_parameter_indices["{}_{}".format(filename, 'width')]]
+        scale_y = scale_x * params[fitting_parameter_indices['aspect']]
+        pos_ang = params[fitting_parameter_indices["{}_{}".format(filename, 'pa')]]
+        k1 = params[fitting_parameter_indices['k1']]
+        k2 = params[fitting_parameter_indices['k2']]
+        k3 = params[fitting_parameter_indices['k3']]
+
+        for star in fitting_star_list[index]:
+            pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
+                                   size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
+                                   barrel_k1=k1, barrel_k2=k2, barrel_k3=k3)
+            if not (isfinite(pos[0]) and isfinite(pos[1])):
+                return float('NaN')
+            offset = pow(hypot(star['xpos'] - pos[0], star['ypos'] - pos[1]), 2)
+            offset_list.append(offset)
 
     # Sort offsets into order of magnitude
     offset_list.sort()
@@ -139,6 +220,8 @@ def read_input_data(filename: str, show_warnings: bool = True):
 
 
 def list_calibration_files(fit_all: bool = False):
+    global parameters_final, fitting_parameter_indices
+
     calibration_files = {}
     inputs = glob.glob("calibration_examples/*.json")
     inputs.sort()
@@ -162,131 +245,229 @@ def list_calibration_files(fit_all: bool = False):
     for setup in setups:
         logging.info("* {}".format(setup))
         for calibration_file in calibration_files[setup]:
-            logging.info("    {} ({:3d} stars)".format(calibration_file['filename'], calibration_file['star_count']))
+            filename = calibration_file['filename']
+            logging.info("    {} ({:3d} stars)".format(filename, calibration_file['star_count']))
 
             if fit_all:
-                ra0, dec0, scale_x, scale_y, pos_ang, bc_k1, bc_k2, bc_k3 = calibrate_lens(
-                    filename=os.path.join("calibration_examples", calibration_file['filename']),
-                    verbose=False)
-                logging.info(
-                    "{:8.4f} {:8.4f} {:8.4f}  --  {:10.6f} {:10.6f} {:10.6f}".format(scale_x * 180 / pi,
-                                                                                     scale_y * 180 / pi,
-                                                                                     pos_ang * 180 / pi,
-                                                                                     bc_k1, bc_k2, bc_k3
-                                                                                     )
+                calibrate_lens(filenames=[os.path.join("calibration_examples", calibration_file['filename'])],
+                               verbose=False
+                               )
+
+                scale_x = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'width')]]
+                scale_y = scale_x * parameters_final[fitting_parameter_indices['aspect']]
+                pos_ang = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'pa')]]
+                k1 = parameters_final[fitting_parameter_indices['k1']]
+                k2 = parameters_final[fitting_parameter_indices['k2']]
+                k3 = parameters_final[fitting_parameter_indices['k3']]
+
+                logging.info("{:8.4f} {:8.4f} {:8.4f}  --  {:10.6f} {:10.6f} {:10.6f}".format(
+                    scale_x * 180 / pi,
+                    scale_y * 180 / pi,
+                    pos_ang * 180 / pi,
+                    k1, k2, k3
+                )
                 )
 
 
-def calibrate_lens(filename: str, verbose: bool = True):
-    global parameter_scales, star_list
+def calibrate_lens(filenames: list, verbose: bool = True, diagnostics_run_id=None):
+    global parameters_radial, parameters_image
+    global fitting_parameters, fitting_parameter_indices, fitting_parameter_names
+    global fitting_star_list, fitting_filename_list
+    global parameters_final
 
-    img_size_x, img_size_y, input_config, star_list = read_input_data(filename=filename, show_warnings=verbose)
+    img_size_x = []
+    img_size_y = []
+    input_config = []
+    star_list = []
 
-    # Solve system of equations to give best fit barrel correction
+    # Start creating list of parameters we are to fit
+    fitting_parameters = {}
+    fitting_parameter_indices = {}
+    fitting_parameter_names = []
+    fitting_star_list = None
+
+    # This fitting run will require radial distortion parameters
+    for item in parameters_radial:
+        parameter_index = len(fitting_parameters)
+        fitting_parameters[item['name']] = item.copy()
+        fitting_parameters[item['name']]['image'] = None
+        fitting_parameter_indices[item['name']] = parameter_index
+        fitting_parameter_names.append(item['name'])
+
+    # Read input data files, and create fitting variables associated with each image
+    for filename in filenames:
+        image_info = read_input_data(filename=filename, show_warnings=verbose)
+        img_size_x.append(image_info[0])
+        img_size_y.append(image_info[1])
+        input_config.append(image_info[2])
+        star_list.append(image_info[3])
+
+        for item in parameters_image:
+            parameter_index = len(fitting_parameters)
+            key = "{}_{}".format(filename, item['name'])
+            fitting_parameters[key] = item.copy()
+            fitting_parameters[key]['image'] = filename
+            fitting_parameter_indices[key] = parameter_index
+            fitting_parameter_names.append(key)
+
+    fitting_star_list = star_list
+    fitting_filename_list = filenames
+
+    # Populate the default RA / Dec associated with each image
+    for index, filename in enumerate(filenames):
+        ra0 = star_list[index][0]['ra']
+        dec0 = star_list[index][0]['dec']
+        key_ra = "{}_{}".format(filename, 'ra')
+        fitting_parameters[key_ra]['default'] = ra0
+        key_dec = "{}_{}".format(filename, 'dec')
+        fitting_parameters[key_dec]['default'] = dec0
+
+    # Create list of parameters we are to fit
+    parameters_scale = [fitting_parameters[key]['stap_size'] for key in fitting_parameter_names]
+
+    parameters_initial = [fitting_parameters[key]['default'] / fitting_parameters[key]['stap_size']
+                          for key in fitting_parameter_names]
+
+    # Solve system of equations to give best fit radial distortion
     # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/> for more information about how this works
-    ra0 = star_list[0]['ra']
-    dec0 = star_list[0]['dec']
-    parameter_scales = [pi / 4, pi / 4, pi / 4, pi / 4, pi / 4, 5e-2, 5e-4, 5e-6]
-    parameter_defaults = [ra0, dec0, pi / 4, pi / 4, pi / 4, 0, 0, 0]
-    parameter_initial = [parameter_defaults[i] / parameter_scales[i] for i in range(len(parameter_defaults))]
-    parameter_optimised = scipy.optimize.minimize(mismatch, parameter_initial, method='nelder-mead',
-                                                  options={'xtol': 1e-8, 'disp': verbose, 'maxiter': 1e8, 'maxfev': 1e8}
-                                                  ).x
-    parameter_final = [parameter_optimised[i] * parameter_scales[i] for i in range(len(parameter_defaults))]
+    parameters_optimised = scipy.optimize.minimize(mismatch, numpy.asarray(parameters_initial),
+                                                   method='nelder-mead',
+                                                   options={'xtol': 1e-8, 'disp': verbose, 'maxiter': 1e8,
+                                                            'maxfev': 1e8}
+                                                   ).x
+    parameters_final = [parameters_optimised[i] * parameters_scale[i] for i in range(len(fitting_parameter_names))]
 
-    # Display best fit numbers
-    headings = [["Central RA / hr", 12 / pi], ["Central Decl / deg", 180 / pi],
-                ["Image width / deg", 180 / pi], ["Image height / deg", 180 / pi],
-                ["Position angle / deg", 180 / pi],
-                ["barrel_k1", 1], ["barrel_k2", 1], ["barrel_k3", 1]
-                ]
-
+    # Display best fit parameter values
     if verbose:
-        logging.info("Lens: {}".format(input_config['lens']))
+        logging.info("Observatory: {}".format(input_config[0]['observatory']))
+        logging.info("Lens: {}".format(input_config[0]['lens']))
         logging.info("Best fit parameters were:")
-        for i in range(len(parameter_defaults)):
-            logging.info("{:30s} : {:.8f}".format(headings[i][0], parameter_final[i] * headings[i][1]))
+        for index, key in enumerate(fitting_parameter_names):
+            logging.info("{:30s} : {:.8f}".format(
+                fitting_parameters[key]['title'],
+                parameters_final[index] * fitting_parameters[key]['display_scale']
+            ))
 
         # Print barrel_parameters JSON string
         logging.info("Barrel parameters: {}".format(json.dumps([
-            parameter_final[2] * 180 / pi,
-            parameter_final[3] * 180 / pi,
-            parameter_final[5],
-            parameter_final[6],
-            parameter_final[7],
+            (parameters_final[fitting_parameter_indices[item['name']]] *
+             fitting_parameters[item['name']]['display_scale'])
+            for item in parameters_radial
         ])))
 
     # Print information about how well each star was fitted
-    [ra0, dec0, scale_x, scale_y, pos_ang, bc_k1, bc_k2, bc_k3] = parameter_final
     if verbose:
-        logging.info("Stars used in fitting process:")
-        for star in star_list:
-            pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
-                                   size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
-                                   barrel_k1=bc_k1, barrel_k2=bc_k2, barrel_k3=bc_k3)
-            distance = hypot((star['xpos'] - pos[0]) * img_size_x, (star['ypos'] - pos[1]) * img_size_y)
-            logging.info("""
-User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mismatch {:5.1f} pixels.
-""".format(star['xpos'] * img_size_x,
-           star['ypos'] * img_size_y,
-           pos[0] * img_size_x,
-           pos[1] * img_size_y,
-           distance).strip())
+        for index, filename in enumerate(filenames):
+            ra0 = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'ra')]]
+            dec0 = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'dec')]]
+            scale_x = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'width')]]
+            scale_y = scale_x * parameters_final[fitting_parameter_indices['aspect']]
+            pos_ang = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'pa')]]
+            k1 = parameters_final[fitting_parameter_indices['k1']]
+            k2 = parameters_final[fitting_parameter_indices['k2']]
+            k3 = parameters_final[fitting_parameter_indices['k3']]
 
-    # Debugging: print list of point offsets
-    with open("/tmp/point_offsets.dat", "w") as output:
-        for star in star_list:
-            pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
-                                   size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
-                                   barrel_k1=bc_k1, barrel_k2=bc_k2, barrel_k3=bc_k3)
-            output.write("{:4.0f} {:4.0f}    {:4.0f} {:4.0f}\n".format(star['xpos'] * img_size_x,
-                                                                       star['ypos'] * img_size_y,
-                                                                       pos[0] * img_size_x,
-                                                                       pos[1] * img_size_y))
+            logging.info("Image <{}>".format(filename))
+            logging.info("Stars used in fitting process:")
+
+            for star in star_list[index]:
+                pos = gnomonic_project(
+                    ra=star['ra'], dec=star['dec'],
+                    ra0=ra0, dec0=dec0,
+                    size_x=1, size_y=1,
+                    scale_x=scale_x, scale_y=scale_y,
+                    pos_ang=pos_ang,
+                    barrel_k1=k1, barrel_k2=k2, barrel_k3=k3
+                )
+                distance = hypot((star['xpos'] - pos[0]) * img_size_x, (star['ypos'] - pos[1]) * img_size_y)
+
+                logging.info("""
+User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mismatch {:5.1f} pixels.
+""".format(star['xpos'] * img_size_x[index],
+           star['ypos'] * img_size_y[index],
+           pos[0] * img_size_x[index],
+           pos[1] * img_size_y[index],
+           distance
+           ).strip())
+
+    # Debugging: output list of point offsets
+    if diagnostics_run_id is not None:
+        output_filename = "/tmp/point_offsets_{}.dat".format(diagnostics_run_id)
+        with open(output_filename, "w") as output:
+            for index, filename in enumerate(filenames):
+                ra0 = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'ra')]]
+                dec0 = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'dec')]]
+                scale_x = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'width')]]
+                scale_y = scale_x * parameters_final[fitting_parameter_indices['aspect']]
+                pos_ang = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'pa')]]
+                k1 = parameters_final[fitting_parameter_indices['k1']]
+                k2 = parameters_final[fitting_parameter_indices['k2']]
+                k3 = parameters_final[fitting_parameter_indices['k3']]
+
+                for star in star_list[index]:
+                    pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
+                                           size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
+                                           barrel_k1=k1, barrel_k2=k2, barrel_k3=k3)
+                    output.write("{:4.0f} {:4.0f}    {:4.0f} {:4.0f}\n".format(star['xpos'] * img_size_x[index],
+                                                                               star['ypos'] * img_size_y[index],
+                                                                               pos[0] * img_size_x[index],
+                                                                               pos[1] * img_size_y[index]))
 
     # Debugging: print graph of radial distortion
-    with open("/tmp/radial_distortion.dat", "w") as output:
-        output.write(
-            "# x/pixel, y/pixel, offset/pixel, radius/pixel , Angular distance/rad , Tangent-space distance , Barrel-corrected tan-space dist")
-        for star in star_list:
-            pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
-                                   size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
-                                   barrel_k1=bc_k1, barrel_k2=bc_k2, barrel_k3=bc_k3)
+    if diagnostics_run_id is not None:
+        output_filename = "/tmp/radial_distortion_{}.dat".format(diagnostics_run_id)
+        with open(output_filename, "w") as output:
+            output.write("# x/pixel, y/pixel, offset/pixel, radius/pixel , Angular distance/rad , "
+                         "Tangent-space distance , Barrel-corrected tan-space dist")
 
-            # Error in the projected position of this star (pixels)
-            offset = hypot((star['xpos'] - pos[0]) * img_size_x, (star['ypos'] - pos[1]) * img_size_y)
+            for index, filename in enumerate(filenames):
+                ra0 = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'ra')]]
+                dec0 = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'dec')]]
+                scale_x = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'width')]]
+                scale_y = scale_x * parameters_final[fitting_parameter_indices['aspect']]
+                pos_ang = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'pa')]]
+                k1 = parameters_final[fitting_parameter_indices['k1']]
+                k2 = parameters_final[fitting_parameter_indices['k2']]
+                k3 = parameters_final[fitting_parameter_indices['k3']]
 
-            # Angular distance of this star from the centre of the field (rad)
-            angular_distance = ang_dist(ra1=star['ra'], dec1=star['dec'], ra0=ra0, dec0=dec0)
+                for star in star_list[index]:
+                    pos = gnomonic_project(ra=star['ra'], dec=star['dec'], ra0=ra0, dec0=dec0,
+                                           size_x=1, size_y=1, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
+                                           barrel_k1=k1, barrel_k2=k2, barrel_k3=k3)
 
-            # Pixel distance of this star from the centre of the field (pixels)
-            pixel_distance = hypot((star['xpos'] - 0.5) * img_size_x, (star['ypos'] - 0.5) * img_size_y)
-            pixel_distance_square_pixels = hypot((star['xpos'] - 0.5) * img_size_x,
-                                                 (star['ypos'] - 0.5) * img_size_x * tan(scale_y / 2.) / tan(
-                                                     scale_x / 2.))
+                    # Error in the projected position of this star (pixels)
+                    offset = hypot((star['xpos'] - pos[0]) * img_size_x[index],
+                                   (star['ypos'] - pos[1]) * img_size_y[index])
 
-            # Distance of this star from the centre of the field (tangent space)
-            tan_distance = tan(angular_distance)
+                    # Angular distance of this star from the centre of the field (rad)
+                    angular_distance = ang_dist(ra1=star['ra'], dec1=star['dec'], ra0=ra0, dec0=dec0)
 
-            # Apply barrel correction to the radial distance of this star in tangent space
-            r = tan_distance / tan(scale_x / 2)
-            bc_kn = 1. - bc_k1 - bc_k2 - bc_k3
-            r2 = r * (bc_kn + bc_k1 * (r ** 2) + bc_k2 * (r ** 4) + bc_k3 * (r ** 6))
+                    # Pixel distance of this star from the centre of the field (pixels)
+                    pixel_distance = hypot((star['xpos'] - 0.5) * img_size_x,
+                                           (star['ypos'] - 0.5) * img_size_y)
+                    pixel_distance_square_pixels = hypot((star['xpos'] - 0.5) * img_size_x,
+                                                         (star['ypos'] - 0.5) * img_size_x *
+                                                         tan(scale_y / 2.) / tan(scale_x / 2.))
 
-            barrel_corrected_tan_dist = r2 * img_size_x / 2
+                    # Distance of this star from the centre of the field (tangent space)
+                    tan_distance = tan(angular_distance)
 
-            output.write("{:4.0f} {:4.0f} {:8.4f} {:8.4f} {:8.4f} {:8.4f} {:8.4f}\n".format(
-                star['xpos'] * img_size_x,
-                star['ypos'] * img_size_y,
-                offset,
-                pixel_distance_square_pixels,
-                angular_distance * 180 / pi,
-                tan_distance / tan(scale_x / 2) * img_size_x / 2,
-                barrel_corrected_tan_dist
-            ))
+                    # Apply barrel correction to the radial distance of this star in tangent space
+                    r = tan_distance / tan(scale_x / 2)
+                    bc_kn = 1. - k1 - k2 - k3
+                    r2 = r * (bc_kn + k1 * (r ** 2) + k2 * (r ** 4) + k3 * (r ** 6))
 
-    # Return final best-fit parameters
-    return ra0, dec0, scale_x, scale_y, pos_ang, bc_k1, bc_k2, bc_k3
+                    barrel_corrected_tan_dist = r2 * img_size_x[index] / 2
+
+                    output.write("{:4.0f} {:4.0f} {:8.4f} {:8.4f} {:8.4f} {:8.4f} {:8.4f}\n".format(
+                        star['xpos'] * img_size_x[index],
+                        star['ypos'] * img_size_y[index],
+                        offset,
+                        pixel_distance_square_pixels,
+                        angular_distance * 180 / pi,
+                        tan_distance / tan(scale_x / 2) * img_size_x[index] / 2,
+                        barrel_corrected_tan_dist
+                    ))
 
 
 # If we're called as a script, run the function calibrate_lens()
@@ -294,8 +475,8 @@ if __name__ == "__main__":
     # Read commandline arguments
     parser = argparse.ArgumentParser(description=__doc__)
 
-    parser.add_argument('--filename', dest='filename', default=None,
-                        help="The filename of the calibration file we are to use")
+    parser.add_argument('--filename', dest='filenames', action='append',
+                        help="The filename of the calibration file(s) we are to use")
     parser.add_argument('--list', dest='list', action='store_true', help="List all available calibration files")
     parser.add_argument('--no-list', dest='list', action='store_false')
     parser.set_defaults(list=False)
@@ -320,5 +501,5 @@ if __name__ == "__main__":
         list_calibration_files(fit_all=False)
     elif args.fit_all:
         list_calibration_files(fit_all=True)
-    elif args.filename is not None:
-        calibrate_lens(filename=args.filename)
+    elif args.filenames:
+        calibrate_lens(filenames=args.filenames)
