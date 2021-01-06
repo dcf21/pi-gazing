@@ -339,8 +339,8 @@ def calibrate_lens(filenames: list, verbose: bool = True, diagnostics_run_id=Non
 
     # Display best fit parameter values
     if verbose:
-        logging.info("Observatory: {}".format(input_config[0]['observatory']))
-        logging.info("Lens: {}".format(input_config[0]['lens']))
+        logging.info("Observatory: {}".format([item['observatory'] for item in input_config]))
+        logging.info("Lens: {}".format([item['lens'] for item in input_config]))
         logging.info("Best fit parameters were:")
         for index, key in enumerate(fitting_parameter_names):
             logging.info("{:30s} : {:.8f}".format(
@@ -379,7 +379,8 @@ def calibrate_lens(filenames: list, verbose: bool = True, diagnostics_run_id=Non
                     pos_ang=pos_ang,
                     barrel_k1=k1, barrel_k2=k2, barrel_k3=k3
                 )
-                distance = hypot((star['xpos'] - pos[0]) * img_size_x, (star['ypos'] - pos[1]) * img_size_y)
+                distance = hypot((star['xpos'] - pos[0]) * img_size_x[index],
+                                 (star['ypos'] - pos[1]) * img_size_y[index])
 
                 logging.info("""
 User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mismatch {:5.1f} pixels.
@@ -394,7 +395,9 @@ User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mism
     if diagnostics_run_id is not None:
         output_filename = "/tmp/point_offsets_{}.dat".format(diagnostics_run_id)
         with open(output_filename, "w") as output:
+            output.write("# x_user_input y_user_input x_model y_model\n")
             for index, filename in enumerate(filenames):
+                output.write("\n\n")
                 ra0 = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'ra')]]
                 dec0 = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'dec')]]
                 scale_x = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'width')]]
@@ -418,9 +421,10 @@ User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mism
         output_filename = "/tmp/radial_distortion_{}.dat".format(diagnostics_run_id)
         with open(output_filename, "w") as output:
             output.write("# x/pixel, y/pixel, offset/pixel, radius/pixel , Angular distance/rad , "
-                         "Tangent-space distance , Barrel-corrected tan-space dist")
+                         "Tangent-space distance , Barrel-corrected tan-space dist\n")
 
             for index, filename in enumerate(filenames):
+                output.write("\n\n")
                 ra0 = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'ra')]]
                 dec0 = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'dec')]]
                 scale_x = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'width')]]
@@ -443,10 +447,10 @@ User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mism
                     angular_distance = ang_dist(ra1=star['ra'], dec1=star['dec'], ra0=ra0, dec0=dec0)
 
                     # Pixel distance of this star from the centre of the field (pixels)
-                    pixel_distance = hypot((star['xpos'] - 0.5) * img_size_x,
-                                           (star['ypos'] - 0.5) * img_size_y)
-                    pixel_distance_square_pixels = hypot((star['xpos'] - 0.5) * img_size_x,
-                                                         (star['ypos'] - 0.5) * img_size_x *
+                    pixel_distance = hypot((star['xpos'] - 0.5) * img_size_x[index],
+                                           (star['ypos'] - 0.5) * img_size_y[index])
+                    pixel_distance_square_pixels = hypot((star['xpos'] - 0.5) * img_size_x[index],
+                                                         (star['ypos'] - 0.5) * img_size_x[index] *
                                                          tan(scale_y / 2.) / tan(scale_x / 2.))
 
                     # Distance of this star from the centre of the field (tangent space)
@@ -468,6 +472,38 @@ User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mism
                         tan_distance / tan(scale_x / 2) * img_size_x[index] / 2,
                         barrel_corrected_tan_dist
                     ))
+
+        # Write pyxplot script to plot quality of fit
+        output_filename = "/tmp/radial_distortion_{}.ppl".format(diagnostics_run_id)
+        with open(output_filename, "w") as output:
+            output.write("""
+set width 30 ; set term png dpi 200
+set output '/tmp/radial_distortion_{0}_a.png'
+""".format(diagnostics_run_id))
+            for index, filename in enumerate(filenames):
+                output.write("""
+f_{1}(x) = a + b * x ** 2 + c * x ** 4
+fit f_{1}() withouterrors '/tmp/radial_distortion_{0}.dat' using 4:$6/$4 index {1} via a, b, c
+""".format(diagnostics_run_id, index))
+            output.write("plot ")
+            for index, filename in enumerate(filenames):
+                output.write("""\
+'/tmp/radial_distortion_{0}.dat' using 4:$6/$4 index {1}, f_{1}(x), \
+""".format( diagnostics_run_id, index))
+            output.write("1\n")
+            output.write("""
+set output '/tmp/radial_distortion_{0}_b.png'
+""".format(diagnostics_run_id))
+            output.write("plot ")
+            for index, filename in enumerate(filenames):
+                output.write("""\
+'/tmp/radial_distortion_{0}.dat' using 4:$7/$4 index {1}, \
+'/tmp/radial_distortion_{0}.dat' using 4:$6/$4/f_{1}($4) index {1}, \
+""".format(diagnostics_run_id, index))
+            output.write("1\n")
+
+        # Run pyxplot
+        os.system("pyxplot /tmp/radial_distortion_{}.ppl".format(diagnostics_run_id))
 
 
 # If we're called as a script, run the function calibrate_lens()
@@ -502,4 +538,4 @@ if __name__ == "__main__":
     elif args.fit_all:
         list_calibration_files(fit_all=True)
     elif args.filenames:
-        calibrate_lens(filenames=args.filenames)
+        calibrate_lens(filenames=args.filenames, diagnostics_run_id=0)
