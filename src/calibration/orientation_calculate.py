@@ -114,13 +114,30 @@ def orientation_calc(obstory_id, utc_min, utc_max, utc_must_stop=None):
     # Reduce time window to where observations are present
     utc_max, utc_min = reduce_time_window(conn=conn, obstory_id=obstory_id, utc_max=utc_max, utc_min=utc_min)
 
+    # Close database handles, so they don't time out
+    db.commit()
+    db.close_db()
+    db0.commit()
+    conn.close()
+    db0.close()
+
     # Divide up time interval into 2-minute blocks
-    successful_fits = analyse_observations(conn=conn, db=db, db0=db0,
-                                           obstory_id=obstory_id, utc_max=utc_max, utc_min=utc_min,
+    successful_fits = analyse_observations(obstory_id=obstory_id, utc_max=utc_max, utc_min=utc_min,
                                            utc_must_stop=utc_must_stop)
 
     # Report how many fits we achieved
     logging.info("Total of {:d} images successfully fitted.".format(successful_fits))
+
+    # Open connection to database
+    [db0, conn] = connect_db.connect_db()
+
+    # Open connection to image archive
+    db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                           db_host=installation_info['mysqlHost'],
+                                           db_user=installation_info['mysqlUser'],
+                                           db_password=installation_info['mysqlPassword'],
+                                           db_name=installation_info['mysqlDatabase'],
+                                           obstory_id=installation_info['observatoryId'])
 
     if successful_fits > 0:
         # Now determine mean orientation each day
@@ -175,17 +192,11 @@ ORDER BY obsTime DESC LIMIT 1
     return utc_max, utc_min
 
 
-def analyse_observations(conn, db, db0, obstory_id, utc_max, utc_min, utc_must_stop):
+def analyse_observations(obstory_id, utc_max, utc_min, utc_must_stop):
     """
     Analyse still images recorded by the camera with publicId <obstoryId> within the specified time period, to
     determine the orientation of the camera on the sky.
 
-    :param conn:
-        Database connection object.
-    :param db:
-        Database object.
-    :param db0:
-        Database object.
     :param obstory_id:
         Observatory publicId.
     :param utc_max:
@@ -198,6 +209,16 @@ def analyse_observations(conn, db, db0, obstory_id, utc_max, utc_min, utc_must_s
         The number of images successfully fitted.
     """
 
+    # Open connection to database
+    [db0, conn] = connect_db.connect_db()
+
+    # Open connection to image archive
+    db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                           db_host=installation_info['mysqlHost'],
+                                           db_user=installation_info['mysqlUser'],
+                                           db_password=installation_info['mysqlPassword'],
+                                           db_name=installation_info['mysqlDatabase'],
+                                           obstory_id=installation_info['observatoryId'])
     # Mathematical constants
     deg = pi / 180
     rad = 180 / pi
@@ -247,23 +268,32 @@ ORDER BY am.floatValue DESC LIMIT 1
                 'repositoryFname': results[0]['repositoryFname'],
                 'observationId': results[0]['observationId']
             })
+
     # Sort images into order of sky clarity
     images_for_analysis.sort(key=itemgetter("skyClarity"))
     images_for_analysis.reverse()
+
     # Display logging list of the images we are going to work on
     logging.info("Estimating the orientation of {:d} images:".format(len(images_for_analysis)))
-    for item in images_for_analysis:
-        logging.info("{:17s} {:04.0f} {:32s}".format(date_string(item['utc']),
-                                                     item['skyClarity'],
-                                                     item['repositoryFname']))
+    # for item in images_for_analysis:
+    #     logging.info("{:17s} {:04.0f} {:32s}".format(date_string(item['utc']),
+    #                                                  item['skyClarity'],
+    #                                                  item['repositoryFname']))
+
     # When passing images to astrometry.net, only work on the central portion, as corners may be distorted
-    fraction_x = 0.8
-    fraction_y = 0.8
+    fraction_x = 0.9
+    fraction_y = 0.9
+
     # Path the binary barrel-correction tool
     barrel_correct = os.path.join(settings['imageProcessorPath'], "lensCorrect")
 
     @dask.delayed
     def analyse_image(item_index, item, obstory_status, lens_props):
+        # Check that we've not run out of time
+        if utc_must_stop and (time.time() > utc_must_stop):
+            logging.info("We have run out of time! Aborting.")
+            return None
+
         logging.info("Working on image {:32s} ({:4d}/{:4d})".format(item['repositoryFname'],
                                                                     item_index + 1, len(images_for_analysis)))
 
@@ -324,11 +354,6 @@ convert {0}_tmp2.png -colorspace sRGB -define png:format=png24 -crop {1:d}x{2:d}
         # logging.info(command)
         os.system(command)
 
-        # Check that we've not run out of time
-        if utc_must_stop and (time.time() > utc_must_stop):
-            logging.info("We have run out of time! Aborting.")
-            return
-
         # How long should we allow astrometry.net to run for?
         timeout = "2m"
 
@@ -384,12 +409,38 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
 
         dask_tasks.append(analyse_image(item_index=item_index, item=item,
                                         obstory_status=obstory_status, lens_props=lens_props))
+
+    # Close database handles, so they don't time out
+    db.commit()
+    db.close_db()
+    db0.commit()
+    conn.close()
+    db0.close()
+
+    # Run delayed tasks
     fit_text_list = dask.compute(*dask_tasks)
+
+    # Open connection to database
+    [db0, conn] = connect_db.connect_db()
+
+    # Open connection to image archive
+    db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                           db_host=installation_info['mysqlHost'],
+                                           db_user=installation_info['mysqlUser'],
+                                           db_password=installation_info['mysqlPassword'],
+                                           db_name=installation_info['mysqlDatabase'],
+                                           obstory_id=installation_info['observatoryId'])
+
     # Clean up
     os.system("rm -Rf /tmp/tmp.*")
+
     # Extract results from astrometry.net
-    for item_index, (item, (fit_text, log_msg, astrometry_time_taken)) \
-            in enumerate(zip(images_for_analysis, fit_text_list)):
+    for item_index, (item, fit_text_item) in enumerate(zip(images_for_analysis, fit_text_list)):
+        if fit_text_item is None:
+            continue
+
+        # Unpack output from <analyse_image>
+        fit_text, log_msg, astrometry_time_taken = fit_text_item
 
         # Update observation database record
         timestamp = time.time()
@@ -516,9 +567,13 @@ WHERE publicId=%s;
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:width_y_field", value=scale_y))
         db.commit()
-    # Commit metadata changes
+
+    # Close database handles
     db.commit()
+    db.close_db()
     db0.commit()
+    conn.close()
+    db0.close()
     return successful_fits
 
 
