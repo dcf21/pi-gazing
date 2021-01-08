@@ -294,7 +294,7 @@ ORDER BY am.floatValue DESC LIMIT 1
             logging.info("We have run out of time! Aborting.")
             return None
 
-        logging.info("Working on image {:32s} ({:4d}/{:4d})".format(item['repositoryFname'],
+        logging.info("Working on image {:32s} ({:6d}/{:6d})".format(item['repositoryFname'],
                                                                     item_index + 1, len(images_for_analysis)))
 
         # This is an estimate of the *maximum* angular width we expect images to have.
@@ -367,7 +367,7 @@ cd {5} ; \
 timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         --scale-high {2:.1f} --overwrite {3}_tmp3.png > {4} 2> /dev/null \
 """.format(timeout,
-           estimated_width * 0.6,
+           estimated_width * 0.8,
            estimated_width * 1.2,
            img_name,
            astrometry_output,
@@ -390,54 +390,9 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         # Return output from astrometry.net
         return fit_text, log_msg, astrometry_time_taken
 
-    # Fetch observatory's database record
-    obstory_info = db.get_obstory_from_id(obstory_id)
-    # Analyse each image in turn
-    dask_tasks = []
-    for item_index, item in enumerate(images_for_analysis):
-        # Fetch observatory status at time of observation
-        obstory_status = None
-        if obstory_info and ('name' in obstory_info):
-            obstory_status = db.get_obstory_status(obstory_id=obstory_id, time=item['utc'])
-        if not obstory_status:
-            logging.info("Aborting -- no observatory status available.")
-            continue
-
-        # Fetch properties of the lens being used at the time of the observation
-        lens_name = obstory_status['lens']
-        lens_props = hw.lens_data[lens_name]
-
-        dask_tasks.append(analyse_image(item_index=item_index, item=item,
-                                        obstory_status=obstory_status, lens_props=lens_props))
-
-    # Close database handles, so they don't time out
-    db.commit()
-    db.close_db()
-    db0.commit()
-    conn.close()
-    db0.close()
-
-    # Run delayed tasks
-    fit_text_list = dask.compute(*dask_tasks)
-
-    # Open connection to database
-    [db0, conn] = connect_db.connect_db()
-
-    # Open connection to image archive
-    db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                           db_host=installation_info['mysqlHost'],
-                                           db_user=installation_info['mysqlUser'],
-                                           db_password=installation_info['mysqlPassword'],
-                                           db_name=installation_info['mysqlDatabase'],
-                                           obstory_id=installation_info['observatoryId'])
-
-    # Clean up
-    os.system("rm -Rf /tmp/tmp.*")
-
-    # Extract results from astrometry.net
-    for item_index, (item, fit_text_item) in enumerate(zip(images_for_analysis, fit_text_list)):
+    def extract_astrometry_output(item, fit_text_item):
         if fit_text_item is None:
-            continue
+            return 0
 
         # Unpack output from <analyse_image>
         fit_text, log_msg, astrometry_time_taken = fit_text_item
@@ -461,7 +416,7 @@ WHERE publicId=%s;
                          fit_text)
         if not test:
             logging.info("FAIL(POS): {}".format(log_msg))
-            continue
+            return 0
 
         ra_sign = sgn(float(test.group(1)))
         ra = abs(float(test.group(1))) + float(test.group(2)) / 60 + float(test.group(3)) / 3600
@@ -474,7 +429,7 @@ WHERE publicId=%s;
         test = re.search(r"up is [+]?([-\d\.]*) degrees (.) of N", fit_text)
         if not test:
             logging.info("FAIL(PA ): {}".format(log_msg))
-            continue
+            return 0
 
         # celestial_pa is the position angle of the upward vector in the centre of the image, counterclockwise
         #  from celestial north.
@@ -492,7 +447,7 @@ WHERE publicId=%s;
         test = re.search(r"Field size: ([\d\.]*) x ([\d\.]*) deg", fit_text)
         if not test:
             logging.info("FAIL(SIZ): {}".format(log_msg))
-            continue
+            return 0
 
         # Expand reported size of image to whole image, not just the central tile we sent to astrometry.net
         scale_x = 2 * math.atan(math.tan(float(test.group(1)) / 2 * deg) / fraction_x) * rad
@@ -531,7 +486,6 @@ WHERE publicId=%s;
         sky_area = get_sky_area(ra=ra, dec=dec, pa=celestial_pa, scale_x=scale_x, scale_y=scale_y)
 
         # Update observation database record
-        successful_fits += 1
         timestamp = time.time()
         conn.execute("""
 UPDATE archive_observations SET position=POINT(%s,%s), positionAngle=%s,
@@ -567,6 +521,57 @@ WHERE publicId=%s;
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:width_y_field", value=scale_y))
         db.commit()
+
+        # Return number of successful fits
+        return 1
+
+    # Fetch observatory's database record
+    obstory_info = db.get_obstory_from_id(obstory_id)
+
+    # Analyse each image in turn
+    dask_tasks = []
+    dask_group_items = []
+    for item_index, item in enumerate(images_for_analysis):
+        # Fetch observatory status at time of observation
+        obstory_status = None
+        if obstory_info and ('name' in obstory_info):
+            obstory_status = db.get_obstory_status(obstory_id=obstory_id, time=item['utc'])
+        if not obstory_status:
+            logging.info("Aborting -- no observatory status available.")
+            continue
+
+        # Fetch properties of the lens being used at the time of the observation
+        lens_name = obstory_status['lens']
+        lens_props = hw.lens_data[lens_name]
+
+        dask_group_items.append(item)
+        dask_tasks.append(analyse_image(item_index=item_index, item=item,
+                                        obstory_status=obstory_status, lens_props=lens_props))
+
+        # Run dask tasks in small groups
+        dask_group_size = 200
+        if len(dask_tasks) >= dask_group_size:
+            # Run tasks
+            dask_group_output = dask.compute(*dask_tasks)
+
+            # Extract results from astrometry.net
+            for item, fit_text_item in zip(dask_group_items, dask_group_output):
+                successful_fits += extract_astrometry_output(item, fit_text_item)
+            dask_tasks = []
+            dask_group_items = []
+
+            # Clean up
+            os.system("rm -Rf /tmp/tmp.*")
+
+    # Run final group of tasks
+    dask_group_output = dask.compute(*dask_tasks)
+
+    # Extract results from astrometry.net
+    for item, fit_text_item in zip(dask_group_items, dask_group_output):
+        successful_fits += extract_astrometry_output(item, fit_text_item)
+
+    # Clean up
+    os.system("rm -Rf /tmp/tmp.*")
 
     # Close database handles
     db.commit()
