@@ -3,13 +3,13 @@
   <name>f1.6_cctv_lens</name>
   <comment>Lens in use on test camera</comment>
   <fov>74</fov>
-  <radial_distortion>[74.43914017482784, 58.320450102096316, -0.14665332777129214, -0.011847123706623056, 9.314437326237098e-05]</radial_distortion>
+  <radial_distortion>[74.49560066,  58.37590972,  -0.1649026918,  -0.0000283967,  -0.0000000047]</radial_distortion>
  </lens>
  <lens>
   <name>siemens_f1.2</name>
   <comment>Siemens 1/2" F1.2 4-12mm Varifocal Auto Iris C Mount CCTV Lens - Installed Feb 2020</comment>
   <fov>73</fov>
-  <radial_distortion>[73.24630717120438, 57.249542370478345, -0.15694031488661703, 0.0014956603919929266, 5.0174212637923715e-06]</radial_distortion>
+  <radial_distortion>[70.08638229,  54.55433296,  -0.1994405744,   0.0329307842,   0.0000088074]</radial_distortion>
  </lens>
  <lens>
   <name>fujinon_YV10x5B-SA2</name>
@@ -21,13 +21,13 @@
   <name>erintec</name>
   <comment>Erintec lens - Installed in Cambridge-East-0 12 April 2020</comment>
   <fov>80</fov>
-  <radial_distortion>[80.30056403057645, 63.27127436232993, -0.24243266633568475, -0.0026311815751471064, 3.67060458713734e-05]</radial_distortion>
+  <radial_distortion>[80.22921801,  63.20713272,  -0.2439334335,   0.0000139369,   0.0000000366]</radial_distortion>
  </lens>
  <lens>
   <name>kvr0412</name>
   <comment>Kenko KVR 0412 DC 4mm F1.2 - Installed in Cambridge-East-0 20 April 2020</comment>
   <fov>78</fov>
-  <radial_distortion>[78.49009940044529, 61.693166391959025, -0.059561204665966795, 0.00019312695494474742, 1.456670256404068e-06]</radial_distortion>
+  <radial_distortion>[78.25549427,  61.52782236,  -0.1631573485,   0.0834228807,   0.0000145497]</radial_distortion>
  </lens>
  <lens>
   <name>eos1000d</name>

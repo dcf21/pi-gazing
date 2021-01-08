@@ -242,15 +242,16 @@ def list_calibration_files(fit_all: bool = False):
     setups = list(calibration_files.keys())
     setups.sort()
 
-    for setup in setups:
+    for i, setup in enumerate(setups):
         logging.info("* {}".format(setup))
-        for calibration_file in calibration_files[setup]:
+        for j, calibration_file in enumerate(calibration_files[setup]):
             logging.info("    {} ({:3d} stars)".format(calibration_file['filename'], calibration_file['star_count']))
 
             if fit_all:
                 filename = os.path.join("calibration_examples", calibration_file['filename'])
                 calibrate_lens(filenames=[filename],
-                               verbose=False
+                               verbose=False,
+                               diagnostics_run_id="{:d}_{:d}".format(i, j)
                                )
 
                 scale_x = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'width')]]
@@ -260,10 +261,9 @@ def list_calibration_files(fit_all: bool = False):
                 k2 = parameters_final[fitting_parameter_indices['k2']]
                 k3 = parameters_final[fitting_parameter_indices['k3']]
 
-                logging.info("{:8.4f} {:8.4f} {:8.4f}  --  {:10.6f} {:10.6f} {:10.6f}".format(
+                logging.info("[{:12.8f}, {:12.8f}, {:14.10f}, {:14.10f}, {:14.10f}]".format(
                     scale_x * 180 / pi,
                     scale_y * 180 / pi,
-                    pos_ang * 180 / pi,
                     k1, k2, k3
                 )
                 )
@@ -331,9 +331,7 @@ def calibrate_lens(filenames: list, verbose: bool = True, diagnostics_run_id=Non
     # Solve system of equations to give best fit radial distortion
     # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/> for more information about how this works
     parameters_optimised = scipy.optimize.minimize(mismatch, numpy.asarray(parameters_initial),
-                                                   method='nelder-mead',
-                                                   options={'xtol': 1e-8, 'disp': verbose, 'maxiter': 1e8,
-                                                            'maxfev': 1e8}
+                                                   options={'disp': verbose, 'maxiter': 1e8}
                                                    ).x
     parameters_final = [parameters_optimised[i] * parameters_scale[i] for i in range(len(fitting_parameter_names))]
 
@@ -349,11 +347,13 @@ def calibrate_lens(filenames: list, verbose: bool = True, diagnostics_run_id=Non
             ))
 
         # Print barrel_parameters JSON string
-        logging.info("Barrel parameters: {}".format(json.dumps([
-            (parameters_final[fitting_parameter_indices[item['name']]] *
-             fitting_parameters[item['name']]['display_scale'])
-            for item in parameters_radial
-        ])))
+        for index, filename in enumerate(filenames):
+            scale_x = parameters_final[fitting_parameter_indices["{}_{}".format(filename, 'width')]]
+            scale_y = scale_x * parameters_final[fitting_parameter_indices['aspect']]
+            k1 = parameters_final[fitting_parameter_indices['k1']]
+            k2 = parameters_final[fitting_parameter_indices['k2']]
+            k3 = parameters_final[fitting_parameter_indices['k3']]
+            logging.info("Barrel parameters: {}".format(json.dumps([scale_x, scale_y, k1, k2, k3])))
 
     # Print information about how well each star was fitted
     if verbose:
@@ -418,6 +418,7 @@ User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mism
 
     # Debugging: print graph of radial distortion
     if diagnostics_run_id is not None:
+        logging.info("Producing diagnostic file <{}>".format(diagnostics_run_id))
         output_filename = "/tmp/radial_distortion_{}.dat".format(diagnostics_run_id)
         with open(output_filename, "w") as output:
             output.write("# x/pixel, y/pixel, offset/pixel, radius/pixel , Angular distance/rad , "
@@ -446,14 +447,15 @@ User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mism
                     # Angular distance of this star from the centre of the field (rad)
                     angular_distance = ang_dist(ra1=star['ra'], dec1=star['dec'], ra0=ra0, dec0=dec0)
 
-                    # Pixel distance of this star from the centre of the field (pixels)
-                    pixel_distance = hypot((star['xpos'] - 0.5) * img_size_x[index],
-                                           (star['ypos'] - 0.5) * img_size_y[index])
-                    pixel_distance_square_pixels = hypot((star['xpos'] - 0.5) * img_size_x[index],
-                                                         (star['ypos'] - 0.5) * img_size_x[index] *
-                                                         tan(scale_y / 2.) / tan(scale_x / 2.))
+                    # Pixel distance of this star from the centre of the field
+                    # (horizontal pixels; after radial distortion)
+                    pixel_distance = hypot(
+                        (star['xpos'] - 0.5) * img_size_x[index],
+                        (star['ypos'] - 0.5) * img_size_x[index] * tan(scale_y / 2.) / tan(scale_x / 2.)
+                    )
 
-                    # Distance of this star from the centre of the field (tangent space)
+                    # Distance of this star from the centre of the field
+                    # (tangent space; before radial distortion)
                     tan_distance = tan(angular_distance)
 
                     # Apply barrel correction to the radial distance of this star in tangent space
@@ -461,46 +463,49 @@ User-supplied position ({:4.0f},{:4.0f}). Model position ({:4.0f},{:4.0f}). Mism
                     bc_kn = 1. - k1 - k2 - k3
                     r2 = r * (bc_kn + k1 * (r ** 2) + k2 * (r ** 4) + k3 * (r ** 6))
 
-                    barrel_corrected_tan_dist = r2 * img_size_x[index] / 2
+                    # Distance of this star from the centre of the field
+                    # (tangent space; after radial distortion)
+                    barrel_corrected_tan_dist = r2 * tan(scale_x / 2)
 
                     output.write("{:4.0f} {:4.0f} {:8.4f} {:8.4f} {:8.4f} {:8.4f} {:8.4f}\n".format(
                         star['xpos'] * img_size_x[index],
                         star['ypos'] * img_size_y[index],
                         offset,
-                        pixel_distance_square_pixels,
+                        pixel_distance,
                         angular_distance * 180 / pi,
                         tan_distance / tan(scale_x / 2) * img_size_x[index] / 2,
-                        barrel_corrected_tan_dist
+                        barrel_corrected_tan_dist / tan(scale_x / 2) * img_size_x[index] / 2
                     ))
 
         # Write pyxplot script to plot quality of fit
         output_filename = "/tmp/radial_distortion_{}.ppl".format(diagnostics_run_id)
         with open(output_filename, "w") as output:
             output.write("""
-set width 30 ; set term png dpi 200
+set width 30 ; set term png dpi 100
+set xlabel 'Distance from centre of field / pixels'
+set ylabel 'Observed pixel distance from centre (after distortion) - Tan space distance (before distortion)'
 set output '/tmp/radial_distortion_{0}_a.png'
 """.format(diagnostics_run_id))
             for index, filename in enumerate(filenames):
                 output.write("""
-f_{1}(x) = a + b * x ** 2 + c * x ** 4
-fit f_{1}() withouterrors '/tmp/radial_distortion_{0}.dat' using 4:$6/$4 index {1} via a, b, c
+f_{1}(x) = a + b * x ** 2
+# fit f_{1}() withouterrors '/tmp/radial_distortion_{0}.dat' using 4:$6/$4 index {1} via a, b
 """.format(diagnostics_run_id, index))
             output.write("plot ")
             for index, filename in enumerate(filenames):
-                output.write("""\
-'/tmp/radial_distortion_{0}.dat' using 4:$6/$4 index {1}, f_{1}(x), \
-""".format( diagnostics_run_id, index))
-            output.write("1\n")
+                output.write("'/tmp/radial_distortion_{0}.dat' using 4:$6-$4 index {1}, ".format(diagnostics_run_id, index))
+                # output.write("f_{1}(x), ".format(diagnostics_run_id, index))
+                output.write("'/tmp/radial_distortion_{0}.dat' using 4:$6-$7 index {1}, ".format(diagnostics_run_id, index))
+            output.write("-1 notitle w col green lt 2, 0 notitle w col green lt 2, 1 notitle w col green lt 2\n")
             output.write("""
+set ylabel 'Observed pixel distance from centre (after distortion) - Tan space distance (after distortion)'
 set output '/tmp/radial_distortion_{0}_b.png'
 """.format(diagnostics_run_id))
             output.write("plot ")
             for index, filename in enumerate(filenames):
-                output.write("""\
-'/tmp/radial_distortion_{0}.dat' using 4:$7/$4 index {1}, \
-'/tmp/radial_distortion_{0}.dat' using 4:$6/$4/f_{1}($4) index {1}, \
-""".format(diagnostics_run_id, index))
-            output.write("1\n")
+                output.write("'/tmp/radial_distortion_{0}.dat' using 4:$7-$4 index {1}, ".format(diagnostics_run_id, index))
+                # output.write("'/tmp/radial_distortion_{0}.dat' using 4:$6/f_{1}($4)-$4 index {1}, ".format(diagnostics_run_id, index))
+            output.write("-1 notitle w col green lt 2, 0 notitle w col green lt 2, 1 notitle w col green lt 2\n")
 
         # Run pyxplot
         os.system("pyxplot /tmp/radial_distortion_{}.ppl".format(diagnostics_run_id))
