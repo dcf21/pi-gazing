@@ -22,7 +22,7 @@
 # -------------------------------------------------
 
 """
-List calibration fixes for a particular observatory
+List calibration fixes for a particular observatory within a specified time period.
 """
 
 import argparse
@@ -44,9 +44,9 @@ def list_calibration_fixes(obstory_id, utc_min, utc_max):
     :param obstory_id:
         The ID of the observatory we want to list calibration fixes for.
     :param utc_min:
-        The start of the time period in which we should list calibration fixes.
+        The start of the time period in which we should list calibration fixes (unix time).
     :param utc_max:
-        The end of the time period in which we should list calibration fixes.
+        The end of the time period in which we should list calibration fixes (unix time).
     :return:
         None
     """
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     # Read command-line arguments
     parser = argparse.ArgumentParser(description=__doc__)
 
-    # By default, study images taken over past 24 hours
+    # By default, list the calibration of images taken over past 24 hours
     parser.add_argument('--utc-min', dest='utc_min', default=time.time() - 3600 * 24,
                         type=float,
                         help="Only list fixes recorded after the specified unix time")
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info(__doc__.strip())
 
-    # Calculate the orientation of images
+    # List the calibrations derived from images
     list_calibration_fixes(obstory_id=args.obstory_id,
                            utc_min=args.utc_min,
                            utc_max=args.utc_max)

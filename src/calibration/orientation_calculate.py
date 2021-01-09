@@ -22,7 +22,24 @@
 # -------------------------------------------------
 
 """
-Use astrometry.net to calculate the orientation of the camera based on recent images
+Use astrometry.net to calculate the orientation of a Pi Gazing observatory,
+based on the positions of stars in still images recorded by that camera.
+
+Pi Gazing observatories record still images once every 4 minutes, by stacking a
+large number of video frames. Each image is rated according to its sky clarity
+(estimated by the number of point sources in the image). We assume that each
+observatory has a fixed pointing within any given night, and use all images
+within that 24-hour period (with good sky clarity) to estimate the camera's
+orientation.
+
+When astrometry.net succeeds, we update the metadata associated with each
+individual image to reflect the output of the plate solver. These metadata
+fields are all prefixed <orientation:...>.
+
+We then calculate a sigma-clipped mean of the calculated values for the azimuth
+and alitude of the camera within each night, and if there are sufficient
+values, and they are sufficiently closely aligned, we update the observatory's
+status to reflect the new orientation fix.
 """
 
 import argparse
@@ -84,16 +101,25 @@ def sgn(x):
 
 def orientation_calc(obstory_id, utc_min, utc_max, utc_must_stop=None):
     """
-    Use astrometry.net to determine the orientation of a particular observatory.
+    Use astrometry.net to determine the orientation of a particular observatory within each night within the time
+    period between the unix times <utc_min> and <utc_max>.
 
     :param obstory_id:
         The ID of the observatory we want to determine the orientation for.
+    :type obstory_id:
+        str
     :param utc_min:
-        The start of the time period in which we should determine the observatory's orientation.
+        The start of the time period in which we should determine the observatory's orientation (unix time).
+    :type utc_min:
+        float
     :param utc_max:
-        The end of the time period in which we should determine the observatory's orientation.
+        The end of the time period in which we should determine the observatory's orientation (unix time).
+    :type utc_max:
+        float
     :param utc_must_stop:
-        The time by which we must finish work.
+        The unix time after which we must abort and finish work as quickly as possible.
+    :type utc_must_stop:
+        float
     :return:
         None
     """
@@ -111,17 +137,17 @@ def orientation_calc(obstory_id, utc_min, utc_max, utc_must_stop=None):
 
     logging.info("Starting calculation of camera alignment for <{}>".format(obstory_id))
 
-    # Reduce time window to where observations are present
+    # Reduce time window we are searching to the interval in which observations are present (to save time)
     utc_max, utc_min = reduce_time_window(conn=conn, obstory_id=obstory_id, utc_max=utc_max, utc_min=utc_min)
 
-    # Close database handles, so they don't time out
+    # Close database handles, so they don't time out during long-running calculations
     db.commit()
     db.close_db()
     db0.commit()
     conn.close()
     db0.close()
 
-    # Divide up time interval into 2-minute blocks
+    # Run astrometry.net on any observations we find within the requested time window
     successful_fits = analyse_observations(obstory_id=obstory_id, utc_max=utc_max, utc_min=utc_min,
                                            utc_must_stop=utc_must_stop)
 
@@ -139,8 +165,9 @@ def orientation_calc(obstory_id, utc_min, utc_max, utc_must_stop=None):
                                            db_name=installation_info['mysqlDatabase'],
                                            obstory_id=installation_info['observatoryId'])
 
+    # If we managed to fit any images, we now try to average the fits within each night to determine the
+    # sigma-clipped mean orientation
     if successful_fits > 0:
-        # Now determine mean orientation each day
         average_daily_fits(conn=conn, db=db, obstory_id=obstory_id, utc_max=utc_max, utc_min=utc_min)
 
     # Clean up and exit
@@ -155,19 +182,27 @@ def orientation_calc(obstory_id, utc_min, utc_max, utc_must_stop=None):
 def reduce_time_window(conn, obstory_id, utc_max, utc_min):
     """
     Reduce the time period we are asked to analyse, to remove any time at the start or end with no observations.
+    This is a time-saving measure to avoid making lots of database queries for days with no observations.
 
     :param conn:
         Database connection object.
     :param obstory_id:
         Observatory publicId.
+    :type obstory_id:
+        str
     :param utc_max:
-        Unix time of the end of the time period.
+        Unix time of the end of the time period (unix time).
+    :type utc_max:
+        float
     :param utc_min:
-        Unix time of the beginning of the time period.
+        Unix time of the beginning of the time period (unix time).
+    :type utc_min:
+        float
     :return:
-        The new time span we are to analyse.
+        The new time span we are to analyse [start, end].
     """
 
+    # Search for the earliest observation within the requested time span
     conn.execute("""
 SELECT obsTime
 FROM archive_observations
@@ -176,10 +211,16 @@ WHERE obsTime BETWEEN %s AND %s
 ORDER BY obsTime ASC LIMIT 1
 """, (utc_min, utc_max, obstory_id))
     results = conn.fetchall()
+
+    # If there were no observations, then this was not a sensible query to make
     if len(results) == 0:
         logging.warning("No observations within requested time window.")
         raise IndexError
+
+    # Update the start time of the search window to 1 second before the earliest observation
     utc_min = results[0]['obsTime'] - 1
+
+    # Search for the latest observation within the requested time span
     conn.execute("""
 SELECT obsTime
 FROM archive_observations
@@ -188,133 +229,89 @@ WHERE obsTime BETWEEN %s AND %s
 ORDER BY obsTime DESC LIMIT 1
 """, (utc_min, utc_max, obstory_id))
     results = conn.fetchall()
+
+    # Update the end time of the search window to 1 second after the latest observation
     utc_max = results[0]['obsTime'] + 1
+
+    # Return new time span
     return utc_max, utc_min
 
 
 def analyse_observations(obstory_id, utc_max, utc_min, utc_must_stop):
     """
     Analyse still images recorded by the camera with publicId <obstoryId> within the specified time period, to
-    determine the orientation of the camera on the sky.
+    determine the orientation of the camera on the sky. Where we manage to successfully determine the orientation
+    of an image, this metadata is added to the image's database record.
 
     :param obstory_id:
         Observatory publicId.
+    :type obstory_id:
+        str
     :param utc_max:
-        Unix time of the end of the time period.
+        Unix time of the end of the time period (unix time).
+    :type utc_max:
+        float
     :param utc_min:
-        Unix time of the beginning of the time period.
+        Unix time of the beginning of the time period (unix time).
+    :type utc_min:
+        float
     :param utc_must_stop:
-        The time by which we must finish work.
+        The time by which we must finish work (unix time).
+    :type utc_must_stop:
+        float
     :return:
         The number of images successfully fitted.
     """
 
-    # Open connection to database
-    [db0, conn] = connect_db.connect_db()
-
-    # Open connection to image archive
-    db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
-                                           db_host=installation_info['mysqlHost'],
-                                           db_user=installation_info['mysqlUser'],
-                                           db_password=installation_info['mysqlPassword'],
-                                           db_name=installation_info['mysqlDatabase'],
-                                           obstory_id=installation_info['observatoryId'])
-    # Mathematical constants
-    deg = pi / 180
-    rad = 180 / pi
-
-    # Fetch source Id for this python script
-    source_id = connect_db.fetch_source_id(c=conn, source_info=("astrometry.net", "astrometry.net", "astrometry.net"))
-    db0.commit()
-
-    # Count how many successful fits we achieve
-    successful_fits = 0
-
-    # Read properties of known lenses
-    hw = hardware_properties.HardwareProps(
-        path=os.path.join(settings['pythonPath'], "..", "configuration_global", "camera_properties")
-    )
-
-    logging.info("Searching for images within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
-    block_size = 120
-    minimum_sky_clarity = 300
-    time_blocks = list(np.arange(start=utc_min, stop=utc_max, step=block_size))
-    # Build list of images we are to analyse
-    images_for_analysis = []
-    for block_index, utc_block_min in enumerate(time_blocks[:-1]):
-        utc_block_max = time_blocks[block_index + 1]
-
-        # Search for background-subtracted time lapse image with best sky clarity, and no existing orientation fit,
-        # within this time period
-        conn.execute("""
-SELECT ao.obsTime, ao.publicId AS observationId, f.repositoryFname, am.floatValue AS skyClarity
-FROM archive_files f
-INNER JOIN archive_observations ao on f.observationId = ao.uid
-INNER JOIN archive_metadata am ON f.uid = am.fileId AND
-    am.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:skyClarity")
-WHERE ao.obsTime BETWEEN %s AND %s
-    AND ao.observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
-    AND f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name="pigazing:timelapse/backgroundSubtracted")
-    AND am.floatValue > %s
-    AND ao.astrometryProcessed IS NULL
-ORDER BY am.floatValue DESC LIMIT 1
-""", (utc_block_min, utc_block_max, obstory_id, minimum_sky_clarity))
-        results = conn.fetchall()
-
-        if len(results) > 0:
-            images_for_analysis.append({
-                'utc': results[0]['obsTime'],
-                'skyClarity': results[0]['skyClarity'],
-                'repositoryFname': results[0]['repositoryFname'],
-                'observationId': results[0]['observationId']
-            })
-
-    # Sort images into order of sky clarity
-    images_for_analysis.sort(key=itemgetter("skyClarity"))
-    images_for_analysis.reverse()
-
-    # Display logging list of the images we are going to work on
-    logging.info("Estimating the orientation of {:d} images:".format(len(images_for_analysis)))
-    # for item in images_for_analysis:
-    #     logging.info("{:17s} {:04.0f} {:32s}".format(date_string(item['utc']),
-    #                                                  item['skyClarity'],
-    #                                                  item['repositoryFname']))
-
-    # When passing images to astrometry.net, only work on the central portion, as corners may be distorted
-    fraction_x = 0.9
-    fraction_y = 0.9
-
-    # Path the binary barrel-correction tool
-    barrel_correct = os.path.join(settings['imageProcessorPath'], "lensCorrect")
-
     @dask.delayed
     def analyse_image(item_index, item, obstory_status, lens_props):
+        """
+        Analyse a single image with astrometry.net, and return the textual output returned by astrometry.net.
+        We do this in a dask delayed function call to allow many images to be fitted simultaneously using all
+        available CPU cores.
+
+        :param item_index:
+            The index of this image in the list <images_for_analysis>
+        :type item_index:
+            int
+        :param item:
+            Dictionary describing the image we are to fit (the image's database record).
+        :param obstory_status:
+            Dictionary describing all the metadata comprising the status of the observatory which recorded this image,
+            at the time the image was taken. This will tell us, for example, the lens which was installed.
+        :param lens_props:
+            The properties of the lens installed in this observatory when this image was recorded.
+        :return:
+            List of [text output from astrometry.net, log messages, time taken by astrometry.net]
+        """
         # Check that we've not run out of time
         if utc_must_stop and (time.time() > utc_must_stop):
             logging.info("We have run out of time! Aborting.")
             return None
 
+        # Report progress
         logging.info("Working on image {:32s} ({:6d}/{:6d})".format(item['repositoryFname'],
                                                                     item_index + 1, len(images_for_analysis)))
 
         # This is an estimate of the *maximum* angular width we expect images to have.
-        # It should be within a factor of two of correct!
+        # It should be within ~20% of the correct answer!
         estimated_image_scale = lens_props.fov
 
         # Make a temporary directory to store files in.
-        # This is necessary as astrometry.net spams the cwd with lots of temporary junk
+        # This is necessary as astrometry.net spams the working directory with lots of temporary junk
         tmp = "/tmp/dcf21_orientationCalc_{}".format(item['repositoryFname'])
         # logging.info("Created temporary directory <{}>".format(tmp))
         os.system("mkdir {}".format(tmp))
 
-        # Find image orientation orientation
+        # Find image's full path
         filename = os.path.join(settings['dbFilestore'], item['repositoryFname'])
 
+        # Make sure that image actually exists in the file repository
         if not os.path.exists(filename):
             logging.info("Error: File <{}> is missing!".format(item['repositoryFname']))
             return
 
-        # Look up barrel distortion
+        # Look up radial distortion model for the lens we are using
         lens_barrel_parameters = obstory_status.get('calibration:lens_barrel_parameters', lens_props.barrel_parameters)
         if isinstance(lens_barrel_parameters, str):
             lens_barrel_parameters = json.loads(lens_barrel_parameters)
@@ -326,7 +323,7 @@ ORDER BY am.floatValue DESC LIMIT 1
         # logging.info(command)
         os.system(command)
 
-        # 2. Barrel-correct image
+        # 2. Correct the radial distortion present in the image (astrometry.net assumes an ideal lens)
         # logging.info("Lens-correcting image")
         command = """
 cd {8} ; \
@@ -339,7 +336,8 @@ cd {8} ; \
         # logging.info(command)
         os.system(command)
 
-        # 3. Pass only central portion of image to astrometry.net. It's not very reliable with wide-field images
+        # 3. Pass only central portion of image to astrometry.net.
+        #  It's not very reliable with wide-field images unless the radial distortion is very well corrected.
         # logging.info("Extracting central portion of image")
         d = image_dimensions("{}/{}_tmp2.png".format(tmp, img_name))
         command = """
@@ -391,13 +389,26 @@ timeout {0} solve-field --no-plots --crpix-center --scale-low {1:.1f} \
         return fit_text, log_msg, astrometry_time_taken
 
     def extract_astrometry_output(item, fit_text_item):
+        """
+        Process the textual output from astrometry.net, and extract from the text the calculated sky position of the
+        image.
+
+        :param item:
+            Dictionary describing the image we are to fit (the image's database record).
+        :param fit_text_item:
+            List of [text output from astrometry.net, log messages, time taken by astrometry.net]
+        :return:
+            Number of images for which successful orientations were determined (0 or 1)
+        """
+
+        # If astrometry.net didn't produce any text (perhaps we ran out of time and never ran it), we cannot proceed
         if fit_text_item is None:
             return 0
 
         # Unpack output from <analyse_image>
         fit_text, log_msg, astrometry_time_taken = fit_text_item
 
-        # Update observation database record
+        # Update observation database record to report that astrometry.net was run
         timestamp = time.time()
         conn.execute("""
 UPDATE archive_observations
@@ -449,7 +460,7 @@ WHERE publicId=%s;
             logging.info("FAIL(SIZ): {}".format(log_msg))
             return 0
 
-        # Expand reported size of image to whole image, not just the central tile we sent to astrometry.net
+        # Expand reported angular size of image to whole image, not just the central tile we sent to astrometry.net
         scale_x = 2 * math.atan(math.tan(float(test.group(1)) / 2 * deg) / fraction_x) * rad
         scale_y = 2 * math.atan(math.tan(float(test.group(2)) / 2 * deg) / fraction_y) * rad
 
@@ -475,6 +486,7 @@ WHERE publicId=%s;
         while camera_tilt > 180:
             camera_tilt -= 360
 
+        # Report whether we got a successful orientation determination
         logging.info("PASS     : {}".format(log_msg))
         logging.info("FIT      : RA: {:7.2f}h. Dec {:7.2f} deg. PA {:6.1f} deg. ScaleX {:6.1f}. ScaleY {:6.1f}. "
                      "Zenith at ({:.2f} h,{:.2f} deg). PA Zenith {:.2f} deg. "
@@ -485,7 +497,7 @@ WHERE publicId=%s;
         # Get a polygon representing the sky area of this image
         sky_area = get_sky_area(ra=ra, dec=dec, pa=celestial_pa, scale_x=scale_x, scale_y=scale_y)
 
-        # Update observation database record
+        # Update observation database record to reflect the orientation returned by astrometry.net
         timestamp = time.time()
         conn.execute("""
 UPDATE archive_observations SET position=POINT(%s,%s), positionAngle=%s,
@@ -502,7 +514,7 @@ WHERE publicId=%s;
                            item['observationId']))
         db0.commit()
 
-        # Update observation status
+        # Update metadata accompanying this image to reflect the orientation determination
         user = settings['pigazingUser']
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:ra", value=ra))
@@ -525,6 +537,93 @@ WHERE publicId=%s;
         # Return number of successful fits
         return 1
 
+
+    # Open connection to database
+    [db0, conn] = connect_db.connect_db()
+
+    # Open connection to image archive
+    db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
+                                           db_host=installation_info['mysqlHost'],
+                                           db_user=installation_info['mysqlUser'],
+                                           db_password=installation_info['mysqlPassword'],
+                                           db_name=installation_info['mysqlDatabase'],
+                                           obstory_id=installation_info['observatoryId'])
+    # Mathematical constants
+    deg = pi / 180
+    rad = 180 / pi
+
+    # Fetch source Id for data generated by this python script (used to record data provenance in the database)
+    source_id = connect_db.fetch_source_id(c=conn, source_info=("astrometry.net", "astrometry.net", "astrometry.net"))
+    db0.commit()
+
+    # Count how many images we manage to successfully fit
+    successful_fits = 0
+
+    # Read properties of known lenses, which give us the default radial distortion models to assume for them
+    hw = hardware_properties.HardwareProps(
+        path=os.path.join(settings['pythonPath'], "..", "configuration_global", "camera_properties")
+    )
+
+    logging.info("Searching for images within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
+    block_size = 120  # We fit the best image within ever 120 second period of time (i.e. all images!)
+    minimum_sky_clarity = 300  # We only try to fit images with a sky clarity of at least 300
+
+    # Create a list of all of the two-minute time intervals in which we are to analyse the best image
+    time_blocks = list(np.arange(start=utc_min, stop=utc_max, step=block_size))
+
+    # Build list of images we are to analyse
+    images_for_analysis = []
+
+    # Loop over all the two-minute intervals in which we are to fit the best image
+    for block_index, utc_block_min in enumerate(time_blocks[:-1]):
+        # End time for this time block
+        utc_block_max = time_blocks[block_index + 1]
+
+        # Search for background-subtracted time lapse image with best sky clarity, and no existing orientation fit,
+        # within this time period
+        conn.execute("""
+SELECT ao.obsTime, ao.publicId AS observationId, f.repositoryFname, am.floatValue AS skyClarity
+FROM archive_files f
+INNER JOIN archive_observations ao on f.observationId = ao.uid
+INNER JOIN archive_metadata am ON f.uid = am.fileId AND
+    am.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:skyClarity")
+WHERE ao.obsTime BETWEEN %s AND %s
+    AND ao.observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
+    AND f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name="pigazing:timelapse/backgroundSubtracted")
+    AND am.floatValue > %s
+    AND ao.astrometryProcessed IS NULL
+ORDER BY am.floatValue DESC LIMIT 1
+""", (utc_block_min, utc_block_max, obstory_id, minimum_sky_clarity))
+        results = conn.fetchall()
+
+        # If we found an image, add it to the list of images we are to process
+        if len(results) > 0:
+            images_for_analysis.append({
+                'utc': results[0]['obsTime'],
+                'skyClarity': results[0]['skyClarity'],
+                'repositoryFname': results[0]['repositoryFname'],
+                'observationId': results[0]['observationId']
+            })
+
+    # Sort the images we are to process into order of descending sky clarity (best image first)
+    images_for_analysis.sort(key=itemgetter("skyClarity"))
+    images_for_analysis.reverse()
+
+    # Display logging list of the images we are going to work on
+    logging.info("Estimating the orientation of {:d} images:".format(len(images_for_analysis)))
+    # for item in images_for_analysis:
+    #     logging.info("{:17s} {:04.0f} {:32s}".format(date_string(item['utc']),
+    #                                                  item['skyClarity'],
+    #                                                  item['repositoryFname']))
+
+    # When passing images to astrometry.net, only work on the central portion, as corners may be distorted
+    # (this is a problem if radial distortion is not fixed, but can use whole image if distortion is well modelled)
+    fraction_x = 0.9
+    fraction_y = 0.9
+
+    # Path the binary barrel-correction tool
+    barrel_correct = os.path.join(settings['imageProcessorPath'], "lensCorrect")
+
     # Fetch observatory's database record
     obstory_info = db.get_obstory_from_id(obstory_id)
 
@@ -544,11 +643,12 @@ WHERE publicId=%s;
         lens_name = obstory_status['lens']
         lens_props = hw.lens_data[lens_name]
 
+        # Queue up the astrometry.net runs we are going to do, and run them in parallel with dask
         dask_group_items.append(item)
         dask_tasks.append(analyse_image(item_index=item_index, item=item,
                                         obstory_status=obstory_status, lens_props=lens_props))
 
-        # Run dask tasks in small groups
+        # Run dask tasks in small groups (if groups are too big, we run out of space in /tmp due to imperfect clean-up)
         dask_group_size = 200
         if len(dask_tasks) >= dask_group_size:
             # Run tasks
@@ -560,7 +660,7 @@ WHERE publicId=%s;
             dask_tasks = []
             dask_group_items = []
 
-            # Clean up
+            # Clean up spurious files which astrometry.net leaves in /tmp
             os.system("rm -Rf /tmp/tmp.*")
 
     # Run final group of tasks
@@ -570,7 +670,7 @@ WHERE publicId=%s;
     for item, fit_text_item in zip(dask_group_items, dask_group_output):
         successful_fits += extract_astrometry_output(item, fit_text_item)
 
-    # Clean up
+    # Clean up spurious files which astrometry.net leaves in /tmp
     os.system("rm -Rf /tmp/tmp.*")
 
     # Close database handles
@@ -585,7 +685,7 @@ WHERE publicId=%s;
 def average_daily_fits(conn, db, obstory_id, utc_max, utc_min):
     """
     Average all of the orientation fixes within a given time period, excluding extreme fits. Update the observatory's
-    status with a altitude and azimuth of the average fit.
+    status with a altitude and azimuth of the average fit, if it has a suitably small error bar.
 
     :param conn:
         Database connection object.
@@ -605,11 +705,17 @@ def average_daily_fits(conn, db, obstory_id, utc_max, utc_min):
     deg = pi / 180
     rad = 180 / pi
 
+    # Divide up the time period in which we are working into individual nights, and then work on each night individually
     logging.info("Averaging daily fits within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
+
+    # Each night is a 86400-second period
     block_size = 86400
-    utc_min = (floor(utc_min / block_size + 0.5) - 0.5) * block_size  # Make sure that blocks start at noon
+
+    # Make sure that blocks start at noon
+    utc_min = (floor(utc_min / block_size + 0.5) - 0.5) * block_size
     time_blocks = list(np.arange(start=utc_min, stop=utc_max + block_size, step=block_size))
-    # Start new block whenever we have a hardware refresh
+
+    # Start new block whenever we have a hardware refresh, even if it's in the middle of the night!
     conn.execute("""
 SELECT time FROM archive_metadata
 WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
@@ -619,12 +725,16 @@ WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
     results = conn.fetchall()
     for item in results:
         time_blocks.append(item['time'])
+
     # Make sure that start points for time blocks are in order
     time_blocks.sort()
+
+    # Work on each time block (i.e. night) in turn
     for block_index, utc_block_min in enumerate(time_blocks[:-1]):
+        # End point for this time block
         utc_block_max = time_blocks[block_index + 1]
 
-        # Select observations with orientation fits
+        # Search for observations with orientation fits
         conn.execute("""
 SELECT am1.floatValue AS altitude, am2.floatValue AS azimuth, am3.floatValue AS pa, am4.floatValue AS tilt,
        am5.floatValue AS width_x_field, am6.floatValue AS width_y_field
@@ -647,6 +757,7 @@ WHERE
 """, (obstory_id, utc_block_min, utc_block_max))
         results = conn.fetchall()
 
+        # Report how many images we found
         logging.info("Averaging fits within period {} to {}: Found {} fits.".format(date_string(utc_block_min),
                                                                                     date_string(utc_block_max),
                                                                                     len(results)))
@@ -666,7 +777,9 @@ WHERE
         # Iteratively remove the point furthest from the mean
         results_filtered = results
 
+        # Iteratively take the average of the fits, reject the furthest outlier, and then take a new average
         for iteration in range(rejection_count):
+            # Average the (alt, az) measurements for this observatory by finding their centroid on a sphere
             alt_az_list_r = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results_filtered]
             alt_az_best = mean_angle_2d(alt_az_list_r)[0]
 
@@ -679,18 +792,22 @@ WHERE
             fits_with_weights = list(zip(fit_offsets, results_filtered))
             fits_with_weights.sort(key=operator.itemgetter(0))
             fits_with_weights.reverse()
+
+            # Create a new list of orientation fits, with the worst outlier excluded
             results_filtered = [item[1] for item in fits_with_weights[1:]]
 
-        # Convert alt-az fits into radians and average
+        # Convert alt-az fits into radians and average by finding their centroid on a sphere
         alt_az_list_r = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results_filtered]
         [alt_az_best, alt_az_error] = mean_angle_2d(alt_az_list_r)
 
-        # Average other angles
+        # Average other angles by finding their centroid on a circle
         output_values = {}
         for quantity in ['tilt', 'pa', 'width_x_field', 'width_y_field']:
             # Iteratively remove the point furthest from the mean
             results_filtered = results
 
+            # Iteratively take the average of the values for each parameter, reject the furthest outlier,
+            # and then take a new average
             for iteration in range(rejection_count):
                 # Average quantity measurements
                 quantity_values = [i[quantity] * deg for i in results_filtered]
@@ -718,7 +835,7 @@ WHERE
             output_values[quantity] = value_best * rad
 
         # Print fit information
-        success = (alt_az_error * rad < 0.6)
+        success = (alt_az_error * rad < 0.1)  # Only accept determinations with better precision than 0.1 deg
         adjective = "SUCCESSFUL" if success else "REJECTED"
         logging.info("""\
 {} ORIENTATION FIT from {:2d} images: Alt: {:.2f} deg. Az: {:.2f} deg. PA: {:.2f} deg. \

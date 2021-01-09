@@ -22,18 +22,22 @@
 # -------------------------------------------------
 
 """
-This script is used to estimate the degree of lens distortion present in an
-image.
+
+*** USE OF THIS SCRIPT IS DEPRECATED. IT DOES NOT PRODUCE GOOD RESULTS. USE
+<calibrate_lens_from_star_list.py> INSTEAD ***
+
+This script models the radial lens distortion present in astronomical images.
+
+It does this by sending small cut-out sections of the image to astrometry.net,
+to see how the central coordinates of each section varies across the image.
+This is not very accurate.
 
 The best-fit parameter values are returned to the user. If they are believed to
-be good, you should set a status update on the observatory setting
-<barrel_parameters>. Then future observations will correct for this lens
-distortion.
+be good, you should record the lens distortion parameters in the file
+<pi-gazing/configuration_global/camera_properties/lenses.xml>. Then future
+analysis of images from the named lens will use the observations will correct
+for this lens distortion.
 
-You may also changed the values for your lens in the XML file
-<src/configuration_global/camera_properties> which means that future
-observatories set up with your model of lens will use your barrel correction
-coefficients.
 """
 
 import argparse

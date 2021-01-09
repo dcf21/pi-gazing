@@ -1,0 +1,44 @@
+# https://www.imo.net/members/imo_showers/working_shower_list
+
+<?xml version="1.0" encoding="utf-8"?>
+<meteor_shower_list>
+<shower id="26"><IAU_code>ORI</IAU_code><name>Orionid</name><start>Oct 02</start><end>Nov 07</end><peak>208.0</peak><RA>95.0000</RA><DE>16.0000</DE><V>66.0000</V><r>2.500</r><ZHR>15</ZHR></shower>
+<shower id="4"><IAU_code>QUA</IAU_code><name>Quadrantid</name><start>Dec 12</start><end>Jan 12</end><peak>283.2</peak><RA>230.0000</RA><DE>49.0000</DE><V>41.0000</V><r>2.100</r><ZHR>120</ZHR></shower>
+<shower id="1"><IAU_code>GUM</IAU_code><name>γ-Ursae Minorid</name><start>Jan 15</start><end>Jan 25</end><peak>299.0</peak><RA>229.0000</RA><DE>67.0000</DE><V>31.0000</V><r>3.000</r><ZHR>3</ZHR></shower>
+<shower id="5"><IAU_code>ACE</IAU_code><name>α-Centaurid</name><start>Jan 28</start><end>Feb 21</end><peak>319.2</peak><RA>210.0000</RA><DE>-59.0000</DE><V>56.0000</V><r>2.000</r><ZHR>6</ZHR></shower>
+<shower id="6"><IAU_code>GNO</IAU_code><name>γ-Normid</name><start>Feb 25</start><end>Mar 28</end><peak>354.0</peak><RA>239.0000</RA><DE>-50.0000</DE><V>56.0000</V><r>2.400</r><ZHR>6</ZHR></shower>
+<shower id="7"><IAU_code>LYR</IAU_code><name>Lyrid</name><start>Apr 16</start><end>Apr 25</end><peak>32.3</peak><RA>271.0000</RA><DE>34.0000</DE><V>49.0000</V><r>2.100</r><ZHR>18</ZHR></shower>
+<shower id="8"><IAU_code>PPU</IAU_code><name>π-Puppid</name><start>Apr 15</start><end>Apr 28</end><peak>33.5</peak><RA>110.0000</RA><DE>-45.0000</DE><V>18.0000</V><r>2.000</r><ZHR>0</ZHR></shower>
+<shower id="10"><IAU_code>ETA</IAU_code><name>η-Aquariid</name><start>Apr 19</start><end>May 28</end><peak>45.5</peak><RA>338.0000</RA><DE>-1.0000</DE><V>66.0000</V><r>2.400</r><ZHR>40</ZHR></shower>
+<shower id="11"><IAU_code>ELY</IAU_code><name>η-Lyrid</name><start>May 03</start><end>May 14</end><peak>48.0</peak><RA>287.0000</RA><DE>44.0000</DE><V>43.0000</V><r>3.000</r><ZHR>3</ZHR></shower>
+<shower id="12"><IAU_code>ARI</IAU_code><name>Daytime Arietid</name><start>Apr 14</start><end>Jun 24</end><peak>79.6</peak><RA>44.0000</RA><DE>24.0000</DE><V>38.0000</V><r>2.800</r><ZHR>50</ZHR></shower>
+<shower id="13"><IAU_code>JBO</IAU_code><name>June Bootid</name><start>Jun 22</start><end>Jul 02</end><peak>95.7</peak><RA>224.0000</RA><DE>48.0000</DE><V>18.0000</V><r>2.200</r><ZHR/></shower>
+<shower id="14"><IAU_code>PAU</IAU_code><name>Piscis Austrinid</name><start>Jul 15</start><end>Aug 10</end><peak>125.7</peak><RA>341.0000</RA><DE>-30.0000</DE><V>35.0000</V><r>3.200</r><ZHR>5</ZHR></shower>
+<shower id="15"><IAU_code>SDA</IAU_code><name>Southern δ-Aquariid</name><start>Jul 12</start><end>Aug 23</end><peak>127.0</peak><RA>340.0000</RA><DE>-16.0000</DE><V>41.0000</V><r>2.500</r><ZHR>25</ZHR></shower>
+<shower id="16"><IAU_code>CAP</IAU_code><name>α-Capricornid</name><start>Jul 03</start><end>Aug 15</end><peak>127.01</peak><RA>307.0000</RA><DE>-10.0000</DE><V>23.0000</V><r>2.500</r><ZHR>5</ZHR></shower>
+<shower id="17"><IAU_code>PER</IAU_code><name>Perseid</name><start>Jul 17</start><end>Aug 24</end><peak>140.0</peak><RA>48.0000</RA><DE>57.0000</DE><V>59.0000</V><r>2.200</r><ZHR>150</ZHR></shower>
+<shower id="18"><IAU_code>KCG</IAU_code><name>κ-Cygnid</name><start>Aug 03</start><end>Aug 25</end><peak>145.0</peak><RA>286.0000</RA><DE>59.0000</DE><V>25.0000</V><r>3.000</r><ZHR>3</ZHR></shower>
+<shower id="19"><IAU_code>AUR</IAU_code><name>Aurigid</name><start>Aug 28</start><end>Sep 05</end><peak>158.6</peak><RA>91.0000</RA><DE>39.0000</DE><V>66.0000</V><r>2.500</r><ZHR>6</ZHR></shower>
+<shower id="20"><IAU_code>SPE</IAU_code><name>September ε-Perseid</name><start>Sep 05</start><end>Sep 21</end><peak>166.7</peak><RA>48.0000</RA><DE>40.0000</DE><V>64.0000</V><r>3.000</r><ZHR>5</ZHR></shower>
+<shower id="21"><IAU_code>DSX</IAU_code><name>Daytime Sextantid</name><start>Sep 09</start><end>Oct 09</end><peak>184.3</peak><RA>152.0000</RA><DE>0.0000</DE><V>32.0000</V><r>2.500</r><ZHR>5</ZHR></shower>
+<shower id="44"><IAU_code>OCT</IAU_code><name>October Camelopardalid</name><start>Oct 05</start><end>Oct 06</end><peak>192.6</peak><RA>164.0000</RA><DE>79.0000</DE><V>46.0000</V><r>2.500</r><ZHR>0</ZHR></shower>
+<shower id="22"><IAU_code>DRA</IAU_code><name>Draconid</name><start>Oct 06</start><end>Oct 10</end><peak>195.4</peak><RA>262.0000</RA><DE>54.0000</DE><V>20.0000</V><r>2.600</r><ZHR/></shower>
+<shower id="23"><IAU_code>STA</IAU_code><name>Southern Taurid</name><start>Sep 10</start><end>Nov 20</end><peak>197.0</peak><RA>32.0000</RA><DE>9.0000</DE><V>27.0000</V><r>2.300</r><ZHR>5</ZHR></shower>
+<shower id="24"><IAU_code>DAU</IAU_code><name>δ-Aurigid</name><start>Oct 10</start><end>Oct 18</end><peak>198.0</peak><RA>84.0000</RA><DE>44.0000</DE><V>64.0000</V><r>3.000</r><ZHR>2</ZHR></shower>
+<shower id="25"><IAU_code>EGE</IAU_code><name>ε-Geminid</name><start>Oct 14</start><end>Oct 27</end><peak>205.0</peak><RA>102.0000</RA><DE>27.0000</DE><V>70.0000</V><r>3.000</r><ZHR>3</ZHR></shower>
+<shower id="27"><IAU_code>LMI</IAU_code><name>Leonis Minorid</name><start>Oct 19</start><end>Oct 27</end><peak>211.0</peak><RA>162.0000</RA><DE>37.0000</DE><V>62.0000</V><r>3.000</r><ZHR>2</ZHR></shower>
+<shower id="28"><IAU_code>NTA</IAU_code><name>Northern Taurid</name><start>Oct 20</start><end>Dec 10</end><peak>230.0</peak><RA>58.0000</RA><DE>22.0000</DE><V>29.0000</V><r>2.300</r><ZHR>5</ZHR></shower>
+<shower id="29"><IAU_code>LEO</IAU_code><name>Leonid</name><start>Nov 06</start><end>Nov 30</end><peak>235.3</peak><RA>152.0000</RA><DE>22.0000</DE><V>71.0000</V><r>2.500</r><ZHR>15</ZHR></shower>
+<shower id="30"><IAU_code>AMO</IAU_code><name>α-Monocerotid</name><start>Nov 15</start><end>Nov 25</end><peak>239.3</peak><RA>117.0000</RA><DE>1.0000</DE><V>65.0000</V><r>2.500</r><ZHR/></shower>
+<shower id="31"><IAU_code>NOO</IAU_code><name>November Orionid</name><start>Nov 13</start><end>Dec 06</end><peak>246.0</peak><RA>91.0000</RA><DE>16.0000</DE><V>44.0000</V><r>3.000</r><ZHR>3</ZHR></shower>
+<shower id="32"><IAU_code>PHO</IAU_code><name>Pheonicid</name><start>Nov 28</start><end>Dec 09</end><peak>250.0</peak><RA>18.0000</RA><DE>-53.0000</DE><V>18.0000</V><r>2.800</r><ZHR/></shower>
+<shower id="45"><IAU_code>DPC</IAU_code><name>December φ-Cassiopeid</name><start>Dec 01</start><end>Dec 08</end><peak>254.0</peak><RA>24.0000</RA><DE>50.0000</DE><V>16.0000</V><r>3.000</r><ZHR>0</ZHR></shower>
+<shower id="33"><IAU_code>PUP</IAU_code><name>Puppid-Velid</name><start>Dec 01</start><end>Dec 15</end><peak>255.0</peak><RA>123.0000</RA><DE>-45.0000</DE><V>40.0000</V><r>2.900</r><ZHR>10</ZHR></shower>
+<shower id="34"><IAU_code>MON</IAU_code><name>Monocerotid</name><start>Dec 05</start><end>Dec 20</end><peak>257.0</peak><RA>100.0000</RA><DE>8.0000</DE><V>41.0000</V><r>3.000</r><ZHR>2</ZHR></shower>
+<shower id="35"><IAU_code>HYD</IAU_code><name>σ-Hydrid</name><start>Dec 03</start><end>Dec 15</end><peak>260.0</peak><RA>127.0000</RA><DE>2.0000</DE><V>58.0000</V><r>3.000</r><ZHR>3</ZHR></shower>
+<shower id="36"><IAU_code>GEM</IAU_code><name>Geminid</name><start>Dec 04</start><end>Dec 17</end><peak>262.2</peak><RA>112.0000</RA><DE>33.0000</DE><V>35.0000</V><r>2.600</r><ZHR>120</ZHR></shower>
+<shower id="38"><IAU_code>COM</IAU_code><name>Comae Berenicid</name><start>Dec 12</start><end>Dec 23</end><peak>264.0</peak><RA>175.0000</RA><DE>18.0000</DE><V>65.0000</V><r>3.000</r><ZHR>3</ZHR></shower>
+<shower id="42"><IAU_code>DLM</IAU_code><name>December Leonis Minorid</name><start>Dec 05</start><end>Feb 04</end><peak>268.0</peak><RA>161.0000</RA><DE>30.0000</DE><V>64.0000</V><r>3.000</r><ZHR>5</ZHR></shower>
+<shower id="43"><IAU_code>URS</IAU_code><name>Ursid</name><start>Dec 17</start><end>Dec 26</end><peak>270.7</peak><RA>217.0000</RA><DE>76.0000</DE><V>33.0000</V><r>3.000</r><ZHR>10</ZHR></shower>
+</meteor_shower_list>
+
