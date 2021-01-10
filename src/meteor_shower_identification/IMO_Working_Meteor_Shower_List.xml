@@ -1,6 +1,5 @@
-# https://www.imo.net/members/imo_showers/working_shower_list
-
 <?xml version="1.0" encoding="utf-8"?>
+<!-- https://www.imo.net/members/imo_showers/working_shower_list -->
 <meteor_shower_list>
 <shower id="26"><IAU_code>ORI</IAU_code><name>Orionid</name><start>Oct 02</start><end>Nov 07</end><peak>208.0</peak><RA>95.0000</RA><DE>16.0000</DE><V>66.0000</V><r>2.500</r><ZHR>15</ZHR></shower>
 <shower id="4"><IAU_code>QUA</IAU_code><name>Quadrantid</name><start>Dec 12</start><end>Jan 12</end><peak>283.2</peak><RA>230.0000</RA><DE>49.0000</DE><V>41.0000</V><r>2.100</r><ZHR>120</ZHR></shower>
@@ -11,7 +10,7 @@
 <shower id="8"><IAU_code>PPU</IAU_code><name>π-Puppid</name><start>Apr 15</start><end>Apr 28</end><peak>33.5</peak><RA>110.0000</RA><DE>-45.0000</DE><V>18.0000</V><r>2.000</r><ZHR>0</ZHR></shower>
 <shower id="10"><IAU_code>ETA</IAU_code><name>η-Aquariid</name><start>Apr 19</start><end>May 28</end><peak>45.5</peak><RA>338.0000</RA><DE>-1.0000</DE><V>66.0000</V><r>2.400</r><ZHR>40</ZHR></shower>
 <shower id="11"><IAU_code>ELY</IAU_code><name>η-Lyrid</name><start>May 03</start><end>May 14</end><peak>48.0</peak><RA>287.0000</RA><DE>44.0000</DE><V>43.0000</V><r>3.000</r><ZHR>3</ZHR></shower>
-<shower id="12"><IAU_code>ARI</IAU_code><name>Daytime Arietid</name><start>Apr 14</start><end>Jun 24</end><peak>79.6</peak><RA>44.0000</RA><DE>24.0000</DE><V>38.0000</V><r>2.800</r><ZHR>50</ZHR></shower>
+<shower id="12"><IAU_code>ARI</IAU_code><name>Daytime Arietid</name><start>May 14</start><end>Jun 24</end><peak>79.6</peak><RA>44.0000</RA><DE>24.0000</DE><V>38.0000</V><r>2.800</r><ZHR>50</ZHR></shower>
 <shower id="13"><IAU_code>JBO</IAU_code><name>June Bootid</name><start>Jun 22</start><end>Jul 02</end><peak>95.7</peak><RA>224.0000</RA><DE>48.0000</DE><V>18.0000</V><r>2.200</r><ZHR/></shower>
 <shower id="14"><IAU_code>PAU</IAU_code><name>Piscis Austrinid</name><start>Jul 15</start><end>Aug 10</end><peak>125.7</peak><RA>341.0000</RA><DE>-30.0000</DE><V>35.0000</V><r>3.200</r><ZHR>5</ZHR></shower>
 <shower id="15"><IAU_code>SDA</IAU_code><name>Southern δ-Aquariid</name><start>Jul 12</start><end>Aug 23</end><peak>127.0</peak><RA>340.0000</RA><DE>-16.0000</DE><V>41.0000</V><r>2.500</r><ZHR>25</ZHR></shower>

@@ -37,9 +37,94 @@ import os
 import time
 
 from pigazing_helpers import connect_db, hardware_properties
-from pigazing_helpers.dcf_ast import date_string
+from pigazing_helpers.dcf_ast import month_name, unix_from_jd, julian_day, date_string
 from pigazing_helpers.obsarchive import obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
+from pigazing_helpers.vendor import xmltodict
+
+
+def longitude_offset(date_str: str, peak_longitude: float):
+    """
+    Return the solar longitude offset of the Sun's position on a date of the form "Jan 1" from peak_longitude.
+
+    :param date_str:
+        Date when we should calculate the solar longitude offset
+    :param peak_longitude:
+        Longitude of the Sun relative to which we calculate the offset on the day given by <date_str>, degrees
+    :return:
+        Longitude offset, degrees
+    """
+
+    # Decompose <date_str> into a month number and the day of the month
+    month_str = date_str.split()[0]
+    month_number = month_name.index(month_str) + 1
+    day_number = int(date_str.split()[1])
+
+    # Work out the unix time of noon on this day of the year in 2010
+    unix_time_2010 = unix_from_jd(julian_day(year=2010, month=month_number, day=day_number, hour=12, minute=0, sec=0))
+    equinox_2010 = unix_from_jd(julian_day(year=2010, month=3, day=20, hour=17, minute=30, sec=0))
+    year_length = 86400 * 365.2524
+
+    # Work out the separation of this unix time from the equinox in 2010 (when Sun is at zero longitude)
+    longitude_of_date = (unix_time_2010 - equinox_2010) / year_length * 360  # degrees
+
+    # Work out longitude offset, and ensure it is between -180 degrees and 180 degrees
+    longitude_offset = longitude_of_date - peak_longitude
+    while longitude_offset < -180:
+        longitude_offset += 360
+    while longitude_offset > 180:
+        longitude_offset -= 360
+
+    # Return result
+    return longitude_offset
+
+
+def read_shower_list():
+    """
+    Read the IMO working list of meteor showers from XML.
+
+    :return:
+        List of meteor showers
+    """
+
+    # Path to XML file
+    xml_path = os.path.join(
+        os.path.split(__file__)[0],
+        "IMO_Working_Meteor_Shower_List.xml"
+    )
+
+    # Open XML file
+    shower_list = xmltodict.parse(open(xml_path, "rb"))['meteor_shower_list']['shower']
+
+    # Extract data
+    output = []
+
+    for item in shower_list:
+        # Fix non-float values
+        if item['IAU_code'] == 'ANT':
+            continue
+        if ('ZHR' not in item) or (item['ZHR'] is None):
+            item['ZHR'] = 0
+
+        # Create descriptor for this meteor shower
+        shower_descriptor = {
+            'IAU_code': item['IAU_code'],
+            'name': item['name'],
+            'peak': float(item['peak']),  # longitude
+            'start': longitude_offset(item['start'], float(item['peak'])),
+            'end': longitude_offset(item['end'], float(item['peak'])),
+            'RA': float(item['RA']) * 12 / 180.,  # hours
+            'Decl': float(item['DE']),  # degrees
+            'v': float(item['V']),  # km/s
+            'zhr': float(item['ZHR'])
+        }
+
+        # Append to list of showers
+        logging.info(shower_descriptor)
+        output.append(shower_descriptor)
+
+    # Return output
+    return output
 
 
 def shower_determination(utc_min, utc_max):
@@ -57,6 +142,9 @@ def shower_determination(utc_min, utc_max):
     :return:
         None
     """
+
+    # Load list of meteor showers
+    shower_list = read_shower_list()
 
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
@@ -94,11 +182,11 @@ INNER JOIN archive_observations ao ON f.observationId = ao.uid
 INNER JOIN archive_observatories l ON ao.observatory = l.uid
 INNER JOIN archive_metadata am ON f.uid = am.fileId AND
     am.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:path")
-INNER JOIN archive_metadata am2 ON f.uid = am2.fileId AND
+INNER JOIN archive_metadata am2 ON ao.uid = am2.observationId AND
     am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="web:category")
 WHERE ao.obsTime BETWEEN %s AND %s
     AND f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name="pigazing:movingObject/video")
-    AND am2.stringValue > "Meteor"
+    AND am2.stringValue = "Meteor"
 ORDER BY ao.obsTime
 """, (utc_min, utc_max))
     results = conn.fetchall()
@@ -198,5 +286,4 @@ if __name__ == "__main__":
 
     # Estimate the parentage of meteors
     shower_determination(utc_min=args.utc_min,
-                         utc_max=args.utc_max,
-                         utc_must_stop=args.stop_by)
+                         utc_max=args.utc_max)
