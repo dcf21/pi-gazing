@@ -32,14 +32,19 @@ These models are then compared to determine the most likely meteor shower that t
 """
 
 import argparse
+import json
 import logging
 import os
 import time
+from math import pi, sin
 
 from pigazing_helpers import connect_db, hardware_properties
 from pigazing_helpers.dcf_ast import month_name, unix_from_jd, julian_day, date_string
+from pigazing_helpers.gnomonic_project import inv_gnom_project, position_angle, ang_dist
 from pigazing_helpers.obsarchive import obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
+from pigazing_helpers.sunset_times import alt_az, get_zenith_position, sun_pos, ra_dec
+from pigazing_helpers.vector_algebra import Vector
 from pigazing_helpers.vendor import xmltodict
 
 
@@ -196,6 +201,9 @@ ORDER BY ao.obsTime
 
     # Analyse each meteor in turn
     for item_index, item in enumerate(results):
+        # Fetch observatory's database record
+        obstory_info = db.get_obstory_from_id(obstory_id=item['observatory'])
+
         # Fetch observatory status at time of observation
         obstory_status = db.get_obstory_status(obstory_id=item['observatory'], time=item['obsTime'])
         if not obstory_status:
@@ -205,6 +213,155 @@ ORDER BY ao.obsTime
         # Fetch properties of the lens being used at the time of the observation
         lens_name = obstory_status['lens']
         lens_props = hw.lens_data[lens_name]
+
+        # Look up radial distortion model for the lens we are using
+        lens_barrel_parameters = obstory_status.get('calibration:lens_barrel_parameters', lens_props.barrel_parameters)
+        if isinstance(lens_barrel_parameters, str):
+            lens_barrel_parameters = json.loads(lens_barrel_parameters)
+
+        # Look up orientation of the camera
+        if 'orientation:altitude' in obstory_status:
+            orientation = {
+                'altitude': obstory_status['orientation:altitude'],
+                'azimuth': obstory_status['orientation:azimuth'],
+                'pa': obstory_status['orientation:pa'],
+                'tilt': obstory_status['orientation:tilt'],
+                'ang_width': obstory_status['orientation:width_x_field'],
+                'ang_height': obstory_status['orientation:width_y_field'],
+                'orientation_uncertainty': obstory_status['orientation:uncertainty'],
+                'pixel_width': None,
+                'pixel_height': None
+            }
+        else:
+            # We cannot identify meteors if we don't know which direction camera is pointing
+            logging.info("Orientation of camera unknown")
+            continue
+
+        # Look up size of camera sensor
+        if 'camera_width' in obstory_status:
+            orientation['pixel_width'] = obstory_status['camera_width']
+            orientation['pixel_height'] = obstory_status['camera_height']
+        else:
+            # We cannot identify meteors if we don't know camera field of view
+            logging.info("Pixel dimensions of video stream could not be determined")
+            continue
+
+        # Get celestial coordinates of the local zenith
+        ra_dec_zenith = get_zenith_position(latitude=obstory_info['latitude'],
+                                            longitude=obstory_info['longitude'],
+                                            utc=item['obsTime'])
+        ra_zenith = ra_dec_zenith['ra']
+        dec_zenith = ra_dec_zenith['dec']
+
+        # Calculate celestial coordinates of the centre of the field of view
+        central_ra, central_dec = ra_dec(alt=orientation['altitude'],
+                                         az=orientation['azimuth'],
+                                         utc=item['obsTime'],
+                                         latitude=obstory_info['latitude'],
+                                         longitude=obstory_info['longitude']
+                                         )
+
+        # Work out the position angle of the zenith, counterclockwise from north, as measured at centre of frame
+        zenith_pa = position_angle(ra1=central_ra, dec1=central_dec, ra2=ra_zenith, dec2=dec_zenith)
+
+        # Calculate the position angle of the north pole, clockwise from vertical, at the centre of the frame
+        celestial_pa = zenith_pa - orientation['tilt']
+        while celestial_pa < -180:
+            celestial_pa += 360
+        while celestial_pa > 180:
+            celestial_pa -= 360
+
+        # List of candidate showers this meteor might belong to
+        candidate_showers = []
+
+        # Test for each candidate meteor shower in turn
+        for shower in shower_list:
+            # Work out alt-az of the shower's radiant using known location of camera. Fits returned in degrees.
+            alt_az_pos = alt_az(ra=shower['RA'], dec=shower['Decl'],
+                                utc=item['obsTime'],
+                                latitude=obstory_info['latitude'], longitude=obstory_info['longitude'])
+
+            # Work out position of the Sun
+            sun_ra, sun_dec = sun_pos(utc=item['obsTime'])
+
+            # Offset from peak of shower
+            year = 365.2524
+            peak_offset = (sun_ra * 180 / 12. - shower['peak']) * year / 360  # days
+            while peak_offset < -year / 2:
+                peak_offset += year
+            while peak_offset > year / 2:
+                peak_offset -= year
+
+            start_offset = peak_offset + shower['start'] - 4
+            end_offset = peak_offset + shower['end'] + 4
+
+            # Estimate ZHR of shower at the time the meteor was observed
+            zhr = 0
+            if abs(peak_offset) < 2:
+                zhr = shower['zhr']  # Shower is within 2 days of maximum; use quoted peak ZHR value
+            if start_offset < 0 < end_offset:
+                zhr = max(zhr, 5)  # Shower is not at peak, but is active; assume ZHR=5
+
+            # Correct hourly rate for the altitude of the shower radiant
+            hourly_rate = zhr * sin(alt_az_pos[0] * pi / 180)
+
+            # If hourly rate is zero, this shower is not active
+            if hourly_rate <= 0:
+                # logging.info("Meteor shower <{}> has zero rate".format(shower['name']))
+                continue
+
+            # Work out path of meteor in RA, Dec (radians)
+            path_x_y = json.loads(item['path'])
+            path_ra_dec = [inv_gnom_project(ra0=central_ra * pi / 12, dec0=central_dec * pi / 180,
+                                            size_x=orientation['pixel_width'],
+                                            size_y=orientation['pixel_height'],
+                                            scale_x=orientation['ang_width'] * pi / 180,
+                                            scale_y=orientation['ang_height'] * pi / 180,
+                                            x=pt[0], y=pt[1],
+                                            pos_ang=celestial_pa * pi / 180,
+                                            barrel_k1=lens_barrel_parameters[2],
+                                            barrel_k2=lens_barrel_parameters[3],
+                                            barrel_k3=lens_barrel_parameters[4]
+                                            )
+                           for pt in path_x_y]
+
+            # Work out angular distance of meteor from radiant (radians)
+            path_radiant_sep = [ang_dist(ra0=pt[0], dec0=pt[1],
+                                         ra1=shower['RA'] * pi / 12, dec1=shower['Decl'] * pi / 180)
+                                for pt in path_ra_dec]
+            change_in_radiant_dist = path_radiant_sep[-1] - path_radiant_sep[0]  # radians
+
+            # Convert path to Cartesian coordinates on a unit sphere
+            path_cartesian = [Vector.from_ra_dec(ra=ra * 12 / pi, dec=dec * 180 / pi) for ra, dec in path_ra_dec]
+
+            # Work out cross product of first and last point, which is normal to path of meteors
+            first = path_cartesian[0]
+            last = path_cartesian[-1]
+            path_normal = first.cross_product(last)
+
+            # Work out angle of path normal to meteor shower radiant
+            radiant_cartesian = Vector.from_ra_dec(ra=shower['RA'], dec=shower['Decl'])
+            theta = path_normal.angle_with(radiant_cartesian)  # degrees
+
+            if theta > 90:
+                theta = 180 - theta
+
+            # What is the angular separation of the meteor's path's closest approach to the shower radiant?
+            radiant_angle = 90 - theta
+
+            # Store information about the likelihood this meteor belongs to this shower
+            candidate_showers.append({
+                'name': shower['name'],
+                'radiant_angle': radiant_angle,
+                'change_radiant_dist': change_in_radiant_dist,
+                'shower_rate': hourly_rate
+            })
+
+        # Report possibility meteor shower identifications
+        logging.info("{date} -- {showers}".format(
+            date=date_string(utc=item['obsTime']),
+            showers=json.dumps(candidate_showers)
+        ))
 
     # Report how many fits we achieved
     logging.info("Total of {:d} meteors successfully identified.".format(successful_fits))

@@ -318,8 +318,8 @@ def inv_gnom_project(ra0, dec0, size_x, size_y, scale_x, scale_y, x, y, pos_ang,
         return hypot(pos[0] - x, pos[1] - y)
 
     params_initial = [ra, dec]
-    params_optimised = scipy.optimize.minimize(mismatch_slave, params_initial, method='nelder-mead',
-                                               options={'xtol': 1e-8, 'disp': False, 'maxiter': 1e8, 'maxfev': 1e8}).x
+    params_optimised = scipy.optimize.minimize(mismatch_slave, params_initial,
+                                               options={'disp': False, 'maxiter': 1e8}).x
     # print "Position before barrel correction: (%s,%s)" % (ra, dec)
     # print "Position after barrel correction: (%s,%s)" % (params_optimised[0], params_optimised[1])
     return params_optimised
