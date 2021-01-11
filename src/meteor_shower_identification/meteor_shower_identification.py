@@ -35,8 +35,10 @@ import argparse
 import json
 import logging
 import os
+import scipy.stats
 import time
 from math import pi, sin
+from operator import itemgetter
 
 from pigazing_helpers import connect_db, hardware_properties
 from pigazing_helpers.dcf_ast import month_name, unix_from_jd, julian_day, date_string
@@ -125,7 +127,7 @@ def read_shower_list():
         }
 
         # Append to list of showers
-        logging.info(shower_descriptor)
+        # logging.info(shower_descriptor)
         output.append(shower_descriptor)
 
     # Return output
@@ -349,18 +351,44 @@ ORDER BY ao.obsTime
             # What is the angular separation of the meteor's path's closest approach to the shower radiant?
             radiant_angle = 90 - theta
 
+            # Work out likelihood metric that this meteor belongs to this shower
+            radiant_angle_std_dev = 2  # Allow 2 degree mismatch in radiant pos
+            likelihood = hourly_rate * scipy.stats.norm(loc=0, scale=radiant_angle_std_dev).pdf(radiant_angle)
+
             # Store information about the likelihood this meteor belongs to this shower
             candidate_showers.append({
                 'name': shower['name'],
+                'likelihood': likelihood,
                 'radiant_angle': radiant_angle,
                 'change_radiant_dist': change_in_radiant_dist,
                 'shower_rate': hourly_rate
             })
 
+        # Add model possibility for sporadic meteor
+        hourly_rate = 5
+        likelihood = hourly_rate * (1. / 90.)  # Mean value of Gaussian in range 0-90 degs
+        candidate_showers.append({
+            'name': "Sporadic",
+            'likelihood': likelihood,
+            'shower_rate': hourly_rate
+        })
+
+        # Renormalise likelihoods to sum to unity
+        sum_likelihood = sum(shower['likelihood'] for shower in candidate_showers)
+        for shower in candidate_showers:
+            shower['likelihood'] *= 100 / sum_likelihood
+
+        # Sort candidates by likelihood
+        candidate_showers.sort(key=itemgetter('likelihood'), reverse=True)
+
         # Report possibility meteor shower identifications
-        logging.info("{date} -- {showers}".format(
+        logging.info("{date} [{obs}] -- {showers}".format(
             date=date_string(utc=item['obsTime']),
-            showers=json.dumps(candidate_showers)
+            obs=item['observationId'],
+            showers=", ".join([
+                "{} {:.1f}%".format(shower['name'], shower['likelihood'])
+                for shower in candidate_showers
+            ])
         ))
 
     # Report how many fits we achieved
