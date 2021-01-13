@@ -43,7 +43,7 @@ from operator import itemgetter
 from pigazing_helpers import connect_db, hardware_properties
 from pigazing_helpers.dcf_ast import month_name, unix_from_jd, julian_day, date_string
 from pigazing_helpers.gnomonic_project import inv_gnom_project, position_angle, ang_dist
-from pigazing_helpers.obsarchive import obsarchive_db
+from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 from pigazing_helpers.sunset_times import alt_az, get_zenith_position, sun_pos, ra_dec
 from pigazing_helpers.vector_algebra import Vector
@@ -171,7 +171,11 @@ def shower_determination(utc_min, utc_max):
     db0.commit()
 
     # Count how many images we manage to successfully fit
-    successful_fits = 0
+    outcomes = {
+        'successful_fits': 0,
+        'error_records': 0,
+        'insufficient_information': 0
+    }
 
     # Read properties of known lenses, which give us the default radial distortion models to assume for them
     hw = hardware_properties.HardwareProps(
@@ -201,6 +205,9 @@ ORDER BY ao.obsTime
     # Display logging list of the images we are going to work on
     logging.info("Estimating the parents of {:d} meteors.".format(len(results)))
 
+    # Count how many meteors we find in each shower
+    meteor_count_by_shower = {}
+
     # Analyse each meteor in turn
     for item_index, item in enumerate(results):
         # Fetch observatory's database record
@@ -209,7 +216,12 @@ ORDER BY ao.obsTime
         # Fetch observatory status at time of observation
         obstory_status = db.get_obstory_status(obstory_id=item['observatory'], time=item['obsTime'])
         if not obstory_status:
-            logging.info("Aborting -- no observatory status available.")
+            # We cannot identify meteors if we don't have observatory status
+            logging.info("{date} [{obs}] -- No observatory status available".format(
+                date=date_string(utc=item['obsTime']),
+                obs=item['observationId']
+            ))
+            outcomes['insufficient_information'] += 1
             continue
 
         # Fetch properties of the lens being used at the time of the observation
@@ -236,7 +248,11 @@ ORDER BY ao.obsTime
             }
         else:
             # We cannot identify meteors if we don't know which direction camera is pointing
-            logging.info("Orientation of camera unknown")
+            logging.info("{date} [{obs}] -- Orientation of camera unknown".format(
+                date=date_string(utc=item['obsTime']),
+                obs=item['observationId']
+            ))
+            outcomes['insufficient_information'] += 1
             continue
 
         # Look up size of camera sensor
@@ -245,7 +261,11 @@ ORDER BY ao.obsTime
             orientation['pixel_height'] = obstory_status['camera_height']
         else:
             # We cannot identify meteors if we don't know camera field of view
-            logging.info("Pixel dimensions of video stream could not be determined")
+            logging.info("{date} [{obs}] -- Pixel dimensions of video stream could not be determined".format(
+                date=date_string(utc=item['obsTime']),
+                obs=item['observationId']
+            ))
+            outcomes['insufficient_information'] += 1
             continue
 
         # Get celestial coordinates of the local zenith
@@ -272,6 +292,30 @@ ORDER BY ao.obsTime
             celestial_pa += 360
         while celestial_pa > 180:
             celestial_pa -= 360
+
+        # Work out path of meteor in RA, Dec (radians)
+        try:
+            path_x_y = json.loads(item['path'])
+        except json.decoder.JSONDecodeError:
+            logging.info("{date} [{obs}] -- !!! JSON error".format(
+                date=date_string(utc=item['obsTime']),
+                obs=item['observationId']
+            ))
+            outcomes['error_records'] += 1
+            continue
+        path_len = len(path_x_y)
+        path_ra_dec = [inv_gnom_project(ra0=central_ra * pi / 12, dec0=central_dec * pi / 180,
+                                        size_x=orientation['pixel_width'],
+                                        size_y=orientation['pixel_height'],
+                                        scale_x=orientation['ang_width'] * pi / 180,
+                                        scale_y=orientation['ang_height'] * pi / 180,
+                                        x=pt[0], y=pt[1],
+                                        pos_ang=celestial_pa * pi / 180,
+                                        barrel_k1=lens_barrel_parameters[2],
+                                        barrel_k2=lens_barrel_parameters[3],
+                                        barrel_k3=lens_barrel_parameters[4]
+                                        )
+                       for pt in path_x_y]
 
         # List of candidate showers this meteor might belong to
         candidate_showers = []
@@ -312,26 +356,15 @@ ORDER BY ao.obsTime
                 # logging.info("Meteor shower <{}> has zero rate".format(shower['name']))
                 continue
 
-            # Work out path of meteor in RA, Dec (radians)
-            path_x_y = json.loads(item['path'])
-            path_ra_dec = [inv_gnom_project(ra0=central_ra * pi / 12, dec0=central_dec * pi / 180,
-                                            size_x=orientation['pixel_width'],
-                                            size_y=orientation['pixel_height'],
-                                            scale_x=orientation['ang_width'] * pi / 180,
-                                            scale_y=orientation['ang_height'] * pi / 180,
-                                            x=pt[0], y=pt[1],
-                                            pos_ang=celestial_pa * pi / 180,
-                                            barrel_k1=lens_barrel_parameters[2],
-                                            barrel_k2=lens_barrel_parameters[3],
-                                            barrel_k3=lens_barrel_parameters[4]
-                                            )
-                           for pt in path_x_y]
-
             # Work out angular distance of meteor from radiant (radians)
             path_radiant_sep = [ang_dist(ra0=pt[0], dec0=pt[1],
                                          ra1=shower['RA'] * pi / 12, dec1=shower['Decl'] * pi / 180)
                                 for pt in path_ra_dec]
             change_in_radiant_dist = path_radiant_sep[-1] - path_radiant_sep[0]  # radians
+
+            # Reject meteors that travel *towards* the radiant
+            if change_in_radiant_dist < 0:
+                continue
 
             # Convert path to Cartesian coordinates on a unit sphere
             path_cartesian = [Vector.from_ra_dec(ra=ra * 12 / pi, dec=dec * 180 / pi) for ra, dec in path_ra_dec]
@@ -359,7 +392,7 @@ ORDER BY ao.obsTime
             candidate_showers.append({
                 'name': shower['name'],
                 'likelihood': likelihood,
-                'radiant_angle': radiant_angle,
+                'offset': radiant_angle,
                 'change_radiant_dist': change_in_radiant_dist,
                 'shower_rate': hourly_rate
             })
@@ -370,6 +403,7 @@ ORDER BY ao.obsTime
         candidate_showers.append({
             'name': "Sporadic",
             'likelihood': likelihood,
+            'offset': 0,
             'shower_rate': hourly_rate
         })
 
@@ -386,13 +420,54 @@ ORDER BY ao.obsTime
             date=date_string(utc=item['obsTime']),
             obs=item['observationId'],
             showers=", ".join([
-                "{} {:.1f}%".format(shower['name'], shower['likelihood'])
+                "{} {:.1f}% ({:.1f} deg offset)".format(shower['name'], shower['likelihood'], shower['offset'])
                 for shower in candidate_showers
             ])
         ))
 
+        # Identify most likely shower
+        most_likely_shower = candidate_showers[0]['name']
+
+        # Update tally of meteors
+        if most_likely_shower not in meteor_count_by_shower:
+            meteor_count_by_shower[most_likely_shower] = 0
+        meteor_count_by_shower[most_likely_shower] += 1
+
+        # Store meteor identification
+        user = settings['pigazingUser']
+        timestamp = time.time()
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
+                                    meta=mp.Meta(key="shower:name", value=most_likely_shower))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
+                                    meta=mp.Meta(key="shower:radiant_offset", value=candidate_showers[0]['offset']))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
+                                    meta=mp.Meta(key="shower:path_length",
+                                                 value=ang_dist(ra0=path_ra_dec[0][0], dec0=path_ra_dec[0][1],
+                                                                ra1=path_ra_dec[-1][0], dec1=path_ra_dec[-1][0]
+                                                                ) * 180 / pi
+                                                 ))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
+                                    meta=mp.Meta(key="shower:path_ra_dec",
+                                                 value="[[{:.3f},{:.3f}],[{:.3f},{:.3f}],[{:.3f},{:.3f}]]".format(
+                                                     path_ra_dec[0][0] * 12 / pi, path_ra_dec[0][1] * 180 / pi,
+                                                     path_ra_dec[int(path_len / 2)][0] * 12 / pi,
+                                                     path_ra_dec[int(path_len / 2)][1] * 180 / pi,
+                                                     path_ra_dec[-1][0] * 12 / pi, path_ra_dec[-1][1] * 180 / pi,
+                                                 )
+                                                 ))
+
+        # Meteor successfully identified
+        outcomes['successful_fits'] += 1
+
     # Report how many fits we achieved
-    logging.info("Total of {:d} meteors successfully identified.".format(successful_fits))
+    logging.info("{:d} meteors successfully identified.".format(outcomes['successful_fits']))
+    logging.info("{:d} malformed database records.".format(outcomes['error_records']))
+    logging.info("{:d} meteors with incomplete data.".format(outcomes['insufficient_information']))
+
+    # Report tally of meteors
+    logging.info("Tally of meteors by shower:")
+    for shower in sorted(meteor_count_by_shower.keys()):
+        logging.info("    * {:32s}: {:6d}".format(shower, meteor_count_by_shower[shower]))
 
     # Clean up and exit
     db.commit()
