@@ -136,7 +136,7 @@ WHERE
     return
 
 
-# If we're called as a script, run the method orientationCalc()
+# If we're called as a script, run the method list_orientation_fixes()
 if __name__ == "__main__":
     # Read command-line arguments
     parser = argparse.ArgumentParser(description=__doc__)
