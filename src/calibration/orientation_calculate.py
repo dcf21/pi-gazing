@@ -43,26 +43,26 @@ status to reflect the new orientation fix.
 """
 
 import argparse
+import json
 import logging
 import math
+import operator
 import os
 import re
-import dask
-import json
 import subprocess
 import time
-import operator
 from math import pi, floor
 from operator import itemgetter
 
+import dask
 import numpy as np
 from pigazing_helpers import connect_db, gnomonic_project, hardware_properties
-from pigazing_helpers.dcf_ast import date_string
+from pigazing_helpers.dcf_ast import date_string, ra_dec_from_j2000, ra_dec_to_j2000
+from pigazing_helpers.gnomonic_project import ang_dist
 from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db, obsarchive_sky_area
+from pigazing_helpers.obsarchive.obsarchive_sky_area import get_sky_area
 from pigazing_helpers.settings_read import settings, installation_info
 from pigazing_helpers.sunset_times import alt_az, get_zenith_position, mean_angle, mean_angle_2d
-from pigazing_helpers.gnomonic_project import ang_dist
-from pigazing_helpers.obsarchive.obsarchive_sky_area import get_sky_area
 
 
 def image_dimensions(in_file):
@@ -429,10 +429,13 @@ WHERE publicId=%s;
             logging.info("FAIL(POS): {}".format(log_msg))
             return 0
 
+        # Extract RA of centre of the image, in hours, J2000
         ra_sign = sgn(float(test.group(1)))
         ra = abs(float(test.group(1))) + float(test.group(2)) / 60 + float(test.group(3)) / 3600
         if ra_sign < 0:
             ra *= -1
+
+        # Extract declination of centre of the image, in degrees, J2000
         dec_sign = sgn(float(test.group(4)))
         dec = abs(float(test.group(4))) + float(test.group(5)) / 60 + float(test.group(6)) / 3600
         if dec_sign < 0:
@@ -442,19 +445,19 @@ WHERE publicId=%s;
             logging.info("FAIL(PA ): {}".format(log_msg))
             return 0
 
-        # celestial_pa is the position angle of the upward vector in the centre of the image, counterclockwise
-        #  from celestial north.
+        # celestial_pa_j2000 is the position angle of the upward vector in the centre of the image, counterclockwise
+        #  from celestial north (J2000).
         # * It is zero if the pole star is vertical above the centre of the image.
         # * If the pole star is in the top-right of an image, expect it to be around -45 degrees.
-        celestial_pa = float(test.group(1))
+        celestial_pa_j2000 = float(test.group(1))
         # * This 180 degree rotation appears because when astrometry.net says "up" it means the bottom of the image!
-        celestial_pa += 180
+        celestial_pa_j2000 += 180
         if test.group(2) == "W":
-            celestial_pa *= -1
-        while celestial_pa > 180:
-            celestial_pa -= 360
-        while celestial_pa < -180:
-            celestial_pa += 360
+            celestial_pa_j2000 *= -1
+        while celestial_pa_j2000 > 180:
+            celestial_pa_j2000 -= 360
+        while celestial_pa_j2000 < -180:
+            celestial_pa_j2000 += 360
         test = re.search(r"Field size: ([\d\.]*) x ([\d\.]*) deg", fit_text)
         if not test:
             logging.info("FAIL(SIZ): {}".format(log_msg))
@@ -464,23 +467,33 @@ WHERE publicId=%s;
         scale_x = 2 * math.atan(math.tan(float(test.group(1)) / 2 * deg) / fraction_x) * rad
         scale_y = 2 * math.atan(math.tan(float(test.group(2)) / 2 * deg) / fraction_y) * rad
 
+        # Convert coordinates of the centre of the frame from J2000 (as output from astrometry.net) to epoch
+        # hours / degrees at epoch
+        ra_at_epoch, dec_at_epoch = ra_dec_from_j2000(ra0=ra, dec0=dec, utc_new=item['utc'])
+
         # Work out alt-az of reported (RA,Dec) using known location of camera. Fits returned in degrees.
-        alt_az_pos = alt_az(ra=ra, dec=dec, utc=item['utc'],
+        alt_az_pos = alt_az(ra=ra_at_epoch, dec=dec_at_epoch, utc=item['utc'],
                             latitude=obstory_info['latitude'], longitude=obstory_info['longitude'])
 
         # Get celestial coordinates of the local zenith
-        ra_dec_zenith = get_zenith_position(latitude=obstory_info['latitude'],
+        ra_dec_zenith_at_epoch = get_zenith_position(latitude=obstory_info['latitude'],
                                             longitude=obstory_info['longitude'],
                                             utc=item['utc'])
-        ra_zenith = ra_dec_zenith['ra']
-        dec_zenith = ra_dec_zenith['dec']
+        ra_zenith_at_epoch = ra_dec_zenith_at_epoch['ra']  # hours, epoch of observation
+        dec_zenith_at_epoch = ra_dec_zenith_at_epoch['dec']  # degrees, epoch of observation
+
+        ra_zenith_j2000, dec_zenith_j2000 = ra_dec_to_j2000(ra1=ra_zenith_at_epoch,
+                                                            dec1=dec_zenith_at_epoch,
+                                                            utc_old=item['utc'])
 
         # Work out the position angle of the zenith, counterclockwise from north, as measured at centre of frame
-        zenith_pa = gnomonic_project.position_angle(ra1=ra, dec1=dec, ra2=ra_zenith, dec2=dec_zenith)
+        # degrees, for J2000 north pole
+        zenith_pa_j2000 = gnomonic_project.position_angle(ra1=ra, dec1=dec,
+                                                          ra2=ra_zenith_j2000, dec2=dec_zenith_j2000)
 
         # Calculate the position angle of the zenith, clockwise from vertical, at the centre of the frame
         # If the camera is roughly upright, this ought to be close to zero!
-        camera_tilt = zenith_pa - celestial_pa
+        camera_tilt = zenith_pa_j2000 - celestial_pa_j2000
         while camera_tilt < -180:
             camera_tilt += 360
         while camera_tilt > 180:
@@ -491,11 +504,14 @@ WHERE publicId=%s;
         logging.info("FIT      : RA: {:7.2f}h. Dec {:7.2f} deg. PA {:6.1f} deg. ScaleX {:6.1f}. ScaleY {:6.1f}. "
                      "Zenith at ({:.2f} h,{:.2f} deg). PA Zenith {:.2f} deg. "
                      "Alt: {:7.2f} deg. Az: {:7.2f} deg. Tilt: {:7.2f} deg.".format
-                     (ra, dec, celestial_pa, scale_x, scale_y, ra_zenith, dec_zenith, zenith_pa,
-                      alt_az_pos[0], alt_az_pos[1], camera_tilt))
+                     (ra, dec, celestial_pa_j2000,
+                      scale_x, scale_y,
+                      ra_zenith_j2000, dec_zenith_j2000, zenith_pa_j2000,
+                      alt_az_pos[0], alt_az_pos[1],
+                      camera_tilt))
 
         # Get a polygon representing the sky area of this image
-        sky_area = get_sky_area(ra=ra, dec=dec, pa=celestial_pa, scale_x=scale_x, scale_y=scale_y)
+        sky_area = get_sky_area(ra=ra, dec=dec, pa=celestial_pa_j2000, scale_x=scale_x, scale_y=scale_y)
 
         # Update observation database record to reflect the orientation returned by astrometry.net
         timestamp = time.time()
@@ -506,7 +522,7 @@ UPDATE archive_observations SET position=POINT(%s,%s), positionAngle=%s,
                                 astrometryProcessed=%s, astrometryProcessingTime=%s,
                                 skyArea=ST_GEOMFROMTEXT(%s)
 WHERE publicId=%s;
-                     """, (ra, dec, celestial_pa,
+                     """, (ra, dec, celestial_pa_j2000,
                            alt_az_pos[1], alt_az_pos[0], camera_tilt,
                            scale_x, scale_y,
                            timestamp, astrometry_time_taken,
@@ -521,7 +537,7 @@ WHERE publicId=%s;
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:dec", value=dec))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="orientation:pa", value=celestial_pa))
+                                    meta=mp.Meta(key="orientation:pa", value=celestial_pa_j2000))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="orientation:altitude", value=alt_az_pos[0]))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
@@ -536,7 +552,6 @@ WHERE publicId=%s;
 
         # Return number of successful fits
         return 1
-
 
     # Open connection to database
     [db0, conn] = connect_db.connect_db()

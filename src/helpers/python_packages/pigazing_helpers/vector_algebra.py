@@ -75,7 +75,10 @@ class Point:
     def from_lat_lng(lat, lng, alt, utc):
         lat *= pi / 180
         lng *= pi / 180
-        st = sidereal_time(utc) * pi / 12
+        if utc is not None:
+            st = sidereal_time(utc) * pi / 12
+        else:
+            st = 0
         r_earth = 6371e3
         r = r_earth + alt
         x = r * cos(lng + st) * cos(lat)

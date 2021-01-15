@@ -35,13 +35,13 @@ import argparse
 import json
 import logging
 import os
-import scipy.stats
 import time
 from math import pi, sin
 from operator import itemgetter
 
+import scipy.stats
 from pigazing_helpers import connect_db, hardware_properties
-from pigazing_helpers.dcf_ast import month_name, unix_from_jd, julian_day, date_string
+from pigazing_helpers.dcf_ast import month_name, unix_from_jd, julian_day, date_string, ra_dec_from_j2000
 from pigazing_helpers.gnomonic_project import inv_gnom_project, position_angle, ang_dist
 from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
@@ -269,31 +269,34 @@ ORDER BY ao.obsTime
             continue
 
         # Get celestial coordinates of the local zenith
-        ra_dec_zenith = get_zenith_position(latitude=obstory_info['latitude'],
-                                            longitude=obstory_info['longitude'],
-                                            utc=item['obsTime'])
-        ra_zenith = ra_dec_zenith['ra']
-        dec_zenith = ra_dec_zenith['dec']
+        ra_dec_zenith_at_epoch = get_zenith_position(latitude=obstory_info['latitude'],
+                                                     longitude=obstory_info['longitude'],
+                                                     utc=item['obsTime'])
+        ra_zenith_at_epoch = ra_dec_zenith_at_epoch['ra']  # hours, epoch of observation
+        dec_zenith_at_epoch = ra_dec_zenith_at_epoch['dec']  # degrees, epoch of observation
 
         # Calculate celestial coordinates of the centre of the field of view
-        central_ra, central_dec = ra_dec(alt=orientation['altitude'],
-                                         az=orientation['azimuth'],
-                                         utc=item['obsTime'],
-                                         latitude=obstory_info['latitude'],
-                                         longitude=obstory_info['longitude']
-                                         )
+        # hours / degrees, epoch of observation
+        central_ra_at_epoch, central_dec_at_epoch = ra_dec(alt=orientation['altitude'],
+                                                           az=orientation['azimuth'],
+                                                           utc=item['obsTime'],
+                                                           latitude=obstory_info['latitude'],
+                                                           longitude=obstory_info['longitude']
+                                                           )
 
         # Work out the position angle of the zenith, counterclockwise from north, as measured at centre of frame
-        zenith_pa = position_angle(ra1=central_ra, dec1=central_dec, ra2=ra_zenith, dec2=dec_zenith)
+        # degrees for north pole at epoch
+        zenith_pa_at_epoch = position_angle(ra1=central_ra_at_epoch, dec1=central_dec_at_epoch,
+                                            ra2=ra_zenith_at_epoch, dec2=dec_zenith_at_epoch)
 
         # Calculate the position angle of the north pole, clockwise from vertical, at the centre of the frame
-        celestial_pa = zenith_pa - orientation['tilt']
-        while celestial_pa < -180:
-            celestial_pa += 360
-        while celestial_pa > 180:
-            celestial_pa -= 360
+        celestial_pa_at_epoch = zenith_pa_at_epoch - orientation['tilt']
+        while celestial_pa_at_epoch < -180:
+            celestial_pa_at_epoch += 360
+        while celestial_pa_at_epoch > 180:
+            celestial_pa_at_epoch -= 360
 
-        # Work out path of meteor in RA, Dec (radians)
+        # Read path of the moving object in pixel coordinates
         try:
             path_x_y = json.loads(item['path'])
         except json.decoder.JSONDecodeError:
@@ -303,36 +306,62 @@ ORDER BY ao.obsTime
             ))
             outcomes['error_records'] += 1
             continue
+
+        # Convert path of moving objects into RA / Dec (radians, at epoch of observation)
         path_len = len(path_x_y)
-        path_ra_dec = [inv_gnom_project(ra0=central_ra * pi / 12, dec0=central_dec * pi / 180,
-                                        size_x=orientation['pixel_width'],
-                                        size_y=orientation['pixel_height'],
-                                        scale_x=orientation['ang_width'] * pi / 180,
-                                        scale_y=orientation['ang_height'] * pi / 180,
-                                        x=pt[0], y=pt[1],
-                                        pos_ang=celestial_pa * pi / 180,
-                                        barrel_k1=lens_barrel_parameters[2],
-                                        barrel_k2=lens_barrel_parameters[3],
-                                        barrel_k3=lens_barrel_parameters[4]
-                                        )
-                       for pt in path_x_y]
+        path_ra_dec_at_epoch = []
+        for pt_x, pt_y, pt_intensity, pt_utc in path_x_y:
+            # Calculate celestial coordinates of the centre of the field of view
+            # hours / degrees, epoch of observation
+            instantaneous_central_ra_at_epoch, instantaneous_central_dec_at_epoch = ra_dec(
+                alt=orientation['altitude'],
+                az=orientation['azimuth'],
+                utc=pt_utc,
+                latitude=obstory_info['latitude'],
+                longitude=obstory_info['longitude']
+            )
+
+            # Calculate RA / Dec of observed position, at observed time
+            path_ra_dec_at_epoch.append(
+                inv_gnom_project(ra0=instantaneous_central_ra_at_epoch * pi / 12,
+                                 dec0=instantaneous_central_dec_at_epoch * pi / 180,
+                                 size_x=orientation['pixel_width'],
+                                 size_y=orientation['pixel_height'],
+                                 scale_x=orientation['ang_width'] * pi / 180,
+                                 scale_y=orientation['ang_height'] * pi / 180,
+                                 x=pt_x, y=pt_y,
+                                 pos_ang=celestial_pa_at_epoch * pi / 180,
+                                 barrel_k1=lens_barrel_parameters[2],
+                                 barrel_k2=lens_barrel_parameters[3],
+                                 barrel_k3=lens_barrel_parameters[4]
+                                 )
+            )
 
         # List of candidate showers this meteor might belong to
         candidate_showers = []
 
         # Test for each candidate meteor shower in turn
         for shower in shower_list:
+            # Work out celestial coordinates of shower radiant in RA/Dec in hours/degs of epoch
+            radiant_ra_at_epoch, radiant_dec_at_epoch = ra_dec_from_j2000(ra0=shower['RA'],
+                                                                          dec0=shower['Decl'],
+                                                                          utc_new=item['obsTime'])
+
             # Work out alt-az of the shower's radiant using known location of camera. Fits returned in degrees.
-            alt_az_pos = alt_az(ra=shower['RA'], dec=shower['Decl'],
+            alt_az_pos = alt_az(ra=radiant_ra_at_epoch, dec=radiant_dec_at_epoch,
                                 utc=item['obsTime'],
                                 latitude=obstory_info['latitude'], longitude=obstory_info['longitude'])
 
-            # Work out position of the Sun
-            sun_ra, sun_dec = sun_pos(utc=item['obsTime'])
+            # Work out position of the Sun (J2000)
+            sun_ra_j2000, sun_dec_j2000 = sun_pos(utc=item['obsTime'])
+
+            # Work out position of the Sun (RA, Dec of epoch)
+            sun_ra_at_epoch, sun_dec_at_epoch = ra_dec_from_j2000(ra0=sun_ra_j2000, dec0=sun_dec_j2000,
+                                                                  utc_new=item['obsTime'])
 
             # Offset from peak of shower
             year = 365.2524
-            peak_offset = (sun_ra * 180 / 12. - shower['peak']) * year / 360  # days
+            peak_offset = (sun_ra_at_epoch * 180 / 12. - shower['peak']) * year / 360  # days
             while peak_offset < -year / 2:
                 peak_offset += year
             while peak_offset > year / 2:
@@ -358,8 +387,8 @@ ORDER BY ao.obsTime
 
             # Work out angular distance of meteor from radiant (radians)
             path_radiant_sep = [ang_dist(ra0=pt[0], dec0=pt[1],
-                                         ra1=shower['RA'] * pi / 12, dec1=shower['Decl'] * pi / 180)
-                                for pt in path_ra_dec]
+                                         ra1=radiant_ra_at_epoch * pi / 12, dec1=radiant_dec_at_epoch * pi / 180)
+                                for pt in path_ra_dec_at_epoch]
             change_in_radiant_dist = path_radiant_sep[-1] - path_radiant_sep[0]  # radians
 
             # Reject meteors that travel *towards* the radiant
@@ -367,7 +396,8 @@ ORDER BY ao.obsTime
                 continue
 
             # Convert path to Cartesian coordinates on a unit sphere
-            path_cartesian = [Vector.from_ra_dec(ra=ra * 12 / pi, dec=dec * 180 / pi) for ra, dec in path_ra_dec]
+            path_cartesian = [Vector.from_ra_dec(ra=ra * 12 / pi, dec=dec * 180 / pi)
+                              for ra, dec in path_ra_dec_at_epoch]
 
             # Work out cross product of first and last point, which is normal to path of meteors
             first = path_cartesian[0]
@@ -375,7 +405,7 @@ ORDER BY ao.obsTime
             path_normal = first.cross_product(last)
 
             # Work out angle of path normal to meteor shower radiant
-            radiant_cartesian = Vector.from_ra_dec(ra=shower['RA'], dec=shower['Decl'])
+            radiant_cartesian = Vector.from_ra_dec(ra=radiant_ra_at_epoch, dec=radiant_dec_at_epoch)
             theta = path_normal.angle_with(radiant_cartesian)  # degrees
 
             if theta > 90:
@@ -442,17 +472,21 @@ ORDER BY ao.obsTime
                                     meta=mp.Meta(key="shower:radiant_offset", value=candidate_showers[0]['offset']))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="shower:path_length",
-                                                 value=ang_dist(ra0=path_ra_dec[0][0], dec0=path_ra_dec[0][1],
-                                                                ra1=path_ra_dec[-1][0], dec1=path_ra_dec[-1][0]
+                                                 value=ang_dist(ra0=path_ra_dec_at_epoch[0][0],
+                                                                dec0=path_ra_dec_at_epoch[0][1],
+                                                                ra1=path_ra_dec_at_epoch[-1][0],
+                                                                dec1=path_ra_dec_at_epoch[-1][0]
                                                                 ) * 180 / pi
                                                  ))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="shower:path_ra_dec",
                                                  value="[[{:.3f},{:.3f}],[{:.3f},{:.3f}],[{:.3f},{:.3f}]]".format(
-                                                     path_ra_dec[0][0] * 12 / pi, path_ra_dec[0][1] * 180 / pi,
-                                                     path_ra_dec[int(path_len / 2)][0] * 12 / pi,
-                                                     path_ra_dec[int(path_len / 2)][1] * 180 / pi,
-                                                     path_ra_dec[-1][0] * 12 / pi, path_ra_dec[-1][1] * 180 / pi,
+                                                     path_ra_dec_at_epoch[0][0] * 12 / pi,
+                                                     path_ra_dec_at_epoch[0][1] * 180 / pi,
+                                                     path_ra_dec_at_epoch[int(path_len / 2)][0] * 12 / pi,
+                                                     path_ra_dec_at_epoch[int(path_len / 2)][1] * 180 / pi,
+                                                     path_ra_dec_at_epoch[-1][0] * 12 / pi,
+                                                     path_ra_dec_at_epoch[-1][1] * 180 / pi,
                                                  )
                                                  ))
 

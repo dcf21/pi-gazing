@@ -32,17 +32,74 @@ import os
 import time
 from math import pi
 
+import numpy
+import scipy.optimize
 from pigazing_helpers import connect_db, hardware_properties
 from pigazing_helpers.dcf_ast import date_string
 from pigazing_helpers.gnomonic_project import inv_gnom_project, position_angle
 from pigazing_helpers.obsarchive import obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
-from pigazing_helpers.sunset_times import get_zenith_position, ra_dec
+from pigazing_helpers.sunset_times import get_zenith_position, sidereal_time, ra_dec, alt_az
+from pigazing_helpers.vector_algebra import Point, Vector, Line
 
+# The semantic type for observation groups which contain groups of simultaneous object sightings from multiple
+# observatories
 simultaneous_event_type = "pigazing:simultaneous"
+
+# List of all sight lines to the moving object we are currently fitting
+sight_line_list = []
+
+
+def line_from_parameters(p):
+    """
+    Construct a Line object based on five free parameters contained in the vector p.
+
+    :param p:
+        Vector with at least five components.
+    :return:
+        Parameterised Line object
+    """
+
+    # Starting point for line
+    x0 = Point(p[0] * 1000, p[1] * 1000, 0)
+
+    # Direction for line
+    d = Vector.from_ra_dec(p[2], p[3])
+
+    # Combining starting point and direction into a single object
+    trajectory = Line(x0=x0, direction=d)
+    return trajectory
+
+
+def angular_mismatch_slave(p):
+    """
+    Objective function that we minimise in order to fit a linear trajectory to all the recorded sight lines to a
+    moving object.
+
+    :param p:
+        Vector with at least five components.
+    :return:
+        Mismatch of trial trajectory from recorded sight lines
+    """
+
+    global sight_line_list
+
+    # Turn input parameters into a Line object
+    trajectory = line_from_parameters(p)
+
+    # Sum the angular offset of each observed position of the object from predicted position
+    mismatch = 0
+    for sight in sight_line_list:
+        # Find point of closest approach between the observed sight line and the trial trajectory for the object
+        closest_point = trajectory.find_closest_approach(sight['line'])
+        mismatch += closest_point['angular_distance']
+    return mismatch
 
 
 def do_triangulation(utc_min, utc_max, utc_must_stop):
+    # We need to share the list of sight lines to each moving object with the objective function that we minimise
+    global sight_line_list
+
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
 
@@ -127,6 +184,14 @@ ORDER BY o.obsTime;
 
     # Loop over list of simultaneous event detections
     for group_info in obs_group_ids:
+        # If we've run out of time, stop now
+        time_now = time.time()
+        if time_now > utc_must_stop:
+            break
+
+        # Make a list of all our sight-lines to this object
+        sight_line_list = []
+
         # Fetch information about each observation in turn
         for item in obs_groups[group_info['groupId']]:
             # Fetch observatory's database record
@@ -192,42 +257,52 @@ ORDER BY o.obsTime;
                 outcomes['insufficient_information'] += 1
                 continue
 
+            # Position of observatory in Cartesian coordinates, relative to centre of the Earth
+            # Units: metres; zero longitude along x axis
+            observatory_position = Point.from_lat_lng(lat=obstory_info['latitude'],
+                                                      lng=obstory_info['longitude'],
+                                                      alt=obstory_info['altitude'],
+                                                      utc=None)
+
             # Get celestial coordinates of the local zenith
-            ra_dec_zenith = get_zenith_position(latitude=obstory_info['latitude'],
-                                                longitude=obstory_info['longitude'],
-                                                utc=item['obsTime'])
-            ra_zenith = ra_dec_zenith['ra']
-            dec_zenith = ra_dec_zenith['dec']
+            ra_dec_zenith_at_epoch = get_zenith_position(latitude=obstory_info['latitude'],
+                                                         longitude=obstory_info['longitude'],
+                                                         utc=item['obsTime'])
+            ra_zenith_at_epoch = ra_dec_zenith_at_epoch['ra']  # hours, epoch of observation
+            dec_zenith_at_epoch = ra_dec_zenith_at_epoch['dec']  # degrees, epoch of observation
 
             # Calculate celestial coordinates of the centre of the field of view
-            central_ra, central_dec = ra_dec(alt=orientation['altitude'],
-                                             az=orientation['azimuth'],
-                                             utc=item['obsTime'],
-                                             latitude=obstory_info['latitude'],
-                                             longitude=obstory_info['longitude']
-                                             )
+            # hours / degrees, epoch of observation
+            central_ra_at_epoch, central_dec_at_epoch = ra_dec(alt=orientation['altitude'],
+                                                               az=orientation['azimuth'],
+                                                               utc=item['obsTime'],
+                                                               latitude=obstory_info['latitude'],
+                                                               longitude=obstory_info['longitude']
+                                                               )
 
             # Work out the position angle of the zenith, counterclockwise from north, as measured at centre of frame
-            zenith_pa = position_angle(ra1=central_ra, dec1=central_dec, ra2=ra_zenith, dec2=dec_zenith)
+            # degrees, for north pole at epoch
+            zenith_pa_at_epoch = position_angle(ra1=central_ra_at_epoch, dec1=central_dec_at_epoch,
+                                                ra2=ra_zenith_at_epoch, dec2=dec_zenith_at_epoch)
 
             # Calculate the position angle of the north pole, clockwise from vertical, at the centre of the frame
-            celestial_pa = zenith_pa - orientation['tilt']
-            while celestial_pa < -180:
-                celestial_pa += 360
-            while celestial_pa > 180:
-                celestial_pa -= 360
+            celestial_pa_at_epoch = zenith_pa_at_epoch - orientation['tilt']
+            while celestial_pa_at_epoch < -180:
+                celestial_pa_at_epoch += 360
+            while celestial_pa_at_epoch > 180:
+                celestial_pa_at_epoch -= 360
 
-            # Work out path of meteor in RA, Dec (radians)
+            # Read path of the moving object in pixel coordinates
             try:
                 path_x_y = json.loads(item['path'])
             except json.decoder.JSONDecodeError:
-                # Attempt JSON repair
+                # Attempt JSON repair; sometimes JSON content gets truncated
                 original_json = item['path']
                 fixed_json = "],[".join(original_json.split("],[")[:-1]) + "]]"
                 try:
                     path_x_y = json.loads(fixed_json)
 
-                    #logging.info("{date} [{obs}/{type:16s}] -- RESCUE: In: {detections:.0f} / {duration:.1f} sec; "
+                    # logging.info("{date} [{obs}/{type:16s}] -- RESCUE: In: {detections:.0f} / {duration:.1f} sec; "
                     #             "Rescued: {count:d} / {json_span:.1f} sec".format(
                     #    date=date_string(utc=group_info['time']),
                     #    obs=group_info['groupId'],
@@ -236,7 +311,7 @@ ORDER BY o.obsTime;
                     #    duration=item['duration'],
                     #    count=len(path_x_y),
                     #    json_span=path_x_y[-1][3] - path_x_y[0][3]
-                    #))
+                    # ))
 
                     path_bezier = json.loads(item['pathBezier'])
                     p = path_bezier[1]
@@ -245,7 +320,7 @@ ORDER BY o.obsTime;
                     path_x_y.append([p[0], p[1], 0, p[2]])
                     outcomes['rescued_records'] += 1
 
-                    #logging.info("{date} [{obs}/{type:16s}] -- Added Bezier points: "
+                    # logging.info("{date} [{obs}/{type:16s}] -- Added Bezier points: "
                     #             "In: {detections:.0f} / {duration:.1f} sec; "
                     #             "Rescued: {count:d} / {json_span:.1f} sec".format(
                     #    date=date_string(utc=group_info['time']),
@@ -255,7 +330,7 @@ ORDER BY o.obsTime;
                     #    duration=item['duration'],
                     #    count=len(path_x_y),
                     #    json_span=path_x_y[-1][3] - path_x_y[0][3]
-                    #))
+                    # ))
                 except json.decoder.JSONDecodeError:
                     logging.info("{date} [{obs}/{type:16s}] -- !!! JSON error".format(
                         date=date_string(utc=group_info['time']),
@@ -265,179 +340,103 @@ ORDER BY o.obsTime;
                     outcomes['error_records'] += 1
                     continue
 
-            path_len = len(path_x_y)
-            path_ra_dec = [inv_gnom_project(ra0=central_ra * pi / 12, dec0=central_dec * pi / 180,
-                                            size_x=orientation['pixel_width'],
-                                            size_y=orientation['pixel_height'],
-                                            scale_x=orientation['ang_width'] * pi / 180,
-                                            scale_y=orientation['ang_height'] * pi / 180,
-                                            x=pt[0], y=pt[1],
-                                            pos_ang=celestial_pa * pi / 180,
-                                            barrel_k1=lens_barrel_parameters[2],
-                                            barrel_k2=lens_barrel_parameters[3],
-                                            barrel_k3=lens_barrel_parameters[4]
-                                            )
-                           for pt in path_x_y]
+            # Convert path of moving objects into RA / Dec (radians, at epoch of observation)
+            path_ra_dec_at_epoch = []
+            path_alt_az = []
+            for pt_x, pt_y, pt_intensity, pt_utc in path_x_y:
+                # Calculate celestial coordinates of the centre of the field of view
+                # hours / degrees, epoch of observation
+                instantaneous_central_ra_at_epoch, instantaneous_central_dec_at_epoch = ra_dec(
+                    alt=orientation['altitude'],
+                    az=orientation['azimuth'],
+                    utc=pt_utc,
+                    latitude=obstory_info['latitude'],
+                    longitude=obstory_info['longitude']
+                )
 
-        # # We do all positional astronomy in the frame of the Earth geocentre.
-        # # This means that all speeds are measured in the non-rotating frame of the centre of the Earth.
-        # group_time = item['time']
-        #
-        # # Attempt to triangulate object
-        # all_sight_lines = []
-        #
-        # # Work out position of each observatory, and centre of field of view of each observatory
-        # for event in item['triggers']:
-        #
-        #     # Look up information about observatory
-        #     obs = event['obs']
-        #     obstory_id = obs.obstory_id
-        #     obstory_status = db.get_obstory_status(time=group_time, obstory_id=obstory_id)
-        #     path_json = db.get_observation_metadata(obs.id, "pigazing:pathBezier")
-        #     if ((path_json is None) or
-        #             ('lens_barrel_a' not in obstory_status) or
-        #             ('latitude' not in obstory_status) or
-        #             ('orientation_altitude' not in obstory_status)):
-        #         logging.info("Cannot use observation <{}> from <{}> because orientation unknown.".format(obs.id,
-        #                                                                                                  obstory_id))
-        #         continue
-        #     bca = obstory_status['lens_barrel_a']
-        #     bcb = obstory_status['lens_barrel_b']
-        #     bcc = obstory_status['lens_barrel_c']
-        #     path = json.loads(path_json)
-        #
-        #     # Look up size of image frame
-        #     size_x = obstory_status['camera_width']
-        #     size_y = obstory_status['camera_height']
-        #     scale_x = obstory_status['orientation_width_x_field'] * pi / 180
-        #     scale_y = obstory_status['orientation_width_y_field'] * pi / 180
-        #     # scale_y = 2 * atan(tan(scale_x / 2) * size_y / size_x)
-        #
-        #     # For each positional fix on object, convert pixel coordinates into celestial coordinates
-        #     sight_line_list = []
-        #     for point in path:
-        #         utc = point[2]
-        #
-        #         # Look up the physical position of the observatory
-        #         if 'altitude' in obstory_status:
-        #             altitude = obstory_status['altitude']
-        #         else:
-        #             altitude = 0
-        #         observatory_position = Point.from_lat_lng(lat=obstory_status['latitude'],
-        #                                                   lng=obstory_status['longitude'],
-        #                                                   alt=altitude,
-        #                                                   utc=utc)
-        #
-        #         # Calculate the celestial coordinates of the centre of the frame
-        #         [ra0, dec0] = sunset_times.ra_dec(alt=obstory_status['orientation_altitude'],
-        #                                           az=obstory_status['orientation_azimuth'],
-        #                                           utc=utc,
-        #                                           latitude=obstory_status['latitude'],
-        #                                           longitude=obstory_status['longitude'])
-        #         ra0_rad = ra0 * pi / 12  # Convert hours into radians
-        #         dec0_rad = dec0 * pi / 180  # Convert degrees into radians
-        #
-        #         # Convert orientation_pa into position angle of the centre of the field of view
-        #         # This is the position angle of the zenith, clockwise from vertical, at the centre of the frame
-        #         # If the camera is roughly upright, this ought to be close to zero!
-        #         camera_tilt = obstory_status['orientation_pa']
-        #
-        #         # Get celestial coordinates of the local zenith
-        #         ra_dec_zenith = sunset_times.get_zenith_position(lat=obstory_status['latitude'],
-        #                                                          lng=obstory_status['longitude'],
-        #                                                          utc=utc)
-        #         ra_zenith = ra_dec_zenith['ra']
-        #         dec_zenith = ra_dec_zenith['dec']
-        #
-        #         # Work out the position angle of the zenith, counterclockwise from north, as measured at centre of frame
-        #         zenith_pa = gnomonic_project.position_angle(ra0, dec0, ra_zenith, dec_zenith)
-        #
-        #         # Work out the position angle of the upward vector in the centre of the image, counterclockwise
-        #         # from celestial north.
-        #         celestial_pa = zenith_pa - camera_tilt
-        #
-        #         # Work out the RA and Dec of the point where the object was spotted
-        #         [ra, dec] = gnomonic_project.inv_gnom_project(ra0=ra0_rad, dec0=dec0_rad,
-        #                                                       x=point[0], y=point[1],
-        #                                                       size_x=size_x, size_y=size_y,
-        #                                                       scale_x=scale_x, scale_y=scale_y,
-        #                                                       pos_ang=celestial_pa * pi / 180,
-        #                                                       bca=bca, bcb=bcb, bcc=bcc)
-        #         ra *= 12 / pi  # Convert RA into hours
-        #         dec *= 180 / pi  # Convert Dec into degrees
-        #
-        #         # Work out alt-az of reported (RA,Dec) using known location of camera. Fits returned in degrees.
-        #         alt_az = sunset_times.alt_az(ra=ra, dec=dec, utc=point[2],
-        #                                      latitude=obstory_status['latitude'], longitude=obstory_status['longitude'])
-        #
-        #         direction = Vector.from_ra_dec(ra, dec)
-        #         sight_line = Line(observatory_position, direction)
-        #         sight_line_descriptor = {
-        #             'ra': ra,
-        #             'dec': dec,
-        #             'alt': alt_az[0],
-        #             'az': alt_az[1],
-        #             'utc': point[2],
-        #             'obs_position': observatory_position,
-        #             'line': sight_line
-        #         }
-        #         sight_line_list.append(sight_line_descriptor)
-        #         all_sight_lines.append(sight_line_descriptor)
-        #
-        #         logging.info("Observatory <{}> is pointing at (alt {:.2f}; az {:.2f}; tilt {:.2f}; PA {:.2f}) "
-        #                      "and (RA {:.3f} h; Dec {:.2f} deg). "
-        #                      "ScaleX = {:.1f} deg. ScaleY = {:.1f} deg.".
-        #                      format(obstory_id,
-        #                             obstory_status['orientation_altitude'], obstory_status['orientation_azimuth'],
-        #                             celestial_pa, obstory_status['orientation_pa'],
-        #                             ra0, dec0,
-        #                             scale_x * 180 / pi, scale_y * 180 / pi))
-        #         logging.info("Observatory <{}> saw object at RA {:.3f} h; Dec {:.3f} deg, with sight line {}.".
-        #                      format(obstory_id, ra, dec, sight_line))
-        #
-        #     # Store calculated information about observation
-        #     event['sight_line_list'] = sight_line_list
-        #
-        # # If we don't have fewer than six sight lines, don't bother trying to triangulate
-        # if len(all_sight_lines) < 6:
-        #     logging.info("Giving up triangulation as we only have {:d} sight lines to object.".
-        #                  format(len(all_sight_lines)))
-        #     continue
-        #
-        # # Work out the sum of square angular mismatches of sight lines to a test trajectory
-        # def line_from_parameters(p):
-        #     x0 = Point(p[0] * 1000, p[1] * 1000, 0)
-        #     d = Vector.from_ra_dec(p[2], p[3])
-        #     trajectory = Line(x0=x0, direction=d)
-        #     return trajectory
-        #
-        # def angular_mismatch_slave(p):
-        #     trajectory = line_from_parameters(p)
-        #     mismatch = 0
-        #     for sight in all_sight_lines:
-        #         closest_point = trajectory.find_closest_approach(sight['line'])
-        #         mismatch += closest_point['angular_distance']
-        #     return mismatch
-        #
-        # params_initial = [0, 0, 0, 0]
-        # params_optimised = scipy.optimize.minimize(angular_mismatch_slave, params_initial, method='nelder-mead',
-        #                                            options={'xtol': 1e-7, 'disp': False, 'maxiter': 1e6, 'maxfev': 1e6}
-        #                                            ).x
-        # best_triangulation = line_from_parameters(params_optimised)
-        # logging.info("Best fit path of object through space is %s." % best_triangulation)
-        #
-        # logging.info("Mismatch of observed sight lines from trajectory are %s deg." %
-        #              (["%.1f" % best_triangulation.find_closest_approach(s['line'])['angular_distance']
-        #                for s in all_sight_lines]))
-        #
-        # maximum_mismatch = max([best_triangulation.find_closest_approach(s['line'])['angular_distance']
-        #                         for s in all_sight_lines])
-        #
-        # # Reject trajectory if it deviates by more than 3 degrees from any observation
-        # if maximum_mismatch > 7:
-        #     logging.info("Mismatch is too great. Trajectory fit is rejected.")
-        #     continue
-        #
+                # Calculate RA / Dec of observed position (radians), at observed time
+                ra, dec = inv_gnom_project(ra0=instantaneous_central_ra_at_epoch * pi / 12,
+                                           dec0=instantaneous_central_dec_at_epoch * pi / 180,
+                                           size_x=orientation['pixel_width'],
+                                           size_y=orientation['pixel_height'],
+                                           scale_x=orientation['ang_width'] * pi / 180,
+                                           scale_y=orientation['ang_height'] * pi / 180,
+                                           x=pt_x, y=pt_y,
+                                           pos_ang=celestial_pa_at_epoch * pi / 180,
+                                           barrel_k1=lens_barrel_parameters[2],
+                                           barrel_k2=lens_barrel_parameters[3],
+                                           barrel_k3=lens_barrel_parameters[4]
+                                           )
+
+                path_ra_dec_at_epoch.append([ra, dec])
+
+                # Work out the Greenwich hour angle of the object; radians eastwards of the prime meridian at Greenwich
+                instantaneous_sidereal_time = sidereal_time(utc=pt_utc)  # hours
+                greenwich_hour_angle = ra - instantaneous_sidereal_time * pi / 12  # radians
+
+                # Work out alt-az of reported (RA,Dec) using known location of camera (degrees)
+                alt, az = alt_az(ra=ra * 12 / pi, dec=dec * 180 / pi,
+                                 utc=pt_utc,
+                                 latitude=obstory_status['latitude'],
+                                 longitude=obstory_status['longitude'])
+
+                path_alt_az.append([alt, az])
+
+                # Populate description of this sight line from observatory to the moving object
+                direction = Vector.from_ra_dec(ra=greenwich_hour_angle * 12 / pi, dec=dec * 180 / pi)
+                sight_line = Line(observatory_position, direction)
+                sight_line_descriptor = {
+                    'ra': ra,  # radians; at epoch
+                    'dec': dec,  # radians; at epoch
+                    'alt': alt,  # degrees
+                    'az': az,  # degrees
+                    'utc': pt_utc,  # unix time
+                    'obs_position': observatory_position,  # Point
+                    'line': sight_line  # Line
+                }
+                sight_line_list.append(sight_line_descriptor)
+
+                # Debugging
+                logging.info("Observatory <{}> saw object at RA {:.3f} h; Dec {:.3f} deg, with sight line {}.".
+                             format(obstory_info['publicId'],
+                                    ra * 12 / pi,
+                                    dec * 180 / pi,
+                                    sight_line))
+
+        # If we have fewer than six sight lines, don't bother trying to triangulate
+        if len(sight_line_list) < 6:
+            logging.info("Giving up triangulation as we only have {:d} sight lines to object.".
+                         format(len(sight_line_list)))
+            continue
+
+        # Attempt to fit a linear trajectory through all of the sight lines that we have collected
+        parameters_initial = [0, 0, 0, 0]
+
+        # Solve the system of equations
+        # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/>
+        # for more information about how this works
+        parameters_optimised = scipy.optimize.minimize(angular_mismatch_slave, numpy.asarray(parameters_initial),
+                                                       options={'disp': False, 'maxiter': 1e8}
+                                                       ).x
+
+        # Construct best-fit linear trajectory for best-fitting parameters
+        best_triangulation = line_from_parameters(parameters_optimised)
+        logging.info("Best fit path of object is <{}>.".format(best_triangulation))
+
+        logging.info("Mismatch of observed sight lines from trajectory are {} deg.".format(
+            ["{:.1f}".format(best_triangulation.find_closest_approach(s['line'])['angular_distance'])
+             for s in sight_line_list]
+        ))
+
+        # Find sight line with the worst match
+        maximum_mismatch = max([best_triangulation.find_closest_approach(s['line'])['angular_distance']
+                                for s in sight_line_list])
+
+        # Reject trajectory if it deviates by more than 7 degrees from any observation
+        if maximum_mismatch > 7:
+            logging.info("Mismatch is too great. Trajectory fit is rejected.")
+            continue
+
         # # Add triangulation information to each observation
         # for event in item['triggers']:
         #     if 'sight_line_list' in event:

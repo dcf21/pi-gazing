@@ -199,9 +199,9 @@ def alt_az(ra, dec, utc, latitude, longitude):
     Converts [RA, Dec] into local [altitude, azimuth]
 
     :param ra:
-        The right ascension of the object, hours.
+        The right ascension of the object, hours, epoch of observation.
     :param dec:
-        The declination of the object, degrees
+        The declination of the object, degrees, epoch of observation.
     :param longitude:
         The longitude of the observer, degrees
     :param latitude:
@@ -240,7 +240,7 @@ def alt_az(ra, dec, utc, latitude, longitude):
 
 def ra_dec(alt, az, utc, latitude, longitude):
     """
-    Converts local [altitude, azimuth] into [RA, Dec]
+    Converts local [altitude, azimuth] into [RA, Dec] at epoch
 
     :param alt:
         The altitude of the object, degrees
@@ -253,7 +253,7 @@ def ra_dec(alt, az, utc, latitude, longitude):
     :param latitude:
         The latitude of the observer, degrees
     :return:
-        The [RA, Dec] of the object, in hours and degrees
+        The [RA, Dec] of the object, in hours and degrees, at epoch
     """
     alt *= pi / 180
     az *= pi / 180
@@ -348,7 +348,7 @@ def get_zenith_position(latitude, longitude, utc):
     :param utc:
         The unix time of the observation
     :return:
-        The [RA, Dec] of the zenith in [hour, degrees]
+        The [RA, Dec] of the zenith in [hour, degrees], epoch of <utc>
     """
 
     st = sidereal_time(utc) * pi / 12
