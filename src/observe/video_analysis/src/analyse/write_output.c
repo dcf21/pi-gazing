@@ -503,17 +503,18 @@ void write_video_metadata(observe_status *os, int trigger_index) {
                                  os->event_list[trigger_index].detections[N0].frame_count);
 
     // Write full path of event as JSON string
-    char path_json[LSTR_LENGTH], path_bezier[FNAME_LENGTH];
+    #define JSON_MAX_LENGTH 65500
+    char path_json[JSON_MAX_LENGTH], path_bezier[FNAME_LENGTH];
     int amplitude_peak = 0, amplitude_time_integrated = 0;
     {
         int j = 0, k = 0;
-        snprintf(path_json + k, FNAME_LENGTH - k, "[");
+        snprintf(path_json + k, JSON_MAX_LENGTH - k, "[");
         k += (int) strlen(path_json + k);
 
         // Write each point in turn as [x, y, amplitude, unix time]
         for (j = 0; j < os->event_list[trigger_index].detection_count; j++) {
             const detection *d = &os->event_list[trigger_index].detections[j];
-            snprintf(path_json + k, FNAME_LENGTH - k, "%s[%d,%d,%d,%.3f]",
+            snprintf(path_json + k, JSON_MAX_LENGTH - k, "%s[%d,%d,%d,%.3f]",
                      j ? "," : "", d->x, d->y, d->amplitude, d->utc);
             k += (int) strlen(path_json + k);
 
@@ -521,7 +522,7 @@ void write_video_metadata(observe_status *os, int trigger_index) {
             amplitude_time_integrated += d->amplitude;
             if (d->amplitude > amplitude_peak) amplitude_peak = d->amplitude;
         }
-        snprintf(path_json + k, FNAME_LENGTH - k, "]");
+        snprintf(path_json + k, JSON_MAX_LENGTH - k, "]");
     }
 
     // Write path of event as a three-point Bezier curve
