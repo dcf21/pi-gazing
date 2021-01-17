@@ -571,7 +571,7 @@ if __name__ == "__main__":
     # Flush previous simultaneous detections?
     parser.add_argument('--flush', dest='flush', action='store_true')
     parser.add_argument('--no-flush', dest='flush', action='store_false')
-    parser.set_defaults(flush=False)
+    parser.set_defaults(flush=True)
 
     args = parser.parse_args()
 

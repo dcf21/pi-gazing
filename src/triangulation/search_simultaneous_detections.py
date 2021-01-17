@@ -41,6 +41,9 @@ simultaneous_event_type = "pigazing:simultaneous"
 
 
 def search_simultaneous_detections(utc_min, utc_max, utc_must_stop):
+    # Count how many simultaneous detections we discover
+    simultaneous_detections_by_type = {}
+
     db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                            db_host=installation_info['mysqlHost'],
                                            db_user=installation_info['mysqlUser'],
@@ -112,8 +115,10 @@ WHERE grp.semanticType = (SELECT y.uid FROM archive_semanticTypes y WHERE y.name
         prev_group_size = -1
         group_members = [index]
 
+        # Most events must be seen within a maximum offset of 1 second at different stations.
+        # Planes are allowed an offset of up to 30 seconds due to their large parallax
         search_margin = 60
-        match_margin = 1
+        match_margin = 30 if event.category == "Plane" else 1
 
         # Search for other events which fall within the same time span
         # Do this iteratively, as a preceding event can expand the end time of the group, and vice versa
@@ -159,6 +164,12 @@ WHERE grp.semanticType = (SELECT y.uid FROM archive_semanticTypes y WHERE y.name
         if len(obstory_id_list) < 2:
             continue
 
+        # Update tally of events by type
+        if event.category not in simultaneous_detections_by_type:
+            simultaneous_detections_by_type[event.category] = 0
+        simultaneous_detections_by_type[event.category] += 1
+
+        # Initialise maximum baseline between the stations which saw this objects
         maximum_obstory_spacing = 0
 
         # Work out locations of all observatories which saw this event
@@ -178,6 +189,7 @@ WHERE grp.semanticType = (SELECT y.uid FROM archive_semanticTypes y WHERE y.name
                  for j in range(i + 1, len(obstory_id_list))
                  ]
 
+        # Work out maximum baseline between the stations which saw this objects
         for pair in pairs:
             maximum_obstory_spacing = max(maximum_obstory_spacing,
                                           abs(pair[0].displacement_vector_from(pair[1])))
@@ -191,13 +203,7 @@ WHERE grp.semanticType = (SELECT y.uid FROM archive_semanticTypes y WHERE y.name
                        'observations': [{'obs': events[x]} for x in group_members],
                        'ids': [events[x].id for x in group_members]})
 
-    logging.info("{:6d} moving objects seen within this time period".
-                 format(len(events_raw['obs'])))
-    logging.info("{:6d} moving objects rejected because they were unclassified".
-                 format(len(events_raw['obs']) - len(events)))
-    logging.info("{:6d} simultaneous detections found.".
-                 format(len(groups)))
-
+    # Report individual events we found
     for item in groups:
         logging.info("""
 {time} -- {count:3d} stations; max baseline {baseline:5.0f} m; time spread {spread:4.1f} sec; type <{category}>
@@ -207,23 +213,32 @@ WHERE grp.semanticType = (SELECT y.uid FROM archive_semanticTypes y WHERE y.name
            spread=item['time_spread'],
            category=item['category']).strip())
 
-    # Start triangulation process
-    logging.info("Triangulating simultaneous object detections between <{}> and <{}>.".
-                 format(dcf_ast.date_string(utc_min),
-                        dcf_ast.date_string(utc_max)))
+    # Report statistics on events we found
+    logging.info("{:6d} moving objects seen within this time period".
+                 format(len(events_raw['obs'])))
+    logging.info("{:6d} moving objects rejected because they were unclassified".
+                 format(len(events_raw['obs']) - len(events)))
+    logging.info("{:6d} simultaneous detections found.".
+                 format(len(groups)))
 
-    # Loop over list of simultaneous event detections
+    # Report statistics by event type
+    logging.info("Tally of simultaneous detections by type:")
+    for event_type in sorted(simultaneous_detections_by_type.keys()):
+        logging.info("    * {:32s}: {:6d}".format(event_type, simultaneous_detections_by_type[event_type]))
+
+    # Record simultaneous event detections into the database
     for item in groups:
         # Create new observation group
         group = db.register_obsgroup(title="Multi-station detection", user_id="system",
                                      semantic_type=simultaneous_event_type,
                                      obs_time=item['time'], set_time=time.time(),
                                      obs=item['ids'])
-        logging.info("Simultaneous detection at {time} by {count:3d} stations (time spread {spread:.1f} sec)".
-                     format(time=dcf_ast.date_string(item['time']),
-                            count=len(item['obstory_list']),
-                            spread=item['time_spread']))
-        logging.info("Observation IDs: %s" % item['ids'])
+
+        # logging.info("Simultaneous detection at {time} by {count:3d} stations (time spread {spread:.1f} sec)".
+        #              format(time=dcf_ast.date_string(item['time']),
+        #                     count=len(item['obstory_list']),
+        #                     spread=item['time_spread']))
+        # logging.info("Observation IDs: %s" % item['ids'])
 
         # Register group metadata
         timestamp = time.time()
@@ -290,7 +305,7 @@ if __name__ == "__main__":
                         dest='stop_by', help='The unix time when we need to exit, even if jobs are unfinished')
 
     # By default, study images taken over past 24 hours
-    parser.add_argument('--utc-min', dest='utc_min', default=time.time() - 3600 * 24,
+    parser.add_argument('--utc-min', dest='utc_min', default=0,
                         type=float,
                         help="Only search for detections from after the specified unix time")
     parser.add_argument('--utc-max', dest='utc_max', default=time.time(),
@@ -300,7 +315,7 @@ if __name__ == "__main__":
     # Flush previous simultaneous detections?
     parser.add_argument('--flush', dest='flush', action='store_true')
     parser.add_argument('--no-flush', dest='flush', action='store_false')
-    parser.set_defaults(flush=False)
+    parser.set_defaults(flush=True)
 
     args = parser.parse_args()
 
