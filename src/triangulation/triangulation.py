@@ -30,14 +30,14 @@ import json
 import logging
 import os
 import time
-from math import pi
+from math import pi, hypot
 
 import numpy
 import scipy.optimize
 from pigazing_helpers import connect_db, hardware_properties
 from pigazing_helpers.dcf_ast import date_string
 from pigazing_helpers.gnomonic_project import inv_gnom_project, position_angle
-from pigazing_helpers.obsarchive import obsarchive_db
+from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 from pigazing_helpers.sunset_times import get_zenith_position, sidereal_time, ra_dec, alt_az
 from pigazing_helpers.vector_algebra import Point, Vector, Line
@@ -49,26 +49,66 @@ simultaneous_event_type = "pigazing:simultaneous"
 # List of all sight lines to the moving object we are currently fitting
 sight_line_list = []
 
+# Initial guess for position of moving object
+seed_position = Point(0, 0, 0)
+
+# Time span of sightings of moving object
+time_span = [0, 0]
+
 
 def line_from_parameters(p):
     """
     Construct a Line object based on five free parameters contained in the vector p.
 
     :param p:
-        Vector with at least five components.
+        Vector with at least six components.
     :return:
         Parameterised Line object
     """
+    global seed_position
 
-    # Starting point for line
-    x0 = Point(p[0] * 1000, p[1] * 1000, 0)
+    # Starting point for line (at utc_min)
+    x0 = seed_position.add_vector(Vector(p[0] * 1000, p[1] * 1000, p[2] * 1000))
 
     # Direction for line
-    d = Vector.from_ra_dec(p[2], p[3])
+    d = Vector(p[3] * 100, p[4] * 100, p[5] * 100)
 
     # Combining starting point and direction into a single object
     trajectory = Line(x0=x0, direction=d)
     return trajectory
+
+
+def sight_line_mismatch_list(trajectory):
+    """
+    Compute the angular offset (degrees) of a list of timed lines of sight to a moving object from a trial
+    trajectory for that object.
+
+    :param trajectory:
+        Trial trajectory for a moving object.
+    :type trajectory:
+        Line
+    :return:
+        List of mismatches of trial trajectory from recorded sight lines
+    """
+
+    global sight_line_list, time_span
+
+    # Sum the angular offset of each observed position of the object from predicted position
+    mismatch_list = []
+    for sight in sight_line_list:
+        # Map duration of moving object onto line segment time span 0-1
+        time_point = (sight['utc'] - time_span[0]) / (time_span[1] - time_span[0])
+
+        # Fetch trajectory position at time of sighting
+        trajectory_pos = trajectory.point(i=time_point)
+
+        model_sightline = trajectory_pos.to_vector() - sight['obs_position'].to_vector()
+        observed_sightline = sight['line'].direction
+        angular_offset = model_sightline.angle_with(other=observed_sightline)  # degrees
+
+        # Find point of closest approach between the observed sight line and the trial trajectory for the object
+        mismatch_list.append(angular_offset)
+    return mismatch_list
 
 
 def angular_mismatch_slave(p):
@@ -77,28 +117,29 @@ def angular_mismatch_slave(p):
     moving object.
 
     :param p:
-        Vector with at least five components.
+        Vector with at least six components.
     :return:
-        Mismatch of trial trajectory from recorded sight lines
+        Sum of square mismatches of trial trajectory from recorded sight lines
     """
-
-    global sight_line_list
 
     # Turn input parameters into a Line object
     trajectory = line_from_parameters(p)
 
-    # Sum the angular offset of each observed position of the object from predicted position
-    mismatch = 0
-    for sight in sight_line_list:
-        # Find point of closest approach between the observed sight line and the trial trajectory for the object
-        closest_point = trajectory.find_closest_approach(sight['line'])
-        mismatch += closest_point['angular_distance']
-    return mismatch
+    # Fetch list of angular offsets (degrees) of trial trajectory from observed sightlines
+    mismatch_list = sight_line_mismatch_list(trajectory=trajectory)
+
+    # Return sum of squares of mismatches
+    return hypot(*mismatch_list)
 
 
 def do_triangulation(utc_min, utc_max, utc_must_stop):
     # We need to share the list of sight lines to each moving object with the objective function that we minimise
-    global sight_line_list
+    global sight_line_list, time_span, seed_position
+
+    # Start triangulation process
+    logging.info("Triangulating simultaneous object detections between <{}> and <{}>.".
+                 format(date_string(utc_min),
+                        date_string(utc_max)))
 
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
@@ -163,7 +204,7 @@ ORDER BY o.obsTime;
 """, args)
     results = conn.fetchall()
 
-    # Compile list of groups
+    # Compile list of events into list of groups
     obs_groups = {}
     obs_group_ids = []
     for item in results:
@@ -177,16 +218,11 @@ ORDER BY o.obsTime;
             })
         obs_groups[key].append(item)
 
-    # Start triangulation process
-    logging.info("Triangulating simultaneous object detections between <{}> and <{}>.".
-                 format(date_string(utc_min),
-                        date_string(utc_max)))
-
     # Loop over list of simultaneous event detections
     for group_info in obs_group_ids:
         # If we've run out of time, stop now
         time_now = time.time()
-        if time_now > utc_must_stop:
+        if utc_must_stop is not None and time_now > utc_must_stop:
             break
 
         # Make a list of all our sight-lines to this object
@@ -261,7 +297,7 @@ ORDER BY o.obsTime;
             # Units: metres; zero longitude along x axis
             observatory_position = Point.from_lat_lng(lat=obstory_info['latitude'],
                                                       lng=obstory_info['longitude'],
-                                                      alt=obstory_info['altitude'],
+                                                      alt=0,  # Unfortunately <archive_observatories> doesn't store alt
                                                       utc=None)
 
             # Get celestial coordinates of the local zenith
@@ -377,8 +413,8 @@ ORDER BY o.obsTime;
                 # Work out alt-az of reported (RA,Dec) using known location of camera (degrees)
                 alt, az = alt_az(ra=ra * 12 / pi, dec=dec * 180 / pi,
                                  utc=pt_utc,
-                                 latitude=obstory_status['latitude'],
-                                 longitude=obstory_status['longitude'])
+                                 latitude=obstory_info['latitude'],
+                                 longitude=obstory_info['longitude'])
 
                 path_alt_az.append([alt, az])
 
@@ -397,20 +433,41 @@ ORDER BY o.obsTime;
                 sight_line_list.append(sight_line_descriptor)
 
                 # Debugging
-                logging.info("Observatory <{}> saw object at RA {:.3f} h; Dec {:.3f} deg, with sight line {}.".
-                             format(obstory_info['publicId'],
-                                    ra * 12 / pi,
-                                    dec * 180 / pi,
-                                    sight_line))
+                # logging.info("Observatory <{}> saw object at RA {:.3f} h; Dec {:.3f} deg, with sight line {}.".
+                #              format(obstory_info['publicId'],
+                #                     ra * 12 / pi,
+                #                     dec * 180 / pi,
+                #                     sight_line))
 
         # If we have fewer than six sight lines, don't bother trying to triangulate
         if len(sight_line_list) < 6:
-            logging.info("Giving up triangulation as we only have {:d} sight lines to object.".
-                         format(len(sight_line_list)))
+            logging.info("{date} [{obs}/{type:16s}] -- "
+                         "Giving up triangulation as we only have {x:d} sight lines to object.".
+                         format(date=date_string(utc=group_info['time']),
+                                obs=group_info['groupId'],
+                                type=group_info['type'],
+                                x=len(sight_line_list)
+                                ))
             continue
 
+        # Set time range of sight lines
+        time_span = [
+            min(item['utc'] for item in sight_line_list),
+            max(item['utc'] for item in sight_line_list)
+        ]
+
+        # Create a seed point to start search for object path. We pick a point above the centroid of the observatories
+        # that saw the object
+        centroid_v = sum(item['obs_position'].to_vector() for item in sight_line_list) / len(sight_line_list)
+        centroid_p = Point(x=centroid_v.x, y=centroid_v.y, z=centroid_v.z)
+        centroid_lat_lng = centroid_p.to_lat_lng(utc=None)
+        seed_position = Point.from_lat_lng(lat=centroid_lat_lng['lat'],
+                                           lng=centroid_lat_lng['lng'],
+                                           alt=centroid_lat_lng['alt'] * 2e4,
+                                           utc=None)
+
         # Attempt to fit a linear trajectory through all of the sight lines that we have collected
-        parameters_initial = [0, 0, 0, 0]
+        parameters_initial = [0, 0, 0, 0, 0, 0]
 
         # Solve the system of equations
         # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/>
@@ -421,89 +478,55 @@ ORDER BY o.obsTime;
 
         # Construct best-fit linear trajectory for best-fitting parameters
         best_triangulation = line_from_parameters(parameters_optimised)
-        logging.info("Best fit path of object is <{}>.".format(best_triangulation))
+        # logging.info("Best fit path of object is <{}>.".format(best_triangulation))
 
-        logging.info("Mismatch of observed sight lines from trajectory are {} deg.".format(
-            ["{:.1f}".format(best_triangulation.find_closest_approach(s['line'])['angular_distance'])
-             for s in sight_line_list]
-        ))
+        # logging.info("Mismatch of observed sight lines from trajectory are {} deg.".format(
+        #     ["{:.1f}".format(best_triangulation.find_closest_approach(s['line'])['angular_distance'])
+        #      for s in sight_line_list]
+        # ))
 
         # Find sight line with the worst match
-        maximum_mismatch = max([best_triangulation.find_closest_approach(s['line'])['angular_distance']
-                                for s in sight_line_list])
+        mismatch_list = sight_line_mismatch_list(trajectory=best_triangulation)
+        maximum_mismatch = max(mismatch_list)
 
         # Reject trajectory if it deviates by more than 7 degrees from any observation
         if maximum_mismatch > 7:
-            logging.info("Mismatch is too great. Trajectory fit is rejected.")
+            logging.info("{date} [{obs}/{type:16s}] -- Trajectory mismatch is too great ({x:.1f} deg).".format(
+                date=date_string(utc=group_info['time']),
+                obs=group_info['groupId'],
+                type=group_info['type'],
+                x=maximum_mismatch
+            ))
             continue
 
-        # # Add triangulation information to each observation
-        # for event in item['triggers']:
-        #     if 'sight_line_list' in event:
-        #         detected_position_info = []
-        #         for detection in event['sight_line_list']:
-        #             sight_line = detection['line']
-        #             observatory_position = detection['obs_position']
-        #             object_position = best_triangulation.find_closest_approach(sight_line)
-        #             object_lat_lng = object_position['self_point'].to_lat_lng(detection['utc'])
-        #             object_distance = abs(object_position['self_point'].displacement_vector_from(observatory_position))
-        #             detection['object_position'] = observatory_position
-        #             detected_position_info.append({'ra': detection['ra'],
-        #                                            'dec': detection['dec'],
-        #                                            'alt': detection['alt'],
-        #                                            'az': detection['az'],
-        #                                            'utc': detection['utc'],
-        #                                            'lat': object_lat_lng['lat'],
-        #                                            'lng': object_lat_lng['lng'],
-        #                                            'height': object_lat_lng['alt'],
-        #                                            'dist': object_distance,
-        #                                            'ang_mismatch': object_position['angular_distance']
-        #                                            })
-        #
-        #         # Make descriptor of triangulated information
-        #         trigger_0 = event['sight_line_list'][0]
-        #         trigger_1 = event['sight_line_list'][-1]
-        #         obs_position_0 = trigger_0['obs_position']  # Position of observatory at first sighting
-        #         obj_position_0 = trigger_0['object_position']  # Position of object at first sighting
-        #         utc_0 = trigger_0['utc']
-        #         obs_position_1 = trigger_1['obs_position']  # Position of observatory at last sighting
-        #         obj_position_1 = trigger_1['object_position']  # Position of object at last sighting
-        #         utc_1 = trigger_1['utc']
-        #
-        #         # Work out speed of object relative to centre of the Earth
-        #         displacement_geocentre_frame = obj_position_1.displacement_vector_from(obj_position_0)
-        #         time_span = utc_1 - utc_0
-        #         speed_geocentre_frame = abs(displacement_geocentre_frame / time_span)
-        #         object_direction_geocentre_frame = best_triangulation.direction.to_ra_dec()
-        #
-        #         # Work out speed of object relative to observer
-        #         point_0_obs_frame = obj_position_0.displacement_vector_from(obs_position_0)
-        #         point_1_obs_frame = obj_position_1.displacement_vector_from(obs_position_1)
-        #         displacement_obs_frame = point_1_obs_frame - point_0_obs_frame
-        #         speed_obs_frame = abs(displacement_obs_frame / time_span)
-        #         object_direction_obs_frame = displacement_obs_frame.to_ra_dec()
-        #
-        #         triangulation_info = {'observer_frame_heading_ra': object_direction_obs_frame['ra'],
-        #                               'observer_frame_heading_dec': object_direction_obs_frame['dec'],
-        #                               'observer_frame_speed': speed_obs_frame,
-        #                               'geocentre_heading_ra': object_direction_geocentre_frame['ra'],
-        #                               'geocentre_heading_dec': object_direction_geocentre_frame['dec'],
-        #                               'geocentre_speed': speed_geocentre_frame,
-        #                               'position_list': detected_position_info}
-        #         logging.info("Triangulated details of observation <{}> is {}.".
-        #                      format(event['obs'].id, triangulation_info))
-        #
-        #         # Store triangulated information in database
-        #         meta_item = mp.Meta("triangulation", json.dumps(triangulation_info))
-        #         db.set_observation_metadata(observation_id=event['obs'].id,
-        #                                     meta=meta_item,
-        #                                     user_id=settings['pigazingUser'])
+        # Convert start and end points of path into (lat, lng, alt)
+        start_point = best_triangulation.point(0).to_lat_lng(utc=None)
+        start_point['utc'] = time_span[0]
+        end_point = best_triangulation.point(1).to_lat_lng(utc=None)
+        end_point['utc'] = time_span[1]
+
+        # Calculate linear speed of object
+        speed = abs(best_triangulation.direction) / (time_span[1] - time_span[0])  # m/s
+
+        # Store triangulated information in database
+        user = settings['pigazingUser']
+        timestamp = time.time()
+        db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
+                                 meta=mp.Meta(key="triangulation:speed", value=speed))
+        db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
+                                 meta=mp.Meta(key="triangulation:path",
+                                              value=json.dumps([start_point, end_point])))
 
         # Report outcome
-        logging.info("{date} [{obs}/{type:16s}] -- Success".format(
+        logging.info("{date} [{obs}/{type:16s}] -- Success -- {path}; speed {mph:11.1f} mph".format(
             date=date_string(utc=group_info['time']),
             obs=group_info['groupId'],
-            type=group_info['type']
+            type=group_info['type'],
+            path="{:5.1f} {:5.1f} {:10.0f} -> {:5.1f} {:5.1f} {:10.0f}".format(
+                start_point['lat'], start_point['lng'], start_point['alt'],
+                end_point['lat'], end_point['lng'], end_point['alt']
+            ),
+            mph=speed / 0.44704
         ))
 
         # Triangulation successful
@@ -544,7 +567,7 @@ FROM archive_metadata m
 INNER JOIN archive_obs_groups o ON m.observationId = o.uid
 WHERE
     fieldId IN (SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'triangulation:%%') AND
-    o.obsTime BETWEEN %s AND %s;
+    o.time BETWEEN %s AND %s;
 """, (utc_min, utc_max))
 
     # Commit changes to database

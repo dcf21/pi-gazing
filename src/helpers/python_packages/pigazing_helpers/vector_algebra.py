@@ -36,7 +36,7 @@ class Point:
         self.z = z
 
     def __str__(self):
-        return "Point(%s,%s,%s)" % (self.x, self.y, self.z)
+        return "Point({}, {}, {})".format(self.x, self.y, self.z)
 
     def to_vector(self):
         return Vector(self.x, self.y, self.z)
@@ -89,7 +89,10 @@ class Point:
     def to_lat_lng(self, utc):
         mag = abs(self)
         deg = 180 / pi
-        st = sidereal_time(utc) * pi / 12
+        if utc is not None:
+            st = sidereal_time(utc) * pi / 12
+        else:
+            st = 0
         r_earth = 6371e3
         lat = asin(self.z / mag) * deg
         lng = (atan2(self.y, self.x) - st) * deg
@@ -106,7 +109,7 @@ class Vector:
         self.z = z
 
     def __str__(self):
-        return "Vector(%s,%s,%s)" % (self.x, self.y, self.z)
+        return "Vector({}, {}, {})".format(self.x, self.y, self.z)
 
     def __add__(self, other):
         """
@@ -114,6 +117,8 @@ class Vector:
         :param Vector other:
         :return Vector:
         """
+        if other == 0:
+            return self
         return Vector(self.x + other.x, self.y + other.y, self.z + other.z)
 
     def __radd__(self, other):
@@ -122,6 +127,8 @@ class Vector:
         :param Vector other:
         :return Vector:
         """
+        if other == 0:
+            return self
         return Vector(self.x + other.x, self.y + other.y, self.z + other.z)
 
     def __sub__(self, other):
@@ -148,7 +155,7 @@ class Vector:
         """
         return Vector(self.x * other, self.y * other, self.z * other)
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         """
         Divide this Vector by a scalar
         :param float other:
@@ -258,9 +265,10 @@ class Line:
         self.direction = direction
 
     def __str__(self):
-        return "Line( x0=Point(%s,%s,%s), direction=Vector(%s,%s,%s))" % (self.x0.x, self.x0.y, self.x0.z,
-                                                                          self.direction.x, self.direction.y,
-                                                                          self.direction.z)
+        return "Line( x0=Point({}, {}, {}), direction=Vector({}, {}, {}))".format(
+            self.x0.x, self.x0.y, self.x0.z,
+          self.direction.x, self.direction.y, self.direction.z
+        )
 
     def point(self, i):
         """
@@ -344,7 +352,7 @@ class Plane:
         self.p = p
 
     def __str__(self):
-        return "Plane( normal=Vector(%s,%s,%s), p=%s)" % (self.normal.x, self.normal.y, self.normal.z, self.p)
+        return "Plane( normal=Vector({}, {}, {}}), p={})".format(self.normal.x, self.normal.y, self.normal.z, self.p)
 
     def perpendicular_distance_to_point(self, other):
         """

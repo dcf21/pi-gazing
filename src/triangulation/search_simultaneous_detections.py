@@ -284,15 +284,6 @@ def flush_simultaneous_detections(utc_min, utc_max):
     for item in existing_groups:
         db.delete_obsgroup(item.id)
 
-    # Delete existing triangulation metadata
-    db.con.execute("""
-DELETE m
-FROM archive_metadata m
-INNER JOIN archive_observations o ON m.observationId = o.uid
-WHERE fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'triangulation:%%') AND
-      o.obsTime BETWEEN %s AND %s;
-""", (utc_min, utc_max))
-
     # Commit to database
     db.commit()
 
