@@ -71,7 +71,7 @@ def list_triangulations(utc_min=None, utc_max=None):
 
     # Search for observation groups containing groups of simultaneous detections
     conn.execute("""
-SELECT g.publicId AS groupId, g.time AS obsTime, am.stringValue AS objectType,
+SELECT g.publicId AS groupId, g.time AS time, am.stringValue AS objectType,
        am2.floatValue AS speed, am3.floatValue AS mean_altitude, am4.floatValue AS max_angular_offset,
        am5.floatValue AS max_baseline, am6.stringValue AS radiant_direction, am7.floatValue AS sight_line_count,
        am8.stringValue AS path
@@ -114,7 +114,7 @@ ORDER BY g.time;
         # Print triangulation information
         print("{:16s} {:20s} {:20s} {:8.0f} {:10.0f}".format(item['groupId'],
                                                              date_string(item['time']),
-                                                             item['type'],
+                                                             item['objectType'],
                                                              item['speed'],
                                                              item['mean_altitude']
                                                              ))
