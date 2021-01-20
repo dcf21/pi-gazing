@@ -4,7 +4,7 @@
 # Dominic Ford
 #
 # -------------------------------------------------
-# Copyright 2015-2020 Dominic Ford
+# Copyright 2015-2021 Dominic Ford
 #
 # This file is part of Pi Gazing.
 #
