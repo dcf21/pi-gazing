@@ -22,7 +22,7 @@
 # -------------------------------------------------
 
 """
-Display a list of all the images registered in the database.
+Display a list of all the simultaneous detections of moving objects registered in the database.
 """
 
 import argparse
