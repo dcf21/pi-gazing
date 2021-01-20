@@ -98,7 +98,7 @@ WHERE
     # Display list of meteors
     for item in meteor_identifications:
         print("""\
-{:16s} {:20s} {:20s} {:5.1f}\
+{:16s} {:20s} {:26s} {:5.1f}\
 """.format(date_string(item['time']),
            item['id'],
            item['shower'],
@@ -108,7 +108,7 @@ WHERE
     # Report tally of meteors
     logging.info("Tally of meteors by shower:")
     for shower in sorted(meteor_count_by_shower.keys()):
-        logging.info("    * {:32s}: {:6d}".format(shower, meteor_count_by_shower[shower]))
+        logging.info("    * {:26s}: {:6d}".format(shower, meteor_count_by_shower[shower]))
 
     # Clean up and exit
     return

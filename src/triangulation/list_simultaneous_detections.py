@@ -82,6 +82,9 @@ ORDER BY o.obsTime;
 """, args)
     results = conn.fetchall()
 
+    # Count how many simultaneous detections we find by type
+    detections_by_type = {}
+
     # Compile list of groups
     obs_groups = {}
     obs_group_ids = []
@@ -94,6 +97,11 @@ ORDER BY o.obsTime;
                 'time': item['obsTime'],
                 'type': item['objectType']
             })
+
+            # Add this simultaneous detection to tally
+            if item['objectType'] not in detections_by_type:
+                detections_by_type[item['objectType']] = 0
+            detections_by_type[item['objectType']] += 1
         obs_groups[key].append(item['obsId'])
 
     # List information about each observation in turn
@@ -105,6 +113,11 @@ ORDER BY o.obsTime;
                                                  group_info['type'],
                                                  " ".join(obs_groups[group_info['groupId']])
                                                  ))
+
+    # Report tally of events
+    print("\nTally of events by type:")
+    for event_type in sorted(detections_by_type.keys()):
+        print("    * {:26s}: {:6d}".format(event_type, detections_by_type[event_type]))
 
 
 if __name__ == "__main__":

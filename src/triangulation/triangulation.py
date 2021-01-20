@@ -227,6 +227,7 @@ ORDER BY o.obsTime;
 
         # Make a list of all our sight-lines to this object
         sight_line_list = []
+        observatory_list = {}
 
         # Fetch information about each observation in turn
         for item in obs_groups[group_info['groupId']]:
@@ -376,6 +377,10 @@ ORDER BY o.obsTime;
                     outcomes['error_records'] += 1
                     continue
 
+            # Add to observatory_list, now that we've checked this observatory has all necessary information
+            if item['observatory'] not in observatory_list:
+                observatory_list[item['observatory']] = obstory_info
+
             # Convert path of moving objects into RA / Dec (radians, at epoch of observation)
             path_ra_dec_at_epoch = []
             path_alt_az = []
@@ -450,6 +455,38 @@ ORDER BY o.obsTime;
                                 ))
             continue
 
+        # Initialise maximum baseline between the stations which saw this objects
+        maximum_baseline = 0
+
+        # Check the distances between all pairs of observatories
+        obstory_info_list = [Point.from_lat_lng(lat=obstory['latitude'],
+                                                lng=obstory['longitude'],
+                                                alt=0,
+                                                utc=None
+                                                )
+                             for obstory in observatory_list.values()]
+
+        pairs = [[obstory_info_list[i], obstory_info_list[j]]
+                 for i in range(len(obstory_info_list))
+                 for j in range(i + 1, len(obstory_info_list))
+                 ]
+
+        # Work out maximum baseline between the stations which saw this objects
+        for pair in pairs:
+            maximum_baseline = max(maximum_baseline,
+                                   abs(pair[0].displacement_vector_from(pair[1])))
+
+        # If we have no baselines of over 1 km, don't bother trying to triangulate
+        if maximum_baseline < 1000:
+            logging.info("{date} [{obs}/{type:16s}] -- "
+                         "Giving up triangulation as longest baseline is only {x:.0f} m.".
+                         format(date=date_string(utc=group_info['time']),
+                                obs=group_info['groupId'],
+                                type=group_info['type'],
+                                x=maximum_baseline
+                                ))
+            continue
+
         # Set time range of sight lines
         time_span = [
             min(item['utc'] for item in sight_line_list),
@@ -508,11 +545,32 @@ ORDER BY o.obsTime;
         # Calculate linear speed of object
         speed = abs(best_triangulation.direction) / (time_span[1] - time_span[0])  # m/s
 
+        # Calculate radiant direction for this object
+        radiant_direction_vector = best_triangulation.direction * -1
+        radiant_direction_coordinates = radiant_direction_vector.to_ra_dec()  # hours, degrees
+        radiant_greenwich_hour_angle = radiant_direction_coordinates['ra']
+        radiant_dec = radiant_direction_coordinates['dec']
+        instantaneous_sidereal_time = sidereal_time(utc=(utc_min + utc_max) / 2)  # hours
+        radiant_ra = radiant_greenwich_hour_angle + instantaneous_sidereal_time  # hours
+        radiant_direction = [radiant_ra, radiant_dec]
+
         # Store triangulated information in database
         user = settings['pigazingUser']
         timestamp = time.time()
         db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
                                  meta=mp.Meta(key="triangulation:speed", value=speed))
+        db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
+                                 meta=mp.Meta(key="triangulation:mean_altitude",
+                                              value=(start_point['alt'] + end_point['alt']) / 2))
+        db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
+                                 meta=mp.Meta(key="triangulation:max_angular_offset", value=maximum_mismatch))
+        db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
+                                 meta=mp.Meta(key="triangulation:max_baseline", value=maximum_baseline))
+        db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
+                                 meta=mp.Meta(key="triangulation:radiant_direction",
+                                              value=json.dumps(radiant_direction)))
+        db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
+                                 meta=mp.Meta(key="triangulation:sight_line_count", value=len(sight_line_list)))
         db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
                                  meta=mp.Meta(key="triangulation:path",
                                               value=json.dumps([start_point, end_point])))
