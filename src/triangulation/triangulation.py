@@ -557,23 +557,29 @@ ORDER BY o.obsTime;
         # Store triangulated information in database
         user = settings['pigazingUser']
         timestamp = time.time()
-        db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
-                                 meta=mp.Meta(key="triangulation:speed", value=speed))
-        db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
-                                 meta=mp.Meta(key="triangulation:mean_altitude",
-                                              value=(start_point['alt'] + end_point['alt']) / 2))
-        db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
-                                 meta=mp.Meta(key="triangulation:max_angular_offset", value=maximum_mismatch))
-        db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
-                                 meta=mp.Meta(key="triangulation:max_baseline", value=maximum_baseline))
-        db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
-                                 meta=mp.Meta(key="triangulation:radiant_direction",
-                                              value=json.dumps(radiant_direction)))
-        db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
-                                 meta=mp.Meta(key="triangulation:sight_line_count", value=len(sight_line_list)))
-        db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
-                                 meta=mp.Meta(key="triangulation:path",
-                                              value=json.dumps([start_point, end_point])))
+        triangulation_metadata = {
+            "triangulation:speed": speed,
+            "triangulation:mean_altitude": (start_point['alt'] + end_point['alt']) / 2,
+            "triangulation:max_angular_offset": maximum_mismatch,
+            "triangulation:max_baseline": maximum_baseline,
+            "triangulation:radiant_direction": json.dumps(radiant_direction),
+            "triangulation:sight_line_count": len(sight_line_list),
+            "triangulation:path": json.dumps([start_point, end_point])
+        }
+
+        # Set metadata on the observation group
+        for metadata_key, metadata_value in triangulation_metadata.items():
+            db.set_obsgroup_metadata(user_id=user, group_id=group_info['groupId'], utc=timestamp,
+                                     meta=mp.Meta(key=metadata_key, value=metadata_value))
+
+        # Set metadata on each observation individually
+        for item in obs_groups[group_info['groupId']]:
+            for metadata_key, metadata_value in triangulation_metadata.items():
+                db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
+                                            meta=mp.Meta(key=metadata_key, value=metadata_value))
+
+        # Commit metadata to database
+        db.commit()
 
         # Report outcome
         logging.info("{date} [{obs}/{type:16s}] -- Success -- {path}; speed {mph:11.1f} mph".format(

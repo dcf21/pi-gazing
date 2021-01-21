@@ -174,13 +174,20 @@ if (array_key_exists('orientation:altitude', $obstory_metadata)) {
         $longitude = $getargs->obstory_objs[$obstory['publicId']]['longitude'];
     }
 
-    // Get image RA/Dec
-    $ra_dec = sphericalAst::RaDec(
+    // Get image RA/Dec (hours / degrees at epoch)
+    $ra_dec_at_epoch = sphericalAst::RaDec(
         floatval($obstory_metadata['orientation:altitude']),
         floatval($obstory_metadata['orientation:azimuth']),
         $observation['obsTime'] + 40, // Mid-point of exposure
         floatval($latitude),
         floatval($longitude));
+
+    // Convert RA/Dec to J2000
+    $ra_dec_j2000 = sphericalAst::RaDecToJ2000(
+        $ra_dec_at_epoch[0],
+        $ra_dec_at_epoch[1],
+        $observation['obsTime']
+    );
 
     // Create planetarium overlay metadata
     $planetarium_metadata = [
@@ -188,9 +195,9 @@ if (array_key_exists('orientation:altitude', $obstory_metadata)) {
         'barrel_k1' => $lens_this['barrel_parameters'][2],
         'barrel_k2' => $lens_this['barrel_parameters'][3],
         'barrel_k3' => $lens_this['barrel_parameters'][4],
-        'dec0' => $ra_dec[1] * pi() / 180,
+        'dec0' => $ra_dec_j2000[1] * pi() / 180,
         'pos_ang' => $obstory_metadata['orientation:pa'] * pi() / 180,
-        'ra0' => $ra_dec[0] * pi() / 12,
+        'ra0' => $ra_dec_j2000[0] * pi() / 12,
         'scale_x' => $obstory_metadata['orientation:width_x_field'] * pi() / 180,
         'scale_y' => $obstory_metadata['orientation:width_y_field'] * pi() / 180
     ];
@@ -262,7 +269,9 @@ if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
             <h5>Observation type</h5>
             <p style="padding-left:10px;"><?php echo $const->semanticTypes[$observation['semanticType']][1]; ?></p>
             <h5>Observatory</h5>
-            <p style="padding-left:10px;"><a href="observatory.php?id=<?php echo $obstory['publicId']; ?>"><?php echo $obstory['name']; ?></a></p>
+            <p style="padding-left:10px;"><a
+                        href="observatory.php?id=<?php echo $obstory['publicId']; ?>"><?php echo $obstory['name']; ?></a>
+            </p>
             <h5>Time</h5>
             <p style="padding-left:10px;">
                 <b>Start</b>

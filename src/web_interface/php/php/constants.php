@@ -157,7 +157,19 @@ class constants
             "pigazing:videoDuration" => "Video duration",
             "pigazing:videoFPS" => "Video frames/second",
             "pigazing:videoStart" => "Video start time",
-            "software_version" => "Software version"
+            "shower:name" => "Meteor shower",
+            "shower:path_length" => "Track length (deg)",
+            "shower:path_ra_dec" => "Meteor path (RA, Dec)",
+            "shower:radiant_offset" => "Angular offset from radiant (deg)",
+            "software_version" => "Software version",
+            "triangulation:max_angular_offset" => "Triangulation error (deg)",
+            "triangulation:max_baseline" => "Triangulation max baseline (m)",
+            "triangulation:mean_altitude" => "Triangulated altitude (m)",
+            "triangulation:path" => "Triangulated path",
+            "triangulation:radiant_direction" => "Trangulated radiant direction (RA, Dec)",
+            "triangulation:sight_line_count" => "Triangulated sight line count",
+            "triangulation:speed" => "Triangulated speed (m/s)",
+            "web:category" => "Object type"
         ];
     }
 }

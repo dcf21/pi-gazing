@@ -66,4 +66,25 @@ class sphericalAst
         return [$ra * 12 / pi(), $dec * 180 / pi()];
     }
 
+    static public function RaDecToJ2000($ra1, $dec1, $utc_old)
+    {
+        $ra1 *= pi() / 12;
+        $dec1 *= pi() / 180;
+
+        $u = $utc_old;
+        $j = 40587.5 + $u / 86400.0;  # Julian date - 2400000
+        $t = ($j - 51545.0) / 36525.0;  # Julian century (no centuries since 2000.0)
+
+        $deg = pi() / 180;
+        $m = (1.281232 * $t + 0.000388 * $t * $t) * $deg;
+        $n = (0.556753 * $t + 0.000119 * $t * $t) * $deg;
+
+        $ra_m = $ra1 - 0.5 * ($m + $n * sin($ra1) * tan($dec1));
+        $dec_m = $dec1 - 0.5 * $n * cos($ra_m);
+
+        $ra_new = $ra1 - $m - $n * sin($ra_m) * tan($dec_m);
+        $dec_new = $dec1 - $n * cos($ra_m);
+
+        return [$ra_new * 12 / pi(), $dec_new * 180 / pi()];
+    }
 }
