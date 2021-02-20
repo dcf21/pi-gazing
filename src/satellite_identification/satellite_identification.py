@@ -30,17 +30,19 @@ import argparse
 import json
 import logging
 import os
-import MySQLdb
 import time
 from math import pi
 from operator import itemgetter
 
+import MySQLdb
 from pigazing_helpers import connect_db, hardware_properties
-from pigazing_helpers.dcf_ast import date_string
+from pigazing_helpers.dcf_ast import date_string, jd_from_unix
 from pigazing_helpers.gnomonic_project import inv_gnom_project, position_angle, ang_dist
 from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 from pigazing_helpers.sunset_times import get_zenith_position, ra_dec
+from sgp4.api import Satrec, WGS72
+
 
 def fetch_satellites(utc):
     """
@@ -54,8 +56,6 @@ def fetch_satellites(utc):
         List of dictionaries containing orbital elements
     """
 
-    output = []
-
     # Open connection to database
     db = MySQLdb.connect(host=connect_db.db_host, user=connect_db.db_user, passwd=connect_db.db_passwd,
                          db="inthesky")
@@ -66,13 +66,35 @@ def fetch_satellites(utc):
     c.execute('SET CHARACTER SET utf8mb4;')
     c.execute('SET character_set_connection=utf8mb4;')
 
+    # Look up the closest epoch which exists in the database
+    c.execute("""
+SELECT uid, epoch
+FROM inthesky_spacecraft_epochs WHERE epoch BETWEEN %s AND %s
+ORDER BY ABS(epoch-%s) LIMIT 1;
+""", (utc - 86400 * 7, utc + 86400 * 7, utc))
+    epoch_info = c.fetchall()
+
+    # Check that we found an epoch
+    if len(epoch_info) == 0:
+        return None
+
+    # Fetch list of satellites
+    c.execute("""
+SELECT o.noradId,epoch,incl,ecc,RAasc,argPeri,meanAnom,meanMotion,mag,bStar,meanMotionDot,meanMotionDotDot
+FROM inthesky_spacecraft s
+INNER JOIN inthesky_spacecraft_orbit_epochs oe ON oe.noradId = s.noradId AND oe.epochId=%s
+INNER JOIN inthesky_spacecraft_orbits o ON oe.orbitId = o.uid
+INNER JOIN inthesky_spacecraft_names n ON s.noradId = n.noradId AND primaryName
+WHERE ((s.decayDate IS NULL) OR (s.decayDate>%s)) AND NOT s.isDebris;
+""", (epoch_info[0]['uid'], utc))
+    output = c.fetchall()
+
     # Close connection to database
     c.close()
     db.close()
 
     # Return results
     return output
-
 
 
 def satellite_determination(utc_min, utc_max):
@@ -107,6 +129,7 @@ def satellite_determination(utc_min, utc_max):
     # Count how many images we manage to successfully fit
     outcomes = {
         'successful_fits': 0,
+        'unsuccessful_fits': 0,
         'error_records': 0,
         'rescued_records': 0,
         'insufficient_information': 0
@@ -246,13 +269,13 @@ ORDER BY ao.obsTime
                 path_x_y = json.loads(fixed_json)
 
                 logging.info("{date} [{obs}] -- RESCUE: In: {detections:.0f} / {duration:.1f} sec; "
-                            "Rescued: {count:d} / {json_span:.1f} sec".format(
-                   date=date_string(utc=item['obsTime']),
-                   obs=item['observationId'],
-                   detections=item['detections'],
-                   duration=item['duration'],
-                   count=len(path_x_y),
-                   json_span=path_x_y[-1][3] - path_x_y[0][3]
+                             "Rescued: {count:d} / {json_span:.1f} sec".format(
+                    date=date_string(utc=item['obsTime']),
+                    obs=item['observationId'],
+                    detections=item['detections'],
+                    duration=item['duration'],
+                    count=len(path_x_y),
+                    json_span=path_x_y[-1][3] - path_x_y[0][3]
                 ))
 
                 path_bezier = json.loads(item['pathBezier'])
@@ -263,14 +286,14 @@ ORDER BY ao.obsTime
                 outcomes['rescued_records'] += 1
 
                 logging.info("{date} [{obs}] -- Added Bezier points: "
-                            "In: {detections:.0f} / {duration:.1f} sec; "
-                            "Rescued: {count:d} / {json_span:.1f} sec".format(
-                   date=date_string(utc=item['obsTime']),
-                   obs=item['observationId'],
-                   detections=item['detections'],
-                   duration=item['duration'],
-                   count=len(path_x_y),
-                   json_span=path_x_y[-1][3] - path_x_y[0][3]
+                             "In: {detections:.0f} / {duration:.1f} sec; "
+                             "Rescued: {count:d} / {json_span:.1f} sec".format(
+                    date=date_string(utc=item['obsTime']),
+                    obs=item['observationId'],
+                    detections=item['detections'],
+                    duration=item['duration'],
+                    count=len(path_x_y),
+                    json_span=path_x_y[-1][3] - path_x_y[0][3]
                 ))
             except json.decoder.JSONDecodeError:
                 logging.info("{date} [{obs}] -- !!! JSON error".format(
@@ -311,18 +334,83 @@ ORDER BY ao.obsTime
             )
 
         # Look up list of satellite orbital elements at the time of this sighting
-        spacecraft_list = []
+        spacecraft_list = fetch_satellites(utc=item['obsTime'])
 
         # List of candidate showers this meteor might belong to
-        candidate_satellites = fetch_satellites(utc=item['obsTime'])
+        candidate_satellites = []
+
+        # Check that we found a list of spacecraft
+        if spacecraft_list is None:
+            logging.info("{date} [{obs}] -- No spacecraft records found.".format(
+                date=date_string(utc=item['obsTime']),
+                obs=item['observationId']
+            ))
+            outcomes['insufficient_information'] += 1
+            continue
+
+        # Logging message about how many spacecraft we're testing
+        logging.info("{date} [{obs}] -- Matching against {count:7d} spacecraft.".format(
+            date=date_string(utc=item['obsTime']),
+            obs=item['observationId'],
+            count=len(spacecraft_list)
+        ))
 
         # Test for each candidate meteor shower in turn
         for spacecraft in spacecraft_list:
-            pass
+            # Unit scaling
+            deg2rad = pi / 180.0  # 0.0174532925199433
+            xpdotp = 1440.0 / (2.0 * pi)  # 229.1831180523293
+
+            # Model the path of this spacecraft
+            model = Satrec()
+            model.sgp4init(
+                # whichconst: gravity model
+                WGS72,
+
+                # opsmode: 'a' = old AFSPC mode, 'i' = improved mode
+                'i',
+
+                # satnum: Satellite number
+                spacecraft['noradId'],
+
+                # epoch: days since 1949 December 31 00:00 UT
+                jd_from_unix(spacecraft['epoch']) - 2433281.5,
+
+                # bstar: drag coefficient (/earth radii)
+                spacecraft['bStar'],
+
+                # ndot (NOT USED): ballistic coefficient (revs/day)
+                spacecraft['meanMotionDot'] / (xpdotp * 1440.0),
+
+                # nddot (NOT USED): mean motion 2nd derivative (revs/day^3)
+                spacecraft['meanMotionDotDot'] / (xpdotp * 1440.0 * 1440),
+
+                # ecco: eccentricity
+                spacecraft['ecc'],
+
+                # argpo: argument of perigee (radians)
+                spacecraft['argPeri'] * deg2rad,
+
+                # inclo: inclination (radians)
+                spacecraft['incl'] * deg2rad,
+
+                # mo: mean anomaly (radians)
+                spacecraft['meanAnom'] * deg2rad,
+
+                # no_kozai: mean motion (radians/minute)
+                spacecraft['meanMotion'] / xpdotp,
+
+                # nodeo: right ascension of ascending node (radians)
+                spacecraft['RAasc'] * deg2rad
+            )
+
+            # Fetch spacecraft position
+            e, r, v = model.sgp4(jd_from_unix(utc=item['obsTime']), 0)
+
+            # Convert to celestial coordinate in observer's sky
+            logging.info("{} {} {}".format(str(e), str(r), str(v)))
 
         # Add model possibility for null
-        hourly_rate = 5
-        likelihood = hourly_rate * (1. / 90.)  # Mean value of Gaussian in range 0-90 degs
         candidate_satellites.append({
             'name': "Unidentified",
             'likelihood': 1e-8,
@@ -337,7 +425,7 @@ ORDER BY ao.obsTime
         # Sort candidates by likelihood
         candidate_satellites.sort(key=itemgetter('likelihood'), reverse=True)
 
-        # Report possibility meteor shower identifications
+        # Report possible satellite identifications
         logging.info("{date} [{obs}] -- {satellites}".format(
             date=date_string(utc=item['obsTime']),
             obs=item['observationId'],
@@ -378,10 +466,14 @@ ORDER BY ao.obsTime
                                                  ))
 
         # Meteor successfully identified
-        outcomes['successful_fits'] += 1
+        if most_likely_satellite == "Unidentified":
+            outcomes['unsuccessful_fits'] += 1
+        else:
+            outcomes['successful_fits'] += 1
 
     # Report how many fits we achieved
     logging.info("{:d} satellites successfully identified.".format(outcomes['successful_fits']))
+    logging.info("{:d} satellites not identified.".format(outcomes['unsuccessful_fits']))
     logging.info("{:d} malformed database records.".format(outcomes['error_records']))
     logging.info("{:d} rescued database records.".format(outcomes['rescued_records']))
     logging.info("{:d} satellites with incomplete data.".format(outcomes['insufficient_information']))

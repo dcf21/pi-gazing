@@ -483,7 +483,7 @@ ORDER BY ao.obsTime
         # Sort candidates by likelihood
         candidate_showers.sort(key=itemgetter('likelihood'), reverse=True)
 
-        # Report possibility meteor shower identifications
+        # Report possible meteor shower identifications
         logging.info("{date} [{obs}] -- {showers}".format(
             date=date_string(utc=item['obsTime']),
             obs=item['observationId'],
