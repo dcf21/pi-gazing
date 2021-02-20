@@ -30,6 +30,7 @@ import argparse
 import json
 import logging
 import os
+import MySQLdb
 import time
 from math import pi
 from operator import itemgetter
@@ -40,6 +41,38 @@ from pigazing_helpers.gnomonic_project import inv_gnom_project, position_angle, 
 from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 from pigazing_helpers.sunset_times import get_zenith_position, ra_dec
+
+def fetch_satellites(utc):
+    """
+    Fetch list of satellite orbital elements from InTheSky database, at specified time.
+
+    :param utc:
+        Time for which to return orbital elements (unix time).
+    :type utc:
+        float
+    :return:
+        List of dictionaries containing orbital elements
+    """
+
+    output = []
+
+    # Open connection to database
+    db = MySQLdb.connect(host=connect_db.db_host, user=connect_db.db_user, passwd=connect_db.db_passwd,
+                         db="inthesky")
+    c = db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+
+    db.set_character_set('utf8mb4')
+    c.execute('SET NAMES utf8mb4;')
+    c.execute('SET CHARACTER SET utf8mb4;')
+    c.execute('SET character_set_connection=utf8mb4;')
+
+    # Close connection to database
+    c.close()
+    db.close()
+
+    # Return results
+    return output
+
 
 
 def satellite_determination(utc_min, utc_max):
@@ -281,7 +314,7 @@ ORDER BY ao.obsTime
         spacecraft_list = []
 
         # List of candidate showers this meteor might belong to
-        candidate_satellites = []
+        candidate_satellites = fetch_satellites(utc=item['obsTime'])
 
         # Test for each candidate meteor shower in turn
         for spacecraft in spacecraft_list:
