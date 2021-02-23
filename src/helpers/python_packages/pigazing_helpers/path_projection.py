@@ -30,18 +30,19 @@ import os
 from math import pi
 
 from pigazing_helpers import hardware_properties
-from pigazing_helpers.obsarchive import obsarchive_db
-from pigazing_helpers.dcf_ast import date_string
 from pigazing_helpers.gnomonic_project import inv_gnom_project, position_angle
+from pigazing_helpers.obsarchive import obsarchive_db
 from pigazing_helpers.settings_read import settings
-from pigazing_helpers.sunset_times import get_zenith_position, ra_dec
+from pigazing_helpers.sunset_times import get_zenith_position, sidereal_time, ra_dec, alt_az
+from pigazing_helpers.vector_algebra import Point, Vector, Line
 
 
 class PathProjection:
     """
     A class for projecting the paths of moving objects, in (x, y) pixel coordinates, into celestial coordinates.
     """
-    def __init__(self, db: obsarchive_db, obstory_id: str, observation_id: str, time: float):
+
+    def __init__(self, db: obsarchive_db, obstory_id: str, time: float, logging_prefix: str):
         """
         A class for projecting the paths of moving objects, in (x, y) pixel coordinates, into celestial coordinates.
 
@@ -53,20 +54,20 @@ class PathProjection:
             The publicId of the observatory which made the observation.
         :type obstory_id:
             str
-        :param observation_id:
-            The publicId of the observation we are analysing
-        :type observation_id:
-            str
         :param time:
             The unix time of the observation
         :type time:
             float
+        :param logging_prefix:
+            Text to prefix to all logging messages about this event, to identify it.
+        :type logging_prefix:
+            str
         """
 
         # Record inputs
         self.db = db
         self.obstory_id = obstory_id
-        self.observation_id = observation_id
+        self.logging_prefix = logging_prefix
         self.time = time
         self.error = None  # Set to a string in case of failure
         self.notifications = []  # List of notification strings
@@ -88,6 +89,13 @@ class PathProjection:
         # Abort in case of error
         if self.error:
             return
+
+        # Position of observatory in Cartesian coordinates, relative to centre of the Earth
+        # Units: metres; zero longitude along x axis
+        self.observatory_position = Point.from_lat_lng(lat=self.obstory_info['latitude'],
+                                                       lng=self.obstory_info['longitude'],
+                                                       alt=0,  # Unfortunately <archive_observatories> doesn't store alt
+                                                       utc=None)
 
         # Get celestial coordinates of the local zenith
         ra_dec_zenith_at_epoch = get_zenith_position(latitude=self.obstory_info['latitude'],
@@ -136,9 +144,8 @@ class PathProjection:
 
         if not obstory_status:
             # We cannot identify meteors if we don't have observatory status
-            logging.info("{date} [{obs}] -- No observatory status available".format(
-                date=date_string(utc=self.time),
-                obs=self.observation_id
+            logging.info("{prefix} -- No observatory status available".format(
+                prefix=self.logging_prefix
             ))
             self.error = 'insufficient_information'
             return None, None
@@ -195,9 +202,8 @@ class PathProjection:
             }
         else:
             # We cannot identify meteors if we don't know which direction camera is pointing
-            logging.info("{date} [{obs}] -- Orientation of camera unknown".format(
-                date=date_string(utc=self.time),
-                obs=self.observation_id
+            logging.info("{prefix} -- Orientation of camera unknown".format(
+                prefix=self.logging_prefix
             ))
             self.error = 'insufficient_information'
             return None
@@ -208,9 +214,8 @@ class PathProjection:
             orientation['pixel_height'] = self.obstory_status['camera_height']
         else:
             # We cannot identify meteors if we don't know camera field of view
-            logging.info("{date} [{obs}] -- Pixel dimensions of video stream could not be determined".format(
-                date=date_string(utc=self.time),
-                obs=self.observation_id
+            logging.info("{prefix} -- Pixel dimensions of video stream could not be determined".format(
+                prefix=self.logging_prefix
             ))
             self.error = 'insufficient_information'
             return None
@@ -257,10 +262,9 @@ class PathProjection:
             try:
                 path_x_y = json.loads(fixed_json)
 
-                logging.info("{date} [{obs}] -- RESCUE: In: {detections:.0f} / {duration:.1f} sec; "
+                logging.info("{prefix} -- RESCUE: In: {detections:.0f} / {duration:.1f} sec; "
                              "Rescued: {count:d} / {json_span:.1f} sec".format(
-                    date=date_string(utc=self.time),
-                    obs=self.observation_id,
+                    prefix=self.logging_prefix,
                     detections=detections,
                     duration=duration,
                     count=len(path_x_y),
@@ -274,20 +278,18 @@ class PathProjection:
                 path_x_y.append([p[0], p[1], 0, p[2]])
                 self.notifications.append('rescued_record')
 
-                logging.info("{date} [{obs}] -- Added Bezier points: "
+                logging.info("{prefix} -- Added Bezier points: "
                              "In: {detections:.0f} / {duration:.1f} sec; "
                              "Rescued: {count:d} / {json_span:.1f} sec".format(
-                    date=date_string(utc=self.time),
-                    obs=self.observation_id,
+                    prefix=self.logging_prefix,
                     detections=detections,
                     duration=duration,
                     count=len(path_x_y),
                     json_span=path_x_y[-1][3] - path_x_y[0][3]
                 ))
             except json.decoder.JSONDecodeError:
-                logging.info("{date} [{obs}] -- !!! JSON error".format(
-                    date=date_string(utc=self.time),
-                    obs=self.observation_id
+                logging.info("{prefix} -- !!! JSON error".format(
+                    prefix=self.logging_prefix
                 ))
             self.error = 'error_record'
             return None
@@ -319,15 +321,17 @@ class PathProjection:
         """
         # Do not proceed if we have already encountered an error
         if self.error:
-            return None, None
+            return None, None, None, None
 
         # Extract (x,y) path from input JSON
         path_x_y = self.extract_path_from_json(path_json, path_bezier_json, detections, duration)
         if self.error:
-            return None, None
+            return None, None, None, None
 
         # Convert path of moving objects into RA / Dec (radians, at epoch of observation)
         path_ra_dec_at_epoch = []
+        path_alt_az = []
+        sight_line_list = []
         for pt_x, pt_y, pt_intensity, pt_utc in path_x_y:
             # Calculate celestial coordinates of the centre of the field of view
             # hours / degrees, epoch of observation
@@ -340,18 +344,52 @@ class PathProjection:
             )
 
             # Calculate RA / Dec of observed position, at observed time
-            path_ra_dec_at_epoch.append(
-                inv_gnom_project(ra0=instantaneous_central_ra_at_epoch * pi / 12,
-                                 dec0=instantaneous_central_dec_at_epoch * pi / 180,
-                                 size_x=self.orientation['pixel_width'],
-                                 size_y=self.orientation['pixel_height'],
-                                 scale_x=self.orientation['ang_width'] * pi / 180,
-                                 scale_y=self.orientation['ang_height'] * pi / 180,
-                                 x=pt_x, y=pt_y,
-                                 pos_ang=self.celestial_pa_at_epoch * pi / 180,
-                                 barrel_k1=self.lens_barrel_parameters[2],
-                                 barrel_k2=self.lens_barrel_parameters[3],
-                                 barrel_k3=self.lens_barrel_parameters[4]
-                                 )
-            )
-        return path_x_y, path_ra_dec_at_epoch
+            ra, dec = inv_gnom_project(ra0=instantaneous_central_ra_at_epoch * pi / 12,
+                                       dec0=instantaneous_central_dec_at_epoch * pi / 180,
+                                       size_x=self.orientation['pixel_width'],
+                                       size_y=self.orientation['pixel_height'],
+                                       scale_x=self.orientation['ang_width'] * pi / 180,
+                                       scale_y=self.orientation['ang_height'] * pi / 180,
+                                       x=pt_x, y=pt_y,
+                                       pos_ang=self.celestial_pa_at_epoch * pi / 180,
+                                       barrel_k1=self.lens_barrel_parameters[2],
+                                       barrel_k2=self.lens_barrel_parameters[3],
+                                       barrel_k3=self.lens_barrel_parameters[4]
+                                       )
+
+            path_ra_dec_at_epoch.append([ra, dec])
+
+            # Work out the Greenwich hour angle of the object; radians eastwards of the prime meridian at Greenwich
+            instantaneous_sidereal_time = sidereal_time(utc=pt_utc)  # hours
+            greenwich_hour_angle = ra - instantaneous_sidereal_time * pi / 12  # radians
+
+            # Work out alt-az of reported (RA,Dec) using known location of camera (degrees)
+            alt, az = alt_az(ra=ra * 12 / pi, dec=dec * 180 / pi,
+                             utc=pt_utc,
+                             latitude=self.obstory_info['latitude'],
+                             longitude=self.obstory_info['longitude'])
+
+            path_alt_az.append([alt, az])
+
+            # Populate description of this sight line from observatory to the moving object
+            direction = Vector.from_ra_dec(ra=greenwich_hour_angle * 12 / pi, dec=dec * 180 / pi)
+            sight_line = Line(self.observatory_position, direction)
+            sight_line_descriptor = {
+                'ra': ra,  # radians; at epoch
+                'dec': dec,  # radians; at epoch
+                'alt': alt,  # degrees
+                'az': az,  # degrees
+                'utc': pt_utc,  # unix time
+                'obs_position': self.observatory_position,  # Point
+                'line': sight_line  # Line
+            }
+            sight_line_list.append(sight_line_descriptor)
+
+            # Debugging
+            # logging.info("Observatory <{}> saw object at RA {:.3f} h; Dec {:.3f} deg, with sight line {}.".
+            #              format(obstory_info['publicId'],
+            #                     ra * 12 / pi,
+            #                     dec * 180 / pi,
+            #                     sight_line))
+
+        return path_x_y, path_ra_dec_at_epoch, path_alt_az, sight_line_list

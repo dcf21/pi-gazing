@@ -209,14 +209,21 @@ ORDER BY ao.obsTime
 
     # Analyse each meteor in turn
     for item_index, item in enumerate(results):
+        # Make ID string to prefix to all logging messages about this event
+        logging_prefix = "{date} [{obs}]".format(
+            date=date_string(utc=item['obsTime']),
+            obs=item['observationId']
+        )
+
         # Project path from (x,y) coordinates into (RA, Dec)
         projector = PathProjection(
             db=db,
             obstory_id=item['observatory'],
-            observation_id=item['observationId'],
-            time=item['obsTime']
+            time=item['obsTime'],
+            logging_prefix=logging_prefix
         )
-        path_x_y, path_ra_dec_at_epoch = projector.ra_dec_from_x_y(
+
+        path_x_y, path_ra_dec_at_epoch, path_alt_az, sight_line_list_this = projector.ra_dec_from_x_y(
             path_json=item['path'],
             path_bezier_json=item['pathBezier'],
             detections=item['detections'],
@@ -464,7 +471,7 @@ if __name__ == "__main__":
 
     # Set up logging
     logging.basicConfig(level=logging.INFO,
-                        format='[%(asctime)s] %(levelname)s:%(filename)s:%(message)s',
+                        format='[%(asctime)s] %(levelname)s:%(filename)32s:%(message)s',
                         datefmt='%d/%m/%Y %H:%M:%S',
                         handlers=[
                             logging.FileHandler(os.path.join(settings['pythonPath'], "../datadir/pigazing.log")),
