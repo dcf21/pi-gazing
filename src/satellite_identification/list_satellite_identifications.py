@@ -58,13 +58,20 @@ def list_satellites(obstory_id, utc_min, utc_max):
 
     # Select moving objects with satellite identifications
     conn.execute("""
-SELECT am1.stringValue AS satellite_name, am2.floatValue AS offset,
+SELECT am1.stringValue AS satellite_name, am2.floatValue AS ang_offset,
+       am3.floatValue AS clock_offset, am4.floatValue AS duration, am5.floatValue AS norad_id,
        o.obsTime AS time, o.publicId AS obsId
 FROM archive_observations o
 INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
     am1.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="satellite:name")
 INNER JOIN archive_metadata am2 ON o.uid = am2.observationId AND
-    am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="satellite:offset")
+    am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="satellite:angular_offset")
+INNER JOIN archive_metadata am3 ON o.uid = am3.observationId AND
+    am3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="satellite:clock_offset")
+INNER JOIN archive_metadata am4 ON o.uid = am4.observationId AND
+    am4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:duration")
+INNER JOIN archive_metadata am5 ON o.uid = am5.observationId AND
+    am5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="satellite:norad_id")
 WHERE
     o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
     o.obsTime BETWEEN %s AND %s;
@@ -76,7 +83,10 @@ WHERE
             'id': item['obsId'],
             'time': item['time'],
             'satellite_name': item['satellite_name'],
-            'offset': item['offset']
+            'ang_offset': item['ang_offset'],
+            'clock_offset': item['clock_offset'],
+            'duration': item['duration'],
+            'norad_id': int(item['norad_id'])
         })
 
     # Sort identifications by time
@@ -84,17 +94,20 @@ WHERE
 
     # Display column headings
     print("""\
-{:16s} {:20s} {:20s} {:5s}\
-""".format("Time", "ID", "Satellite", "Offset"))
+{:16s} {:7s} {:32s} {:26s} {:8s} {:10s} {:10s}\
+""".format("Time", "NORAD", "ID", "Satellite", "Duration", "Ang offset", "Clock offset"))
 
     # Display list of meteors
     for item in satellite_identifications:
         print("""\
-{:16s} {:20s} {:26s} {:5.1f}\
+{:16s} {:7d} {:32s} {:26s} {:5.1f} {:10.1f} {:10.1f}\
 """.format(date_string(item['time']),
+           item['norad_id'],
            item['id'],
            item['satellite_name'],
-           item['offset']
+           item['duration'],
+           item['ang_offset'],
+           item['clock_offset'],
            ))
 
     # Clean up and exit

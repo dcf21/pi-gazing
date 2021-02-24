@@ -30,7 +30,8 @@ import argparse
 import logging
 import os
 import time
-from math import pi
+import scipy.optimize
+from math import pi, exp
 from operator import itemgetter
 
 import MySQLdb
@@ -292,18 +293,14 @@ ORDER BY ao.obsTime
             # logging.info("{} {} {}".format(str(e), str(r), str(v)))
             tai_utc_offset = 39  # seconds
 
-            # Measure the offset between the satellite's position and the observed position at each time point
-            for index in range(path_len):
+            def satellite_angular_offset(index, clock_offset):
                 # Fetch observed position of object at this time point
                 pt_utc = path_x_y[index][3]
                 pt_alt = path_alt_az[index][0]
                 pt_az = path_alt_az[index][1]
 
                 # Project position of this satellite in space at this time point
-                t = ts.tai_jd(jd=jd_from_unix(utc=pt_utc + tai_utc_offset))
-                observer = wgs84.latlon(latitude_degrees=projector.obstory_info['latitude'],
-                                        longitude_degrees=projector.obstory_info['longitude'],
-                                        elevation_m=0)
+                t = ts.tai_jd(jd=jd_from_unix(utc=pt_utc + tai_utc_offset + clock_offset))
 
                 # Project position of this satellite in the observer's sky
                 sight_line = sat - observer
@@ -314,24 +311,68 @@ ORDER BY ao.obsTime
                 ang_mismatch = ang_dist(ra0=pt_az * pi / 180, dec0=pt_alt * pi / 180,
                                         ra1=sat_az.radians, dec1=sat_alt.radians) * 180 / pi
 
+                return ang_mismatch, sat_distance
+
+            def time_offset_objective(p):
+                """
+                Objective function that we minimise in order to find the best fit clock offset between the observed
+                and model paths.
+
+                :param p:
+                    Vector with a single component: the clock offset
+                :return:
+                    Metric to minimise
+                """
+
+                # Turn input parameters into a time offset
+                clock_offset = p[0]
+
+                # Look up angular offset
+                ang_mismatch, sat_distance = satellite_angular_offset(index=0, clock_offset=clock_offset)
+
+                # Return metric to minimise
+                return ang_mismatch * exp(clock_offset / 30)
+
+            # First, chuck out satellites with large angular offsets
+            observer = wgs84.latlon(latitude_degrees=projector.obstory_info['latitude'],
+                                    longitude_degrees=projector.obstory_info['longitude'],
+                                    elevation_m=0)
+
+            ang_mismatch, sat_distance = satellite_angular_offset(index=0, clock_offset=0)
+            if ang_mismatch > 10:
+                continue
+
+            # Work out the optimum time offset between the satellite's path and the observed path
+            # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/>
+            # for more information about how this works
+            parameters_initial = [0]
+            parameters_optimised = scipy.optimize.minimize(time_offset_objective,
+                                                           np.asarray(parameters_initial),
+                                                           options={'disp': False, 'maxiter': 100}
+                                                           ).x
+
+            # Construct best-fit linear trajectory for best-fitting parameters
+            clock_offset = float(parameters_optimised[0])
+
+            # Measure the offset between the satellite's position and the observed position at each time point
+            for index in range(path_len):
+                # Look up angular mismatch at this time point
+                ang_mismatch, sat_distance = satellite_angular_offset(index=index, clock_offset=clock_offset)
+
                 # Keep list of the offsets at each recorded time point along the trajectory
                 ang_mismatch_list.append(ang_mismatch)
                 distance_list.append(sat_distance.km)
-
-                # Quick exit route: abort if position mismatch ever exceeds 30 degrees
-                if ang_mismatch > 30:
-                    ang_mismatch_list = [999]
-                    break
 
             # Consider adding this satellite to list of candidates
             mean_ang_mismatch = np.mean(np.asarray(ang_mismatch_list))
             distance_mean = np.mean(np.asarray(distance_list))
 
-            if mean_ang_mismatch < 5:
+            if mean_ang_mismatch < 4:
                 candidate_satellites.append({
                     'name': spacecraft['name'],
                     'noradId': spacecraft['noradId'],
                     'distance': distance_mean,
+                    'clock_offset': clock_offset,
                     'offset': mean_ang_mismatch
                 })
 
@@ -339,7 +380,8 @@ ORDER BY ao.obsTime
         candidate_satellites.append({
             'name': "Unidentified",
             'noradId': 0,
-            'distance': 1e3,
+            'distance': 35.7e3 * 0.25,  # Nothing is visible beyond 25% of geostationary orbit distance
+            'clock_offset': 0,
             'offset': 0
         })
 
@@ -350,7 +392,9 @@ ORDER BY ao.obsTime
         logging.info("{prefix} -- {satellites}".format(
             prefix=logging_prefix,
             satellites=", ".join([
-                "{} ({:.1f} deg offset)".format(satellite['name'], satellite['offset'])
+                "{} ({:.1f} deg offset; clock offset {:.1f} sec)".format(satellite['name'],
+                                                                         satellite['offset'],
+                                                                         satellite['clock_offset'])
                 for satellite in candidate_satellites
             ])
         ))
@@ -366,7 +410,10 @@ ORDER BY ao.obsTime
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="satellite:norad_id", value=most_likely_satellite['noradId']))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="satellite:offset", value=most_likely_satellite['offset']))
+                                    meta=mp.Meta(key="satellite:clock_offset",
+                                                 value=most_likely_satellite['clock_offset']))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
+                                    meta=mp.Meta(key="satellite:angular_offset", value=most_likely_satellite['offset']))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="satellite:path_length",
                                                  value=ang_dist(ra0=path_ra_dec_at_epoch[0][0],
@@ -392,6 +439,9 @@ ORDER BY ao.obsTime
             outcomes['unsuccessful_fits'] += 1
         else:
             outcomes['successful_fits'] += 1
+
+        # Update database
+        db.commit()
 
     # Report how many fits we achieved
     logging.info("{:d} satellites successfully identified.".format(outcomes['successful_fits']))
