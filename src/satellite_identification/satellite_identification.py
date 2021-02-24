@@ -226,11 +226,11 @@ ORDER BY ao.obsTime
             continue
 
         # Logging message about how many spacecraft we're testing
-        logging.info("{date} [{obs}] -- Matching against {count:7d} spacecraft.".format(
-            date=date_string(utc=item['obsTime']),
-            obs=item['observationId'],
-            count=len(spacecraft_list)
-        ))
+        # logging.info("{date} [{obs}] -- Matching against {count:7d} spacecraft.".format(
+        #     date=date_string(utc=item['obsTime']),
+        #     obs=item['observationId'],
+        #     count=len(spacecraft_list)
+        # ))
 
         # Test for each candidate meteor shower in turn
         for spacecraft in spacecraft_list:
@@ -509,7 +509,7 @@ if __name__ == "__main__":
 
     # Set up logging
     logging.basicConfig(level=logging.INFO,
-                        format='[%(asctime)s] %(levelname)s:%(filename)20s:%(message)s',
+                        format='[%(asctime)s] %(levelname)s:%(filename)28s:%(message)s',
                         datefmt='%d/%m/%Y %H:%M:%S',
                         handlers=[
                             logging.FileHandler(os.path.join(settings['pythonPath'], "../datadir/pigazing.log")),
