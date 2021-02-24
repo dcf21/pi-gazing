@@ -111,7 +111,7 @@ def sight_line_mismatch_list(trajectory):
     return mismatch_list
 
 
-def angular_mismatch_slave(p):
+def angular_mismatch_objective(p):
     """
     Objective function that we minimise in order to fit a linear trajectory to all the recorded sight lines to a
     moving object.
@@ -141,9 +141,6 @@ def do_triangulation(utc_min, utc_max, utc_must_stop):
                  format(date_string(utc_min),
                         date_string(utc_max)))
 
-    # Open connection to database
-    [db0, conn] = connect_db.connect_db()
-
     db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                            db_host=installation_info['mysqlHost'],
                                            db_user=installation_info['mysqlUser'],
@@ -172,6 +169,9 @@ def do_triangulation(utc_min, utc_max, utc_must_stop):
         where.append("o.obsTime<=%s")
         args.append(utc_max)
 
+    # Open connection to database
+    [db0, conn] = connect_db.connect_db()
+
     # Search for observation groups containing groups of simultaneous detections
     conn.execute("""
 SELECT g.publicId AS groupId, o.publicId AS observationId, o.obsTime,
@@ -198,6 +198,10 @@ WHERE """ + " AND ".join(where) + """
 ORDER BY o.obsTime;
 """, args)
     results = conn.fetchall()
+
+    # Close connection to database
+    conn.close()
+    db0.close()
 
     # Compile list of events into list of groups
     obs_groups = {}
@@ -325,7 +329,7 @@ ORDER BY o.obsTime;
         # Solve the system of equations
         # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/>
         # for more information about how this works
-        parameters_optimised = scipy.optimize.minimize(angular_mismatch_slave, numpy.asarray(parameters_initial),
+        parameters_optimised = scipy.optimize.minimize(angular_mismatch_objective, numpy.asarray(parameters_initial),
                                                        options={'disp': False, 'maxiter': 1e8}
                                                        ).x
 
@@ -408,6 +412,9 @@ ORDER BY o.obsTime;
         # Triangulation successful
         outcomes['successful_fits'] += 1
 
+        # Update database
+        db.commit()
+
     # Report how many fits we achieved
     logging.info("{:d} objects successfully triangulated.".format(outcomes['successful_fits']))
     logging.info("{:d} malformed database records.".format(outcomes['error_records']))
@@ -417,9 +424,6 @@ ORDER BY o.obsTime;
     # Commit changes
     db.commit()
     db.close_db()
-    db0.commit()
-    conn.close()
-    db0.close()
 
 
 def flush_triangulation(utc_min, utc_max):

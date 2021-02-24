@@ -153,9 +153,6 @@ def shower_determination(utc_min, utc_max):
     # Load list of meteor showers
     shower_list = read_shower_list()
 
-    # Open connection to database
-    [db0, conn] = connect_db.connect_db()
-
     # Open connection to image archive
     db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                            db_host=installation_info['mysqlHost'],
@@ -176,6 +173,9 @@ def shower_determination(utc_min, utc_max):
 
     # Status update
     logging.info("Searching for meteors within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
+
+    # Open connection to database
+    [db0, conn] = connect_db.connect_db()
 
     # Search for meteors within this time period
     conn.execute("""
@@ -200,6 +200,10 @@ WHERE ao.obsTime BETWEEN %s AND %s
 ORDER BY ao.obsTime
 """, (utc_min, utc_max))
     results = conn.fetchall()
+
+    # Close connection to database
+    conn.close()
+    db0.close()
 
     # Display logging list of the images we are going to work on
     logging.info("Estimating the parents of {:d} meteors.".format(len(results)))
@@ -401,6 +405,9 @@ ORDER BY ao.obsTime
         # Meteor successfully identified
         outcomes['successful_fits'] += 1
 
+        # Update database
+        db.commit()
+
     # Report how many fits we achieved
     logging.info("{:d} meteors successfully identified.".format(outcomes['successful_fits']))
     logging.info("{:d} malformed database records.".format(outcomes['error_records']))
@@ -415,9 +422,6 @@ ORDER BY ao.obsTime
     # Clean up and exit
     db.commit()
     db.close_db()
-    db0.commit()
-    conn.close()
-    db0.close()
     return
 
 

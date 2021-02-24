@@ -310,7 +310,7 @@ def inv_gnom_project(ra0, dec0, size_x, size_y, scale_x, scale_y, x, y, pos_ang,
     dec = asin(a[2])
 
     # Correction for barrel distortion
-    def mismatch_slave(parameters):
+    def mismatch_objective(parameters):
         [ra, dec] = parameters
         pos = gnomonic_project(ra=ra, dec=dec, ra0=ra0, dec0=dec0,
                                size_x=size_x, size_y=size_y, scale_x=scale_x, scale_y=scale_y, pos_ang=pos_ang,
@@ -318,7 +318,7 @@ def inv_gnom_project(ra0, dec0, size_x, size_y, scale_x, scale_y, x, y, pos_ang,
         return hypot(pos[0] - x, pos[1] - y)
 
     params_initial = [ra, dec]
-    params_optimised = scipy.optimize.minimize(mismatch_slave, params_initial,
+    params_optimised = scipy.optimize.minimize(mismatch_objective, params_initial,
                                                options={'disp': False, 'maxiter': 1e8}).x
     # print "Position before barrel correction: (%s,%s)" % (ra, dec)
     # print "Position after barrel correction: (%s,%s)" % (params_optimised[0], params_optimised[1])

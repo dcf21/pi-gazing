@@ -116,9 +116,6 @@ def satellite_determination(utc_min, utc_max):
         None
     """
 
-    # Open connection to database
-    [db0, conn] = connect_db.connect_db()
-
     # Open connection to image archive
     db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                            db_host=installation_info['mysqlHost'],
@@ -146,6 +143,9 @@ def satellite_determination(utc_min, utc_max):
     # Status update
     logging.info("Searching for satellites within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
 
+    # Open connection to database
+    [db0, conn] = connect_db.connect_db()
+
     # Search for satellites within this time period
     conn.execute("""
 SELECT ao.obsTime, ao.publicId AS observationId, f.repositoryFname, am.stringValue AS path, l.publicId AS observatory,
@@ -169,6 +169,10 @@ WHERE ao.obsTime BETWEEN %s AND %s
 ORDER BY ao.obsTime
 """, (utc_min, utc_max))
     results = conn.fetchall()
+
+    # Close connection to database
+    conn.close()
+    db0.close()
 
     # Display logging list of the images we are going to work on
     logging.info("Estimating the identity of {:d} spacecraft.".format(len(results)))
@@ -453,9 +457,6 @@ ORDER BY ao.obsTime
     # Clean up and exit
     db.commit()
     db.close_db()
-    db0.commit()
-    conn.close()
-    db0.close()
     return
 
 
