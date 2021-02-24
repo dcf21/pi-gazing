@@ -57,6 +57,7 @@ pip install flask-jsonpify
 pip install bcrypt
 pip install gps3
 pip install sgp4
+pip install skyfield
 pip install toolz cytoolz dask distributed bokeh
 
 # Install custom python libraries

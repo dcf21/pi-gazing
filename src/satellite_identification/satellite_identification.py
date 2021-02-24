@@ -34,6 +34,7 @@ from math import pi
 from operator import itemgetter
 
 import MySQLdb
+import numpy as np
 from pigazing_helpers import connect_db, hardware_properties
 from pigazing_helpers.dcf_ast import date_string, jd_from_unix
 from pigazing_helpers.gnomonic_project import ang_dist
@@ -41,6 +42,7 @@ from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.path_projection import PathProjection
 from pigazing_helpers.settings_read import settings, installation_info
 from sgp4.api import Satrec, WGS72
+from skyfield.api import EarthSatellite, load, wgs84
 
 
 def fetch_satellites(utc):
@@ -79,7 +81,8 @@ ORDER BY ABS(epoch-%s) LIMIT 1;
 
     # Fetch list of satellites
     c.execute("""
-SELECT o.noradId,epoch,incl,ecc,RAasc,argPeri,meanAnom,meanMotion,mag,bStar,meanMotionDot,meanMotionDotDot
+SELECT o.noradId, n.name,
+       epoch,incl,ecc,RAasc,argPeri,meanAnom,meanMotion,mag,bStar,meanMotionDot,meanMotionDotDot
 FROM inthesky_spacecraft s
 INNER JOIN inthesky_spacecraft_orbit_epochs oe ON oe.noradId = s.noradId AND oe.epochId=%s
 INNER JOIN inthesky_spacecraft_orbits o ON oe.orbitId = o.uid
@@ -277,47 +280,93 @@ ORDER BY ao.obsTime
                 spacecraft['RAasc'] * deg2rad
             )
 
-            # Fetch spacecraft position
-            e, r, v = model.sgp4(jd_from_unix(utc=item['obsTime']), 0)
+            # Wrap within skyfield to convert to topocentric coordinates
+            ts = load.timescale()
+            sat = EarthSatellite.from_satrec(model, ts)
 
-            # Convert to celestial coordinate in observer's sky
-            logging.info("{} {} {}".format(str(e), str(r), str(v)))
+            # Fetch spacecraft position at each time point along trajectory
+            ang_mismatch_list = []
+            distance_list = []
 
-        # Add model possibility for null
+            # e, r, v = model.sgp4(jd_from_unix(utc=item['obsTime']), 0)
+            # logging.info("{} {} {}".format(str(e), str(r), str(v)))
+            tai_utc_offset = 39  # seconds
+
+            # Measure the offset between the satellite's position and the observed position at each time point
+            for index in range(path_len):
+                # Fetch observed position of object at this time point
+                pt_utc = path_x_y[index][3]
+                pt_alt = path_alt_az[index][0]
+                pt_az = path_alt_az[index][1]
+
+                # Project position of this satellite in space at this time point
+                t = ts.tai_jd(jd=jd_from_unix(utc=pt_utc + tai_utc_offset))
+                observer = wgs84.latlon(latitude_degrees=projector.obstory_info['latitude'],
+                                        longitude_degrees=projector.obstory_info['longitude'],
+                                        elevation_m=0)
+
+                # Project position of this satellite in the observer's sky
+                sight_line = sat - observer
+                topocentric = sight_line.at(t)
+                sat_alt, sat_az, sat_distance = topocentric.altaz()
+
+                # Work out offset of satellites position from observed moving object
+                ang_mismatch = ang_dist(ra0=pt_az * pi / 180, dec0=pt_alt * pi / 180,
+                                        ra1=sat_az.radians, dec1=sat_alt.radians) * 180 / pi
+
+                # Keep list of the offsets at each recorded time point along the trajectory
+                ang_mismatch_list.append(ang_mismatch)
+                distance_list.append(sat_distance.km)
+
+                # Quick exit route: abort if position mismatch ever exceeds 30 degrees
+                if ang_mismatch > 30:
+                    ang_mismatch_list = [999]
+                    break
+
+            # Consider adding this satellite to list of candidates
+            mean_ang_mismatch = np.mean(np.asarray(ang_mismatch_list))
+            distance_mean = np.mean(np.asarray(distance_list))
+
+            if mean_ang_mismatch < 5:
+                candidate_satellites.append({
+                    'name': spacecraft['name'],
+                    'noradId': spacecraft['noradId'],
+                    'distance': distance_mean,
+                    'offset': mean_ang_mismatch
+                })
+
+        # Add model possibility for null satellite
         candidate_satellites.append({
             'name': "Unidentified",
-            'likelihood': 1e-8,
+            'noradId': 0,
+            'distance': 1e3,
             'offset': 0
         })
 
-        # Renormalise likelihoods to sum to unity
-        sum_likelihood = sum(shower['likelihood'] for shower in candidate_satellites)
-        for shower in candidate_satellites:
-            shower['likelihood'] *= 100 / sum_likelihood
-
-        # Sort candidates by likelihood
-        candidate_satellites.sort(key=itemgetter('likelihood'), reverse=True)
+        # Sort candidates by distance
+        candidate_satellites.sort(key=itemgetter('distance'))
 
         # Report possible satellite identifications
-        logging.info("{date} [{obs}] -- {satellites}".format(
-            date=date_string(utc=item['obsTime']),
-            obs=item['observationId'],
+        logging.info("{prefix} -- {satellites}".format(
+            prefix=logging_prefix,
             satellites=", ".join([
-                "{} {:.1f}% ({:.1f} deg offset)".format(shower['name'], shower['likelihood'], shower['offset'])
-                for shower in candidate_satellites
+                "{} ({:.1f} deg offset)".format(satellite['name'], satellite['offset'])
+                for satellite in candidate_satellites
             ])
         ))
 
         # Identify most likely satellite
-        most_likely_satellite = candidate_satellites[0]['name']
+        most_likely_satellite = candidate_satellites[0]
 
         # Store satellite identification
         user = settings['pigazingUser']
         timestamp = time.time()
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="satellite:name", value=most_likely_satellite))
+                                    meta=mp.Meta(key="satellite:name", value=most_likely_satellite['name']))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="satellite:offset", value=candidate_satellites[0]['offset']))
+                                    meta=mp.Meta(key="satellite:norad_id", value=most_likely_satellite['noradId']))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
+                                    meta=mp.Meta(key="satellite:offset", value=most_likely_satellite['offset']))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="satellite:path_length",
                                                  value=ang_dist(ra0=path_ra_dec_at_epoch[0][0],
