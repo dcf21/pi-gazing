@@ -335,7 +335,7 @@ ORDER BY ao.obsTime
                 ang_mismatch, sat_distance = satellite_angular_offset(index=0, clock_offset=clock_offset)
 
                 # Return metric to minimise
-                return ang_mismatch * exp(clock_offset / 30)
+                return ang_mismatch * exp(clock_offset / 10)
 
             # First, chuck out satellites with large angular offsets
             observer = wgs84.latlon(latitude_degrees=projector.obstory_info['latitude'],
