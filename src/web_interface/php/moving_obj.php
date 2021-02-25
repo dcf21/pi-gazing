@@ -257,13 +257,45 @@ if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
 
     <div class="row">
         <div class="col-xl-8">
-            <div class="gallery_still planetarium" data-meta='<?php echo json_encode($planetarium_metadata); ?>'>
+            <div class="gallery_still planetarium" style="margin-bottom: 20px;"
+                 data-meta='<?php echo json_encode($planetarium_metadata); ?>'>
                 <canvas class="PLbuf0" width="1" height="1"></canvas>
                 <video class="gallery_still_img planetarium_image" controls>
                     <source src="<?php echo $file_url; ?>" type="video/mp4"/>
                     Your browser does not support the video tag.
                 </video>
             </div>
+
+            <?php
+            $categorisations = [];
+            if (array_key_exists("web:category", $metadata_by_key)) {
+                $categorisations[] = $metadata_by_key["web:category"];
+            }
+            if (array_key_exists("shower:name", $metadata_by_key)) {
+                $categorisations[] = $metadata_by_key["shower:name"];
+            }
+            if (array_key_exists("satellite:norad_id", $metadata_by_key) && ($metadata_by_key["satellite:norad_id"]>0)) {
+                $item = "<a href='https://in-the-sky.org/spacecraft.php?id={$metadata_by_key["satellite:norad_id"]}'>";
+                $item .= $metadata_by_key["satellite:name"];
+                $item .= "</a>";
+                $utc1 = $observation['obsTime'] - 30;
+                $utc3 = $observation['obsTime'] + 60;
+                $item .= " (<a href='https://in-the-sky.org/satpasseschart.php?utc1={$utc1}&utc3={$utc3}&satid={$metadata_by_key["satellite:norad_id"]}'>";
+                $item .= "Diagram of path";
+                $item .= "</a>)";
+                $categorisations[] = $item;
+            }
+
+            if (count($categorisations) > 0) {
+                print "<h5>Object classification</h5>";
+                print "<ul>";
+                foreach ($categorisations as $item) {
+                    print "<li>{$item}</li>";
+                }
+                print "</ul>";
+            }
+            ?>
+
         </div>
         <div class="col-xl-4">
             <h5>Observation type</h5>

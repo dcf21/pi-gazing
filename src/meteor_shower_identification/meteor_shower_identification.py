@@ -387,7 +387,7 @@ ORDER BY ao.obsTime
                                                  value=ang_dist(ra0=path_ra_dec_at_epoch[0][0],
                                                                 dec0=path_ra_dec_at_epoch[0][1],
                                                                 ra1=path_ra_dec_at_epoch[-1][0],
-                                                                dec1=path_ra_dec_at_epoch[-1][0]
+                                                                dec1=path_ra_dec_at_epoch[-1][1]
                                                                 ) * 180 / pi
                                                  ))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,

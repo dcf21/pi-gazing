@@ -299,6 +299,12 @@ __HTML__;
                                 <a class="dropdown-item" href="<?php echo $server; ?>search_highlights.php">
                                     Featured images
                                 </a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>search_satellites.php">
+                                    Satellite sightings
+                                </a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>search_meteors.php">
+                                    Meteor statistics
+                                </a>
                                 <a class="dropdown-item" href="<?php echo $server; ?>sky_coverage.php">
                                     Sky coverage chart
                                 </a>
