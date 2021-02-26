@@ -190,7 +190,7 @@ VALUES
         total_rows = rows_returned + search.skip
         if (rows_returned == search.limit > 0) or (rows_returned == 0 and search.skip > 0):
             self.con.execute(b.get_count_sql(), b.sql_args)
-            total_rows = self.con.fetchone()[0]
+            total_rows = self.con.fetchone()['COUNT(*)']
         return {"count": total_rows,
                 "items": items}
 
