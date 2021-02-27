@@ -12,6 +12,12 @@
   <radial_distortion>[70.08638229,  54.55433296,  -0.1994405744,   0.0329307842,   0.0000088074]</radial_distortion>
  </lens>
  <lens>
+  <name>siemens_f1.2_v2</name>
+  <comment>Siemens 1/2" F1.2 4-12mm Varifocal Auto Iris C Mount CCTV Lens - Zoomed 25 Feb 2021</comment>
+  <fov>85</fov>
+  <radial_distortion>[84.43822151,  67.42757365,  -0.3486071881,   0.0805144863,  -0.0003260098]</radial_distortion>
+ </lens>
+ <lens>
   <name>fujinon_YV10x5B-SA2</name>
   <comment>Fujinon YV10x5B-SA2 - Installed in Cambridge-East-0 11 April 2020</comment>
   <fov>65</fov>

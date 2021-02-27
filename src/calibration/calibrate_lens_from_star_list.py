@@ -522,7 +522,12 @@ def calibrate_lens(filenames: list, verbose: bool = True, diagnostics_run_id=Non
             k1 = parameters_final[fitting_parameter_indices['k1']]
             k2 = parameters_final[fitting_parameter_indices['k2']]
             k3 = parameters_final[fitting_parameter_indices['k3']]
-            logging.info("Barrel parameters: {}".format(json.dumps([scale_x, scale_y, k1, k2, k3])))
+            logging.info("Barrel parameters: [{:12.8f}, {:12.8f}, {:14.10f}, {:14.10f}, {:14.10f}]".format(
+                scale_x * 180 / pi,
+                scale_y * 180 / pi,
+                k1, k2, k3
+            )
+            )
 
     # In verbose mode, print detailed information about how well each star was fitted
     if verbose:
@@ -689,9 +694,11 @@ f_{1}(x) = a + b * x ** 2
 """.format(diagnostics_run_id, index))
             output.write("plot ")
             for index, filename in enumerate(filenames):
-                output.write("'/tmp/radial_distortion_{0}.dat' using 4:$6-$4 index {1}, ".format(diagnostics_run_id, index))
+                output.write(
+                    "'/tmp/radial_distortion_{0}.dat' using 4:$6-$4 index {1}, ".format(diagnostics_run_id, index))
                 # output.write("f_{1}(x), ".format(diagnostics_run_id, index))
-                output.write("'/tmp/radial_distortion_{0}.dat' using 4:$6-$7 index {1}, ".format(diagnostics_run_id, index))
+                output.write(
+                    "'/tmp/radial_distortion_{0}.dat' using 4:$6-$7 index {1}, ".format(diagnostics_run_id, index))
             output.write("-1 notitle w col green lt 2, 0 notitle w col green lt 2, 1 notitle w col green lt 2\n")
             output.write("""
 set ylabel 'Observed pixel distance from centre (after distortion) - Tan space distance (after distortion)'
@@ -699,7 +706,8 @@ set output '/tmp/radial_distortion_{0}_b.png'
 """.format(diagnostics_run_id))
             output.write("plot ")
             for index, filename in enumerate(filenames):
-                output.write("'/tmp/radial_distortion_{0}.dat' using 4:$7-$4 index {1}, ".format(diagnostics_run_id, index))
+                output.write(
+                    "'/tmp/radial_distortion_{0}.dat' using 4:$7-$4 index {1}, ".format(diagnostics_run_id, index))
                 # output.write("'/tmp/radial_distortion_{0}.dat' using 4:$6/f_{1}($4)-$4 index {1}, ".format(diagnostics_run_id, index))
             output.write("-1 notitle w col green lt 2, 0 notitle w col green lt 2, 1 notitle w col green lt 2\n")
 
