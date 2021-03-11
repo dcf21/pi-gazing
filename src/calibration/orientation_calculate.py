@@ -891,6 +891,9 @@ ScaleX: {:.2f} deg. ScaleY: {:.2f} deg. Uncertainty: {:.2f} deg.\
             db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:uncertainty",
                                          value=alt_az_error * rad, time_created=timestamp,
                                          metadata_time=utc_block_min, user_created=user)
+            db.register_obstory_metadata(obstory_id=obstory_id, key="orientation:image_count",
+                                         value=len(results), time_created=timestamp,
+                                         metadata_time=utc_block_min, user_created=user)
             db.commit()
 
 
