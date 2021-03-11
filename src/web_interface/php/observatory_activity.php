@@ -113,14 +113,15 @@ WHERE l.publicId=:o AND s.name=:k AND o.obsTime BETWEEN :x AND :y;");
 // Fetch observatory positional fix history
 function get_positional_fix_history($metaKey)
 {
-    global $byday, $const, $tmin, $period, $obstory, $days_in_month, $year, $month;
+    global $byday, $const, $tmin, $period, $obstory, $days_in_month;
     $count = 0;
     while ($count < $days_in_month) {
-        $a = floor($tmin['utc'] / 86400) * 86400 + 43200 + $period * $count - 60;
+        $day = 86400;
+        $a = (floor($tmin['utc'] / $day) + 0.5) * $day + $period * $count - 60;
         $b = $a + $period;
         $count++;
         $stmt = $const->db->prepare("
-SELECT COUNT(*) FROM archive_metadata m
+SELECT m.floatValue FROM archive_metadata m
 INNER JOIN archive_observatories l ON m.observatory = l.uid
 INNER JOIN archive_metadataFields f ON m.fieldId = f.uid
 WHERE l.publicId=:o AND f.metaKey=:k AND m.time BETWEEN :x AND :y;");
@@ -129,12 +130,12 @@ WHERE l.publicId=:o AND f.metaKey=:k AND m.time BETWEEN :x AND :y;");
         $stmt->bindParam(':x', $x, PDO::PARAM_INT);
         $stmt->bindParam(':y', $y, PDO::PARAM_INT);
         $stmt->execute(['o' => $obstory, 'k' => $metaKey, 'x' => $a, 'y' => $b]);
-        $items = $stmt->fetchAll()[0]['COUNT(*)'];
-        if ($items > 0) {
+        $items = $stmt->fetchAll();
+        if (count($items) > 0) {
             $text = "
 <div class='bg_medium_blue'
      style='position: absolute; top: 14px; right: 10px; z-index:2; padding: 4px; border-radius: 2px;'
-     title='This observatory achieved a positional fix'>
+     title='This observatory achieved a positional fix from {$items[0]['floatValue']} images.'>
     <i class='fa fa-crosshairs'></i>
 </div>";
         } else {
@@ -146,7 +147,7 @@ WHERE l.publicId=:o AND f.metaKey=:k AND m.time BETWEEN :x AND :y;");
 
 get_activity_history("pigazing:timelapse/", " still images", "search_still.php");
 get_activity_history("pigazing:movingObject/", " moving objects", "search_moving.php");
-get_positional_fix_history("orientation:pa");
+get_positional_fix_history("orientation:image_count");
 
 $pageInfo = [
     "pageTitle" => "Activity history for {$obstory_name}",

@@ -46,8 +46,9 @@ $pageNum = 1;
 if (array_key_exists("page", $_GET) && is_numeric($_GET["page"])) $pageNum = $_GET["page"];
 
 // Read which time range to cover
-$t2 = time();
-$t1 = $t2 - 3600 * 24 * 365;
+$day = 86400;
+$t2 = (floor(time() / $day) + 0.5) * $day;
+$t1 = $t2 - 90 * $day; // Default span of 90 days
 $tmin = $getargs->readTime('year1', 'month1', 'day1', 'hour1', 'min1', null, $const->yearMin, $const->yearMax, $t1);
 $tmax = $getargs->readTime('year2', 'month2', 'day2', 'hour2', 'min2', null, $const->yearMin, $const->yearMax, $t2);
 
