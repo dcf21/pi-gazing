@@ -15,7 +15,7 @@
         <observatoryName>Eddington-Observatory-0</observatoryName>
         <owner>dcf21</owner>
         <defaultCamera>watec_902h2_ultimate</defaultCamera>
-        <defaultLens>siemens_f1.2</defaultLens>
+        <defaultLens>siemens_f1.2_v2</defaultLens>
     </observatory>
     <observatory>
         <latitude>52.208</latitude>
