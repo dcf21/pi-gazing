@@ -26,13 +26,15 @@
 Checks for missing files
 """
 
+import glob
+import logging
 import os
 
 from pigazing_helpers.obsarchive import obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 
 
-def check_database_integrity():
+def check_database_integrity(purge=False):
     # Open connection to image archive
     db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                            db_host=installation_info['mysqlHost'],
@@ -43,19 +45,37 @@ def check_database_integrity():
     sql = db.con
 
     # Check files exist
-    print("Checking whether files exist...")
+    file_list = {}
+    logging.info("Checking whether files exist...")
     sql.execute("SELECT repositoryFname FROM archive_files;")
     for item in sql.fetchall():
         id = item['repositoryFname']
+        file_list[id] = True
         if not os.path.exists(db.file_path_for_id(id)):
-            print("Files: Missing file ID <{}>".format(id))
-            continue
-        file_size = os.stat(db.file_path_for_id(id)).st_size
-        sql.execute("UPDATE archive_files SET fileSize=%s WHERE repositoryFname=%s;",
-                    (file_size, id))
+            logging.info("Files: Missing file ID <{}>".format(id))
+
+            if purge:
+                sql.execute("DELETE FROM archive_files WHERE repositoryFname=%s;", (id,))
+
+    # Check for files which aren't in database
+    logging.info("Checking for files with no database record...")
+    for item in glob.glob(os.path.join(db.file_store_path, "*")):
+        filename = os.path.split(item)[1]
+        if filename not in file_list:
+            logging.info("Files: File not in database <{}>".format(filename))
+
+    # Checking for observations with no files
+    logging.info("Checking for observations with no files...")
+    sql.execute("SELECT publicId FROM archive_observations WHERE uid NOT IN (SELECT observationId FROM archive_files)")
+    for item in sql.fetchall():
+        logging.info("Files: Observation with no files <{}>".format(item['publicId']))
+
+        if purge:
+            sql.execute("DELETE FROM archive_observations WHERE publicId=%s;", (item['publicId'],))
 
     # Commit changes to database
     db.commit()
+    db.close_db()
 
 
 if __name__ == "__main__":
