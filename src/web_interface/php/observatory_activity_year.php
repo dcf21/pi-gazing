@@ -66,9 +66,9 @@ function get_activity_history($metaKey, $suffix, $url)
 {
     global $by_month, $const, $obstory, $year;
     for ($mc = 1; $mc <= 12; $mc++) {
-        $a = mktime(0, 0, 1, $mc, 1, $year);
+        $a = mktime(12, 0, 1, $mc, 1, $year);
         if ($mc == 12) $b = $a + 31 * 86400;
-        else $b = mktime(0, 0, 1, $mc + 1, 1, $year);
+        else $b = mktime(12, 0, 1, $mc + 1, 1, $year);
         $stmt = $const->db->prepare("
 SELECT COUNT(*) FROM archive_observations o
 INNER JOIN archive_observatories l ON o.observatory = l.uid
