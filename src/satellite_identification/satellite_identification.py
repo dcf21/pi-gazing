@@ -31,12 +31,12 @@ import logging
 import os
 import time
 import scipy.optimize
-from math import pi, exp
+from math import pi, exp, hypot
 from operator import itemgetter
 
 import MySQLdb
 import numpy as np
-from pigazing_helpers import connect_db, hardware_properties
+from pigazing_helpers import connect_db
 from pigazing_helpers.dcf_ast import date_string, jd_from_unix
 from pigazing_helpers.gnomonic_project import ang_dist
 from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
@@ -44,6 +44,13 @@ from pigazing_helpers.path_projection import PathProjection
 from pigazing_helpers.settings_read import settings, installation_info
 from sgp4.api import Satrec, WGS72
 from skyfield.api import EarthSatellite, load, wgs84
+
+# Global search settings
+global_settings = {
+    'max_angular_mismatch': 10,  # Maximum offset of a satellite from observed position, deg
+    'max_mean_angular_mismatch': 4,  # Maximum mean offset of a satellite from observed position, deg
+    'max_clock_offset': 30,  # Maximum time offset of satellite trajectory
+}
 
 
 def fetch_satellites(utc):
@@ -134,11 +141,6 @@ def satellite_determination(utc_min, utc_max):
         'rescued_records': 0,
         'insufficient_information': 0
     }
-
-    # Read properties of known lenses, which give us the default radial distortion models to assume for them
-    hw = hardware_properties.HardwareProps(
-        path=os.path.join(settings['pythonPath'], "..", "configuration_global", "camera_properties")
-    )
 
     # Status update
     logging.info("Searching for satellites within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
@@ -335,7 +337,7 @@ ORDER BY ao.obsTime
                 ang_mismatch, sat_distance = satellite_angular_offset(index=0, clock_offset=clock_offset)
 
                 # Return metric to minimise
-                return ang_mismatch * exp(clock_offset / 10)
+                return ang_mismatch * exp(clock_offset / 8)
 
             # First, chuck out satellites with large angular offsets
             observer = wgs84.latlon(latitude_degrees=projector.obstory_info['latitude'],
@@ -343,7 +345,9 @@ ORDER BY ao.obsTime
                                     elevation_m=0)
 
             ang_mismatch, sat_distance = satellite_angular_offset(index=0, clock_offset=0)
-            if ang_mismatch > 10:
+
+            # Check angular offset is reasonable
+            if ang_mismatch > global_settings['max_angular_mismatch']:
                 continue
 
             # Work out the optimum time offset between the satellite's path and the observed path
@@ -358,6 +362,10 @@ ORDER BY ao.obsTime
             # Construct best-fit linear trajectory for best-fitting parameters
             clock_offset = float(parameters_optimised[0])
 
+            # Check clock offset is reasonable
+            if abs(clock_offset) > global_settings['max_clock_offset']:
+                continue
+
             # Measure the offset between the satellite's position and the observed position at each time point
             for index in range(path_len):
                 # Look up angular mismatch at this time point
@@ -371,13 +379,14 @@ ORDER BY ao.obsTime
             mean_ang_mismatch = np.mean(np.asarray(ang_mismatch_list))
             distance_mean = np.mean(np.asarray(distance_list))
 
-            if mean_ang_mismatch < 4:
+            if mean_ang_mismatch < global_settings['max_mean_angular_mismatch']:
                 candidate_satellites.append({
-                    'name': spacecraft['name'],
-                    'noradId': spacecraft['noradId'],
-                    'distance': distance_mean,
-                    'clock_offset': clock_offset,
-                    'offset': mean_ang_mismatch
+                    'name': spacecraft['name'],  # string
+                    'noradId': spacecraft['noradId'],  # int
+                    'distance': distance_mean,  # km
+                    'clock_offset': clock_offset,  # seconds
+                    'offset': mean_ang_mismatch,  # degrees
+                    'absolute_magnitude': spacecraft['mag']
                 })
 
         # Add model possibility for null satellite
@@ -386,11 +395,18 @@ ORDER BY ao.obsTime
             'noradId': 0,
             'distance': 35.7e3 * 0.25,  # Nothing is visible beyond 25% of geostationary orbit distance
             'clock_offset': 0,
-            'offset': 0
+            'offset': 0,
+            'absolute_magnitude': None
         })
 
-        # Sort candidates by distance
-        candidate_satellites.sort(key=itemgetter('distance'))
+        # Sort candidates by score - use absolute mag = 20 for satellites with no mag
+        for candidate in candidate_satellites:
+            candidate['score'] = hypot(
+                candidate['distance'] / 1e3,
+                candidate['clock_offset'],
+                (20 if candidate['absolute_magnitude'] is None else candidate['absolute_magnitude']),
+            )
+        candidate_satellites.sort(key=itemgetter('score'))
 
         # Report possible satellite identifications
         logging.info("{prefix} -- {satellites}".format(
