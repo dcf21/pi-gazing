@@ -112,6 +112,8 @@ class PathProjection:
                                                            latitude=self.obstory_info['latitude'],
                                                            longitude=self.obstory_info['longitude']
                                                            )
+        self.central_ra_at_epoch = central_ra_at_epoch
+        self.central_dec_at_epoch = central_dec_at_epoch
 
         # Work out the position angle of the zenith, counterclockwise from north, as measured at centre of frame
         # degrees for north pole at epoch
@@ -166,11 +168,11 @@ class PathProjection:
             return None
 
         # Fetch properties of the lens being used at the time of the observation
-        lens_name = self.obstory_status['lens']
-        lens_props = self.hw.lens_data[lens_name]
+        self.lens_name = self.obstory_status['lens']
+        self.lens_props = self.hw.lens_data[self.lens_name]
         # Look up radial distortion model for the lens we are using
         lens_barrel_parameters = self.obstory_status.get('calibration:lens_barrel_parameters',
-                                                         lens_props.barrel_parameters)
+                                                         self.lens_props.barrel_parameters)
         if isinstance(lens_barrel_parameters, str):
             lens_barrel_parameters = json.loads(lens_barrel_parameters)
         return lens_barrel_parameters
