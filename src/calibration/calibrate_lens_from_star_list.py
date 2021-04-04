@@ -184,7 +184,14 @@ parameters_image = [
 ]
 
 # Read Hipparcos catalogue of stars brighter than mag 5.5
-hipparcos_catalogue = json.loads(open("hipparcos_catalogue.json").read())
+hipparcos_catalogue = {}
+with open("hipparcos_catalogue.json") as f:
+    for line in f:
+        line = line.strip()
+        if len(line) == 0:
+            continue
+        id, ra, dec, mag = json.loads(line)
+        hipparcos_catalogue[str(id)] = [float(ra), float(dec)]
 
 # Global list of the all the parameters we are currently fitting
 # Since some parameters are repeated multiple times, we add prefixes to their names,

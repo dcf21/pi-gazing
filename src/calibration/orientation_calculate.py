@@ -246,12 +246,20 @@ def estimate_fit_quality(image_file, item, fit_parameters):
     margin = 50  # Do not measure stars within this margin of the edges
     max_radius = 0.9  # Do not measure stars outside this number of image-widths of the centre
     max_apertures = 25  # Maximum number of stars to measure
-    aperture_radius = 6  # Radius of aperture, pixels
+    aperture_radius = 10  # Radius of aperture, pixels
     minimum_bright_pixels = 5  # Need at least this many bright pixels within each aperture
 
     # Read Hipparcos catalogue of stars brighter than mag 5.5
     if hipparcos_catalogue is None:
-        hipparcos_catalogue = json.loads(open("hipparcos_catalogue.json").read())
+        # Read Hipparcos catalogue of stars brighter than mag 5.5
+        hipparcos_catalogue = []
+        with open("hipparcos_catalogue.json") as f:
+            for line in f:
+                line = line.strip()
+                if len(line) == 0:
+                    continue
+                id, ra, dec, mag = json.loads(line)
+                hipparcos_catalogue.append([int(id), float(ra), float(dec), float(mag)])
 
     # Open image
     image = Image.open(image_file)
@@ -263,35 +271,46 @@ def estimate_fit_quality(image_file, item, fit_parameters):
 
     # Identify brightest stars in image
     bright_stars = []
-    for hipparcos_id, star in hipparcos_catalogue.items():
-        star_position = gnomonic_project.gnomonic_project(
-            ra=star[0] * deg, dec=star[1] * deg,
-            ra0=fit_parameters['ra'] * hours, dec0=fit_parameters['dec'] * deg,
-            size_x=size_x, size_y=size_y,
-            scale_x=fit_parameters['scale_x'] * deg, scale_y=fit_parameters['scale_y'] * deg,
-            pos_ang=fit_parameters['pa'] * deg,
-            barrel_k1=lens_barrel_parameters[2],
-            barrel_k2=lens_barrel_parameters[3],
-            barrel_k3=lens_barrel_parameters[4]
-        )
+    for hipparcos_id, ra, dec, mag in hipparcos_catalogue:
+        fit_ok = True
+        # Do gnomonic projection without radial correction first, to discard stars a long way outside FoV
+        # Radial distortion polynomials may be badly behaved at extreme radii
+        for projection_pass in [0, 1]:
+            star_position = gnomonic_project.gnomonic_project(
+                ra=ra * deg, dec=dec * deg,
+                ra0=fit_parameters['ra'] * hours, dec0=fit_parameters['dec'] * deg,
+                size_x=size_x, size_y=size_y,
+                scale_x=fit_parameters['scale_x'] * deg, scale_y=fit_parameters['scale_y'] * deg,
+                pos_ang=fit_parameters['pa'] * deg,
+                barrel_k1=lens_barrel_parameters[2] if projection_pass>0 else 0,
+                barrel_k2=lens_barrel_parameters[3] if projection_pass>0 else 0,
+                barrel_k3=lens_barrel_parameters[4] if projection_pass>0 else 0
+            )
 
-        # Check if star is within field of view
-        if (
-                (not np.isfinite(star_position[0])) or
-                star_position[0] < margin or
-                star_position[0] > size_x - margin or
-                star_position[1] < margin or
-                star_position[1] > size_y - margin
-        ):
+            # Check if star is within field of view
+            if (
+                    (not np.isfinite(star_position[0])) or
+                    star_position[0] < margin or
+                    star_position[0] > size_x - margin or
+                    star_position[1] < margin or
+                    star_position[1] > size_y - margin
+            ):
+                fit_ok = False
+
+        if not fit_ok:
             continue
 
         distance_from_centre = hypot(star_position[0] - size_x / 2, star_position[1] - size_y / 2)
 
-        if distance_from_centre > size_x * max_radius:
+        if distance_from_centre > size_x * 0.5 * max_radius:
             continue
 
         # Star is within field
-        bright_stars.append(star_position)
+        bright_stars.append([
+            star_position[0],
+            star_position[1],
+            hipparcos_id
+        ])
 
         # Check if we have enough stars
         if len(bright_stars) >= max_apertures:
@@ -300,28 +319,37 @@ def estimate_fit_quality(image_file, item, fit_parameters):
     # Loop over apertures
     offset_list = []
     for aperture in bright_stars:
-        sum_x = sum_y = brightness_count = bright_pixel_count = 0
+        sum_x = sum_y = bright_pixel_count = 0
+        brightness_count = 1e-8
         for x in range(round(aperture[0] - aperture_radius), round(aperture[0] + aperture_radius)):
             for y in range(round(aperture[1] - aperture_radius), round(aperture[1] + aperture_radius)):
+                # Check if pixel inside aperture
+                radius = hypot(x-aperture[0], y-aperture[1])
+                if radius > aperture_radius:
+                    continue
+
                 # Fetch pixel brightness
                 brightness = image.getpixel((x, y))
 
                 # Update counters
-                if brightness > 240:
+                if brightness > 80 * 256:
                     bright_pixel_count += 1
 
                 brightness_count += brightness
                 sum_x += x * brightness
                 sum_y += y * brightness
 
-        # Reject apertures with few bright pixels
-        if bright_pixel_count < minimum_bright_pixels:
-            continue
-
         # Calculate centroid
         centroid_x = sum_x / brightness_count
         centroid_y = sum_y / brightness_count
         offset = hypot(centroid_x - aperture[0], centroid_y - aperture[1])
+        # logging.info("HIP{:6d} -- ({:4.0f},{:4.0f}) -- offset {:5.1f} -- bright pixels {:d}".
+        #              format(aperture[2], centroid_x, centroid_y, offset, bright_pixel_count))
+
+        # Reject apertures with few bright pixels
+        if bright_pixel_count < minimum_bright_pixels:
+            continue
+
         offset_list.append(offset)
 
     # Deal with cases where no stars found
