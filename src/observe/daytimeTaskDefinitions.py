@@ -1087,6 +1087,11 @@ class DeterminePointing(TaskRunner):
         print(command)
         os.system(command)
 
+        command = "{python_path}/calibration/orientation_daily_average.py".format(
+            python_path=settings['pythonPath'])
+        print(command)
+        os.system(command)
+
 
 class CleanDatabase(TaskRunner):
     """
