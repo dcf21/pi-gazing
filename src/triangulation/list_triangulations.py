@@ -76,7 +76,6 @@ SELECT g.publicId AS groupId, g.time AS time, am.stringValue AS objectType,
        am5.floatValue AS max_baseline, am6.stringValue AS radiant_direction, am7.floatValue AS sight_line_count,
        am8.stringValue AS path
 FROM archive_obs_groups g
-INNER JOIN archive_obs_group_members m on g.uid = m.groupId
 INNER JOIN archive_metadata am ON g.uid = am.groupId AND
     am.fieldId = (SELECT uid FROM archive_metadataFields WHERE metaKey="web:category")
 INNER JOIN archive_metadata am2 ON g.uid = am2.groupId AND

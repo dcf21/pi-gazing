@@ -35,24 +35,22 @@ from pigazing_helpers.dcf_ast import julian_day, unix_from_jd
 from pigazing_helpers.obsarchive import obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 
-from orientation_calculate import minimum_sky_clarity
 
-
-def plot_orientation(obstory_id, utc_min, utc_max):
+def plot_orientation(obstory_ids, utc_min, utc_max):
     """
     Plot the orientation of a particular observatory within the time period between the unix times
     <utc_min> and <utc_max>.
 
-    :param obstory_id:
-        The ID of the observatory we want to determine the orientation for.
-    :type obstory_id:
-        str
+    :param obstory_ids:
+        The IDs of the observatories we want to plot the orientation for.
+    :type obstory_ids:
+        list<str>
     :param utc_min:
-        The start of the time period in which we should determine the observatory's orientation (unix time).
+        The start of the time period in which we should plot the observatory's orientation (unix time).
     :type utc_min:
         float
     :param utc_max:
-        The end of the time period in which we should determine the observatory's orientation (unix time).
+        The end of the time period in which we should plot the observatory's orientation (unix time).
     :type utc_max:
         float
     :return:
@@ -70,11 +68,16 @@ def plot_orientation(obstory_id, utc_min, utc_max):
                                            db_name=installation_info['mysqlDatabase'],
                                            obstory_id=installation_info['observatoryId'])
 
-    logging.info("Plotting camera alignment for <{}>".format(obstory_id))
+    logging.info("Plotting camera alignment for <{}>".format(obstory_ids))
 
-    # Search for background-subtracted time lapse image with best sky clarity, and no existing orientation fit,
-    # within this time period
-    conn.execute("""
+    # Data filename stem
+    filename_stem = "/tmp/orientation_plot_{:.1f}".format(utc_min)
+
+    # Make data file for each observatory in turn
+    for counter, obstory_id in enumerate(obstory_ids):
+        # Search for background-subtracted time lapse image with best sky clarity, and no existing orientation fit,
+        # within this time period
+        conn.execute("""
 SELECT ao.obsTime, ao.publicId AS observationId,
        am.floatValue AS skyClarity, am2.stringValue AS fitQuality, am3.stringValue AS fitQualityToAverage
 FROM archive_files f
@@ -90,50 +93,63 @@ WHERE ao.obsTime BETWEEN %s AND %s
     AND f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name="pigazing:timelapse/backgroundSubtracted")
 ORDER BY ao.obsTime
 """, (utc_min, utc_max, obstory_id))
-    results = conn.fetchall()
+        results = conn.fetchall()
 
-    # Data filename
-    filename = "/tmp/orientation_plot"
+        # Data filename
+        filename = "{}_{:02d}".format(filename_stem, counter)
 
-    # Loop over results and write to data file
-    with open("{}.dat".format(filename), "w") as f:
-        for item in results:
-            utc = float(item['obsTime'])
-            sky_clarity = float(item['skyClarity'])
-            fit_quality = -99
-            fit_quality_to_average = -99
+        # Loop over results and write to data file
+        with open("{}.dat".format(filename), "w") as f:
+            for item in results:
+                utc = float(item['obsTime'])
+                sky_clarity = float(item['skyClarity'])
+                fit_quality = -99
+                fit_quality_to_average = -99
 
-            if item['fitQuality'] is not None:
-                fit_quality = float(json.loads(item['fitQuality'])[0])
+                if item['fitQuality'] is not None:
+                    fit_quality = float(json.loads(item['fitQuality'])[0])
 
-            if item['fitQualityToAverage'] is not None:
-                fit_quality_to_average = float(json.loads(item['fitQualityToAverage'])[0])
+                if item['fitQualityToAverage'] is not None:
+                    fit_quality_to_average = float(json.loads(item['fitQualityToAverage'])[0])
 
-            f.write("{:.1f} {:6.1f} {:6.3f} {:6.3f}\n".format(utc, sky_clarity,
-                                                              fit_quality, fit_quality_to_average))
+                f.write("{:.1f} {:6.1f} {:6.3f} {:6.3f}\n".format(utc, sky_clarity,
+                                                                  fit_quality, fit_quality_to_average))
 
     # Write pyxplot command file
-    with open("{}.ppl".format(filename), "w") as ppl:
+    with open("{}.ppl".format(filename_stem), "w") as ppl:
+        plot_settings = {
+            "x_min": utc_min,
+            "x_max": utc_max,
+            "width": 18,
+            "spacing": 4,
+            "pt": 17,
+            "filename": filename_stem
+        }
         ppl.write("""
 set width {width}
+set multiplot ; set nodisplay
+set key below
+set xlabel 'Time / hour' ; set xrange [{x_min}:{x_max}]
+set xformat "%.1f"%((x/3600) % 24)
+set ylabel 'Fit quality' ; set yrange [0:6]
+set y2label 'Sky clarity' ; set y2range [0:1000]
+    """.format(**plot_settings))
+
+        for counter, obstory_id in enumerate(obstory_ids):
+            ppl.write("""
+            set origin ({width}+{spacing})*{counter}, 0
+plot '{filename}_{counter:02d}.dat' title 'Fit quality' using 1:3 axes x1y1 with p col green pt {pt}, \
+     '{filename}_{counter:02d}.dat' title 'Fit quality (to daily average)' using 1:4 axes x1y1 with p col red pt {pt}, \
+     '{filename}_{counter:02d}.dat' title 'Sky clarity' using 1:2 axes x1y2 with p col blue pt {pt}
+    """.format(**plot_settings, counter=counter))
+
+        ppl.write("""
 set term png ; set output '{filename}.png'
 set term dpi 100
-set key below
-set xlabel 'Time / hour'
-set xformat "%.1f"%((x/3600) % 24)
-set ylabel 'Fit quality' ; set yrange [0:]
-set y2label 'Sky clarity' ; set y2range [0:]
+set display ; refresh
+    """.format(**plot_settings))
 
-plot '{filename}.dat' title 'Fit quality' using 1:3 axes x1y1 with p col black pt {pt}, \
-     '{filename}.dat' title 'Fit quality (to daily average)' using 1:4 axes x1y1 with p col red pt {pt}, \
-     '{filename}.dat' title 'Sky clarity' using 1:2 axes x1y2 with p col blue pt {pt}
-    """.format(
-            width=18,
-            pt=17,
-            filename=filename
-        ))
-
-    os.system("pyxplot {}.ppl".format(filename))
+    os.system("pyxplot {}.ppl".format(filename_stem))
 
     # Close database handles
     db.close_db()
@@ -148,19 +164,23 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
 
     # By default, study images taken on 15 May 2019
-    parser.add_argument('--day', dest='day', default=23,
+    parser.add_argument('--day', dest='day', default=5,
                         type=int,
                         help="Day of the month")
-    parser.add_argument('--month', dest='month', default=5,
+    parser.add_argument('--month', dest='month', default=11,
                         type=int,
                         help="Month number")
     parser.add_argument('--year', dest='year', default=2020,
                         type=int,
                         help="Year")
 
-    parser.add_argument('--observatory', dest='obstory_id', default="cambridge-east-0",
+    parser.add_argument('--observatory', dest='obstory_ids',
+                        action="append",
                         help="ID of the observatory we are to calibrate")
     args = parser.parse_args()
+
+    if len(args.obstory_ids) == 0:
+        args.obstory_ids = ('eddington0')
 
     # Set up logging
     logging.basicConfig(level=logging.INFO,
@@ -175,6 +195,6 @@ if __name__ == "__main__":
     # Plot the orientation of images
     utc_min = unix_from_jd(julian_day(year=args.year, month=args.month, day=args.day, hour=12, minute=0, sec=0))
     utc_max = utc_min + 86400
-    plot_orientation(obstory_id=args.obstory_id,
+    plot_orientation(obstory_ids=args.obstory_ids,
                      utc_min=utc_min,
                      utc_max=utc_max)

@@ -490,7 +490,7 @@ def flush_identifications(utc_min, utc_max):
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
 
-    # Delete observation metadata fields that start 'shower:*'
+    # Delete observation metadata fields that start 'satellite:*'
     conn.execute("""
 DELETE m
 FROM archive_metadata m
@@ -535,11 +535,11 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     # logger.info(__doc__.strip())
 
-    # If flush option was specified, then delete all existing alignment information
+    # If flush option was specified, then delete all existing satellite identifications
     if args.flush:
         flush_identifications(utc_min=args.utc_min,
                               utc_max=args.utc_max)
 
-    # Estimate the parentage of meteors
+    # Estimate the identity of satellites
     satellite_determination(utc_min=args.utc_min,
                             utc_max=args.utc_max)

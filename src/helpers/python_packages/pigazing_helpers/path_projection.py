@@ -42,7 +42,8 @@ class PathProjection:
     A class for projecting the paths of moving objects, in (x, y) pixel coordinates, into celestial coordinates.
     """
 
-    def __init__(self, db: obsarchive_db, obstory_id: str, time: float, logging_prefix: str):
+    def __init__(self, db: obsarchive_db, obstory_id: str, time: float, logging_prefix: str,
+                 must_use_daily_average: bool=False):
         """
         A class for projecting the paths of moving objects, in (x, y) pixel coordinates, into celestial coordinates.
 
@@ -62,12 +63,18 @@ class PathProjection:
             Text to prefix to all logging messages about this event, to identify it.
         :type logging_prefix:
             str
+        :param must_use_daily_average:
+            If true, we always use the most recent daily average orientation, and do not override with a higher
+            quality fit to a single image with similar timestamp, if such an image is available.
+        :type must_use_daily_average:
+            bool
         """
 
         # Record inputs
         self.db = db
         self.obstory_id = obstory_id
         self.logging_prefix = logging_prefix
+        self.must_use_daily_average = must_use_daily_average
         self.time = time
         self.error = None  # Set to a string in case of failure
         self.notifications = []  # List of notification strings
@@ -189,7 +196,9 @@ class PathProjection:
         if self.error:
             return None
 
-        # Look up orientation of the camera
+        orientation = None
+
+        # Look up daily average orientation of the camera
         if 'orientation:altitude' in self.obstory_status:
             orientation = {
                 'altitude': self.obstory_status['orientation:altitude'],
@@ -202,7 +211,61 @@ class PathProjection:
                 'pixel_width': None,
                 'pixel_height': None
             }
-        else:
+
+        # See if we have a better recent orientation fix
+        if not self.must_use_daily_average:
+            search_window = 3600
+            self.db.con.execute("""
+SELECT am1.floatValue AS altitude, am2.floatValue AS azimuth, am3.floatValue AS pa, am4.floatValue AS tilt,
+       am5.floatValue AS width_x_field, am6.floatValue AS width_y_field,
+       am7.stringValue AS fit_quality, am8.stringValue AS fit_quality_to_daily
+FROM archive_observations o
+INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
+    am1.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:altitude")
+INNER JOIN archive_metadata am2 ON o.uid = am2.observationId AND
+    am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:azimuth")
+INNER JOIN archive_metadata am3 ON o.uid = am3.observationId AND
+    am3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:pa")
+INNER JOIN archive_metadata am4 ON o.uid = am4.observationId AND
+    am4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:tilt")
+INNER JOIN archive_metadata am5 ON o.uid = am5.observationId AND
+    am5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:width_x_field")
+INNER JOIN archive_metadata am6 ON o.uid = am6.observationId AND
+    am6.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:width_y_field")
+INNER JOIN archive_metadata am7 ON o.uid = am7.observationId AND
+    am7.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:fit_quality")
+LEFT OUTER JOIN archive_metadata am8 ON o.uid = am8.observationId AND
+    am8.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:fit_quality_to_daily")
+WHERE
+    o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
+    o.obsTime BETWEEN %s AND %s
+ORDER BY ABS(o.obsTime-%s) LIMIT 1;
+""", (self.obstory_id, self.time - search_window, self.time + search_window, self.time))
+            results = self.db.con.fetchall()
+
+            if len(results) > 0:
+                threshold_fit_quality = 2.5
+                fit_quality = fit_quality_to_daily = 999
+                item = results[0]
+                if item['fit_quality'] is not None:
+                    fit_quality = float(json.loads(item['fit_quality'])[0])
+                if item['fit_quality_to_daily'] is not None:
+                    fit_quality_to_daily = float(json.loads(item['fit_quality_to_daily'])[0])
+                if (fit_quality < threshold_fit_quality) and (fit_quality < fit_quality_to_daily):
+                    orientation = {
+                        'altitude': item['altitude'],
+                        'azimuth': item['azimuth'],
+                        'pa': item['pa'],
+                        'tilt': item['tilt'],
+                        'ang_width': item['width_x_field'],
+                        'ang_height': item['width_y_field'],
+                        'orientation_uncertainty': None,
+                        'pixel_width': None,
+                        'pixel_height': None
+                    }
+
+        # Return an error if we didn't find an orientation
+        if orientation is None:
             # We cannot identify meteors if we don't know which direction camera is pointing
             logging.info("{prefix} -- Orientation of camera unknown".format(
                 prefix=self.logging_prefix
@@ -293,8 +356,8 @@ class PathProjection:
                 logging.info("{prefix} -- !!! JSON error".format(
                     prefix=self.logging_prefix
                 ))
-            self.error = 'error_record'
-            return None
+                self.error = 'error_record'
+                return None
 
         return path_x_y
 

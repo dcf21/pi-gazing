@@ -30,7 +30,7 @@ import json
 import logging
 import os
 import time
-from math import hypot
+from math import hypot, log10
 
 import numpy
 import scipy.optimize
@@ -122,14 +122,20 @@ def angular_mismatch_objective(p):
         Sum of square mismatches of trial trajectory from recorded sight lines
     """
 
+    global time_span
+
     # Turn input parameters into a Line object
     trajectory = line_from_parameters(p)
 
-    # Fetch list of angular offsets (degrees) of trial trajectory from observed sightlines
+    # Fetch list of angular offsets (degrees) of trial trajectory from observed sight lines
     mismatch_list = sight_line_mismatch_list(trajectory=trajectory)
 
-    # Return sum of squares of mismatches
-    return hypot(*mismatch_list)
+    # Calculate sum of squares of mismatches
+    angular_mismatches = hypot(*mismatch_list)
+    speed = abs(trajectory.direction) / (time_span[1] - time_span[0])  # m/s
+
+    # Heuristic to penalise very fast speeds
+    return angular_mismatches * log10(abs(speed)+10000)
 
 
 def do_triangulation(utc_min, utc_max, utc_must_stop):
@@ -270,8 +276,8 @@ ORDER BY o.obsTime;
             # Add sight lines from this observatory to list which combines all observatories
             sight_line_list.extend(sight_line_list_this)
 
-        # If we have fewer than six sight lines, don't bother trying to triangulate
-        if len(sight_line_list) < 6:
+        # If we have fewer than four sight lines, don't bother trying to triangulate
+        if len(sight_line_list) < 4:
             logging.info("{prefix} -- Giving up triangulation as we only have {x:d} sight lines to object.".
                          format(prefix=logging_prefix,
                                 x=len(sight_line_list)
@@ -346,8 +352,8 @@ ORDER BY o.obsTime;
         mismatch_list = sight_line_mismatch_list(trajectory=best_triangulation)
         maximum_mismatch = max(mismatch_list)
 
-        # Reject trajectory if it deviates by more than 7 degrees from any observation
-        if maximum_mismatch > 7:
+        # Reject trajectory if it deviates by more than 8 degrees from any observation
+        if maximum_mismatch > 8:
             logging.info("{prefix} -- Trajectory mismatch is too great ({x:.1f} deg).".
                          format(prefix=logging_prefix,
                                 x=maximum_mismatch
@@ -400,13 +406,14 @@ ORDER BY o.obsTime;
         db.commit()
 
         # Report outcome
-        logging.info("{prefix} -- Success -- {path}; speed {mph:11.1f} mph".
+        logging.info("{prefix} -- Success -- {path}; speed {mph:11.1f} mph; {sight_lines:6d} detections.".
                      format(prefix=logging_prefix,
                             path="{:5.1f} {:5.1f} {:10.0f} -> {:5.1f} {:5.1f} {:10.0f}".format(
                                 start_point['lat'], start_point['lng'], start_point['alt'],
                                 end_point['lat'], end_point['lng'], end_point['alt']
                             ),
-                            mph=speed / 0.44704
+                            mph=speed / 0.44704,
+                            sight_lines=len(sight_line_list)
                             ))
 
         # Triangulation successful
@@ -440,11 +447,11 @@ def flush_triangulation(utc_min, utc_max):
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
 
-    # Delete observation metadata fields that start 'orientation:*'
+    # Delete group metadata fields that start 'triangulation:*'
     conn.execute("""
 DELETE m
 FROM archive_metadata m
-INNER JOIN archive_obs_groups o ON m.observationId = o.uid
+INNER JOIN archive_obs_groups o ON m.groupId = o.uid
 WHERE
     fieldId IN (SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'triangulation:%%') AND
     o.time BETWEEN %s AND %s;
@@ -489,12 +496,12 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info(__doc__.strip())
 
-    # If flush option was specified, then delete all existing alignment information
+    # If flush option was specified, then delete all existing triangulations
     if args.flush:
         flush_triangulation(utc_min=args.utc_min,
                             utc_max=args.utc_max)
 
-    # Calculate the orientation of images
+    # Triangulate groups of videos
     do_triangulation(utc_min=args.utc_min,
                      utc_max=args.utc_max,
                      utc_must_stop=args.stop_by)

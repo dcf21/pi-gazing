@@ -484,7 +484,7 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     # logger.info(__doc__.strip())
 
-    # If flush option was specified, then delete all existing alignment information
+    # If flush option was specified, then delete all existing meteor identifications
     if args.flush:
         flush_identifications(utc_min=args.utc_min,
                               utc_max=args.utc_max)

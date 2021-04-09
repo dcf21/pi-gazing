@@ -153,7 +153,8 @@ WHERE observatory=(SELECT uid FROM archive_observatories WHERE publicId=%s)
         # Search for observations with orientation fits
         conn.execute("""
 SELECT am1.floatValue AS altitude, am2.floatValue AS azimuth, am3.floatValue AS pa, am4.floatValue AS tilt,
-       am5.floatValue AS width_x_field, am6.floatValue AS width_y_field
+       am5.floatValue AS width_x_field, am6.floatValue AS width_y_field,
+       am7.stringValue AS fit_quality
 FROM archive_observations o
 INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
     am1.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:altitude")
@@ -167,11 +168,24 @@ INNER JOIN archive_metadata am5 ON o.uid = am5.observationId AND
     am5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:width_x_field")
 INNER JOIN archive_metadata am6 ON o.uid = am6.observationId AND
     am6.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:width_y_field")
+INNER JOIN archive_metadata am7 ON o.uid = am7.observationId AND
+    am7.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="orientation:fit_quality")
 WHERE
     o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
     o.obsTime BETWEEN %s AND %s;
 """, (obstory_id, utc_block_min, utc_block_max))
         results = conn.fetchall()
+
+        # Remove results with poor fit
+        results_filtered = []
+        fit_threshold = 2  # pixels
+        for item in results:
+            fit_quality = float(json.loads(item['fit_quality'])[0])
+            if fit_quality > fit_threshold:
+                continue
+            item['weight'] = 1/(fit_quality + 0.1)
+            results_filtered.append(item)
+        results = results_filtered
 
         # Report how many images we found
         logging.info("Averaging fits within period {} to {}: Found {} fits.".format(date_string(utc_block_min),
@@ -196,13 +210,14 @@ WHERE
         # Iteratively take the average of the fits, reject the furthest outlier, and then take a new average
         for iteration in range(rejection_count):
             # Average the (alt, az) measurements for this observatory by finding their centroid on a sphere
-            alt_az_list_r = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results_filtered]
-            alt_az_best = mean_angle_2d(alt_az_list_r)[0]
+            alt_az_list = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results_filtered]
+            weights_list = [i['weight'] for i in results_filtered]
+            alt_az_best = mean_angle_2d(pos_list=alt_az_list, weights=weights_list)[0]
 
             # Work out the offset of each fit from the average
             fit_offsets = [ang_dist(ra0=alt_az_best[1], dec0=alt_az_best[0],
                                     ra1=fitted_alt_az[1], dec1=fitted_alt_az[0])
-                           for fitted_alt_az in alt_az_list_r]
+                           for fitted_alt_az in alt_az_list]
 
             # Reject the worst fit which is further from the average
             fits_with_weights = list(zip(fit_offsets, results_filtered))
@@ -213,8 +228,9 @@ WHERE
             results_filtered = [item[1] for item in fits_with_weights[1:]]
 
         # Convert alt-az fits into radians and average by finding their centroid on a sphere
-        alt_az_list_r = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results_filtered]
-        [alt_az_best, alt_az_error] = mean_angle_2d(alt_az_list_r)
+        alt_az_list = [[i['altitude'] * deg, i['azimuth'] * deg] for i in results_filtered]
+        weights_list = [i['weight'] for i in results_filtered]
+        [alt_az_best, alt_az_error] = mean_angle_2d(pos_list=alt_az_list, weights=weights_list)
 
         # Average other angles by finding their centroid on a circle
         output_values = {}
@@ -227,7 +243,8 @@ WHERE
             for iteration in range(rejection_count):
                 # Average quantity measurements
                 quantity_values = [i[quantity] * deg for i in results_filtered]
-                quantity_mean = mean_angle(quantity_values)[0]
+                weights_list = [i['weight'] for i in results_filtered]
+                quantity_mean = mean_angle(angle_list=quantity_values, weights=weights_list)[0]
 
                 # Work out the offset of each fit from the average
                 fit_offsets = []
@@ -247,7 +264,8 @@ WHERE
 
             # Filtering finished; now convert each fit into radians and average
             values_filtered = [i[quantity] * deg for i in results_filtered]
-            value_best = mean_angle(values_filtered)[0]
+            weights_list = [i['weight'] for i in results_filtered]
+            value_best = mean_angle(angle_list=values_filtered, weights=weights_list)[0]
             output_values[quantity] = value_best * rad
 
         # Print fit information
@@ -353,7 +371,8 @@ WHERE ao.obsTime BETWEEN %s AND %s
             db=db,
             obstory_id=obstory_id,
             time=item['obsTime'],
-            logging_prefix=item['observationId']
+            logging_prefix=item['observationId'],
+            must_use_daily_average=True
         )
 
         # Reject images with incomplete data

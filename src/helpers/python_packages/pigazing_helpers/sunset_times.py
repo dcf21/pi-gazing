@@ -281,7 +281,7 @@ def ra_dec(alt, az, utc, latitude, longitude):
     return [ra * 12 / pi, dec * 180 / pi]
 
 
-def mean_angle(angle_list):
+def mean_angle(angle_list, weights):
     """
     Find the centroid (average) of a list of angles. This is well behaved at 0/360 degree wrap-around.
     Input and output are radians.
@@ -290,25 +290,47 @@ def mean_angle(angle_list):
         List of input angles, in radians
     :type angle_list:
         list, tuple
+    :param weights:
+        A list of the weights of each position
+    :type weights:
+        list, tuple
     :return:
         The [mean, standard deviation] of the input angles, in radians
     """
 
     assert len(angle_list) > 0
 
-    x_list = [sin(a) for a in angle_list]  # Project angles onto a circle
-    y_list = [cos(a) for a in angle_list]
-    x_mean = sum(x_list) / len(angle_list)  # Find centroid
-    y_mean = sum(y_list) / len(angle_list)
-    arctan_mean = atan2(x_mean, y_mean)  # Find angle of centroid from centre
-    std_dev = sqrt(sum([hypot(x_list[i] - x_mean, y_list[i] - y_mean) ** 2 for i in range(len(x_list))]))
-    arctan_std_dev = atan(std_dev)  # Find angular spread of points as seen from centre
+    # Project angles onto a circle
+    x_list = [w * sin(a) for w, a in zip(weights, angle_list)]
+    y_list = [w * cos(a) for w, a in zip(weights, angle_list)]
+
+    # Find centroid
+    x_mean = sum(x_list)
+    y_mean = sum(y_list)
+    magnitude = hypot(x_mean, y_mean)
+    x_mean /= magnitude
+    y_mean /= magnitude
+
+    # Find angle of centroid from centre
+    arctan_mean = atan2(x_mean, y_mean)
+
+    # Find angular spread of points as seen from centre
+    std_dev = sqrt(sum(
+        [
+            weights[i] * (
+                    (x_list[i] / weights[i] - x_mean) ** 2 +
+                    (y_list[i] / weights[i] - y_mean) ** 2
+            )
+            for i in range(len(x_list))
+        ]
+    ) / sum(weights))
+    arctan_std_dev = atan(std_dev)
 
     # Return [Mean,SD] in radians
     return [arctan_mean, arctan_std_dev]
 
 
-def mean_angle_2d(pos_list):
+def mean_angle_2d(pos_list, weights):
     """
     Find the centroid (average) of a list of a positions on a sphere. This is well behaved at 0/360 degree wrap-around.
     Input and output are radians.
@@ -317,24 +339,45 @@ def mean_angle_2d(pos_list):
         A list of the input positions, each specified as [latitude, longitude], in radians
     :type pos_list:
         list, tuple
+    :param weights:
+        A list of the weights of each position
+    :type weights:
+        list, tuple
     :return:
         The [mean, standard deviation] of the positions. Both are specified as [latitude, longitude], in radians.
     """
 
     assert len(pos_list) > 0
 
-    x_list = [sin(a[1]) * sin(a[0]) for a in pos_list]  # Project angles onto a circle
-    y_list = [cos(a[1]) * sin(a[0]) for a in pos_list]
-    z_list = [cos(a[0]) for a in pos_list]
-    x_mean = sum(x_list) / len(pos_list)  # Find centroid
-    y_mean = sum(y_list) / len(pos_list)
-    z_mean = sum(z_list) / len(pos_list)
+    # Project angles onto a circle
+    x_list = [w * sin(a[1]) * sin(a[0]) for w, a in zip(weights, pos_list)]
+    y_list = [w * cos(a[1]) * sin(a[0]) for w, a in zip(weights, pos_list)]
+    z_list = [w * cos(a[0]) for w, a in zip(weights, pos_list)]
+
+    # Find centroid
+    x_mean = sum(x_list)
+    y_mean = sum(y_list)
+    z_mean = sum(z_list)
+
+    magnitude = hypot(x_mean, y_mean, z_mean)
+    x_mean /= magnitude
+    y_mean /= magnitude
+    z_mean /= magnitude
+
     p_mean = [atan2(hypot(x_mean, y_mean), z_mean), atan2(x_mean, y_mean)]
+
+    # Find angular spread of points as seen from centre
     std_dev = sqrt(sum(
-        [(x_list[i] - x_mean) ** 2 + (y_list[i] - y_mean) ** 2 + (z_list[i] - z_mean) ** 2
-         for i in range(len(x_list))]
-    ) / len(pos_list))
-    arctan_std_dev = atan(std_dev)  # Find angular spread of points as seen from centre
+        [
+            weights[i] * (
+                    (x_list[i] / weights[i] - x_mean) ** 2 +
+                    (y_list[i] / weights[i] - y_mean) ** 2 +
+                    (z_list[i] / weights[i] - z_mean) ** 2
+            )
+            for i in range(len(x_list))
+        ]
+    ) / sum(weights))
+    arctan_std_dev = atan(std_dev)
     return [p_mean, arctan_std_dev]  # [Mean,SD] in radians
 
 
