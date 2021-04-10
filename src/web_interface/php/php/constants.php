@@ -114,6 +114,7 @@ class constants
             "camera_upside_down" => "Camera mounted upside-down",
             "camera_width" => "Camera pixel width",
             "clipping_region" => "Sky clipping region",
+            "frame_drop:list" => "Frame drop incidents",
             "hardware_version" => "Observatory hardware",
             "instName" => "Institution name",
             "instURL" => "Institution web address",
