@@ -119,7 +119,7 @@ if __name__ == "__main__":
     # Read command-line arguments
     parser = argparse.ArgumentParser(description=__doc__)
 
-    # By default, list the orientation of images taken over past 24 hours
+    # By default, list the satellites seen over past 24 hours
     parser.add_argument('--utc-min', dest='utc_min', default=0,
                         type=float,
                         help="Only list satellites recorded after the specified unix time")

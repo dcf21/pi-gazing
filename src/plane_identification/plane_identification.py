@@ -1,6 +1,6 @@
 #!../../datadir/virtualenv/bin/python3
 # -*- coding: utf-8 -*-
-# satellite_identification.py
+# plane_identification.py
 #
 # -------------------------------------------------
 # Copyright 2015-2021 Dominic Ford
@@ -23,7 +23,7 @@
 
 """
 This script searches through all the moving objects detected within a given time span, and makes single-station
-estimates of identity of each spacecraft observed.
+estimates of identity of each plane observed.
 """
 
 import argparse
@@ -42,32 +42,30 @@ from pigazing_helpers.gnomonic_project import ang_dist
 from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.path_projection import PathProjection
 from pigazing_helpers.settings_read import settings, installation_info
-from sgp4.api import Satrec, WGS72
-from skyfield.api import EarthSatellite, load, wgs84
 
 # Global search settings
 global_settings = {
-    'max_angular_mismatch': 10,  # Maximum offset of a satellite from observed position, deg
-    'max_mean_angular_mismatch': 4,  # Maximum mean offset of a satellite from observed position, deg
-    'max_clock_offset': 30,  # Maximum time offset of satellite trajectory
+    'max_angular_mismatch': 10,  # Maximum offset of a plane from observed position, deg
+    'max_mean_angular_mismatch': 4,  # Maximum mean offset of a plane from observed position, deg
+    'max_clock_offset': 30,  # Maximum time offset of plane trajectory
 }
 
 
-def fetch_satellites(utc):
+def fetch_planes_adsb(utc):
     """
-    Fetch list of satellite orbital elements from InTheSky database, at specified time.
+    Fetch list of planes from ADS-B database, at specified time.
 
     :param utc:
-        Time for which to return orbital elements (unix time).
+        Time for which to return aircraft (unix time).
     :type utc:
         float
     :return:
-        List of dictionaries containing orbital elements
+        List of dictionaries containing aircraft tracks
     """
 
     # Open connection to database
     db = MySQLdb.connect(host=connect_db.db_host, user=connect_db.db_user, passwd=connect_db.db_passwd,
-                         db="inthesky")
+                         db="adsb")
     c = db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
 
     db.set_character_set('utf8mb4')
@@ -75,29 +73,32 @@ def fetch_satellites(utc):
     c.execute('SET CHARACTER SET utf8mb4;')
     c.execute('SET character_set_connection=utf8mb4;')
 
-    # Look up the closest epoch which exists in the database
+    # Look up aircraft seen around queried time
+    search_window = 300
     c.execute("""
-SELECT uid, epoch
-FROM inthesky_spacecraft_epochs WHERE epoch BETWEEN %s AND %s
-ORDER BY ABS(epoch-%s) LIMIT 1;
-""", (utc - 86400 * 7, utc + 86400 * 7, utc))
-    epoch_info = c.fetchall()
+SELECT call_sign, hex_ident
+FROM adsb_squitters s
+WHERE s.generated_timestamp BETWEEN %s AND %s
+GROUP BY call_sign, hex_ident;
+""", (utc - search_window, utc + search_window))
+    aircraft_list = c.fetchall()
 
-    # Check that we found an epoch
-    if len(epoch_info) == 0:
-        return None
+    # Fetch track for each aircraft
+    output = []
+    for aircraft in aircraft_list:
+        c.execute("""
+SELECT lat, lon, altitude, ground_speed
+FROM adsb_squitters s
+WHERE s.call_sign=%s AND s.hex_ident=%s AND s.lat IS NOT NULL AND s.generated_timestamp BETWEEN %s AND %s
+ORDER BY s.generated_timestamp;
+""", (aircraft['call_sign'], aircraft['hex_ident'], utc - search_window, utc + search_window))
+        track_list = c.fetchall()
 
-    # Fetch list of satellites
-    c.execute("""
-SELECT o.noradId, n.name,
-       epoch,incl,ecc,RAasc,argPeri,meanAnom,meanMotion,mag,bStar,meanMotionDot,meanMotionDotDot
-FROM inthesky_spacecraft s
-INNER JOIN inthesky_spacecraft_orbit_epochs oe ON oe.noradId = s.noradId AND oe.epochId=%s
-INNER JOIN inthesky_spacecraft_orbits o ON oe.orbitId = o.uid
-INNER JOIN inthesky_spacecraft_names n ON s.noradId = n.noradId AND primaryName
-WHERE ((s.decayDate IS NULL) OR (s.decayDate>%s)) AND NOT s.isDebris;
-""", (epoch_info[0]['uid'], utc))
-    output = c.fetchall()
+        output.append({
+            'call_sign': aircraft['call_sign'],
+            'hex_ident': aircraft['hex_ident'],
+            'track': track_list
+        })
 
     # Close connection to database
     c.close()
@@ -107,16 +108,16 @@ WHERE ((s.decayDate IS NULL) OR (s.decayDate>%s)) AND NOT s.isDebris;
     return output
 
 
-def satellite_determination(utc_min, utc_max):
+def plane_determination(utc_min, utc_max):
     """
-    Estimate the identity of spacecraft observed between the unix times <utc_min> and <utc_max>.
+    Estimate the identity of aircraft observed between the unix times <utc_min> and <utc_max>.
 
     :param utc_min:
-        The start of the time period in which we should determine the identity of spacecraft (unix time).
+        The start of the time period in which we should determine the identity of aircraft (unix time).
     :type utc_min:
         float
     :param utc_max:
-        The end of the time period in which we should determine the identity of spacecraft (unix time).
+        The end of the time period in which we should determine the identity of aircraft (unix time).
     :type utc_max:
         float
     :return:
@@ -131,7 +132,7 @@ def satellite_determination(utc_min, utc_max):
                                            db_name=installation_info['mysqlDatabase'],
                                            obstory_id=installation_info['observatoryId'])
 
-    logging.info("Starting satellite identification.")
+    logging.info("Starting aircraft identification.")
 
     # Count how many images we manage to successfully fit
     outcomes = {
@@ -143,7 +144,7 @@ def satellite_determination(utc_min, utc_max):
     }
 
     # Status update
-    logging.info("Searching for satellites within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
+    logging.info("Searching for aircraft within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
 
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
@@ -167,7 +168,7 @@ INNER JOIN archive_metadata am5 ON f.uid = am5.fileId AND
     am5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:detectionCount")
 WHERE ao.obsTime BETWEEN %s AND %s
     AND f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name="pigazing:movingObject/video")
-    AND am2.stringValue = "Satellite"
+    AND am2.stringValue = "Plane"
 ORDER BY ao.obsTime
 """, (utc_min, utc_max))
     results = conn.fetchall()
@@ -177,9 +178,9 @@ ORDER BY ao.obsTime
     db0.close()
 
     # Display logging list of the images we are going to work on
-    logging.info("Estimating the identity of {:d} spacecraft.".format(len(results)))
+    logging.info("Estimating the identity of {:d} aircraft.".format(len(results)))
 
-    # Analyse each spacecraft in turn
+    # Analyse each aircraft in turn
     for item_index, item in enumerate(results):
         # Make ID string to prefix to all logging messages about this event
         logging_prefix = "{date} [{obs}]".format(
@@ -216,106 +217,51 @@ ORDER BY ao.obsTime
         # Check number of points in path
         path_len = len(path_x_y)
 
-        # Look up list of satellite orbital elements at the time of this sighting
-        spacecraft_list = fetch_satellites(utc=item['obsTime'])
+        # Look up list of aircraft tracks at the time of this sighting
+        aircraft_list = fetch_planes_adsb(utc=item['obsTime'])
 
-        # List of candidate satellites this object might be
-        candidate_satellites = []
+        # List of aircraft this moving object might be
+        candidate_aircraft = []
 
-        # Check that we found a list of spacecraft
-        if spacecraft_list is None:
-            logging.info("{date} [{obs}] -- No spacecraft records found.".format(
+        # Check that we found a list of aircraft
+        if aircraft_list is None:
+            logging.info("{date} [{obs}] -- No aircraft records found.".format(
                 date=date_string(utc=item['obsTime']),
                 obs=item['observationId']
             ))
             outcomes['insufficient_information'] += 1
             continue
 
-        # Logging message about how many spacecraft we're testing
-        # logging.info("{date} [{obs}] -- Matching against {count:7d} spacecraft.".format(
+        # Logging message about how many aircraft we're testing
+        # logging.info("{date} [{obs}] -- Matching against {count:7d} aircraft.".format(
         #     date=date_string(utc=item['obsTime']),
         #     obs=item['observationId'],
-        #     count=len(spacecraft_list)
+        #     count=len(aircraft_list)
         # ))
 
-        # Test for each candidate satellite in turn
-        for spacecraft in spacecraft_list:
+        # Test for each candidate aircraft in turn
+        for aircraft in aircraft_list:
             # Unit scaling
             deg2rad = pi / 180.0  # 0.0174532925199433
             xpdotp = 1440.0 / (2.0 * pi)  # 229.1831180523293
 
-            # Model the path of this spacecraft
-            model = Satrec()
-            model.sgp4init(
-                # whichconst: gravity model
-                WGS72,
+            # Model the path of this aircraft
 
-                # opsmode: 'a' = old AFSPC mode, 'i' = improved mode
-                'i',
-
-                # satnum: Satellite number
-                spacecraft['noradId'],
-
-                # epoch: days since 1949 December 31 00:00 UT
-                jd_from_unix(spacecraft['epoch']) - 2433281.5,
-
-                # bstar: drag coefficient (/earth radii)
-                spacecraft['bStar'],
-
-                # ndot (NOT USED): ballistic coefficient (revs/day)
-                spacecraft['meanMotionDot'] / (xpdotp * 1440.0),
-
-                # nddot (NOT USED): mean motion 2nd derivative (revs/day^3)
-                spacecraft['meanMotionDotDot'] / (xpdotp * 1440.0 * 1440),
-
-                # ecco: eccentricity
-                spacecraft['ecc'],
-
-                # argpo: argument of perigee (radians)
-                spacecraft['argPeri'] * deg2rad,
-
-                # inclo: inclination (radians)
-                spacecraft['incl'] * deg2rad,
-
-                # mo: mean anomaly (radians)
-                spacecraft['meanAnom'] * deg2rad,
-
-                # no_kozai: mean motion (radians/minute)
-                spacecraft['meanMotion'] / xpdotp,
-
-                # nodeo: right ascension of ascending node (radians)
-                spacecraft['RAasc'] * deg2rad
-            )
-
-            # Wrap within skyfield to convert to topocentric coordinates
-            ts = load.timescale()
-            sat = EarthSatellite.from_satrec(model, ts)
-
-            # Fetch spacecraft position at each time point along trajectory
+            # Fetch aircraft position at each time point along trajectory
             ang_mismatch_list = []
             distance_list = []
 
-            # e, r, v = model.sgp4(jd_from_unix(utc=item['obsTime']), 0)
-            # logging.info("{} {} {}".format(str(e), str(r), str(v)))
-            tai_utc_offset = 39  # seconds
-
-            def satellite_angular_offset(index, clock_offset):
+            def aircraft_angular_offset(index, clock_offset):
                 # Fetch observed position of object at this time point
                 pt_utc = path_x_y[index][3]
                 pt_alt = path_alt_az[index][0]
                 pt_az = path_alt_az[index][1]
 
-                # Project position of this satellite in space at this time point
-                t = ts.tai_jd(jd=jd_from_unix(utc=pt_utc + tai_utc_offset + clock_offset))
+                # Project position of this aircraft in space at this time point
 
-                # Project position of this satellite in the observer's sky
-                sight_line = sat - observer
-                topocentric = sight_line.at(t)
-                sat_alt, sat_az, sat_distance = topocentric.altaz()
-
-                # Work out offset of satellite's position from observed moving object
+                # Work out offset of plane's position from observed moving object
                 ang_mismatch = ang_dist(ra0=pt_az * pi / 180, dec0=pt_alt * pi / 180,
-                                        ra1=sat_az.radians, dec1=sat_alt.radians) * 180 / pi
+                                        ra1=plane_az.radians, dec1=plane_alt.radians) * 180 / pi
 
                 return ang_mismatch, sat_distance
 
@@ -334,23 +280,12 @@ ORDER BY ao.obsTime
                 clock_offset = p[0]
 
                 # Look up angular offset
-                ang_mismatch, sat_distance = satellite_angular_offset(index=0, clock_offset=clock_offset)
+                ang_mismatch, plane_distance = aircraft_angular_offset(index=0, clock_offset=clock_offset)
 
                 # Return metric to minimise
                 return ang_mismatch * exp(clock_offset / 8)
 
-            # First, chuck out satellites with large angular offsets
-            observer = wgs84.latlon(latitude_degrees=projector.obstory_info['latitude'],
-                                    longitude_degrees=projector.obstory_info['longitude'],
-                                    elevation_m=0)
-
-            ang_mismatch, sat_distance = satellite_angular_offset(index=0, clock_offset=0)
-
-            # Check angular offset is reasonable
-            if ang_mismatch > global_settings['max_angular_mismatch']:
-                continue
-
-            # Work out the optimum time offset between the satellite's path and the observed path
+            # Work out the optimum time offset between the plane's path and the observed path
             # See <http://www.scipy-lectures.org/advanced/mathematical_optimization/>
             # for more information about how this works
             parameters_initial = [0]
@@ -366,76 +301,73 @@ ORDER BY ao.obsTime
             if abs(clock_offset) > global_settings['max_clock_offset']:
                 continue
 
-            # Measure the offset between the satellite's position and the observed position at each time point
+            # Measure the offset between the plane's position and the observed position at each time point
             for index in range(path_len):
                 # Look up angular mismatch at this time point
-                ang_mismatch, sat_distance = satellite_angular_offset(index=index, clock_offset=clock_offset)
+                ang_mismatch, sat_distance = aircraft_angular_offset(index=index, clock_offset=clock_offset)
 
                 # Keep list of the offsets at each recorded time point along the trajectory
                 ang_mismatch_list.append(ang_mismatch)
                 distance_list.append(sat_distance.km)
 
-            # Consider adding this satellite to list of candidates
+            # Consider adding this plane to list of candidates
             mean_ang_mismatch = np.mean(np.asarray(ang_mismatch_list))
             distance_mean = np.mean(np.asarray(distance_list))
 
             if mean_ang_mismatch < global_settings['max_mean_angular_mismatch']:
-                candidate_satellites.append({
-                    'name': spacecraft['name'],  # string
-                    'noradId': spacecraft['noradId'],  # int
+                candidate_aircraft.append({
+                    'call_sign': aircraft['call_sign'],  # string
+                    'hex_ident': aircraft['hex_ident'],  # string
                     'distance': distance_mean,  # km
                     'clock_offset': clock_offset,  # seconds
-                    'offset': mean_ang_mismatch,  # degrees
-                    'absolute_magnitude': spacecraft['mag']
+                    'offset': mean_ang_mismatch  # degrees
                 })
 
         # Add model possibility for null satellite
-        candidate_satellites.append({
-            'name': "Unidentified",
-            'noradId': 0,
-            'distance': 35.7e3 * 0.25,  # Nothing is visible beyond 25% of geostationary orbit distance
+        candidate_aircraft.append({
+            'call_sign': "",
+            'hex_ident': "",
+            'distance': 0,
             'clock_offset': 0,
-            'offset': 0,
-            'absolute_magnitude': None
+            'offset': 0
         })
 
-        # Sort candidates by score - use absolute mag = 20 for satellites with no mag
-        for candidate in candidate_satellites:
+        # Sort candidates by score
+        for candidate in candidate_aircraft:
             candidate['score'] = hypot(
-                candidate['distance'] / 1e3,
+                candidate['offset'],
                 candidate['clock_offset'],
-                (20 if candidate['absolute_magnitude'] is None else candidate['absolute_magnitude']),
             )
-        candidate_satellites.sort(key=itemgetter('score'))
+        candidate_aircraft.sort(key=itemgetter('score'))
 
         # Report possible satellite identifications
-        logging.info("{prefix} -- {satellites}".format(
+        logging.info("{prefix} -- {aircraft}".format(
             prefix=logging_prefix,
-            satellites=", ".join([
-                "{} ({:.1f} deg offset; clock offset {:.1f} sec)".format(satellite['name'],
-                                                                         satellite['offset'],
-                                                                         satellite['clock_offset'])
-                for satellite in candidate_satellites
+            aircraft=", ".join([
+                "{} ({:.1f} deg offset; clock offset {:.1f} sec)".format(aircraft['call_sign'],
+                                                                         aircraft['offset'],
+                                                                         aircraft['clock_offset'])
+                for aircraft in candidate_aircraft
             ])
         ))
 
-        # Identify most likely satellite
-        most_likely_satellite = candidate_satellites[0]
+        # Identify most likely aircraft
+        most_likely_aircraft = candidate_aircraft[0]
 
-        # Store satellite identification
+        # Store aircraft identification
         user = settings['pigazingUser']
         timestamp = time.time()
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="satellite:name", value=most_likely_satellite['name']))
+                                    meta=mp.Meta(key="plane:call_sign", value=most_likely_aircraft['call_sign']))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="satellite:norad_id", value=most_likely_satellite['noradId']))
+                                    meta=mp.Meta(key="plane:hex_ident", value=most_likely_aircraft['hex_ident']))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="satellite:clock_offset",
-                                                 value=most_likely_satellite['clock_offset']))
+                                    meta=mp.Meta(key="plane:clock_offset",
+                                                 value=most_likely_aircraft['clock_offset']))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="satellite:angular_offset", value=most_likely_satellite['offset']))
+                                    meta=mp.Meta(key="plane:angular_offset", value=most_likely_aircraft['offset']))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="satellite:path_length",
+                                    meta=mp.Meta(key="plane:path_length",
                                                  value=ang_dist(ra0=path_ra_dec_at_epoch[0][0],
                                                                 dec0=path_ra_dec_at_epoch[0][1],
                                                                 ra1=path_ra_dec_at_epoch[-1][0],
@@ -443,7 +375,7 @@ ORDER BY ao.obsTime
                                                                 ) * 180 / pi
                                                  ))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="satellite:path_ra_dec",
+                                    meta=mp.Meta(key="plane:path_ra_dec",
                                                  value="[[{:.3f},{:.3f}],[{:.3f},{:.3f}],[{:.3f},{:.3f}]]".format(
                                                      path_ra_dec_at_epoch[0][0] * 12 / pi,
                                                      path_ra_dec_at_epoch[0][1] * 180 / pi,
@@ -454,8 +386,8 @@ ORDER BY ao.obsTime
                                                  )
                                                  ))
 
-        # Satellite successfully identified
-        if most_likely_satellite == "Unidentified":
+        # Aircraft successfully identified
+        if most_likely_aircraft == "Unidentified":
             outcomes['unsuccessful_fits'] += 1
         else:
             outcomes['successful_fits'] += 1
@@ -464,11 +396,11 @@ ORDER BY ao.obsTime
         db.commit()
 
     # Report how many fits we achieved
-    logging.info("{:d} satellites successfully identified.".format(outcomes['successful_fits']))
-    logging.info("{:d} satellites not identified.".format(outcomes['unsuccessful_fits']))
+    logging.info("{:d} aircraft successfully identified.".format(outcomes['successful_fits']))
+    logging.info("{:d} aircraft not identified.".format(outcomes['unsuccessful_fits']))
     logging.info("{:d} malformed database records.".format(outcomes['error_records']))
     logging.info("{:d} rescued database records.".format(outcomes['rescued_records']))
-    logging.info("{:d} satellites with incomplete data.".format(outcomes['insufficient_information']))
+    logging.info("{:d} aircraft with incomplete data.".format(outcomes['insufficient_information']))
 
     # Clean up and exit
     db.commit()
@@ -511,13 +443,13 @@ if __name__ == "__main__":
     # Read command-line arguments
     parser = argparse.ArgumentParser(description=__doc__)
 
-    # By default, categorise all satellites recorded since the beginning of time
+    # By default, categorise all aircraft recorded since the beginning of time
     parser.add_argument('--utc-min', dest='utc_min', default=0,
                         type=float,
-                        help="Only analyse satellites recorded after the specified unix time")
+                        help="Only analyse aircraft recorded after the specified unix time")
     parser.add_argument('--utc-max', dest='utc_max', default=time.time(),
                         type=float,
-                        help="Only analyse satellites recorded before the specified unix time")
+                        help="Only analyse aircraft recorded before the specified unix time")
 
     parser.add_argument('--flush', dest='flush', action='store_true')
     parser.add_argument('--no-flush', dest='flush', action='store_false')
@@ -540,6 +472,6 @@ if __name__ == "__main__":
         flush_identifications(utc_min=args.utc_min,
                               utc_max=args.utc_max)
 
-    # Estimate the identity of satellites
-    satellite_determination(utc_min=args.utc_min,
-                            utc_max=args.utc_max)
+    # Estimate the identity of aircraft
+    plane_determination(utc_min=args.utc_min,
+                        utc_max=args.utc_max)
