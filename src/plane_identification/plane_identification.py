@@ -30,28 +30,32 @@ import argparse
 import logging
 import os
 import time
-import scipy.optimize
 from math import pi, exp, hypot
 from operator import itemgetter
 
 import MySQLdb
 import numpy as np
+import scipy.optimize
 from pigazing_helpers import connect_db
-from pigazing_helpers.dcf_ast import date_string, jd_from_unix
+from pigazing_helpers.dcf_ast import date_string
 from pigazing_helpers.gnomonic_project import ang_dist
 from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.path_projection import PathProjection
 from pigazing_helpers.settings_read import settings, installation_info
+from pigazing_helpers.vector_algebra import Point
+
+# Constants
+feet = 0.3048  # Aircraft altitudes are given in feet
 
 # Global search settings
 global_settings = {
     'max_angular_mismatch': 10,  # Maximum offset of a plane from observed position, deg
     'max_mean_angular_mismatch': 4,  # Maximum mean offset of a plane from observed position, deg
-    'max_clock_offset': 30,  # Maximum time offset of plane trajectory
+    'max_clock_offset': 20,  # Maximum time offset of plane trajectory
 }
 
 
-def fetch_planes_adsb(utc):
+def fetch_planes_from_adsb(utc):
     """
     Fetch list of planes from ADS-B database, at specified time.
 
@@ -87,7 +91,7 @@ GROUP BY call_sign, hex_ident;
     output = []
     for aircraft in aircraft_list:
         c.execute("""
-SELECT lat, lon, altitude, ground_speed
+SELECT generated_timestamp, lat, lon, altitude, ground_speed
 FROM adsb_squitters s
 WHERE s.call_sign=%s AND s.hex_ident=%s AND s.lat IS NOT NULL AND s.generated_timestamp BETWEEN %s AND %s
 ORDER BY s.generated_timestamp;
@@ -97,7 +101,15 @@ ORDER BY s.generated_timestamp;
         output.append({
             'call_sign': aircraft['call_sign'],
             'hex_ident': aircraft['hex_ident'],
-            'track': track_list
+            'track': [{
+                'utc': point['generated_timestamp'],
+                'lat': point['lat'],
+                'lon': point['lon'],
+                'altitude': point['altitude'],
+                'ground_speed': point['ground_speed']
+            }
+                for point in track_list
+            ]
         })
 
     # Close connection to database
@@ -108,7 +120,55 @@ ORDER BY s.generated_timestamp;
     return output
 
 
-def plane_determination(utc_min, utc_max):
+def path_interpolate(track: list, utc: float):
+    """
+    Interpolate the position of a plane at a particular time.
+
+    :param track:
+        A list of the positions of an aircraft.
+    :type track:
+        List<Dict>
+    :param utc:
+        The time at which to interpolate the aircraft's position.
+    :type utc:
+        float
+    :return:
+        Position at the interpolated timestamp.
+    """
+
+    track_length = len(track)
+
+    # Is time point outside time span of the track?
+    if (utc < track[0]['utc']) or (utc > track[-1]['utc']):
+        return None
+
+    # Find pair of track points straddling requested time
+    for index in range(track_length - 1):
+        if track[index + 1]['utc'] >= utc:
+            # If we have an exact match, return exact match.
+            if track[index]['utc'] == utc:
+                return track[index]
+            if track[index + 1]['utc'] == utc:
+                return track[index + 1]
+
+            # Do linear interpolation
+            weight_0 = abs(track[index + 1]['utc'] - utc)
+            weight_1 = abs(utc - track[index]['utc'])
+            normalisation = weight_0 + weight_1
+
+            # Do linear interpolation on all fields in turn
+            output = {}
+            for key in track[index]:
+                output[key] = (weight_0 * track[index][key] + weight_1 * track[index + 1][key]) / normalisation
+
+            # Return interpolated track point
+            return output
+
+    # Shouldn't be here
+    assert False
+
+
+def plane_determination(utc_min, utc_max, source):
     """
     Estimate the identity of aircraft observed between the unix times <utc_min> and <utc_max>.
 
@@ -120,6 +180,10 @@ def plane_determination(utc_min, utc_max):
         The end of the time period in which we should determine the identity of aircraft (unix time).
     :type utc_max:
         float
+    :param source:
+        The source we should use for plane trajectories. Either 'adsb' or 'fr24'.
+    :type source:
+        str
     :return:
         None
     """
@@ -196,7 +260,7 @@ ORDER BY ao.obsTime
             logging_prefix=logging_prefix
         )
 
-        path_x_y, path_ra_dec_at_epoch, path_alt_az, sight_line_list_this = projector.ra_dec_from_x_y(
+        path_x_y, path_ra_dec_at_epoch, path_alt_az, sight_line_list = projector.ra_dec_from_x_y(
             path_json=item['path'],
             path_bezier_json=item['pathBezier'],
             detections=item['detections'],
@@ -218,7 +282,10 @@ ORDER BY ao.obsTime
         path_len = len(path_x_y)
 
         # Look up list of aircraft tracks at the time of this sighting
-        aircraft_list = fetch_planes_adsb(utc=item['obsTime'])
+        if source == 'adsb':
+            aircraft_list = fetch_planes_from_adsb(utc=item['obsTime'])
+        else:
+            raise ValueError("Unknown source <{}>".format(source))
 
         # List of aircraft this moving object might be
         candidate_aircraft = []
@@ -241,29 +308,29 @@ ORDER BY ao.obsTime
 
         # Test for each candidate aircraft in turn
         for aircraft in aircraft_list:
-            # Unit scaling
-            deg2rad = pi / 180.0  # 0.0174532925199433
-            xpdotp = 1440.0 / (2.0 * pi)  # 229.1831180523293
-
-            # Model the path of this aircraft
-
             # Fetch aircraft position at each time point along trajectory
             ang_mismatch_list = []
             distance_list = []
 
             def aircraft_angular_offset(index, clock_offset):
                 # Fetch observed position of object at this time point
-                pt_utc = path_x_y[index][3]
-                pt_alt = path_alt_az[index][0]
-                pt_az = path_alt_az[index][1]
+                pt_utc = sight_line_list[index]['utc']
+                observatory_position = sight_line_list[index]['obs_position']
+                observed_sight_line = sight_line_list[index]['line'].direction
 
                 # Project position of this aircraft in space at this time point
-
+                aircraft_position = path_interpolate(track=aircraft['track'],
+                                                     utc=pt_utc + clock_offset)
+                aircraft_point = Point.from_lat_lng(lat=aircraft_position['lat'],
+                                                    lng=aircraft_position['lon'],
+                                                    alt=aircraft_position['altitude'] * feet,
+                                                    utc=None)
                 # Work out offset of plane's position from observed moving object
-                ang_mismatch = ang_dist(ra0=pt_az * pi / 180, dec0=pt_alt * pi / 180,
-                                        ra1=plane_az.radians, dec1=plane_alt.radians) * 180 / pi
+                aircraft_sight_line = aircraft_point.to_vector() - observatory_position.to_vector()
+                angular_offset = aircraft_sight_line.angle_with(other=observed_sight_line)  # degrees
+                distance = abs(aircraft_sight_line)
 
-                return ang_mismatch, sat_distance
+                return angular_offset, distance
 
             def time_offset_objective(p):
                 """
@@ -280,7 +347,7 @@ ORDER BY ao.obsTime
                 clock_offset = p[0]
 
                 # Look up angular offset
-                ang_mismatch, plane_distance = aircraft_angular_offset(index=0, clock_offset=clock_offset)
+                ang_mismatch, distance = aircraft_angular_offset(index=0, clock_offset=clock_offset)
 
                 # Return metric to minimise
                 return ang_mismatch * exp(clock_offset / 8)
@@ -304,15 +371,15 @@ ORDER BY ao.obsTime
             # Measure the offset between the plane's position and the observed position at each time point
             for index in range(path_len):
                 # Look up angular mismatch at this time point
-                ang_mismatch, sat_distance = aircraft_angular_offset(index=index, clock_offset=clock_offset)
+                ang_mismatch, distance = aircraft_angular_offset(index=index, clock_offset=clock_offset)
 
                 # Keep list of the offsets at each recorded time point along the trajectory
                 ang_mismatch_list.append(ang_mismatch)
-                distance_list.append(sat_distance.km)
+                distance_list.append(distance)
 
             # Consider adding this plane to list of candidates
-            mean_ang_mismatch = np.mean(np.asarray(ang_mismatch_list))
-            distance_mean = np.mean(np.asarray(distance_list))
+            mean_ang_mismatch = np.mean(np.asarray(ang_mismatch_list))  # degrees
+            distance_mean = np.mean(np.asarray(distance_list))  # metres
 
             if mean_ang_mismatch < global_settings['max_mean_angular_mismatch']:
                 candidate_aircraft.append({
@@ -322,15 +389,6 @@ ORDER BY ao.obsTime
                     'clock_offset': clock_offset,  # seconds
                     'offset': mean_ang_mismatch  # degrees
                 })
-
-        # Add model possibility for null satellite
-        candidate_aircraft.append({
-            'call_sign': "",
-            'hex_ident': "",
-            'distance': 0,
-            'clock_offset': 0,
-            'offset': 0
-        })
 
         # Sort candidates by score
         for candidate in candidate_aircraft:
@@ -373,17 +431,6 @@ ORDER BY ao.obsTime
                                                                 ra1=path_ra_dec_at_epoch[-1][0],
                                                                 dec1=path_ra_dec_at_epoch[-1][1]
                                                                 ) * 180 / pi
-                                                 ))
-        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="plane:path_ra_dec",
-                                                 value="[[{:.3f},{:.3f}],[{:.3f},{:.3f}],[{:.3f},{:.3f}]]".format(
-                                                     path_ra_dec_at_epoch[0][0] * 12 / pi,
-                                                     path_ra_dec_at_epoch[0][1] * 180 / pi,
-                                                     path_ra_dec_at_epoch[int(path_len / 2)][0] * 12 / pi,
-                                                     path_ra_dec_at_epoch[int(path_len / 2)][1] * 180 / pi,
-                                                     path_ra_dec_at_epoch[-1][0] * 12 / pi,
-                                                     path_ra_dec_at_epoch[-1][1] * 180 / pi,
-                                                 )
                                                  ))
 
         # Aircraft successfully identified
@@ -450,6 +497,9 @@ if __name__ == "__main__":
     parser.add_argument('--utc-max', dest='utc_max', default=time.time(),
                         type=float,
                         help="Only analyse aircraft recorded before the specified unix time")
+    parser.add_argument('--source', dest='source', default='adsb',
+                        type=str,
+                        help="Source to use for plane paths ('adsb' or 'fr24')")
 
     parser.add_argument('--flush', dest='flush', action='store_true')
     parser.add_argument('--no-flush', dest='flush', action='store_false')
@@ -474,4 +524,5 @@ if __name__ == "__main__":
 
     # Estimate the identity of aircraft
     plane_determination(utc_min=args.utc_min,
-                        utc_max=args.utc_max)
+                        utc_max=args.utc_max,
+                        source=args.source)
