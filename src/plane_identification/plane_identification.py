@@ -55,6 +55,41 @@ global_settings = {
 }
 
 
+def fetch_aircraft_data(hex_ident):
+    """
+    Fetch data about a plane, based on its hex ident.
+
+    :param hex_ident:
+        Plane identifier
+    :return:
+        Dictionary of information about plane
+    """
+
+    # Open connection to database
+    db = MySQLdb.connect(host=connect_db.db_host, user=connect_db.db_user, passwd=connect_db.db_passwd,
+                         db="adsb")
+    c = db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+
+    db.set_character_set('utf8mb4')
+    c.execute('SET NAMES utf8mb4;')
+    c.execute('SET CHARACTER SET utf8mb4;')
+    c.execute('SET character_set_connection=utf8mb4;')
+
+    # Look up aircraft
+    c.execute("""
+SELECT * FROM aircraft_hex_codes WHERE hex_ident=%s;
+""", (hex_ident,))
+    aircraft = c.fetchall()
+
+    # If we got no matches, return an empty dictionary
+    if len(aircraft) > 0:
+        result = dict(aircraft[0])
+    else:
+        result = {}
+
+    return result
+
+
 def fetch_planes_from_adsb(utc):
     """
     Fetch list of planes from ADS-B database, at specified time.
@@ -427,6 +462,9 @@ ORDER BY ao.obsTime
         # Identify most likely aircraft
         most_likely_aircraft = candidate_aircraft[0]
 
+        # Fetch extra information about plane
+        plane_info = fetch_aircraft_data(hex_ident=most_likely_aircraft['hex_ident'])
+
         # Store aircraft identification
         user = settings['pigazingUser']
         timestamp = time.time()
@@ -449,6 +487,14 @@ ORDER BY ao.obsTime
                                                                 dec1=path_ra_dec_at_epoch[-1][1]
                                                                 ) * 180 / pi
                                                  ))
+
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
+                                    meta=mp.Meta(key="plane:operator", value=most_likely_aircraft.get('operator', '')))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
+                                    meta=mp.Meta(key="plane:model", value=most_likely_aircraft.get('model', '')))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
+                                    meta=mp.Meta(key="plane:manufacturer",
+                                                 value=most_likely_aircraft.get('manufacturername', '')))
 
         # Aircraft successfully identified
         if most_likely_aircraft['call_sign'] == "Unidentified":
