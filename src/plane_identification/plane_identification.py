@@ -489,12 +489,12 @@ ORDER BY ao.obsTime
                                                  ))
 
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="plane:operator", value=most_likely_aircraft.get('operator', '')))
+                                    meta=mp.Meta(key="plane:operator", value=plane_info.get('operator', '')))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="plane:model", value=most_likely_aircraft.get('model', '')))
+                                    meta=mp.Meta(key="plane:model", value=plane_info.get('model', '')))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="plane:manufacturer",
-                                                 value=most_likely_aircraft.get('manufacturername', '')))
+                                                 value=plane_info.get('manufacturername', '')))
 
         # Aircraft successfully identified
         if most_likely_aircraft['call_sign'] == "Unidentified":

@@ -61,6 +61,7 @@ def list_planes(obstory_id, utc_min, utc_max):
 SELECT am1.stringValue AS call_sign, am2.floatValue AS ang_offset,
        am3.floatValue AS clock_offset, am4.floatValue AS duration, am5.stringValue AS hex_ident,
        am6.floatValue AS distance,
+       am7.stringValue AS operator, am8.stringValue AS model, am9.stringValue AS manufacturer,
        o.obsTime AS time, o.publicId AS obsId
 FROM archive_observations o
 INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
@@ -73,8 +74,17 @@ INNER JOIN archive_metadata am4 ON o.uid = am4.observationId AND
     am4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:duration")
 INNER JOIN archive_metadata am5 ON o.uid = am5.observationId AND
     am5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="plane:hex_ident")
-INNER JOIN archive_metadata am6 ON o.uid = am6.observationId AND
+LEFT JOIN archive_metadata am6 ON o.uid = am6.observationId AND
     am6.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="plane:distance")
+
+LEFT JOIN archive_metadata am7 ON o.uid = am7.observationId AND
+    am7.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="plane:operator")
+LEFT JOIN archive_metadata am8 ON o.uid = am8.observationId AND
+    am8.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="plane:model")
+LEFT JOIN archive_metadata am9 ON o.uid = am9.observationId AND
+    am9.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="plane:manufacturer")
+
+
 WHERE
     o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
     o.obsTime BETWEEN %s AND %s;
@@ -90,7 +100,10 @@ WHERE
             'clock_offset': item['clock_offset'],
             'duration': item['duration'],
             'hex_ident': item['hex_ident'],
-            'distance': item['distance']
+            'distance': item['distance'],
+            'operator': item['operator'],
+            'model': item['model'],
+            'manufacturer': item['manufacturer']
         })
 
     # Sort identifications by time
@@ -98,20 +111,21 @@ WHERE
 
     # Display column headings
     print("""\
-{:16s} {:18s} {:18s} {:8s} {:10s} {:10s} {:10s}\
-""".format("Time", "Call sign", "Hex ident", "Duration", "Ang offset", "Clock offset", "Distance"))
+{:16s} {:18s} {:18s} {:8s} {:10s} {:10s} {:10s} {:30s} {:30s} {:30s}\
+""".format("Time", "Call sign", "Hex ident", "Duration", "Ang offset", "Clock off", "Distance", "Operator", "Model", "Manufacturer"))
 
     # Display list of meteors
     for item in plane_identifications:
         print("""\
-{:16s} {:18s} {:18s} {:8.1f} {:10.1f} {:10.1f} {:10.1f}\
+{:16s} {:18s} {:18s} {:8.1f} {:10.1f} {:10.1f} {:10.1f} {:30s} {:30s} {:30s}\
 """.format(date_string(item['time']),
            item['call_sign'],
            item['hex_ident'],
            item['duration'],
            item['ang_offset'],
            item['clock_offset'],
-           item['distance']
+           item['distance'],
+           item['operator'], item['model'], item['manufacturer']
            ))
 
     # Clean up and exit
