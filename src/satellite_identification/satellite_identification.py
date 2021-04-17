@@ -455,7 +455,7 @@ ORDER BY ao.obsTime
                                                  ))
 
         # Satellite successfully identified
-        if most_likely_satellite == "Unidentified":
+        if most_likely_satellite['name'] == "Unidentified":
             outcomes['unsuccessful_fits'] += 1
         else:
             outcomes['successful_fits'] += 1

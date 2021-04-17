@@ -49,8 +49,8 @@ feet = 0.3048  # Aircraft altitudes are given in feet
 
 # Global search settings
 global_settings = {
-    'max_angular_mismatch': 10,  # Maximum offset of a plane from observed position, deg
-    'max_mean_angular_mismatch': 4,  # Maximum mean offset of a plane from observed position, deg
+    'max_angular_mismatch': 15,  # Maximum offset of a plane from observed position, deg
+    'max_mean_angular_mismatch': 10,  # Maximum mean offset of a plane from observed position, deg
     'max_clock_offset': 20,  # Maximum time offset of plane trajectory
 }
 
@@ -321,6 +321,10 @@ ORDER BY ao.obsTime
                 # Project position of this aircraft in space at this time point
                 aircraft_position = path_interpolate(track=aircraft['track'],
                                                      utc=pt_utc + clock_offset)
+                if aircraft_position is None:
+                    return np.nan, np.nan
+
+                # Convert position to Cartesian coordinates
                 aircraft_point = Point.from_lat_lng(lat=aircraft_position['lat'],
                                                     lng=aircraft_position['lon'],
                                                     alt=aircraft_position['altitude'] * feet,
@@ -385,10 +389,20 @@ ORDER BY ao.obsTime
                 candidate_aircraft.append({
                     'call_sign': aircraft['call_sign'],  # string
                     'hex_ident': aircraft['hex_ident'],  # string
-                    'distance': distance_mean,  # km
+                    'distance': distance_mean / 1e3,  # km
                     'clock_offset': clock_offset,  # seconds
                     'offset': mean_ang_mismatch  # degrees
                 })
+
+        # Add model possibility for null aircraft
+        if len(candidate_aircraft) == 0:
+            candidate_aircraft.append({
+                'call_sign': "Unidentified",
+                'hex_ident': "Unidentified",
+                'distance': 0,
+                'clock_offset': 0,
+                'offset': 0,
+            })
 
         # Sort candidates by score
         for candidate in candidate_aircraft:
@@ -402,9 +416,10 @@ ORDER BY ao.obsTime
         logging.info("{prefix} -- {aircraft}".format(
             prefix=logging_prefix,
             aircraft=", ".join([
-                "{} ({:.1f} deg offset; clock offset {:.1f} sec)".format(aircraft['call_sign'],
+                "{} ({:.1f} deg offset; clock offset {:.1f} sec; distance {:.1f} km)".format(aircraft['call_sign'],
                                                                          aircraft['offset'],
-                                                                         aircraft['clock_offset'])
+                                                                         aircraft['clock_offset'],
+aircraft['distance'])
                 for aircraft in candidate_aircraft
             ])
         ))
@@ -425,6 +440,8 @@ ORDER BY ao.obsTime
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="plane:angular_offset", value=most_likely_aircraft['offset']))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
+                                    meta=mp.Meta(key="plane:distance", value=most_likely_aircraft['distance']))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="plane:path_length",
                                                  value=ang_dist(ra0=path_ra_dec_at_epoch[0][0],
                                                                 dec0=path_ra_dec_at_epoch[0][1],
@@ -434,7 +451,7 @@ ORDER BY ao.obsTime
                                                  ))
 
         # Aircraft successfully identified
-        if most_likely_aircraft == "Unidentified":
+        if most_likely_aircraft['call_sign'] == "Unidentified":
             outcomes['unsuccessful_fits'] += 1
         else:
             outcomes['successful_fits'] += 1
@@ -469,13 +486,13 @@ def flush_identifications(utc_min, utc_max):
     # Open connection to database
     [db0, conn] = connect_db.connect_db()
 
-    # Delete observation metadata fields that start 'satellite:*'
+    # Delete observation metadata fields that start 'plane:*'
     conn.execute("""
 DELETE m
 FROM archive_metadata m
 INNER JOIN archive_observations o ON m.observationId = o.uid
 WHERE
-    fieldId IN (SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'satellite:%%') AND
+    fieldId IN (SELECT uid FROM archive_metadataFields WHERE metaKey LIKE 'plane:%%') AND
     o.obsTime BETWEEN %s AND %s;
 """, (utc_min, utc_max))
 

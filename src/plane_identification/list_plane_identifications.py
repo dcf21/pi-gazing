@@ -59,7 +59,8 @@ def list_planes(obstory_id, utc_min, utc_max):
     # Select moving objects with plane identifications
     conn.execute("""
 SELECT am1.stringValue AS call_sign, am2.floatValue AS ang_offset,
-       am3.floatValue AS clock_offset, am4.floatValue AS duration, am5.floatValue AS hex_ident,
+       am3.floatValue AS clock_offset, am4.floatValue AS duration, am5.stringValue AS hex_ident,
+       am6.floatValue AS distance,
        o.obsTime AS time, o.publicId AS obsId
 FROM archive_observations o
 INNER JOIN archive_metadata am1 ON o.uid = am1.observationId AND
@@ -72,6 +73,8 @@ INNER JOIN archive_metadata am4 ON o.uid = am4.observationId AND
     am4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:duration")
 INNER JOIN archive_metadata am5 ON o.uid = am5.observationId AND
     am5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="plane:hex_ident")
+INNER JOIN archive_metadata am6 ON o.uid = am6.observationId AND
+    am6.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="plane:distance")
 WHERE
     o.observatory = (SELECT uid FROM archive_observatories WHERE publicId=%s) AND
     o.obsTime BETWEEN %s AND %s;
@@ -86,7 +89,8 @@ WHERE
             'ang_offset': item['ang_offset'],
             'clock_offset': item['clock_offset'],
             'duration': item['duration'],
-            'hex_ident': int(item['hex_ident'])
+            'hex_ident': item['hex_ident'],
+            'distance': item['distance']
         })
 
     # Sort identifications by time
@@ -94,19 +98,20 @@ WHERE
 
     # Display column headings
     print("""\
-{:16s} {:10s} {:10s} {:8s} {:10s} {:10s}\
-""".format("Time", "Call sign", "Hex ident", "Duration", "Ang offset", "Clock offset"))
+{:16s} {:18s} {:18s} {:8s} {:10s} {:10s} {:10s}\
+""".format("Time", "Call sign", "Hex ident", "Duration", "Ang offset", "Clock offset", "Distance"))
 
     # Display list of meteors
     for item in plane_identifications:
         print("""\
-{:16s} {:10s} {:10s} {:5.1f} {:10.1f} {:10.1f}\
+{:16s} {:18s} {:18s} {:8.1f} {:10.1f} {:10.1f} {:10.1f}\
 """.format(date_string(item['time']),
            item['call_sign'],
            item['hex_ident'],
            item['duration'],
            item['ang_offset'],
            item['clock_offset'],
+           item['distance']
            ))
 
     # Clean up and exit
