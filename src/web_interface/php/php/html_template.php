@@ -302,6 +302,9 @@ __HTML__;
                                 <a class="dropdown-item" href="<?php echo $server; ?>search_satellites.php">
                                     Satellite sightings
                                 </a>
+                                <a class="dropdown-item" href="<?php echo $server; ?>search_aircraft.php">
+                                    Aircraft sightings
+                                </a>
                                 <a class="dropdown-item" href="<?php echo $server; ?>search_meteors.php">
                                     Meteor statistics
                                 </a>

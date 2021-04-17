@@ -285,6 +285,18 @@ if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
                 $item .= "</a>)";
                 $categorisations[] = $item;
             }
+            if (array_key_exists("plane:call_sign", $metadata_by_key) && $metadata_by_key["plane:call_sign"]) {
+                $categorisations[] = "Call sign: {$metadata_by_key["plane:call_sign"]}";
+            }
+            if (array_key_exists("plane:hex_ident", $metadata_by_key) && $metadata_by_key["plane:hex_ident"]) {
+                $categorisations[] = "Hex ident: {$metadata_by_key["plane:hex_ident"]}";
+            }
+            if (array_key_exists("plane:operator", $metadata_by_key) && $metadata_by_key["plane:operator"]) {
+                $categorisations[] = "Operator: {$metadata_by_key["plane:operator"]}";
+            }
+            if (array_key_exists("plane:model", $metadata_by_key) && $metadata_by_key["plane:model"]) {
+                $categorisations[] = "Aircraft type: {$metadata_by_key["plane:manufacturer"]} {$metadata_by_key["plane:model"]}";
+            }
 
             if (count($categorisations) > 0) {
                 print "<h5>Object classification</h5>";

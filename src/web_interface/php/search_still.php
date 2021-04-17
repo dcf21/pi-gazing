@@ -179,7 +179,7 @@ $pageTemplate->header($pageInfo);
             </div>
             <div class="search-form-column col-lg-6">
 
-                <div style="margin-top:25px;"><span class="formlabel">Image options</span></div>
+                <div><span class="formlabel">Image options</span></div>
 
                 <div class="tooltip-holder" style="display:inline-block;">
                     <div class="checkbox" data-toggle="tooltip" data-pos="tooltip-top"

@@ -1,6 +1,6 @@
 <?php
 
-// search_satellites.php
+// search_aircraft.php
 // Pi Gazing
 // Dominic Ford
 
@@ -28,13 +28,20 @@ require_once "php/html_getargs.php";
 
 $getargs = new html_getargs(true);
 
+// Limit the width of drop-down menus
+$cssextra = <<<__HTML__
+<style media="screen" type="text/css">
+td { max-width: 200px; vertical-align: middle; }
+</style>
+__HTML__;
+
 $pageInfo = [
-    "pageTitle" => "Search for satellite sightings",
+    "pageTitle" => "Search for aircraft sightings",
     "pageDescription" => "Pi Gazing",
     "fluid" => true,
     "activeTab" => "search",
     "teaserImg" => null,
-    "cssextra" => null,
+    "cssextra" => $cssextra,
     "includes" => [],
     "linkRSS" => null,
     "options" => []
@@ -66,9 +73,9 @@ $pageTemplate->header($pageInfo);
 
     <div class="non-fluid-block">
         <p>
-            Use this form to search for satellites spotted by our cameras.
+            Use this form to search for aircraft spotted by our cameras.
         </p>
-        <form class="form-horizontal search-form" method="get" action="/search_satellites.php#results">
+        <form class="form-horizontal search-form" method="get" action="/search_aircraft.php#results">
 
             <div style="cursor:pointer;text-align:right;">
                 <button type="button" class="btn btn-secondary help-toggle">
@@ -152,15 +159,16 @@ $pageTemplate->header($pageInfo);
 
                     <div class="tooltip-holder" style="display:inline-block;">
                         <div class="checkbox" data-toggle="tooltip" data-pos="tooltip-top"
-                             title="Include unidentified satellites.">
+                             title="Include unidentified aircraft.">
                             <label>
                                 <input type="checkbox" name="flag_bgsub"
                                     <?php if ($flag_include_unidentified) echo 'checked="checked"'; ?> >
-                                Include unidentified satellites
+                                Include unidentified aircraft
                             </label>
                         </div>
                     </div>
                 </div>
+
             </div>
 
             <div style="padding:30px 0 40px 0;">
@@ -196,23 +204,30 @@ INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_metadata d ON o.uid = d.observationId AND
     d.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:duration\")
 LEFT OUTER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
-    d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"satellite:angular_offset\")
+    d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"plane:angular_offset\")
 LEFT OUTER JOIN archive_metadata d3 ON o.uid = d3.observationId AND
-    d3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"satellite:clock_offset\")
+    d3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"plane:clock_offset\")
 LEFT OUTER JOIN archive_metadata d4 ON o.uid = d4.observationId AND
-    d4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"satellite:name\")
+    d4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"plane:call_sign\")
 LEFT OUTER JOIN archive_metadata d6 ON o.uid = d6.observationId AND
-    d6.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"satellite:norad_id\")
+    d6.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"plane:hex_ident\")
+LEFT OUTER JOIN archive_metadata d7 ON o.uid = d7.observationId AND
+    d7.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"plane:operator\")
+LEFT OUTER JOIN archive_metadata d8 ON o.uid = d8.observationId AND
+    d8.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"plane:manufacturer\")
+LEFT OUTER JOIN archive_metadata d9 ON o.uid = d9.observationId AND
+    d9.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"plane:model\")
 LEFT OUTER JOIN archive_metadata d5 ON o.uid = d5.observationId AND
     d5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"web:category\")
 WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:movingObject/\")
-      AND d5.stringValue='Satellite'
+      AND d5.stringValue='Plane'
       AND " . implode(' AND ', $where));
 
     $stmt = $const->db->prepare("
 SELECT o.publicId AS observationId, o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName,
        d.floatValue AS duration, d2.floatValue AS ang_offset, d3.floatValue AS clock_offset,
-       d4.stringValue AS name, d6.floatValue AS norad_id
+       d4.stringValue AS call_sign, d6.stringValue AS hex_ident, d7.stringValue AS operator,
+       d8.stringValue AS manufacturer, d9.stringValue AS model
 FROM ${search} ORDER BY o.obsTime DESC;");
     $stmt->execute([]);
     $result_list = $stmt->fetchAll();
@@ -245,11 +260,13 @@ FROM ${search} ORDER BY o.obsTime DESC;");
                 <td>Time</td>
                 <td>Observatory</td>
                 <td>Duration<br/>(sec)</td>
-                <td>Name</td>
-                <td>Satellite ID</td>
+                <td>Call sign</td>
+                <td>Hex ident</td>
+                <td>Operator</td>
+                <td>Manufacturer</td>
+                <td>Model</td>
                 <td>Angular<br/>mismatch<br/>(deg)</td>
                 <td>Time<br/>mismatch<br/>(sec)</td>
-                <td>Path chart</td>
             </tr>
             </thead>
             <tbody>
@@ -265,21 +282,17 @@ FROM ${search} ORDER BY o.obsTime DESC;");
                 print "</td>";
                 print "<td>{$item['obstoryName']}</td>";
                 printf("<td style='text-align: right;'>%.1f</td>", $item['duration']);
-                if ($item['norad_id'] > 0) {
-                    print "<td>";
-                    print "<a href='https://in-the-sky.org/spacecraft.php?id={$item["norad_id"]}'>";
-                    print $item['name'];
-                    print "</a></td>";
-                    printf("<td style='text-align: right;'>%.0f</td>", $item['norad_id']);
+                if ($item['call_sign'] > 0) {
+                    print "<td>{$item['call_sign']}</td>";
+                    print "<td>{$item['hex_ident']}</td>";
+                    print "<td>{$item['operator']}</td>";
+                    print "<td>{$item['manufacturer']}</td>";
+                    print "<td>{$item['model']}</td>";
                     printf("<td style='text-align: right;'>%.1f</td>", $item['ang_offset']);
                     printf("<td style='text-align: right;'>%.1f</td>", $item['clock_offset']);
-                    print "<td>";
-                    $utc1 = $item['obsTime'] - 30;
-                    $utc3 = $item['obsTime'] + 60;
-                    print "<a href='https://in-the-sky.org/satpasseschart.php?utc1={$utc1}&utc3={$utc3}&satid={$item["norad_id"]}'>";
-                    print "Chart";
-                    print "</a></td>";
                 } else {
+                    print "<td style='text-align: center;'>&ndash;</td>";
+                    print "<td style='text-align: center;'>&ndash;</td>";
                     print "<td style='text-align: center;'>&ndash;</td>";
                     print "<td style='text-align: center;'>&ndash;</td>";
                     print "<td style='text-align: center;'>&ndash;</td>";
