@@ -417,9 +417,9 @@ ORDER BY ao.obsTime
             prefix=logging_prefix,
             aircraft=", ".join([
                 "{} ({:.1f} deg offset; clock offset {:.1f} sec; distance {:.1f} km)".format(aircraft['call_sign'],
-                                                                         aircraft['offset'],
-                                                                         aircraft['clock_offset'],
-aircraft['distance'])
+                                                                                             aircraft['offset'],
+                                                                                             aircraft['clock_offset'],
+                                                                                             aircraft['distance'])
                 for aircraft in candidate_aircraft
             ])
         ))

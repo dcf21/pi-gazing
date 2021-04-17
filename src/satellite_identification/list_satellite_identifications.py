@@ -100,7 +100,7 @@ WHERE
     # Display list of meteors
     for item in satellite_identifications:
         print("""\
-{:16s} {:7d} {:32s} {:26s} {:5.1f} {:10.1f} {:10.1f}\
+{:16s} {:7d} {:32s} {:26s} {:8.1f} {:10.1f} {:10.1f}\
 """.format(date_string(item['time']),
            item['norad_id'],
            item['id'],

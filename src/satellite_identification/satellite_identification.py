@@ -30,12 +30,12 @@ import argparse
 import logging
 import os
 import time
-import scipy.optimize
 from math import pi, exp, hypot
 from operator import itemgetter
 
 import MySQLdb
 import numpy as np
+import scipy.optimize
 from pigazing_helpers import connect_db
 from pigazing_helpers.dcf_ast import date_string, jd_from_unix
 from pigazing_helpers.gnomonic_project import ang_dist
