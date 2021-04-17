@@ -488,8 +488,14 @@ ORDER BY ao.obsTime
                                                                 ) * 180 / pi
                                                  ))
 
+        aircraft_operator = ""
+        if 'operator' in plane_info and plane_info['operator']:
+            aircraft_operator = plane_info['operator']
+        elif 'owner' in plane_info and plane_info['owner']:
+            aircraft_operator = plane_info['owner']
+
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
-                                    meta=mp.Meta(key="plane:operator", value=plane_info.get('owner', '')))
+                                    meta=mp.Meta(key="plane:operator", value=aircraft_operator))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="plane:model", value=plane_info.get('model', '')))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,

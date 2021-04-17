@@ -154,7 +154,7 @@ $pageTemplate->header($pageInfo);
                         <div class="checkbox" data-toggle="tooltip" data-pos="tooltip-top"
                              title="Include unidentified satellites.">
                             <label>
-                                <input type="checkbox" name="flag_bgsub"
+                                <input type="checkbox" name="show_all"
                                     <?php if ($flag_include_unidentified) echo 'checked="checked"'; ?> >
                                 Include unidentified satellites
                             </label>
@@ -187,7 +187,7 @@ if ($searching) {
     }
 
     if (!$flag_include_unidentified) {
-        $where[] = 'd4.stringValue IS NOT NULL';
+        $where[] = 'd4.stringValue IS NOT NULL AND d4.stringValue != "Unidentified"';
     }
 
     $search = ("

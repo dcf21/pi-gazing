@@ -161,7 +161,7 @@ $pageTemplate->header($pageInfo);
                         <div class="checkbox" data-toggle="tooltip" data-pos="tooltip-top"
                              title="Include unidentified aircraft.">
                             <label>
-                                <input type="checkbox" name="flag_bgsub"
+                                <input type="checkbox" name="show_all"
                                     <?php if ($flag_include_unidentified) echo 'checked="checked"'; ?> >
                                 Include unidentified aircraft
                             </label>
@@ -195,7 +195,7 @@ if ($searching) {
     }
 
     if (!$flag_include_unidentified) {
-        $where[] = 'd4.stringValue IS NOT NULL';
+        $where[] = 'd4.stringValue IS NOT NULL AND d4.stringValue != "Unidentified"';
     }
 
     $search = ("
@@ -282,7 +282,7 @@ FROM ${search} ORDER BY o.obsTime DESC;");
                 print "</td>";
                 print "<td>{$item['obstoryName']}</td>";
                 printf("<td style='text-align: right;'>%.1f</td>", $item['duration']);
-                if ($item['call_sign'] > 0) {
+                if ($item['call_sign'] && ($item['call_sign'] != "Unidentified")) {
                     print "<td>{$item['call_sign']}</td>";
                     print "<td>{$item['hex_ident']}</td>";
                     print "<td>{$item['operator']}</td>";
