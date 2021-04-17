@@ -112,7 +112,8 @@ WHERE
     # Display column headings
     print("""\
 {:16s} {:18s} {:18s} {:8s} {:10s} {:10s} {:10s} {:30s} {:30s} {:30s}\
-""".format("Time", "Call sign", "Hex ident", "Duration", "Ang offset", "Clock off", "Distance", "Operator", "Model", "Manufacturer"))
+""".format("Time", "Call sign", "Hex ident", "Duration", "Ang offset", "Clock off", "Distance", "Operator", "Model",
+           "Manufacturer"))
 
     # Display list of meteors
     for item in plane_identifications:
