@@ -383,7 +383,7 @@ ORDER BY o.obsTime;
         timestamp = time.time()
         triangulation_metadata = {
             "triangulation:speed": speed,
-            "triangulation:mean_altitude": (start_point['alt'] + end_point['alt']) / 2,
+            "triangulation:mean_altitude": (start_point['alt'] + end_point['alt']) / 2 / 1e3,  # km
             "triangulation:max_angular_offset": maximum_mismatch,
             "triangulation:max_baseline": maximum_baseline,
             "triangulation:radiant_direction": json.dumps(radiant_direction),
@@ -408,11 +408,11 @@ ORDER BY o.obsTime;
         # Report outcome
         logging.info("{prefix} -- Success -- {path}; speed {mph:11.1f} mph; {sight_lines:6d} detections.".
                      format(prefix=logging_prefix,
-                            path="{:5.1f} {:5.1f} {:10.0f} -> {:5.1f} {:5.1f} {:10.0f}".format(
-                                start_point['lat'], start_point['lng'], start_point['alt'],
-                                end_point['lat'], end_point['lng'], end_point['alt']
+                            path="{:5.1f} {:5.1f} {:10.1f} -> {:5.1f} {:5.1f} {:10.1f}".format(
+                                start_point['lat'], start_point['lng'], start_point['alt'] / 1e3,  # deg deg km
+                                end_point['lat'], end_point['lng'], end_point['alt'] / 1e3
                             ),
-                            mph=speed / 0.44704,
+                            mph=speed / 0.44704,  # mph
                             sight_lines=len(sight_line_list)
                             ))
 

@@ -43,6 +43,7 @@ from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.path_projection import PathProjection
 from pigazing_helpers.settings_read import settings, installation_info
 from pigazing_helpers.vector_algebra import Point
+from scipy.interpolate import interp1d
 
 # Constants
 feet = 0.3048  # Aircraft altitudes are given in feet
@@ -133,18 +134,38 @@ ORDER BY s.generated_timestamp;
 """, (aircraft['call_sign'], aircraft['hex_ident'], utc - search_window, utc + search_window))
         track_list = c.fetchall()
 
+        track = [{
+            'utc': point['generated_timestamp'],
+            'lat': point['lat'],
+            'lon': point['lon'],
+            'altitude': point['altitude'],
+            'ground_speed': point['ground_speed']
+        }
+            for point in track_list
+        ]
+
+        # Linearly interpolate track
+        interpolate_lat = interp1d(x=np.asarray([i['utc'] for i in track]),
+                                   y=np.asarray([i['lat'] for i in track]),
+                                   kind='linear')
+        interpolate_lon = interp1d(x=np.asarray([i['utc'] for i in track]),
+                                   y=np.asarray([i['lon'] for i in track]),
+                                   kind='linear')
+        interpolate_alt = interp1d(x=np.asarray([i['utc'] for i in track]),
+                                   y=np.asarray([i['altitude'] for i in track]),
+                                   kind='linear')
+        interpolate_spd = interp1d(x=np.asarray([i['utc'] for i in track]),
+                                   y=np.asarray([i['ground_speed'] for i in track]),
+                                   kind='linear')
+
         output.append({
             'call_sign': aircraft['call_sign'],
             'hex_ident': aircraft['hex_ident'],
-            'track': [{
-                'utc': point['generated_timestamp'],
-                'lat': point['lat'],
-                'lon': point['lon'],
-                'altitude': point['altitude'],
-                'ground_speed': point['ground_speed']
-            }
-                for point in track_list
-            ]
+            'track': track,
+            'interpolate_lat': interpolate_lat,
+            'interpolate_lon': interpolate_lon,
+            'interpolate_alt': interpolate_alt,
+            'interpolate_spd': interpolate_spd
         })
 
     # Close connection to database
@@ -155,14 +176,14 @@ ORDER BY s.generated_timestamp;
     return output
 
 
-def path_interpolate(track: list, utc: float):
+def path_interpolate(aircraft: dict, utc: float):
     """
     Interpolate the position of a plane at a particular time.
 
-    :param track:
-        A list of the positions of an aircraft.
-    :type track:
-        List<Dict>
+    :param aircraft:
+        A dictionary of database data about an aircraft.
+    :type aircraft:
+        dict
     :param utc:
         The time at which to interpolate the aircraft's position.
     :type utc:
@@ -171,36 +192,24 @@ def path_interpolate(track: list, utc: float):
         Position at the interpolated timestamp.
     """
 
+    track = aircraft['track']
     track_length = len(track)
 
     # Is time point outside time span of the track?
     if (utc < track[0]['utc']) or (utc > track[-1]['utc']):
         return None
 
-    # Find pair of track points straddling requested time
-    for index in range(track_length - 1):
-        if track[index + 1]['utc'] >= utc:
-            # If we have an exact match, return exact match.
-            if track[index]['utc'] == utc:
-                return track[index]
-            if track[index + 1]['utc'] == utc:
-                return track[index + 1]
+    # Linearly interpolate trajectory
+    output = {
+        'utc': utc,
+        'lat': aircraft['interpolate_lat'](utc),
+        'lon': aircraft['interpolate_lon'](utc),
+        'altitude': aircraft['interpolate_alt'](utc),
+        'ground_speed': aircraft['interpolate_spd'](utc),
+    }
 
-            # Do linear interpolation
-            weight_0 = abs(track[index + 1]['utc'] - utc)
-            weight_1 = abs(utc - track[index]['utc'])
-            normalisation = weight_0 + weight_1
-
-            # Do linear interpolation on all fields in turn
-            output = {}
-            for key in track[index]:
-                output[key] = (weight_0 * track[index][key] + weight_1 * track[index + 1][key]) / normalisation
-
-            # Return interpolated track point
-            return output
-
-    # Shouldn't be here
-    assert False
+    # Return interpolated track point
+    return output
 
 
 def plane_determination(utc_min, utc_max, source):
@@ -346,6 +355,7 @@ ORDER BY ao.obsTime
             # Fetch aircraft position at each time point along trajectory
             ang_mismatch_list = []
             distance_list = []
+            altitude_list = []
 
             def aircraft_angular_offset(index, clock_offset):
                 # Fetch observed position of object at this time point
@@ -354,7 +364,7 @@ ORDER BY ao.obsTime
                 observed_sight_line = sight_line_list[index]['line'].direction
 
                 # Project position of this aircraft in space at this time point
-                aircraft_position = path_interpolate(track=aircraft['track'],
+                aircraft_position = path_interpolate(aircraft=aircraft,
                                                      utc=pt_utc + clock_offset)
                 if aircraft_position is None:
                     return np.nan, np.nan
@@ -364,12 +374,14 @@ ORDER BY ao.obsTime
                                                     lng=aircraft_position['lon'],
                                                     alt=aircraft_position['altitude'] * feet,
                                                     utc=None)
+
                 # Work out offset of plane's position from observed moving object
                 aircraft_sight_line = aircraft_point.to_vector() - observatory_position.to_vector()
                 angular_offset = aircraft_sight_line.angle_with(other=observed_sight_line)  # degrees
                 distance = abs(aircraft_sight_line)
+                altitude = aircraft_position['altitude'] * feet
 
-                return angular_offset, distance
+                return angular_offset, distance, altitude
 
             def time_offset_objective(p):
                 """
@@ -386,7 +398,7 @@ ORDER BY ao.obsTime
                 clock_offset = p[0]
 
                 # Look up angular offset
-                ang_mismatch, distance = aircraft_angular_offset(index=0, clock_offset=clock_offset)
+                ang_mismatch, distance, altitude = aircraft_angular_offset(index=0, clock_offset=clock_offset)
 
                 # Return metric to minimise
                 return ang_mismatch * exp(clock_offset / 8)
@@ -410,21 +422,24 @@ ORDER BY ao.obsTime
             # Measure the offset between the plane's position and the observed position at each time point
             for index in range(path_len):
                 # Look up angular mismatch at this time point
-                ang_mismatch, distance = aircraft_angular_offset(index=index, clock_offset=clock_offset)
+                ang_mismatch, distance, altitude = aircraft_angular_offset(index=index, clock_offset=clock_offset)
 
                 # Keep list of the offsets at each recorded time point along the trajectory
                 ang_mismatch_list.append(ang_mismatch)
                 distance_list.append(distance)
+                altitude_list.append(altitude)
 
             # Consider adding this plane to list of candidates
             mean_ang_mismatch = np.mean(np.asarray(ang_mismatch_list))  # degrees
             distance_mean = np.mean(np.asarray(distance_list))  # metres
+            altitude_mean = np.mean(np.asarray(altitude_list))  # metres
 
             if mean_ang_mismatch < global_settings['max_mean_angular_mismatch']:
                 candidate_aircraft.append({
                     'call_sign': aircraft['call_sign'],  # string
                     'hex_ident': aircraft['hex_ident'],  # string
                     'distance': distance_mean / 1e3,  # km
+                    'altitude': altitude_mean / 1e3,  # km
                     'clock_offset': clock_offset,  # seconds
                     'offset': mean_ang_mismatch  # degrees
                 })
