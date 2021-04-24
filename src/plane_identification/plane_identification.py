@@ -203,10 +203,10 @@ def path_interpolate(aircraft: dict, utc: float):
     # Linearly interpolate trajectory
     output = {
         'utc': utc,
-        'lat': aircraft['interpolate_lat'](utc),
-        'lon': aircraft['interpolate_lon'](utc),
-        'altitude': aircraft['interpolate_alt'](utc),
-        'ground_speed': aircraft['interpolate_spd'](utc),
+        'lat': float(aircraft['interpolate_lat'](utc)),
+        'lon': float(aircraft['interpolate_lon'](utc)),
+        'altitude': float(aircraft['interpolate_alt'](utc)),
+        'ground_speed': float(aircraft['interpolate_spd'](utc)),
     }
 
     # Return interpolated track point
