@@ -157,6 +157,8 @@ def do_triangulation(utc_min, utc_max, utc_must_stop):
     # Count how many objects we manage to successfully fit
     outcomes = {
         'successful_fits': 0,
+        'failed_fits': 0,
+        'inadequate_baseline': 0,
         'error_records': 0,
         'rescued_records': 0,
         'insufficient_information': 0
@@ -311,6 +313,7 @@ ORDER BY o.obsTime;
                          format(prefix=logging_prefix,
                                 x=maximum_baseline
                                 ))
+            outcomes['inadequate_baseline'] += 1
             continue
 
         # Set time range of sight lines
@@ -358,6 +361,7 @@ ORDER BY o.obsTime;
                          format(prefix=logging_prefix,
                                 x=maximum_mismatch
                                 ))
+            outcomes['failed_fits'] += 1
             continue
 
         # Convert start and end points of path into (lat, lng, alt)
@@ -424,6 +428,8 @@ ORDER BY o.obsTime;
 
     # Report how many fits we achieved
     logging.info("{:d} objects successfully triangulated.".format(outcomes['successful_fits']))
+    logging.info("{:d} objects could not be triangulated.".format(outcomes['failed_fits']))
+    logging.info("{:d} objects had an inadequate baseline.".format(outcomes['inadequate_baseline']))
     logging.info("{:d} malformed database records.".format(outcomes['error_records']))
     logging.info("{:d} rescued database records.".format(outcomes['rescued_records']))
     logging.info("{:d} objects with incomplete data.".format(outcomes['insufficient_information']))

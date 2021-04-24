@@ -27,10 +27,10 @@ estimates of identity of each plane observed.
 """
 
 import argparse
+import json
 import logging
 import os
 import time
-import json
 from math import pi, exp, hypot
 from operator import itemgetter
 
@@ -368,7 +368,7 @@ ORDER BY ao.obsTime
                 aircraft_position = path_interpolate(aircraft=aircraft,
                                                      utc=pt_utc + clock_offset)
                 if aircraft_position is None:
-                    return np.nan, np.nan
+                    return np.nan, np.nan, np.nan
 
                 # Convert position to Cartesian coordinates
                 aircraft_point = Point.from_lat_lng(lat=aircraft_position['lat'],
@@ -439,9 +439,9 @@ ORDER BY ao.obsTime
                 start_time = sight_line_list[0]['utc']
                 end_time = sight_line_list[-1]['utc']
                 start_point = path_interpolate(aircraft=aircraft,
-                                                     utc=start_time + clock_offset)
+                                               utc=start_time + clock_offset)
                 end_point = path_interpolate(aircraft=aircraft,
-                                               utc=end_time + clock_offset)
+                                             utc=end_time + clock_offset)
                 candidate_aircraft.append({
                     'call_sign': aircraft['call_sign'],  # string
                     'hex_ident': aircraft['hex_ident'],  # string
