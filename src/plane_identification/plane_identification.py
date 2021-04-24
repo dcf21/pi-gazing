@@ -495,6 +495,8 @@ ORDER BY ao.obsTime
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="plane:distance", value=most_likely_aircraft['distance']))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
+                                    meta=mp.Meta(key="plane:mean_altitude", value=most_likely_aircraft['altitude']))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="plane:path_length",
                                                  value=ang_dist(ra0=path_ra_dec_at_epoch[0][0],
                                                                 dec0=path_ra_dec_at_epoch[0][1],
