@@ -30,6 +30,7 @@ import argparse
 import logging
 import os
 import time
+import json
 from math import pi, exp, hypot
 from operator import itemgetter
 
@@ -435,13 +436,21 @@ ORDER BY ao.obsTime
             altitude_mean = np.mean(np.asarray(altitude_list))  # metres
 
             if mean_ang_mismatch < global_settings['max_mean_angular_mismatch']:
+                start_time = sight_line_list[0]['utc']
+                end_time = sight_line_list[-1]['utc']
+                start_point = path_interpolate(aircraft=aircraft,
+                                                     utc=start_time + clock_offset)
+                end_point = path_interpolate(aircraft=aircraft,
+                                               utc=end_time + clock_offset)
                 candidate_aircraft.append({
                     'call_sign': aircraft['call_sign'],  # string
                     'hex_ident': aircraft['hex_ident'],  # string
                     'distance': distance_mean / 1e3,  # km
                     'altitude': altitude_mean / 1e3,  # km
                     'clock_offset': clock_offset,  # seconds
-                    'offset': mean_ang_mismatch  # degrees
+                    'offset': mean_ang_mismatch,  # degrees
+                    'start_point': start_point,
+                    'end_point': end_point
                 })
 
         # Add model possibility for null aircraft
@@ -450,8 +459,11 @@ ORDER BY ao.obsTime
                 'call_sign': "Unidentified",
                 'hex_ident': "Unidentified",
                 'distance': 0,
+                'altitude': 0,
                 'clock_offset': 0,
                 'offset': 0,
+                'start_point': None,
+                'end_point': None
             })
 
         # Sort candidates by score
@@ -496,6 +508,10 @@ ORDER BY ao.obsTime
                                     meta=mp.Meta(key="plane:distance", value=most_likely_aircraft['distance']))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="plane:mean_altitude", value=most_likely_aircraft['altitude']))
+        db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
+                                    meta=mp.Meta(key="plane:path",
+                                                 value=json.dumps([most_likely_aircraft['start_point'],
+                                                                   most_likely_aircraft['end_point']])))
         db.set_observation_metadata(user_id=user, observation_id=item['observationId'], utc=timestamp,
                                     meta=mp.Meta(key="plane:path_length",
                                                  value=ang_dist(ra0=path_ra_dec_at_epoch[0][0],

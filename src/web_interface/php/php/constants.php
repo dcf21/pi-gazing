@@ -169,6 +169,7 @@ class constants
             "plane:distance" => "Aircraft: Mean distance (km)",
             "plane:hex_ident" => "Aircraft: Hex identifier",
             "plane:mean_altitude" => "Aircraft: Mean altitude (km)",
+            "plane:path" => "Aircraft: Path",
             "plane:path_length" => "Aircraft: Track length (deg)",
             "satellite:angular_offset" => "Satellite: Angular mismatch (deg)",
             "satellite:clock_offset" => "Satellite: Ephemeris clock offset (sec)",
