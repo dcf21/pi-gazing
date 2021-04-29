@@ -1081,13 +1081,13 @@ class DeterminePointing(TaskRunner):
         if self.must_quit_by is not None:
             must_quit_string = "--stop-by {must_quit_by}".format(must_quit_by=self.must_quit_by)
 
-        command = "{python_path}/calibration/orientation_calculate.py {must_quit_string}".format(
+        command = "cd {python_path}/calibration/ ; ./orientation_calculate.py {must_quit_string}".format(
             python_path=settings['pythonPath'],
             must_quit_string=must_quit_string)
         print(command)
         os.system(command)
 
-        command = "{python_path}/calibration/orientation_daily_average.py".format(
+        command = "cd {python_path}/calibration/ ; ./orientation_daily_average.py".format(
             python_path=settings['pythonPath'])
         print(command)
         os.system(command)
