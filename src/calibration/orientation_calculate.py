@@ -47,10 +47,10 @@ import subprocess
 import time
 from math import pi, hypot
 from operator import itemgetter
-from PIL import Image
 
 import dask
 import numpy as np
+from PIL import Image
 from pigazing_helpers import connect_db, gnomonic_project, hardware_properties
 from pigazing_helpers.dcf_ast import date_string, ra_dec_from_j2000, ra_dec_to_j2000
 from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db, obsarchive_sky_area
@@ -251,9 +251,8 @@ def estimate_fit_quality(image_file, item, fit_parameters):
 
     # Read Hipparcos catalogue of stars brighter than mag 5.5
     if hipparcos_catalogue is None:
-        # Read Hipparcos catalogue of stars brighter than mag 5.5
         hipparcos_catalogue = []
-        with open("hipparcos_catalogue.json") as f:
+        with open(os.path.join(settings['pythonPath'], "calibration/hipparcos_catalogue.json")) as f:
             for line in f:
                 line = line.strip()
                 if len(line) == 0:
@@ -282,9 +281,9 @@ def estimate_fit_quality(image_file, item, fit_parameters):
                 size_x=size_x, size_y=size_y,
                 scale_x=fit_parameters['scale_x'] * deg, scale_y=fit_parameters['scale_y'] * deg,
                 pos_ang=fit_parameters['pa'] * deg,
-                barrel_k1=lens_barrel_parameters[2] if projection_pass>0 else 0,
-                barrel_k2=lens_barrel_parameters[3] if projection_pass>0 else 0,
-                barrel_k3=lens_barrel_parameters[4] if projection_pass>0 else 0
+                barrel_k1=lens_barrel_parameters[2] if projection_pass > 0 else 0,
+                barrel_k2=lens_barrel_parameters[3] if projection_pass > 0 else 0,
+                barrel_k3=lens_barrel_parameters[4] if projection_pass > 0 else 0
             )
 
             # Check if star is within field of view
@@ -324,7 +323,7 @@ def estimate_fit_quality(image_file, item, fit_parameters):
         for x in range(round(aperture[0] - aperture_radius), round(aperture[0] + aperture_radius)):
             for y in range(round(aperture[1] - aperture_radius), round(aperture[1] + aperture_radius)):
                 # Check if pixel inside aperture
-                radius = hypot(x-aperture[0], y-aperture[1])
+                radius = hypot(x - aperture[0], y - aperture[1])
                 if radius > aperture_radius:
                     continue
 

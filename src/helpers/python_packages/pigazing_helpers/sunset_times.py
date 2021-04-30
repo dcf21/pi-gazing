@@ -359,7 +359,7 @@ def mean_angle_2d(pos_list, weights):
     y_mean = sum(y_list)
     z_mean = sum(z_list)
 
-    magnitude = hypot(x_mean, y_mean, z_mean)
+    magnitude = hypot(hypot(x_mean, y_mean), z_mean)
     x_mean /= magnitude
     y_mean /= magnitude
     z_mean /= magnitude

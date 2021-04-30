@@ -185,7 +185,7 @@ parameters_image = [
 
 # Read Hipparcos catalogue of stars brighter than mag 5.5
 hipparcos_catalogue = {}
-with open("hipparcos_catalogue.json") as f:
+with open(os.path.join(settings['pythonPath'], "calibration/hipparcos_catalogue.json")) as f:
     for line in f:
         line = line.strip()
         if len(line) == 0:
