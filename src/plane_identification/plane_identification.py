@@ -135,6 +135,11 @@ ORDER BY s.generated_timestamp;
 """, (aircraft['call_sign'], aircraft['hex_ident'], utc - search_window, utc + search_window))
         track_list = c.fetchall()
 
+        # Cannot interpolate tracks with fewer than two positional fixes
+        if len(track_list) < 2:
+            continue
+
+        # Extract track from SQL
         track = [{
             'utc': point['generated_timestamp'],
             'lat': point['lat'],
