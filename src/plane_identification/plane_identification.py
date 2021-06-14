@@ -31,6 +31,7 @@ import json
 import logging
 import os
 import time
+import gzip
 from math import pi, exp, hypot
 from operator import itemgetter
 
@@ -38,7 +39,7 @@ import MySQLdb
 import numpy as np
 import scipy.optimize
 from pigazing_helpers import connect_db
-from pigazing_helpers.dcf_ast import date_string
+from pigazing_helpers.dcf_ast import date_string, inv_julian_day, jd_from_unix
 from pigazing_helpers.gnomonic_project import ang_dist
 from pigazing_helpers.obsarchive import obsarchive_model as mp, obsarchive_db
 from pigazing_helpers.path_projection import PathProjection
@@ -90,6 +91,112 @@ SELECT * FROM aircraft_hex_codes WHERE hex_ident=%s;
         result = {}
 
     return result
+
+
+def fetch_planes_from_fr24(utc):
+    """
+    Fetch list of planes from FR24 archive, at specified time.
+
+    :param utc:
+        Time for which to return aircraft (unix time).
+    :type utc:
+        float
+    :return:
+        List of dictionaries containing aircraft tracks
+    """
+
+    fr24_path = "/mnt/ganymede3/dcf21/pigazing_fr24_data/"
+    calendar_date = inv_julian_day(jd=jd_from_unix(utc=utc))
+    fr24_directory = "{0:04d}{1:02d}{2:02d}".format(*calendar_date)
+    full_path = os.path.join(fr24_path, fr24_directory)
+
+    # Aircraft list
+    aircraft_list = []
+
+    # Populate list of all planes seen on this day
+    with gzip.open(os.path.join(full_path, "{}_flights.csv.gz".format(fr24_directory)), "rt") as f:
+        for line in f:
+            # Ignore comment lines
+            line = line.strip()
+            if len(line) == 0 or line[0] == "#":
+                continue
+
+            # Extract CSV data
+            words = line.split(',')
+            try:
+                aircraft_list.append({
+                    'aircraft_uid': int(words[0]),
+                    'registration': words[2],
+                    'hex_ident': None,
+                    'aircraft_type': words[3],
+                    'call_sign': words[4],
+                    'from': words[6],
+                    'to': words[7]
+                })
+            except ValueError:
+                # logging.info("Could not parse {}".format(words))
+                continue
+
+    # logging.info("Found {:d} planes on this day".format(len(aircraft_list)))
+
+    # Read track of every plane seen on this day
+    output = []
+    for item in aircraft_list:
+        track = []
+        with gzip.open(os.path.join(full_path, "{}_{}.csv.gz".format(fr24_directory, item['aircraft_uid'])), "rt") as f:
+            for line in f:
+                # Ignore comment lines
+                line = line.strip()
+                if len(line) == 0 or line[0] == "#":
+                    continue
+
+                # Extract CSV data
+                words = line.split(',')
+                try:
+                    track.append({
+                        'utc': float(words[0]),
+                        'lat': float(words[3]),
+                        'lon': float(words[4]),
+                        'altitude': float(words[1]),
+                        'ground_speed': float(words[6])
+                    })
+                except ValueError:
+                    # logging.info("Could not parse {}".format(words))
+                    continue
+
+        # Check if this aircraft is in range
+        if len(track) < 2:
+            continue
+        search_window = 300
+        t0 = min(x['utc'] for x in track)
+        t1 = max(x['utc'] for x in track)
+        is_in_range = (t1 > utc - search_window) and (t0 < utc + search_window)
+        if not is_in_range:
+            continue
+        # logging.info("Plane {:d} seen at {} for {} sec ({} points)".
+        #              format(item['aircraft_uid'], date_string(utc=t0), t1-t0, len(track)))
+
+        # Add this to list of candidate aircraft
+        output.append(item)
+        item['track'] = track
+
+        # Linearly interpolate track
+        item['interpolate_lat'] = interp1d(x=np.asarray([i['utc'] for i in track]),
+                                           y=np.asarray([i['lat'] for i in track]),
+                                           kind='linear')
+        item['interpolate_lon'] = interp1d(x=np.asarray([i['utc'] for i in track]),
+                                           y=np.asarray([i['lon'] for i in track]),
+                                           kind='linear')
+        item['interpolate_alt'] = interp1d(x=np.asarray([i['utc'] for i in track]),
+                                           y=np.asarray([i['altitude'] for i in track]),
+                                           kind='linear')
+        item['interpolate_spd'] = interp1d(x=np.asarray([i['utc'] for i in track]),
+                                           y=np.asarray([i['ground_speed'] for i in track]),
+                                           kind='linear')
+
+    # Return final result
+    logging.info("Found {:d} candidate aircraft".format(len(output)))
+    return output
 
 
 def fetch_planes_from_adsb(utc):
@@ -334,6 +441,8 @@ ORDER BY ao.obsTime
         # Look up list of aircraft tracks at the time of this sighting
         if source == 'adsb':
             aircraft_list = fetch_planes_from_adsb(utc=item['obsTime'])
+        elif source == 'fr24':
+            aircraft_list = fetch_planes_from_fr24(utc=item['obsTime'])
         else:
             raise ValueError("Unknown source <{}>".format(source))
 
