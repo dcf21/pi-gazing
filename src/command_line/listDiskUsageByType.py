@@ -1,6 +1,6 @@
 #!../../datadir/virtualenv/bin/python3
 # -*- coding: utf-8 -*-
-# listDiskUsage.py
+# listDiskUsageByType.py
 #
 # -------------------------------------------------
 # Copyright 2015-2021 Dominic Ford
@@ -23,38 +23,23 @@
 
 """
 Search through all of the files in the database, and give a breakdown of the disk usage of different kinds
-of files, day by day.
+of moving objects.
 """
 
 import argparse
 import sys
 import time
 
-from pigazing_helpers import dcf_ast
 from pigazing_helpers.obsarchive import obsarchive_db
 from pigazing_helpers.settings_read import settings, installation_info
 
-
-def render_data_size_list(file_sizes):
-    """
-    Render a list of file sizes and their percentages of the total.
-
-    :param file_sizes:
-        A list of file sizes in bytes
-    :return:
-        Human-readable string
-    """
-    total_file_size = sum(file_sizes)
-    output = []
-    for item in file_sizes:
-        output.append("{:8.2f} MB ({:5.1f}%)".format(item / 1.e6, item * 100. / total_file_size))
-    return output
+from listDiskUsage import render_data_size_list
 
 
 def list_disk_usage(utc_min, utc_max):
     """
     Search through all of the files in the database, and give a breakdown of the disk usage of different kinds
-    of files, day by day.
+    of moving objects.
 
     :param utc_min:
         Only list disk usage after the specified unix time
@@ -75,49 +60,40 @@ def list_disk_usage(utc_min, utc_max):
 
     # Get list of files in each directory
     db.con.execute("""
-SELECT f.mimeType, f.fileTime, f.fileSize, ot.name AS semanticType
+SELECT f.mimeType, f.fileTime, f.fileSize, ot.name AS semanticType, am.stringValue AS web_type
 FROM archive_files f
 INNER JOIN archive_observations o on f.observationId = o.uid
 INNER JOIN archive_semanticTypes ot on o.obsType = ot.uid
+INNER JOIN archive_metadata am on o.uid = am.observationId
+    AND am.fieldId=(SELECT x.uid FROM archive_metadataFields x WHERE x.metaKey="web:category")
 WHERE f.fileTime BETWEEN %s AND %s;
 """, (utc_min, utc_max))
 
     # Process each file in turn
     for item in db.con.fetchall():
-        file_type = item['semanticType']  # item['mimeType']
-        date = dcf_ast.inv_julian_day(dcf_ast.jd_from_unix(item['fileTime']))
-        date_str = "{:04d} {:02d} {:02d}".format(date[0], date[1], date[2])
+        file_type = item['web_type']
         if file_type not in file_census:
-            file_census[file_type] = {}
-        if date_str not in file_census[file_type]:
-            file_census[file_type][date_str] = 0
-        file_census[file_type][date_str] += item['fileSize']
+            file_census[file_type] = 0
+        file_census[file_type] += item['fileSize']
 
     # Render quick and dirty table
     out = sys.stdout
     cols = list(file_census.keys())
     cols.sort()
-    rows = []
+
+    # Render column headings
     for col_head in cols:
-        for row_head in file_census[col_head]:
-            if row_head not in rows:
-                rows.append(row_head)
-    rows.sort()
-    for col_head in [''] + cols:
         out.write("{:25s} ".format(col_head))
     out.write("\n")
-    for row_head in rows:
-        out.write("{:25s} ".format(row_head))
-        data = []
-        for col_head in cols:
-            if row_head in file_census[col_head]:
-                data.append(file_census[col_head][row_head])
-            else:
-                data.append(0)
-        data_string = render_data_size_list(file_sizes=data)
-        for i in range(len(cols)):
-            out.write("{:25s} ".format(data_string[i]))
-        out.write("\n")
+
+    # Render data
+    data = []
+    for col_head in cols:
+        data.append(file_census[col_head])
+    data_string = render_data_size_list(file_sizes=data)
+    for i in range(len(cols)):
+        out.write("{:25s} ".format(data_string[i]))
+    out.write("\n")
 
 
 if __name__ == "__main__":

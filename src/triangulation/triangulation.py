@@ -177,39 +177,25 @@ def do_triangulation(utc_min, utc_max, utc_must_stop):
         where.append("o.obsTime<=%s")
         args.append(utc_max)
 
-    # Open connection to database
-    [db0, conn] = connect_db.connect_db()
+    # Open direct connection to database
+    conn = db.con
 
     # Search for observation groups containing groups of simultaneous detections
     conn.execute("""
-SELECT g.publicId AS groupId, o.publicId AS observationId, o.obsTime,
-       am.stringValue AS objectType, am2.stringValue AS path, am3.stringValue AS pathBezier,
-       am4.floatValue AS duration, am5.floatValue AS detections,
-       l.publicId AS observatory
+SELECT g.publicId AS groupId, o.publicId AS observationId, o.obsTime, f.repositoryFname,
+       am.stringValue AS objectType, l.publicId AS observatory
 FROM archive_obs_groups g
 INNER JOIN archive_obs_group_members m on g.uid = m.groupId
 INNER JOIN archive_observations o ON m.childObservation = o.uid
 INNER JOIN archive_observatories l ON o.observatory = l.uid
-INNER JOIN archive_files f on o.uid = f.observationId AND
+LEFT OUTER JOIN archive_files f on o.uid = f.observationId AND
     f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name="pigazing:movingObject/video")
 INNER JOIN archive_metadata am ON g.uid = am.groupId AND
     am.fieldId = (SELECT uid FROM archive_metadataFields WHERE metaKey="web:category")
-INNER JOIN archive_metadata am2 ON f.uid = am2.fileId AND
-    am2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:path")
-INNER JOIN archive_metadata am3 ON f.uid = am3.fileId AND
-    am3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:pathBezier")
-INNER JOIN archive_metadata am4 ON f.uid = am4.fileId AND
-    am4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:duration")
-INNER JOIN archive_metadata am5 ON f.uid = am5.fileId AND
-    am5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:detectionCount")
 WHERE """ + " AND ".join(where) + """
 ORDER BY o.obsTime;
 """, args)
     results = conn.fetchall()
-
-    # Close connection to database
-    conn.close()
-    db0.close()
 
     # Compile list of events into list of groups
     obs_groups = {}
@@ -245,6 +231,16 @@ ORDER BY o.obsTime;
 
         # Fetch information about each observation in turn
         for item in obs_groups[group_info['groupId']]:
+            # Fetch metadata about this object, some of which might be on the file, and some on the observation
+            obs_obj = db.get_observation(observation_id=item['observationId'])
+            obs_metadata = {item.key: item.value for item in obs_obj.meta}
+            if item['repositoryFname']:
+                file_obj = db.get_file(repository_fname=item['repositoryFname'])
+                file_metadata = {item.key: item.value for item in file_obj.meta}
+            else:
+                file_metadata = {}
+            all_metadata = {**obs_metadata, **file_metadata}
+
             # Project path from (x,y) coordinates into (RA, Dec)
             projector = PathProjection(
                 db=db,
@@ -254,10 +250,10 @@ ORDER BY o.obsTime;
             )
 
             path_x_y, path_ra_dec_at_epoch, path_alt_az, sight_line_list_this = projector.ra_dec_from_x_y(
-                path_json=item['path'],
-                path_bezier_json=item['pathBezier'],
-                detections=item['detections'],
-                duration=item['duration']
+                path_json=all_metadata['pigazing:path'],
+                path_bezier_json=all_metadata['pigazing:pathBezier'],
+                detections=all_metadata['pigazing:detectionCount'],
+                duration=all_metadata['pigazing:duration']
             )
 
             # Check for error

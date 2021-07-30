@@ -248,25 +248,39 @@ $pageTemplate->header($pageInfo);
         </tr>
     </table>
 
-<?php
-
-if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
-    $video = $files_by_type["pigazing:movingObject/video"];
-    $file_url = "/api/files/content/{$video['repositoryFname']}/{$video['fileName']}";
-    ?>
-
     <div class="row">
         <div class="col-xl-8">
-            <div class="gallery_still planetarium" style="margin-bottom: 20px;"
-                 data-meta='<?php echo json_encode($planetarium_metadata); ?>'>
-                <canvas class="PLbuf0" width="1" height="1"></canvas>
-                <video class="gallery_still_img planetarium_image" controls>
-                    <source src="<?php echo $file_url; ?>" type="video/mp4"/>
-                    Your browser does not support the video tag.
-                </video>
-            </div>
+            <?php
+
+            if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
+                $video = $files_by_type["pigazing:movingObject/video"];
+                $file_url = "/api/files/content/{$video['repositoryFname']}/{$video['fileName']}";
+                ?>
+
+                <div class="gallery_still planetarium" style="margin-bottom: 20px;"
+                     data-meta='<?php echo json_encode($planetarium_metadata); ?>'>
+                    <canvas class="PLbuf0" width="1" height="1"></canvas>
+                    <video class="gallery_still_img planetarium_image" controls>
+                        <source src="<?php echo $file_url; ?>" type="video/mp4"/>
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
 
             <?php
+            elseif (array_key_exists("pigazing:movingObject/maximumBrightness", $files_by_type)):
+                $image = $files_by_type["pigazing:movingObject/maximumBrightness"];
+                $file_url = "/api/files/content/{$image['repositoryFname']}/{$image['fileName']}";
+                ?>
+
+                <div class="gallery_still planetarium" style="margin-bottom: 20px;"
+                     data-meta='<?php echo json_encode($planetarium_metadata); ?>'>
+                    <canvas class="PLbuf0" width="1" height="1"></canvas>
+                    <img class="gallery_still_img planetarium_image" alt="" title="" src="<?php echo $file_url; ?>"/>
+                </div>
+
+            <?php
+            endif;
+
             $categorisations = [];
             if (array_key_exists("web:category", $metadata_by_key)) {
                 $categorisations[] = $metadata_by_key["web:category"];
@@ -274,7 +288,7 @@ if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
             if (array_key_exists("shower:name", $metadata_by_key)) {
                 $categorisations[] = $metadata_by_key["shower:name"];
             }
-            if (array_key_exists("satellite:norad_id", $metadata_by_key) && ($metadata_by_key["satellite:norad_id"]>0)) {
+            if (array_key_exists("satellite:norad_id", $metadata_by_key) && ($metadata_by_key["satellite:norad_id"] > 0)) {
                 $item = "<a href='https://in-the-sky.org/spacecraft.php?id={$metadata_by_key["satellite:norad_id"]}'>";
                 $item .= $metadata_by_key["satellite:name"];
                 $item .= "</a>";
@@ -283,16 +297,16 @@ if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
                 $item .= " (<a href='https://in-the-sky.org/satpasseschart.php?utc1={$utc1}&utc3={$utc3}&satid={$metadata_by_key["satellite:norad_id"]}'>";
                 $item .= "Diagram of path";
                 $item .= "</a>)";
-                $categorisations[] = $item;
+                $categorisations[] = "Satellite ID: {$item}";
             }
             if (array_key_exists("plane:call_sign", $metadata_by_key) && $metadata_by_key["plane:call_sign"]) {
-                $categorisations[] = "Call sign: {$metadata_by_key["plane:call_sign"]}";
+                $categorisations[] = "Aircraft call sign: {$metadata_by_key["plane:call_sign"]}";
             }
             if (array_key_exists("plane:hex_ident", $metadata_by_key) && $metadata_by_key["plane:hex_ident"]) {
-                $categorisations[] = "Hex ident: {$metadata_by_key["plane:hex_ident"]}";
+                $categorisations[] = "Aircraft hex ident: {$metadata_by_key["plane:hex_ident"]}";
             }
             if (array_key_exists("plane:operator", $metadata_by_key) && $metadata_by_key["plane:operator"]) {
-                $categorisations[] = "Operator: {$metadata_by_key["plane:operator"]}";
+                $categorisations[] = "Aircraft operator: {$metadata_by_key["plane:operator"]}";
             }
             if (array_key_exists("plane:model", $metadata_by_key) && $metadata_by_key["plane:model"]) {
                 $categorisations[] = "Aircraft type: {$metadata_by_key["plane:manufacturer"]} {$metadata_by_key["plane:model"]}";
@@ -388,8 +402,6 @@ if (array_key_exists("pigazing:movingObject/video", $files_by_type)):
         </div>
     </div>
 
-<?php endif; ?>
-
 <?php if ($allow_item_to_be_featured): ?>
     <h3>Administration panel: categorise this detection</h3>
 
@@ -484,7 +496,7 @@ if (count($simultaneous_events) > 0) {
 
     <h3>Status information about this detection</h3>
 <?php if (count($metadata) > 0): ?>
-    <table class="metadata" style="max-width:700px;">
+    <table class="metadata">
         <thead>
         <tr>
             <td>Property</td>

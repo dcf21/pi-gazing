@@ -17,7 +17,7 @@
     "html5shiv": "~3.7.3",
     "jquery": "~1.11.3",
     "jquery-ui": "~1.11.4",
-    "font-awesome": "fontawesome#^4.6.1",
+    "font-awesome": "fontawesome#^5.2.0",
     "tether": "^1.4.1"
   }
 }

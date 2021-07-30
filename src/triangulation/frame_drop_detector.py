@@ -77,42 +77,44 @@ def frame_drop_detection(utc_min, utc_max):
     # Status update
     logging.info("Searching for frame drops within period {} to {}".format(date_string(utc_min), date_string(utc_max)))
 
-    # Open connection to database
-    [db0, conn] = connect_db.connect_db()
+    # Open direct connection to database
+    conn = db.con
 
     # Search for meteors within this time period
     conn.execute("""
-SELECT ao.obsTime, ao.publicId AS observationId, f.repositoryFname, am.stringValue AS path, l.publicId AS observatory,
-       am3.floatValue AS video_start_utc, am4.floatValue AS duration, am5.floatValue AS detections,
-       am6.stringValue AS type
-FROM archive_files f
-INNER JOIN archive_observations ao ON f.observationId = ao.uid
+SELECT ao.obsTime, ao.publicId AS observationId, f.repositoryFname, l.publicId AS observatory, am6.stringValue AS type
+FROM archive_observations ao
+LEFT OUTER JOIN archive_files f ON (ao.uid = f.observationId AND
+    f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name="pigazing:movingObject/video"))
 INNER JOIN archive_observatories l ON ao.observatory = l.uid
-INNER JOIN archive_metadata am ON f.uid = am.fileId AND
-    am.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:path")
-INNER JOIN archive_metadata am4 ON f.uid = am4.fileId AND
-    am4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:duration")
-INNER JOIN archive_metadata am3 ON f.uid = am3.fileId AND
-    am3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:videoStart")
-INNER JOIN archive_metadata am5 ON f.uid = am5.fileId AND
-    am5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey="pigazing:detectionCount")
 LEFT OUTER JOIN archive_metadata am6 ON ao.uid = am6.observationId AND
     am6.fieldId = (SELECT uid FROM archive_metadataFields WHERE metaKey="web:category")
-WHERE ao.obsTime BETWEEN %s AND %s
-    AND f.semanticType=(SELECT uid FROM archive_semanticTypes WHERE name="pigazing:movingObject/video")
+WHERE ao.obsType=(SELECT uid FROM archive_semanticTypes WHERE name='pigazing:movingObject/') AND
+      ao.obsTime BETWEEN %s AND %s
 ORDER BY ao.obsTime
 """, (utc_min, utc_max))
     results = conn.fetchall()
-
-    # Close connection to database
-    conn.close()
-    db0.close()
 
     # Display logging list of the videos we are going to work on
     logging.info("Searching for dropped frames within {:d} videos.".format(len(results)))
 
     # Analyse each video in turn
     for item_index, item in enumerate(results):
+        # Fetch metadata about this object, some of which might be on the file, and some on the observation
+        obs_obj = db.get_observation(observation_id=item['observationId'])
+        obs_metadata = {item.key: item.value for item in obs_obj.meta}
+        if item['repositoryFname']:
+            file_obj = db.get_file(repository_fname=item['repositoryFname'])
+            file_metadata = {item.key: item.value for item in file_obj.meta}
+        else:
+            file_metadata = {}
+        all_metadata = {**obs_metadata, **file_metadata}
+
+        # Check we have all required metadata
+        if ('pigazing:path' not in all_metadata) or ('pigazing:videoStart' not in all_metadata):
+            logging.info("Cannot process <{}> due to inadequate metadata.".format(item['observationId']))
+            continue
+
         # Make ID string to prefix to all logging messages about this event
         logging_prefix = "{date} [{obs}/{type:16s}]".format(
             date=date_string(utc=item['obsTime']),
@@ -121,7 +123,7 @@ ORDER BY ao.obsTime
         )
 
         # Read path of the moving object in pixel coordinates
-        path_json = item['path']
+        path_json = all_metadata['pigazing:path']
         try:
             path_x_y = json.loads(path_json)
         except json.decoder.JSONDecodeError:
@@ -134,8 +136,8 @@ ORDER BY ao.obsTime
                 # logging.info("{prefix} -- RESCUE: In: {detections:.0f} / {duration:.1f} sec; "
                 #              "Rescued: {count:d} / {json_span:.1f} sec".format(
                 #     prefix=logging_prefix,
-                #     detections=item['detections'],
-                #     duration=item['duration'],
+                #     detections=all_metadata['pigazing:detections'],
+                #     duration=all_metadata['pigazing:duration'],
                 #     count=len(path_x_y),
                 #     json_span=path_x_y[-1][3] - path_x_y[0][3]
                 # ))
@@ -171,7 +173,7 @@ ORDER BY ao.obsTime
             median_speed = max(np.median(path_speed[scan_min:scan_max]), 1)
             if (path_distance[i] > 16) and (path_speed[i] > 4 * median_speed):
                 break_time = np.mean([path_x_y[i + 1][3], path_x_y[i][3]])
-                video_time = break_time - item['video_start_utc']
+                video_time = break_time - all_metadata['pigazing:videoStart']
                 break_distance = path_distance[i]
                 # significance = path_speed[i]/median_speed
                 frame_drop_points.append(

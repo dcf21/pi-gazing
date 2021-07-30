@@ -48,7 +48,7 @@ if (array_key_exists("page", $_GET) && is_numeric($_GET["page"])) $pageNum = $_G
 // Read which time range to cover
 $day = 86400;
 $t2 = (floor(time() / $day) + 0.5) * $day;
-$t1 = $t2 - 90 * $day; // Default span of 90 days
+$t1 = $t2 - 14 * $day; // Default span of 14 days
 $tmin = $getargs->readTime('year1', 'month1', 'day1', 'hour1', 'min1', null, $const->yearMin, $const->yearMax, $t1);
 $tmax = $getargs->readTime('year2', 'month2', 'day2', 'hour2', 'min2', null, $const->yearMin, $const->yearMax, $t2);
 
@@ -97,7 +97,7 @@ $pageTemplate->header($pageInfo);
 
         <div style="cursor:pointer;text-align:right;">
             <button type="button" class="btn btn-secondary help-toggle">
-                <i class="fa fa-info-circle" aria-hidden="true"></i>
+                <i class="fas fa-info-circle" aria-hidden="true"></i>
                 Show tips
             </button>
         </div>
@@ -246,6 +246,8 @@ if ($searching) {
     if ($item_category != "Any") {
         if ($item_category == "Not set") {
             $where[] = 'd5.stringValue IS NULL';
+        } else if ($item_category == "Exclude binned observations") {
+            $where[] = 'd5.stringValue != "Bin"';
         } else {
             $where[] = 'd5.stringValue="' . $item_category . '"';
         }
@@ -259,12 +261,6 @@ INNER JOIN archive_observatories l ON o.observatory = l.uid
 INNER JOIN archive_metadata d ON o.uid = d.observationId AND
     d.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:duration\") AND
     d.floatValue>={$duration_min} AND d.floatValue<={$duration_max}
-LEFT OUTER JOIN archive_metadata d2 ON o.uid = d2.observationId AND
-    d2.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:pathBezier\")
-LEFT OUTER JOIN archive_metadata d3 ON o.uid = d3.observationId AND
-    d3.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:width\")
-LEFT OUTER JOIN archive_metadata d4 ON o.uid = d4.observationId AND
-    d4.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"pigazing:height\")
 LEFT OUTER JOIN archive_metadata d5 ON o.uid = d5.observationId AND
     d5.fieldId=(SELECT uid FROM archive_metadataFields WHERE metaKey=\"web:category\")
 WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:movingObject/\")
@@ -282,9 +278,8 @@ WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:m
 
     if ($result_count > 0) {
         $stmt = $const->db->prepare("
-SELECT f.repositoryFname, f.fileName, o.publicId AS observationId,
-o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType,
-d2.stringValue AS path, d3.floatValue AS width, d4.floatValue AS height, d5.stringValue AS classification
+SELECT f.repositoryFname, f.fileName, o.publicId AS observationId, o.uid AS observationUid, o.obsTime,
+       l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType, d5.stringValue AS classification
 FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
         $stmt->execute([]);
         $result_list = $stmt->fetchAll();
@@ -292,14 +287,51 @@ FROM ${search} ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
 
     $gallery_items = [];
     foreach ($result_list as $item) {
+        // Look up observation metadata
+        $stmt = $const->db->prepare("
+SELECT mf.metaKey, m.floatValue, m.stringValue
+FROM archive_metadata m
+INNER JOIN archive_metadataFields mf ON m.fieldId = mf.uid
+WHERE observationId=:i;");
+        $stmt->bindParam(':i', $i, PDO::PARAM_INT);
+        $stmt->execute(['i' => $item['observationUid']]);
+        $metadata_observation = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $metadata_observation[$row['metaKey']] = $row['stringValue'] ? $row['stringValue'] : $row['floatValue'];
+        }
+
+        // See if video exists
+        $stmt = $const->db->prepare("
+SELECT COUNT(*)
+FROM archive_files
+WHERE observationId=:i AND semanticType=(SELECT uid FROM archive_semanticTypes WHERE
+                                         name='pigazing:movingObject/video');");
+        $stmt->bindParam(':i', $i, PDO::PARAM_INT);
+        $stmt->execute(['i' => $item['observationUid']]);
+        $videoExists = $stmt->fetchAll()[0]['COUNT(*)'];
+
+        // Create caption text
+        $icon_body = "";
+        if ($videoExists) {
+            $icon_body = "
+<div style='float: right; text-align: right; margin: 2px 10px; line-height: 130%;'>
+    <div class='gallery_image_icon' style='background: #ed028c;' title='This observation has a video.'>
+        <i class='fas fa-video'></i>
+    </div>
+</div>
+";
+        }
+        $caption_body = $item['obstoryName'] . "<br/>" . date("d M Y \\a\\t H:i:s", $item['obsTime']);
+
+        // Add gallery item
         $gallery_items[] = [
             "fileId" => $item['repositoryFname'],
             "filename" => $item['fileName'],
-            "caption" => $item['obstoryName'] . "<br/>" . date("d M Y \\a\\t H:i:s", $item['obsTime']),
+            "caption" => "${icon_body}<div style='overflow: hidden;'>${caption_body}</div>",
             "hover" => null,
-            "path" => $item['path'],
-            "image_width" => $item['width'],
-            "image_height" => $item['height'],
+            "path" => $metadata_observation['pigazing:pathBezier'],
+            "image_width" => $metadata_observation['pigazing:width'],
+            "image_height" => $metadata_observation['pigazing:height'],
             "classification" => $item['classification'],
             "linkId" => $item['observationId'],
             "mimeType" => $item['mimeType']

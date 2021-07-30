@@ -61,7 +61,7 @@ class html_getargs
         $this->months = $output;
 
         // Create list of event categories
-        $this->category_list = array_merge(["Any"], $const->item_categories);
+        $this->category_list = array_merge(["Any", "Exclude binned observations"], $const->item_categories);
 
         // Fetch list of observatories from database
         $stmt = $const->db->prepare("
@@ -112,7 +112,7 @@ SELECT publicId, name, ST_X(location) AS longitude, ST_Y(location) AS latitude F
     public function readCategory($argName)
     {
         if (array_key_exists($argName, $_GET) && is_string($_GET[$argName])) $category = $_GET[$argName];
-        else $category = "Any";
+        else $category = "Exclude binned observations";
         if (!in_array($category, $this->category_list)) $category = $this->category_list[0];
         if (!in_array($category, $this->category_list)) die ("Could not find any event categories.");
         return $category;

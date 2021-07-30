@@ -136,7 +136,7 @@ WHERE l.publicId=:o AND f.metaKey=:k AND m.time BETWEEN :x AND :y;");
 <div class='bg_medium_blue'
      style='position: absolute; top: 14px; right: 10px; z-index:2; padding: 4px; border-radius: 2px;'
      title='This observatory achieved a positional fix from {$items[0]['floatValue']} images.'>
-    <i class='fa fa-crosshairs'></i>
+    <i class='fas fa-crosshairs'></i>
 </div>";
         } else {
             $text = "";
@@ -246,7 +246,7 @@ $pageTemplate->header($pageInfo);
                     <input type="hidden" name="id" value="<?php echo $obstory; ?>"/>
                     <input type="hidden" name="year" value="<?php echo $year; ?>"/>
                     <button type="submit" class="btn btn-secondary">
-                        <i class="fa fa-calendar" aria-hidden="true"></i>
+                        <i class="fas fa-calendar" aria-hidden="true"></i>
                         Whole year view
                     </button>
                 </form>

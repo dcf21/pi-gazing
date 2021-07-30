@@ -157,7 +157,7 @@ $pageTemplate->header($pageInfo);
                 <form action="observatory_activity_all.php">
                     <input type="hidden" name="year" value="<?php echo $year; ?>"/>
                     <button type="submit" class="btn btn-secondary">
-                        <i class="fa fa-calendar" aria-hidden="true"></i>
+                        <i class="fas fa-calendar" aria-hidden="true"></i>
                         Show all cameras
                     </button>
                 </form>

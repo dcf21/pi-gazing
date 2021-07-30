@@ -230,7 +230,7 @@ __HTML__;
             <link rel="stylesheet" href="<?php echo $server; ?>vendor/bootstrap/dist/css/bootstrap.min.css">
             <script src="<?php echo $server; ?>vendor/bootstrap/dist/js/bootstrap.min.js"></script>
 
-            <link rel="stylesheet" href="<?php echo $server; ?>vendor/font-awesome/css/font-awesome.min.css">
+            <link rel="stylesheet" href="<?php echo $server; ?>vendor/font-awesome/css/all.min.css">
 
             <link rel="stylesheet" type="text/css" href="<?php echo $server; ?>css/style.css" media="all"/>
 
@@ -263,12 +263,12 @@ __HTML__;
             <div class="container-fluid">
                 <button class="navbar-toggler hidden-md-up" type="button"
                         data-toggle="collapse" data-target="#collapsing-navbar">
-                    <i class="fa fa-bars" aria-hidden="true"></i>
+                    <i class="fas fa-bars" aria-hidden="true"></i>
                 </button>
                 <div class="collapse in" id="collapsing-navbar">
 
                     <a class="navbar-brand" style="padding-right:25px;" href="<?php echo $server; ?>">
-                        <i class="fa fa-home" aria-hidden="true"></i>
+                        <i class="fas fa-home" aria-hidden="true"></i>
                     </a>
 
                     <ul class="nav navbar-nav">
@@ -355,9 +355,9 @@ __HTML__;
                         <li class="nav-item <?php if ($pageInfo["activeTab"] == "login") echo "active "; ?>">
                             <a class="nav-link" href="<?php echo $server; ?>user/login.php">
                                 <?php if (is_null($user->username)): ?>
-                                    <i class="fa fa-user-plus" aria-hidden="true"></i>&nbsp;Log in
+                                    <i class="fas fa-user-plus" aria-hidden="true"></i>&nbsp;Log in
                                 <?php else: ?>
-                                    <i class="fa fa-user" aria-hidden="true"></i>&nbsp;Your account
+                                    <i class="fas fa-user" aria-hidden="true"></i>&nbsp;Your account
                                 <?php endif; ?>
                             </a>
                         </li>
@@ -551,7 +551,7 @@ __HTML__;
             <?php if ($show_paths): ?>
                 <div style="cursor:pointer;text-align:right;margin:16px 0;">
                     <button type="button" class="btn btn-secondary paths-toggle">
-                        <i class="fa fa-info-circle" aria-hidden="true"></i>
+                        <i class="fas fa-info-circle" aria-hidden="true"></i>
                         Show position markers
                     </button>
                 </div>

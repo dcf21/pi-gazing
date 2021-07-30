@@ -80,7 +80,7 @@ $pageTemplate->header($pageInfo);
 
         <div style="cursor:pointer;text-align:right;">
             <button type="button" class="btn btn-secondary help-toggle">
-                <i class="fa fa-info-circle" aria-hidden="true"></i>
+                <i class="fas fa-info-circle" aria-hidden="true"></i>
                 Show tips
             </button>
         </div>
@@ -203,6 +203,8 @@ WHERE x1.groupId=g.uid AND x3.publicId=%s)' % $obstory;
     if ($item_category != "Any") {
         if ($item_category == "Not set") {
             $where[] = 'd5.stringValue IS NULL';
+        } else if ($item_category == "Exclude binned observations") {
+            $where[] = 'd5.stringValue != "Bin"';
         } else {
             $where[] = 'd5.stringValue="' . $item_category . '"';
         }

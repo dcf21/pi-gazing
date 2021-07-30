@@ -79,7 +79,7 @@ $pageTemplate->header($pageInfo);
 
             <div style="cursor:pointer;text-align:right;">
                 <button type="button" class="btn btn-secondary help-toggle">
-                    <i class="fa fa-info-circle" aria-hidden="true"></i>
+                    <i class="fas fa-info-circle" aria-hidden="true"></i>
                     Show tips
                 </button>
             </div>

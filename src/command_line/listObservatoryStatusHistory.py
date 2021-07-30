@@ -22,7 +22,7 @@
 # -------------------------------------------------
 
 """
-Lists all of the metadata updates posted by a particular observatory between two given unix times
+List all the metadata updates posted by a particular observatory between two given unix times.
 """
 
 import argparse
@@ -36,6 +36,18 @@ from pigazing_helpers.settings_read import settings, installation_info
 
 
 def list_observatory_status(utc_min, utc_max, obstory):
+    """
+    List all the metadata updates posted by a particular observatory between two given unix times.
+
+    :param utc_min:
+        Only list metadata updates after the specified unix time
+    :param utc_max:
+        Only list metadata updates before the specified unix time
+    :param obstory:
+        ID of the observatory we are to list events from
+    :return:
+        None
+    """
     # Open connection to image archive
     db = obsarchive_db.ObservationDatabase(file_store_path=settings['dbFilestore'],
                                            db_host=installation_info['mysqlHost'],

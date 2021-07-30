@@ -48,7 +48,7 @@ if (array_key_exists("page", $_GET) && is_numeric($_GET["page"])) $pageNum = $_G
 // Read which time range to cover
 $day = 86400;
 $t2 = (floor(time() / $day) + 0.5) * $day;
-$t1 = $t2 - 90 * $day; // Default span of 90 days
+$t1 = $t2 - 14 * $day; // Default span of 14 days
 $tmin = $getargs->readTime('year1', 'month1', 'day1', 'hour1', 'min1', null, $const->yearMin, $const->yearMax, $t1);
 $tmax = $getargs->readTime('year2', 'month2', 'day2', 'hour2', 'min2', null, $const->yearMin, $const->yearMax, $t2);
 
@@ -97,7 +97,7 @@ $pageTemplate->header($pageInfo);
 
         <div style="cursor:pointer;text-align:right;">
             <button type="button" class="btn btn-secondary help-toggle">
-                <i class="fa fa-info-circle" aria-hidden="true"></i>
+                <i class="fas fa-info-circle" aria-hidden="true"></i>
                 Show tips
             </button>
         </div>
@@ -272,7 +272,8 @@ WHERE o.obsType = (SELECT uid FROM archive_semanticTypes WHERE name=\"pigazing:t
 
     if ($result_count > 0) {
         $stmt = $const->db->prepare("
-SELECT f.repositoryFname, f.fileName, o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType
+SELECT f.repositoryFname, f.fileName, o.obsTime, l.publicId AS obstoryId, l.name AS obstoryName, f.mimeType AS mimeType,
+       o.positionAngle IS NOT NULL AS plateSolved
 FROM ${search}
 ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
         $stmt->execute([]);
@@ -281,9 +282,21 @@ ORDER BY o.obsTime DESC LIMIT {$pageSize} OFFSET {$pageSkip};");
 
     $gallery_items = [];
     foreach ($result_list as $item) {
+        $plate_solution_body = "";
+        if ($item['plateSolved']) {
+            $plate_solution_body = "
+<div style='float: right; text-align: right; margin: 2px 10px; line-height: 130%;'>
+    <div class='gallery_image_icon' style='background: #0a0;' title='This image has plate-solved.'>
+        <i class='fas fa-crosshairs'></i>
+    </div>
+</div>
+";
+        }
+        $caption_body = $item['obstoryName'] . "<br/>" . date("d M Y \\a\\t H:i", $item['obsTime']);
+
         $gallery_items[] = ["fileId" => $item['repositoryFname'],
             "filename" => $item["fileName"],
-            "caption" => $item['obstoryName'] . "<br/>" . date("d M Y \\a\\t H:i", $item['obsTime']),
+            "caption" => "${plate_solution_body}<div style='overflow: hidden;'>${caption_body}</div>",
             "hover" => null,
             "linkId" => $item['repositoryFname'],
             "mimeType" => $item['mimeType']];
