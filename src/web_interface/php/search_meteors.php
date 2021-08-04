@@ -65,7 +65,7 @@ $pageTemplate->header($pageInfo);
 ?>
 
     <div class="non-fluid-block">
-        <div class="tabselect_holder">
+        <div class="tabselect_holder" style="margin-top:16px;">
             <ul class="nav nav-tabs">
                 <li class="nav-item">
                     <a class="nav-link active" href="#">Meteor sightings</a>
@@ -76,9 +76,6 @@ $pageTemplate->header($pageInfo);
             </ul>
         </div>
 
-        <p>
-            Use this form to search for meteors sighted by our cameras.
-        </p>
         <form class="form-horizontal search-form" method="get" action="/search_meteors.php#results">
 
             <div style="cursor:pointer;text-align:right;">
@@ -198,7 +195,7 @@ if ($searching) {
     }
 
     if (!$flag_include_unidentified) {
-        $where[] = 'd4.stringValue IS NOT NULL AND d4.stringValue != "Unidentified"';
+        $where[] = 'd2.stringValue IS NOT NULL AND d2.stringValue != "Sporadic"';
     }
 
     $search = ("

@@ -61,7 +61,7 @@ $pageTemplate->header($pageInfo);
 ?>
 
     <div class="non-fluid-block">
-        <div class="tabselect_holder">
+        <div class="tabselect_holder" style="margin-top:16px;">
             <ul class="nav nav-tabs">
                 <li class="nav-item">
                     <a class="nav-link" href="/search_meteors.php">Meteor sightings</a>
@@ -72,9 +72,6 @@ $pageTemplate->header($pageInfo);
             </ul>
         </div>
 
-        <p>
-            Use this form to query meteor sighting statistics.
-        </p>
         <form class="form-horizontal search-form" method="get" action="/search_meteors_count.php#results">
 
             <div style="cursor:pointer;text-align:right;">
