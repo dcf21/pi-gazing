@@ -1,6 +1,6 @@
 <?php
 
-// search_meteors.php
+// search_meteors_count.php
 // Pi Gazing
 // Dominic Ford
 
@@ -29,7 +29,7 @@ require_once "php/html_getargs.php";
 $getargs = new html_getargs(true);
 
 $pageInfo = [
-    "pageTitle" => "Search for meteor sightings",
+    "pageTitle" => "Meteor sighting statistics",
     "pageDescription" => "Pi Gazing",
     "fluid" => true,
     "activeTab" => "search",
@@ -45,10 +45,6 @@ $t2 = time();
 $t1 = $t2 - 3600 * 24 * 365;
 $tmin = $getargs->readTime('year1', 'month1', 'day1', 'hour1', 'min1', null, $const->yearMin, $const->yearMax, $t1);
 $tmax = $getargs->readTime('year2', 'month2', 'day2', 'hour2', 'min2', null, $const->yearMin, $const->yearMax, $t2);
-
-// Read switch for showing sporadic events
-$flag_include_unidentified = 0;
-if (array_key_exists("show_all", $_GET)) $flag_include_unidentified = 1;
 
 // Which observatory are we searching for images from?
 $obstory = $getargs->readObservatory("obstory");
@@ -68,18 +64,18 @@ $pageTemplate->header($pageInfo);
         <div class="tabselect_holder">
             <ul class="nav nav-tabs">
                 <li class="nav-item">
-                    <a class="nav-link active" href="#">Meteor sightings</a>
+                    <a class="nav-link" href="/search_meteors.php">Meteor sightings</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/search_meteors_count.php">Meteor shower statistics</a>
+                    <a class="nav-link active" href="#">Meteor shower statistics</a>
                 </li>
             </ul>
         </div>
 
         <p>
-            Use this form to search for meteors sighted by our cameras.
+            Use this form to query meteor sighting statistics.
         </p>
-        <form class="form-horizontal search-form" method="get" action="/search_meteors.php#results">
+        <form class="form-horizontal search-form" method="get" action="/search_meteors_count.php#results">
 
             <div style="cursor:pointer;text-align:right;">
                 <button type="button" class="btn btn-secondary help-toggle">
@@ -88,7 +84,7 @@ $pageTemplate->header($pageInfo);
                 </button>
             </div>
             <div class="row">
-                <div class="search-form-column col-lg-6">
+                <div class="search-form-column col-lg-12">
 
                     <div><span class="formlabel">Time of observation</span></div>
                     <div class="tooltip-holder">
@@ -158,20 +154,6 @@ $pageTemplate->header($pageInfo);
                     </div>
 
                 </div>
-                <div class="search-form-column col-lg-6">
-                    <div><span class="formlabel">Search options</span></div>
-
-                    <div class="tooltip-holder" style="display:inline-block;">
-                        <div class="checkbox" data-toggle="tooltip" data-pos="tooltip-top"
-                             title="Include sporadic meteors.">
-                            <label>
-                                <input type="checkbox" name="show_all"
-                                    <?php if ($flag_include_unidentified) echo 'checked="checked"'; ?> >
-                                Include sporadic meteors
-                            </label>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <div style="padding:30px 0 40px 0;">
@@ -195,10 +177,6 @@ if ($searching) {
 
     if ($obstory != "Any") {
         $where[] = 'l.publicId="' . $obstory . '"';
-    }
-
-    if (!$flag_include_unidentified) {
-        $where[] = 'd4.stringValue IS NOT NULL AND d4.stringValue != "Unidentified"';
     }
 
     $search = ("
@@ -243,36 +221,39 @@ FROM ${search} ORDER BY o.obsTime DESC;");
         </div>
         <?php
 
+        // Work out number of meteors within each shower
+        $meteor_showers = [];
+
+        foreach ($result_list as $item) {
+            $name = $item['shower_name'];
+            if (!array_key_exists($name, $meteor_showers)) {
+                $meteor_showers[$name] = [
+                    "name" => $name,
+                    "count" => 0
+                ];
+            }
+            $meteor_showers[$name]["count"]++;
+        }
+
+        ksort($meteor_showers);
+
         // Display results table
         ?>
         <table class="stripy stripy2 bordered bordered_slim" style="margin:8px auto;">
             <thead>
             <tr>
-                <td>Time</td>
-                <td>Observatory</td>
-                <td>Duration<br/>(sec)</td>
-                <td>Parent shower</td>
-                <td>Path length</td>
+                <td>Meteor shower</td>
+                <td>Number of<br/>meteors</td>
             </tr>
             </thead>
             <tbody>
             <?php
-            foreach ($result_list as $item) {
+            foreach ($meteor_showers as $shower_name => $item) {
                 print "<tr>";
-                print "<td>";
-                print "<a href='/moving_obj.php?id={$item['observationId']}'>";
-                print date("d M Y", $item['obsTime']);
-                print "&nbsp;&nbsp;&nbsp;";
-                print date("H:i:s", $item['obsTime']);
-                print "</a>";
-                print "</td>";
-                print "<td>{$item['obstoryName']}</td>";
-                printf("<td style='text-align: right;'>%.1f</td>", $item['duration']);
-                printf("<td>%s</td>", $item['shower_name']);
-                printf("<td style='text-align: right;'>%.1f&deg;</td>", $item['path_length']);
+                print "<td>{$item['name']}</td>";
+                print "<td style='text-align: right;'>{$item['count']}</td>";
                 print "</tr>\n";
             }
-
             ?>
             </tbody>
         </table>
