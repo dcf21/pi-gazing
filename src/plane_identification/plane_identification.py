@@ -127,7 +127,7 @@ def fetch_planes_from_fr24(utc):
                 aircraft_list.append({
                     'aircraft_uid': int(words[0]),
                     'registration': words[2],
-                    'hex_ident': None,
+                    'hex_ident': "Unknown",
                     'aircraft_type': words[3],
                     'call_sign': words[4],
                     'from': words[6],
