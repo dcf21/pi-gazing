@@ -6,6 +6,12 @@
   <radial_distortion>[74.49560066,  58.37590972,  -0.1649026918,  -0.0000283967,  -0.0000000047]</radial_distortion>
  </lens>
  <lens>
+  <name>f1.6_cctv_lens_v2</name>
+  <comment>Lens installed in Cambridge-East-0 16 August 2021</comment>
+  <fov>74</fov>
+  <radial_distortion>[74.49560066,  58.37590972,  -0.1649026918,  -0.0000283967,  -0.0000000047]</radial_distortion>
+ </lens>
+ <lens>
   <name>siemens_f1.2</name>
   <comment>Siemens 1/2" F1.2 4-12mm Varifocal Auto Iris C Mount CCTV Lens - Installed Feb 2020</comment>
   <fov>73</fov>

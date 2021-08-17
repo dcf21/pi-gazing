@@ -24,6 +24,6 @@
         <observatoryName>Cambridge-East-0</observatoryName>
         <owner>dcf21</owner>
         <defaultCamera>watec_902h2_ultimate</defaultCamera>
-        <defaultLens>kvr0412</defaultLens>
+        <defaultLens>f1.6_cctv_lens_v2</defaultLens>
     </observatory>
 </observatories>
