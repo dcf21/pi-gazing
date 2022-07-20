@@ -159,7 +159,7 @@ def add_routes(obsarchive_app, url_path=''):
         if not os.path.exists(thumb_path):
             os.system("convert {} -scale 300 {}".format(file_path, thumb_path))
         db.close_db()
-        return send_file(filename_or_fp=thumb_path, mimetype=record.mime_type)
+        return send_file(thumb_path, mimetype=record.mime_type)
 
     # Return a file from the repository
     @app.route('{0}/files/content/<file_id>/<file_name>'.format(url_path), methods=['GET'])
