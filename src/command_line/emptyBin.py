@@ -95,6 +95,7 @@ WHERE o.publicId=%s;
 
         if featured_file_count > 0:
             logging.info("Not pruning observation <{}> because it is featured.".format(observation['obs_id']))
+            continue
 
         # Keep track of total file size we are deleting
         total_file_size += observation['fileSize']
