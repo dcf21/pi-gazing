@@ -62,6 +62,4 @@ pip install toolz cytoolz dask distributed bokeh
 
 # Install custom python libraries
 cd ${cwd}
-cd src/helpers/python_packages
-rm -Rf build dist *.egg-info  # Clear out the cache to make sure we install latest version of code
-python setup.py develop
+pip install --editable src/helpers/python_packages --no-binary :all:
