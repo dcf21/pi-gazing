@@ -28,7 +28,7 @@ from .vendor import xmltodict
 
 # Fetch path to local installation settings
 our_path = os.path.abspath(__file__)
-root_path = re.match(r"(.*/src/)", our_path).group(1)
+root_path = os.path.join(re.match(r"(.*/src/)", our_path).group(1), "../../..")
 if not os.path.exists(os.path.join(root_path, "../configuration_local/installation_settings.conf")):
     sys.stderr.write(
         "You must create a file <configuration_local/installation_settings.conf> with local camera settings.\n")
